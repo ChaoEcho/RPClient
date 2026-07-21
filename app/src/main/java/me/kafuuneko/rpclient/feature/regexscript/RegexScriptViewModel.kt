@@ -183,6 +183,27 @@ class RegexScriptViewModel :
         }
     }
 
+    /** 在内存中即时重排脚本顺序（0ms 交互，无磁盘 I/O 阻塞）。 */
+    @UiIntentObserver(RegexScriptUiIntent.ReorderScript::class)
+    private fun onReorderScript(intent: RegexScriptUiIntent.ReorderScript) {
+        val state = getOrNull<RegexScriptUiState.Normal>() ?: return
+        if (intent.fromIndex !in state.scripts.indices || intent.toIndex !in state.scripts.indices) return
+        if (intent.fromIndex == intent.toIndex) return
+        val updatedList = state.scripts.toMutableList().apply {
+            add(intent.toIndex, removeAt(intent.fromIndex))
+        }
+        state.copy(scripts = updatedList).setup()
+    }
+
+    /** 拖拽结束松手时，将最终的内存脚本顺序批量写入存储库。 */
+    @UiIntentObserver(RegexScriptUiIntent.CommitScriptOrder::class)
+    private suspend fun onCommitScriptOrder() {
+        val state = getOrNull<RegexScriptUiState.Normal>() ?: return
+        val target = state.targetOrNull() ?: return
+        val finalScripts = state.scripts
+        mutateScripts(target) { _ -> finalScripts }
+    }
+
     /** 每次表单变化都重新编译 Find Regex，向 UI 返回即时错误。 */
     @UiIntentObserver(RegexScriptUiIntent.UpdateDraft::class)
     private fun onUpdateDraft(intent: RegexScriptUiIntent.UpdateDraft) {

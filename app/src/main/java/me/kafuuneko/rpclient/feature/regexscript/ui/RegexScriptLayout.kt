@@ -3,9 +3,6 @@ package me.kafuuneko.rpclient.feature.regexscript.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import me.kafuuneko.rpclient.ui.widgets.DraggableItem
+import me.kafuuneko.rpclient.ui.widgets.dragContainer
+import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -158,11 +159,30 @@ private fun RegexScriptNormal(
             }
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        val scriptKeys = remember(state.scripts) { state.scripts.map { it.id }.toSet() }
+        val dragDropState = rememberLazyListDragDropState(
+            lazyListState = listState,
+            isItemDraggable = { key -> key in scriptKeys },
+            onMove = { fromKey, toKey ->
+                val fromIndex = state.scripts.indexOfFirst { it.id == fromKey }
+                val toIndex = state.scripts.indexOfFirst { it.id == toKey }
+                if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
+                    emitIntent(RegexScriptUiIntent.ReorderScript(fromIndex, toIndex))
+                }
+            },
+            onDragEnd = {
+                emitIntent(RegexScriptUiIntent.CommitScriptOrder)
+            }
+        )
+
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .dragContainer(dragDropState),
             contentPadding = PaddingValues(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -184,7 +204,16 @@ private fun RegexScriptNormal(
                 item { EmptyScriptsCard() }
             } else {
                 items(state.scripts, key = { it.id }) { script ->
-                    ScriptCard(script, emitIntent)
+                    DraggableItem(
+                        dragDropState = dragDropState,
+                        key = script.id
+                    ) { isDragging ->
+                        ScriptCard(
+                            script = script,
+                            isDragging = isDragging,
+                            emitIntent = emitIntent
+                        )
+                    }
                 }
             }
 
@@ -443,37 +472,30 @@ private fun EmptyScriptsCard() {
 @Composable
 private fun ScriptCard(
     script: RegexScript,
+    isDragging: Boolean = false,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    var dragDistance by remember(script.id) { mutableFloatStateOf(0f) }
     val cardAlpha = if (script.disabled) 0.6f else 1.0f
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer { alpha = cardAlpha }
-            .draggable(
-                orientation = Orientation.Vertical,
-                state = rememberDraggableState { dragDistance += it },
-                onDragStopped = {
-                    when {
-                        dragDistance > 24f -> emitIntent(
-                            RegexScriptUiIntent.MoveScript(script.id, 1)
-                        )
-                        dragDistance < -24f -> emitIntent(
-                            RegexScriptUiIntent.MoveScript(script.id, -1)
-                        )
-                    }
-                    dragDistance = 0f
-                }
-            ),
+            .graphicsLayer {
+                alpha = cardAlpha
+                scaleX = if (isDragging) 1.02f else 1.0f
+                scaleY = if (isDragging) 1.02f else 1.0f
+            },
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else 0.dp
+        ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(
-            1.dp,
-            if (!script.disabled) MaterialTheme.colorScheme.outlineVariant
+            if (isDragging) 1.5.dp else 1.dp,
+            if (isDragging) MaterialTheme.colorScheme.primary
+            else if (!script.disabled) MaterialTheme.colorScheme.outlineVariant
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
     ) {
@@ -488,7 +510,7 @@ private fun ScriptCard(
                 Icon(
                     Icons.Rounded.DragHandle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(8.dp))

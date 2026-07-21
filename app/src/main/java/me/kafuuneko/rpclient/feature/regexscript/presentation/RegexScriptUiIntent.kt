@@ -24,6 +24,8 @@ sealed class RegexScriptUiIntent {
     data class DeleteScriptClick(val scriptId: String) : RegexScriptUiIntent()
     data object ConfirmDeleteScript : RegexScriptUiIntent()
     data class MoveScript(val scriptId: String, val delta: Int) : RegexScriptUiIntent()
+    data class ReorderScript(val fromIndex: Int, val toIndex: Int) : RegexScriptUiIntent()
+    data object CommitScriptOrder : RegexScriptUiIntent()
     data class UpdateDraft(val draft: RegexScriptDraft) : RegexScriptUiIntent()
     data object SaveDraft : RegexScriptUiIntent()
     data object DismissDialog : RegexScriptUiIntent()
