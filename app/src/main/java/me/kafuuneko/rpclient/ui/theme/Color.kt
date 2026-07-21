@@ -14,6 +14,10 @@ val PrimaryDarkColor = Color(0xFF8FB2FF)
 val SecondaryColor = Color(0xFF5D6D55)
 val SecondaryDarkColor = Color(0xFFBFD6B1)
 
+// 主色与辅助色容器颜色（暗色模式）
+val PrimaryContainerDarkColor = Color(0xFF1E3A8A)
+val SecondaryContainerDarkColor = Color(0xFF1E3A8A)
+
 // 其他颜色(卡片、表面元素的颜色)
 val SurfaceColor = Color(0xFFFFFCF7)
 val SurfaceDarkColor = Color(0xFF171A22)

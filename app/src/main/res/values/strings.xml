@@ -696,6 +696,11 @@
     <string name="regex_temporary">temporary</string>
     <string name="prompt_inspector_regex_title">Regex executions (%1$d)</string>
     <string name="prompt_inspector_regex_errors">Regex errors (%1$d)</string>
+    <string name="regex_section_basic">Basic Information</string>
+    <string name="regex_section_expressions">Pattern &amp; Replacement</string>
+    <string name="regex_section_switches">Options</string>
+    <string name="regex_section_advanced">Advanced Settings</string>
+    <string name="regex_execution_mode">Execution Mode</string>
     <string name="generation_error_no_provider">No enabled model provider is available.</string>
     <string name="generation_error_prompt_budget">The required prompt (%1$d tokens) exceeds the available input budget (%2$d tokens).</string>
     <string name="generation_error_unauthorized">The model provider rejected the credentials.</string>

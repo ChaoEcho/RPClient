@@ -24,10 +24,10 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = OnSecondaryDarkColor,
     error = ErrorDarkColor,
     onError = OnErrorColor,
-    primaryContainer = PrimaryDarkColor,
-    onPrimaryContainer = OnPrimaryDarkColor,
-    secondaryContainer = SurfaceVariantDarkColor,
-    onSecondaryContainer = OnSurfaceVariantDarkColor,
+    primaryContainer = PrimaryContainerDarkColor,
+    onPrimaryContainer = PrimaryDarkColor,
+    secondaryContainer = SecondaryContainerDarkColor,
+    onSecondaryContainer = PrimaryDarkColor,
     outline = OutlineDarkColor,
     outlineVariant = SurfaceVariantDarkColor
 )
@@ -45,10 +45,10 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = OnSecondaryColor,
     error = ErrorColor,
     onError = OnErrorColor,
-    primaryContainer = PrimaryColor,
-    onPrimaryContainer = OnPrimaryColor,
-    secondaryContainer = SurfaceVariantColor,
-    onSecondaryContainer = OnSurfaceVariantColor,
+    primaryContainer = PrimaryColor.copy(alpha = 0.15f),
+    onPrimaryContainer = PrimaryColor,
+    secondaryContainer = PrimaryColor.copy(alpha = 0.12f),
+    onSecondaryContainer = PrimaryColor,
     outline = OutlineColor,
     outlineVariant = SurfaceVariantColor
 )

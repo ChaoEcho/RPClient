@@ -1,12 +1,15 @@
 package me.kafuuneko.rpclient.feature.regexscript.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,37 +18,53 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CodeOff
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Science
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,13 +72,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.regexscript.model.RegexScriptDraft
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptDialogState
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptUiIntent
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptUiState
@@ -87,6 +107,7 @@ fun RegexScriptLayout(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RegexScriptNormal(
     state: RegexScriptUiState.Normal,
@@ -97,41 +118,42 @@ private fun RegexScriptNormal(
     Scaffold(
         topBar = {
             Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { emitIntent(RegexScriptUiIntent.Back) }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
-                    }
-                    Text(
-                        text = stringResource(R.string.regex_script_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.regex_script_title),
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { emitIntent(RegexScriptUiIntent.Back) }) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { emitIntent(RegexScriptUiIntent.ImportClick) },
+                            enabled = canManageScripts && !state.transferInProgress
+                        ) {
+                            Icon(Icons.Rounded.FileDownload, contentDescription = null)
+                        }
+                        IconButton(
+                            onClick = { emitIntent(RegexScriptUiIntent.ExportClick) },
+                            enabled = !state.transferInProgress
+                        ) {
+                            Icon(Icons.Rounded.FileUpload, contentDescription = null)
+                        }
+                        IconButton(
+                            onClick = { emitIntent(RegexScriptUiIntent.CreateScript) },
+                            enabled = canManageScripts && !state.transferInProgress
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = null)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
                     )
-                    IconButton(
-                        onClick = { emitIntent(RegexScriptUiIntent.ImportClick) },
-                        enabled = canManageScripts && !state.transferInProgress
-                    ) {
-                        Icon(Icons.Rounded.FileDownload, contentDescription = null)
-                    }
-                    IconButton(
-                        onClick = { emitIntent(RegexScriptUiIntent.ExportClick) },
-                        enabled = !state.transferInProgress
-                    ) {
-                        Icon(Icons.Rounded.FileUpload, contentDescription = null)
-                    }
-                    IconButton(
-                        onClick = { emitIntent(RegexScriptUiIntent.CreateScript) },
-                        enabled = canManageScripts && !state.transferInProgress
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null)
-                    }
-                }
+                )
                 if (state.transferInProgress) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
@@ -142,63 +164,183 @@ private fun RegexScriptNormal(
                 .padding(padding)
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item { ScopeSelector(state, emitIntent) }
+
             if (state.scope == RegexScriptScope.Character) {
-                item { CharacterSelector(state, emitIntent) }
+                item {
+                    AnimatedVisibility(visible = true) {
+                        CharacterSelector(state, emitIntent)
+                    }
+                }
             }
+
             if (state.scope != RegexScriptScope.Global) {
                 item { AuthorizationCard(state, emitIntent) }
             }
+
             if (state.scripts.isEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.regex_no_scripts),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp)
-                    )
-                }
+                item { EmptyScriptsCard() }
             } else {
                 items(state.scripts, key = { it.id }) { script ->
                     ScriptCard(script, emitIntent)
                 }
             }
+
             item { TestCard(state, emitIntent) }
         }
     }
 }
 
-/** 作用域切换器，控制列表当前展示全局、预设或角色卡脚本。 */
+/** 统一高对比度 FilterChip 组件，自带打勾选态图标与高亮边框 */
+@Composable
+private fun AppFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: CornerBasedShape = RoundedCornerShape(10.dp)
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        shape = shape,
+        modifier = modifier,
+        leadingIcon = if (selected) {
+            {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                )
+            }
+        } else null,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = enabled,
+            selected = selected,
+            selectedBorderColor = MaterialTheme.colorScheme.primary,
+            selectedBorderWidth = 1.5.dp,
+            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+        ),
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
+}
+
+/** 作用域切换器，改用分段式 Pill 单选组，增强页面层次感。 */
 @Composable
 private fun ScopeSelector(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RegexScriptScope.entries.forEach { scope ->
-            FilterChip(
-                selected = state.scope == scope,
-                onClick = { emitIntent(RegexScriptUiIntent.SelectScope(scope)) },
-                label = { Text(scope.label()) }
-            )
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            RegexScriptScope.entries.forEach { scope ->
+                val selected = state.scope == scope
+                val backgroundColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0f)
+                }
+                val contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Surface(
+                    onClick = { emitIntent(RegexScriptUiIntent.SelectScope(scope)) },
+                    shape = RoundedCornerShape(12.dp),
+                    color = backgroundColor,
+                    contentColor = contentColor,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = scope.label(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
-/** 角色作用域下的角色选择器。 */
+/** 角色作用域下的角色选择器。包装在柔和背景卡片中。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CharacterSelector(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        state.characters.forEach { character ->
-            FilterChip(
-                selected = state.selectedCharacterId == character.id,
-                onClick = { emitIntent(RegexScriptUiIntent.SelectCharacter(character.id)) },
-                label = { Text(character.name, maxLines = 1) }
-            )
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(R.string.regex_scope_character),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                state.characters.forEach { character ->
+                    AppFilterChip(
+                        selected = state.selectedCharacterId == character.id,
+                        onClick = { emitIntent(RegexScriptUiIntent.SelectCharacter(character.id)) },
+                        label = character.name
+                    )
+                }
+            }
         }
     }
 }
@@ -210,19 +352,40 @@ private fun AuthorizationCard(
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
     Card(
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Rounded.Security,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.regex_authorization), fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(R.string.regex_authorization),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(Modifier.height(2.dp))
                 Text(
                     stringResource(R.string.regex_authorization_desc),
                     style = MaterialTheme.typography.bodySmall,
@@ -241,16 +404,54 @@ private fun AuthorizationCard(
     }
 }
 
-/** 单条脚本摘要卡片，提供启停、编辑、复制、删除和拖动排序入口。 */
+/** 列表为空时的精致占位卡片。 */
+@Composable
+private fun EmptyScriptsCard() {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Rounded.CodeOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(44.dp)
+            )
+            Text(
+                text = stringResource(R.string.regex_no_scripts),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** 单条脚本摘要卡片，重构布局，增加 Placement 视觉标签与 Monospace 代码展示框。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScriptCard(
     script: RegexScript,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
     var dragDistance by remember(script.id) { mutableFloatStateOf(0f) }
+    val cardAlpha = if (script.disabled) 0.6f else 1.0f
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer { alpha = cardAlpha }
             .draggable(
                 orientation = Orientation.Vertical,
                 state = rememberDraggableState { dragDistance += it },
@@ -266,96 +467,265 @@ private fun ScriptCard(
                     dragDistance = 0f
                 }
             ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (!script.disabled) MaterialTheme.colorScheme.outlineVariant
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(Icons.Rounded.DragHandle, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            // Header 区域：拖拽手柄 + 名称 + 开关
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Rounded.DragHandle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = script.scriptName.ifBlank { stringResource(R.string.regex_unnamed) },
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = script.findRegex,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                Switch(
+                    checked = !script.disabled,
+                    onCheckedChange = {
+                        emitIntent(RegexScriptUiIntent.ToggleScriptEnabled(script.id))
+                    }
                 )
             }
-            Switch(
-                checked = !script.disabled,
-                onCheckedChange = {
-                    emitIntent(RegexScriptUiIntent.ToggleScriptEnabled(script.id))
+
+            // Placement 触发位置标签组
+            val matchedPlacements = RegexPlacement.entries.filter { it.value in script.placement }
+            if (matchedPlacements.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    matchedPlacements.forEach { placement ->
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ) {
+                            Text(
+                                text = placement.label(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
-            )
-            IconButton(onClick = { emitIntent(RegexScriptUiIntent.EditScript(script.id)) }) {
-                Icon(Icons.Rounded.Edit, contentDescription = null)
             }
-            IconButton(onClick = { emitIntent(RegexScriptUiIntent.CopyScript(script.id)) }) {
-                Icon(Icons.Rounded.ContentCopy, contentDescription = null)
+
+            // 正则表达式等宽代码展示框
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = script.findRegex,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (script.replaceString.isNotEmpty()) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "➜ ",
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = script.replaceString,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
             }
-            IconButton(onClick = { emitIntent(RegexScriptUiIntent.DeleteScriptClick(script.id)) }) {
-                Icon(Icons.Rounded.Delete, contentDescription = null)
+
+            // 操作按钮栏 (编辑、复制、删除)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { emitIntent(RegexScriptUiIntent.EditScript(script.id)) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Edit,
+                        contentDescription = stringResource(R.string.edit),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { emitIntent(RegexScriptUiIntent.CopyScript(script.id)) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.ContentCopy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { emitIntent(RegexScriptUiIntent.DeleteScriptClick(script.id)) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = stringResource(R.string.delete),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
 }
 
-/** 在不持久化任何结果的前提下试运行当前作用域脚本。 */
+/** 正则调试/试运行卡片，引入 Header 与代码框。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TestCard(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.regex_test_title), fontWeight = FontWeight.SemiBold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                RegexPlacement.entries.forEach { placement ->
-                    FilterChip(
-                        selected = state.testPlacement == placement,
-                        onClick = {
-                            emitIntent(RegexScriptUiIntent.SelectTestPlacement(placement))
-                        },
-                        label = { Text(placement.label()) }
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Science,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    stringResource(R.string.regex_test_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = stringResource(R.string.regex_placements),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RegexPlacement.entries.forEach { placement ->
+                        AppFilterChip(
+                            selected = state.testPlacement == placement,
+                            onClick = {
+                                emitIntent(RegexScriptUiIntent.SelectTestPlacement(placement))
+                            },
+                            label = placement.label()
+                        )
+                    }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                RegexExecutionMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = state.testMode == mode,
-                        onClick = { emitIntent(RegexScriptUiIntent.SelectTestMode(mode)) },
-                        label = { Text(mode.name) }
-                    )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = stringResource(R.string.regex_execution_mode),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RegexExecutionMode.entries.forEach { mode ->
+                        AppFilterChip(
+                            selected = state.testMode == mode,
+                            onClick = { emitIntent(RegexScriptUiIntent.SelectTestMode(mode)) },
+                            label = mode.name
+                        )
+                    }
                 }
             }
+
             OutlinedTextField(
                 value = state.testInput,
                 onValueChange = { emitIntent(RegexScriptUiIntent.ChangeTestInput(it)) },
                 label = { Text(stringResource(R.string.regex_test_input)) },
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
-            Button(onClick = { emitIntent(RegexScriptUiIntent.RunTest) }) {
+
+            Button(
+                onClick = { emitIntent(RegexScriptUiIntent.RunTest) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.regex_run_test))
             }
+
             if (state.testOutput.isNotBlank()) {
                 OutlinedTextField(
                     value = state.testOutput,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.regex_test_output)) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
@@ -375,11 +745,11 @@ private fun DialogSwitch(
         is RegexScriptDialogState.Editor -> EditorDialog(dialogState, emitIntent)
         is RegexScriptDialogState.DeleteConfirm -> AlertDialog(
             onDismissRequest = { emitIntent(RegexScriptUiIntent.DismissDialog) },
-            title = { Text(stringResource(R.string.regex_delete_title)) },
+            title = { Text(stringResource(R.string.regex_delete_title), fontWeight = FontWeight.Bold) },
             text = { Text(dialogState.scriptName) },
             confirmButton = {
                 TextButton(onClick = { emitIntent(RegexScriptUiIntent.ConfirmDeleteScript) }) {
-                    Text(stringResource(R.string.delete))
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -391,7 +761,8 @@ private fun DialogSwitch(
     }
 }
 
-/** Regex 脚本完整字段编辑器，所有输入通过 UpdateDraft 进入单向数据流。 */
+/** Regex 脚本编辑器，对长表单进行分块分组，并在正则文本域启用 Monospace 字体。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditorDialog(
     state: RegexScriptDialogState.Editor,
@@ -400,31 +771,66 @@ private fun EditorDialog(
     val draft = state.draft
     AlertDialog(
         onDismissRequest = { emitIntent(RegexScriptUiIntent.DismissDialog) },
-        title = { Text(stringResource(R.string.regex_editor_title)) },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Tune,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(stringResource(R.string.regex_editor_title), fontWeight = FontWeight.Bold)
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // 基本信息分组
+                DraftGroupHeader(stringResource(R.string.regex_section_basic))
                 DraftField(draft.scriptName, R.string.regex_script_name) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(scriptName = it)))
                 }
-                DraftField(draft.findRegex, R.string.regex_find_regex, minLines = 2) {
+
+                // 规则与表达式分组
+                DraftGroupHeader(stringResource(R.string.regex_section_expressions))
+                DraftField(
+                    value = draft.findRegex,
+                    labelRes = R.string.regex_find_regex,
+                    minLines = 2,
+                    isMonospace = true
+                ) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(findRegex = it)))
                 }
-                DraftField(draft.replaceString, R.string.regex_replace_string, minLines = 2) {
+                DraftField(
+                    value = draft.replaceString,
+                    labelRes = R.string.regex_replace_string,
+                    minLines = 2,
+                    isMonospace = true
+                ) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(replaceString = it)))
                 }
-                DraftField(draft.trimStrings, R.string.regex_trim_strings, minLines = 2) {
+                DraftField(
+                    value = draft.trimStrings,
+                    labelRes = R.string.regex_trim_strings,
+                    minLines = 2,
+                    isMonospace = true
+                ) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(trimStrings = it)))
                 }
-                Text(stringResource(R.string.regex_placements), fontWeight = FontWeight.SemiBold)
+
+                // 作用位置分组
+                DraftGroupHeader(stringResource(R.string.regex_placements))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RegexPlacement.entries.forEach { placement ->
-                        FilterChip(
-                            selected = placement.value in draft.placements,
+                        val selected = placement.value in draft.placements
+                        AppFilterChip(
+                            selected = selected,
                             onClick = {
                                 val placements = draft.placements.toMutableSet()
                                 if (!placements.add(placement.value)) placements.remove(placement.value)
@@ -434,10 +840,13 @@ private fun EditorDialog(
                                     )
                                 )
                             },
-                            label = { Text(placement.label()) }
+                            label = placement.label()
                         )
                     }
                 }
+
+                // 功能开关分组
+                DraftGroupHeader(stringResource(R.string.regex_section_switches))
                 BooleanRow(stringResource(R.string.regex_enabled), !draft.disabled) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(disabled = !it)))
                 }
@@ -464,10 +873,17 @@ private fun EditorDialog(
                 BooleanRow(stringResource(R.string.regex_run_on_edit), draft.runOnEdit) {
                     emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(runOnEdit = it)))
                 }
-                Text(stringResource(R.string.regex_find_macro_mode), fontWeight = FontWeight.SemiBold)
+
+                // 高阶功能分组
+                DraftGroupHeader(stringResource(R.string.regex_section_advanced))
+                Text(
+                    stringResource(R.string.regex_find_macro_mode),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RegexFindMacroMode.entries.forEach { mode ->
-                        FilterChip(
+                        AppFilterChip(
                             selected = draft.substituteRegex == mode.value,
                             onClick = {
                                 emitIntent(
@@ -476,7 +892,7 @@ private fun EditorDialog(
                                     )
                                 )
                             },
-                            label = { Text(mode.name) }
+                            label = mode.name
                         )
                     }
                 }
@@ -487,6 +903,7 @@ private fun EditorDialog(
                             emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(minDepth = it)))
                         },
                         label = { Text(stringResource(R.string.regex_min_depth)) },
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
@@ -495,11 +912,12 @@ private fun EditorDialog(
                             emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(maxDepth = it)))
                         },
                         label = { Text(stringResource(R.string.regex_max_depth)) },
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     )
                 }
                 state.validationError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(2.dp))
             }
@@ -509,7 +927,7 @@ private fun EditorDialog(
                 onClick = { emitIntent(RegexScriptUiIntent.SaveDraft) },
                 enabled = state.validationError == null
             ) {
-                Text(stringResource(R.string.save))
+                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -521,16 +939,40 @@ private fun EditorDialog(
 }
 
 @Composable
+private fun DraftGroupHeader(title: String) {
+    Column(modifier = Modifier.padding(top = 4.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Composable
 private fun DraftField(
     value: String,
     labelRes: Int,
     minLines: Int = 1,
+    isMonospace: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(labelRes)) },
+        textStyle = if (isMonospace) {
+            LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
+        } else {
+            LocalTextStyle.current
+        },
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth(),
         minLines = minLines
     )
@@ -539,10 +981,16 @@ private fun DraftField(
 @Composable
 private fun BooleanRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f))
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium
+        )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

@@ -694,6 +694,11 @@
     <string name="regex_temporary">临时生效</string>
     <string name="prompt_inspector_regex_title">Regex 执行记录（%1$d）</string>
     <string name="prompt_inspector_regex_errors">Regex 错误（%1$d）</string>
+    <string name="regex_section_basic">基本信息</string>
+    <string name="regex_section_expressions">匹配与替换</string>
+    <string name="regex_section_switches">功能开关</string>
+    <string name="regex_section_advanced">高级设置</string>
+    <string name="regex_execution_mode">执行模式</string>
     <string name="generation_error_no_provider">没有可用的已启用模型供应商。</string>
     <string name="generation_error_prompt_budget">提示词需要 %1$d 个 token，超过可用输入预算 %2$d 个 token。</string>
     <string name="generation_error_unauthorized">模型供应商拒绝了当前凭据。</string>
