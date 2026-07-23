@@ -196,7 +196,7 @@ private fun RegexScriptNormal(
                 }
             }
 
-            if (state.scope != RegexScriptScope.Global) {
+            if (state.scope == RegexScriptScope.Character) {
                 item { AuthorizationCard(state, emitIntent) }
             }
 
@@ -374,7 +374,7 @@ private fun CharacterSelector(
     }
 }
 
-/** 预设和角色卡脚本的显式授权开关及安全提示。 */
+/** 角色卡脚本的显式授权开关及安全提示。 */
 @Composable
 private fun AuthorizationCard(
     state: RegexScriptUiState.Normal,
@@ -1020,7 +1020,6 @@ private fun BooleanRow(label: String, checked: Boolean, onCheckedChange: (Boolea
 @Composable
 private fun RegexScriptScope.label(): String = when (this) {
     RegexScriptScope.Global -> stringResource(R.string.regex_scope_global)
-    RegexScriptScope.Preset -> stringResource(R.string.regex_scope_preset)
     RegexScriptScope.Character -> stringResource(R.string.regex_scope_character)
 }
 

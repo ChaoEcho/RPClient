@@ -639,9 +639,8 @@
     <string name="prompt_source_post_processing">프롬프트 후처리</string>
     <string name="prompt_source_other">기타</string>
     <string name="regex_script_title">Regex 스크립트</string>
-    <string name="regex_script_entry_subtitle">전역, 프리셋, 승인된 캐릭터 스크립트를 관리합니다</string>
+    <string name="regex_script_entry_subtitle">전역 및 승인된 캐릭터 스크립트를 관리합니다</string>
     <string name="regex_scope_global">전역</string>
-    <string name="regex_scope_preset">프리셋</string>
     <string name="regex_scope_character">캐릭터</string>
     <string name="regex_authorization">스크립트 실행 허용</string>
     <string name="regex_authorization_desc">내장 스크립트는 저장되지만 명시적으로 승인하기 전까지 실행되지 않습니다.</string>
@@ -654,6 +653,11 @@
     <string name="regex_delete_title">Regex 스크립트를 삭제할까요?</string>
     <string name="regex_editor_title">Regex 스크립트 편집기</string>
     <string name="regex_script_name">스크립트 이름</string>
+    <string name="regex_section_basic">기본 정보</string>
+    <string name="regex_section_expressions">패턴 및 치환</string>
+    <string name="regex_section_switches">옵션</string>
+    <string name="regex_section_advanced">고급 설정</string>
+    <string name="regex_execution_mode">실행 모드</string>
     <string name="regex_find_regex">Regex 찾기 (/pattern/flags)</string>
     <string name="regex_replace_string">대체 문자열</string>
     <string name="regex_trim_strings">Trim Out 문자열(한 줄에 하나)</string>

@@ -42,7 +42,7 @@ libs/room/
 └── repository/                 # 面向业务的仓库
 ```
 
-当前核心 Entity 包括 `Character`、`Lorebook`、`LorebookEntry`、`ChatSession`、`ChatMessage`、`LLMProvider`、`LLMRequestLog`、`FileEntity`、`GroupChatSession`、`GroupChatMember`、`GroupChatMessage`、`GroupChatSummary`。
+当前核心 Entity 包括 `Character`、`Lorebook`、`LorebookEntry`、`ChatSession`、`ChatMessage`、`LLMProvider`、`LLMRequestLog`、`FileEntity`、`GroupChatSession`、`GroupChatMember`、`GroupChatMessage`、`GroupChatSummary`、`RegexScriptEntity` 和 Regex 授权/迁移标记实体。
 
 `AppDatabase` 只做数据库声明和 DAO 暴露：
 
@@ -274,7 +274,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
 1. 新增、删除、修改 Entity 字段时必须更新 `AppDatabase.version`。
 2. 开发初期可以 destructive migration，但涉及用户真实数据后必须补 migration。
-3. migration 中只处理结构和数据迁移，不写 UI 逻辑。
+3. Room Migration 只负责数据库结构及库内数据变换，不承担 SharedPreferences、文件或跨存储迁移。
 4. 修改 Converter 会影响已存数据时，必须说明兼容策略。
 5. `exportSchema` 是否开启按发布策略决定；需要稳定迁移时建议开启并纳入版本管理。
 
@@ -286,3 +286,26 @@ Room 快速检查：
 4. 文件与数据库是否有失败回滚或清理策略？
 5. 是否避免把 API Key、私密对话、完整请求头和无脱敏原始响应写入业务数据库或非调试日志？
 6. 是否更新数据库版本和迁移策略？
+
+---
+
+## 11. 跨存储业务升级
+
+SharedPreferences、文件、角色扩展 JSON 与 Room 之间的迁移统一放在 `libs/upgrade/`：
+
+```text
+AppUpgradeManager                # 排序、版本边界和检查点
+AppUpgrade                       # 单个升级步骤协议
+AppUpgradeVersionStore           # 迁移/清理双检查点
+steps/UpgradeYYYYMMDD            # 对应目标 versionCode 的业务实现
+```
+
+规则：
+
+1. 每个目标 versionCode 使用独立 Upgrade Class；新增版本不能继续向 Manager 塞业务分支。
+2. `migrate()` 和 `cleanup()` 必须幂等，失败后能够从各自检查点安全重试。
+3. Manager 按目标版本升序执行，每个迁移成功后立即记录迁移检查点。
+4. 全部迁移完成后再清理旧存储，每个清理成功后立即记录清理检查点。
+5. Upgrade Class 只注入该版本需要的依赖，并在 `RPClientApp` 中显式注册。
+6. Room 必须先完成结构升级，App Upgrade 才能向新表写入业务数据。
+7. Manager 的顺序、跳过、失败续跑和重复版本校验使用纯单元测试；具体 Upgrade 使用集成测试。

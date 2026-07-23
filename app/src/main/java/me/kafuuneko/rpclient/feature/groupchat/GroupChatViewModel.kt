@@ -1293,7 +1293,7 @@ class GroupChatViewModel :
     }
 
     /** 将数据库消息转换为页面消息，并标记当前流式占位项。 */
-    private fun GroupChatData.toMessageItems(): List<GroupChatMessageItem> {
+    private suspend fun GroupChatData.toMessageItems(): List<GroupChatMessageItem> {
         val scripts = mRegexRepository.activeScripts(members.map { it.character })
         return messages.mapIndexed { index, message ->
             val characterName = if (message.source == GroupChatMessage.Source.Character) {
@@ -1331,7 +1331,7 @@ class GroupChatViewModel :
         }
     }
 
-    private fun applyUserRegex(
+    private suspend fun applyUserRegex(
         data: GroupChatData,
         input: String,
         isEdit: Boolean = false
@@ -1363,7 +1363,7 @@ class GroupChatViewModel :
         ).text
     }
 
-    private fun applyAiRegex(
+    private suspend fun applyAiRegex(
         data: GroupChatData,
         input: String,
         characterName: String,

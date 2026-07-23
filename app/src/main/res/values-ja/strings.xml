@@ -640,9 +640,8 @@
     <string name="prompt_source_post_processing">プロンプト後処理</string>
     <string name="prompt_source_other">その他</string>
     <string name="regex_script_title">Regex スクリプト</string>
-    <string name="regex_script_entry_subtitle">グローバル、プリセット、許可済みキャラクタースクリプトを管理</string>
+    <string name="regex_script_entry_subtitle">グローバルおよび許可済みキャラクタースクリプトを管理</string>
     <string name="regex_scope_global">グローバル</string>
-    <string name="regex_scope_preset">プリセット</string>
     <string name="regex_scope_character">キャラクター</string>
     <string name="regex_authorization">スクリプト実行を許可</string>
     <string name="regex_authorization_desc">埋め込みスクリプトは保存されますが、明示的に許可されるまで実行されません。</string>
@@ -655,6 +654,11 @@
     <string name="regex_delete_title">Regex スクリプトを削除しますか？</string>
     <string name="regex_editor_title">Regex スクリプトエディター</string>
     <string name="regex_script_name">スクリプト名</string>
+    <string name="regex_section_basic">基本情報</string>
+    <string name="regex_section_expressions">パターンと置換</string>
+    <string name="regex_section_switches">オプション</string>
+    <string name="regex_section_advanced">詳細設定</string>
+    <string name="regex_execution_mode">実行モード</string>
     <string name="regex_find_regex">検索 Regex (/pattern/flags)</string>
     <string name="regex_replace_string">置換文字列</string>
     <string name="regex_trim_strings">Trim Out 文字列（1 行に 1 件）</string>

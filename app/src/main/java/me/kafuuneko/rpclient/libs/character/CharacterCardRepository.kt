@@ -7,6 +7,10 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -24,10 +28,12 @@ class CharacterCardRepository(
     private val mGson: Gson,
     private val mCharacterRepository: CharacterRepository,
     private val mLorebookRepository: LorebookRepository,
-    private val mFileRepository: FileRepository
+    private val mFileRepository: FileRepository,
+    private val mRegexCodec: RegexScriptCodec,
+    private val mRegexRepository: RegexScriptRepository
 ) {
     /** 无状态格式映射器，在 Repository 生命周期内复用。 */
-    private val mapper = CharacterCardMapper(mGson)
+    private val mapper = CharacterCardMapper(mGson, mRegexCodec)
 
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft = withContext(Dispatchers.IO) {
@@ -73,7 +79,11 @@ class CharacterCardRepository(
             mCharacterRepository.saveCharacter(
                 parsed.character.copy(
                     avatar = avatar,
-                    characterLorebookId = lorebookId
+                    characterLorebookId = lorebookId,
+                    extensionsJson = mRegexCodec.injectIntoCharacterExtensions(
+                        parsed.character.extensionsJson,
+                        parsed.regexScripts
+                    )
                 )
             )
         } catch (error: Exception) {
@@ -98,10 +108,14 @@ class CharacterCardRepository(
     /** 导出 Character Card V2 JSON，并在角色已绑定世界书时一并嵌入。 */
     suspend fun exportJson(characterId: Long): String = withContext(Dispatchers.IO) {
         val character = mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
+        val regexScripts = mRegexRepository.getScripts(
+            RegexScriptTarget(RegexScriptScope.Character, characterId)
+        )
         mapper.toV2Json(
             character = character,
             lorebook = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getLorebookById(it) },
-            entries = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getEntriesByLorebookId(it) }.orEmpty()
+            entries = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getEntriesByLorebookId(it) }.orEmpty(),
+            regexScripts = regexScripts
         )
     }
 

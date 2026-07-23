@@ -22,9 +22,14 @@ import androidx.room.PrimaryKey
     ]
 )
 data class GroupChatSummary(
+    // 群聊摘要快照 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    // 所属群聊会话 ID；会话删除时摘要级联删除。
     val sessionId: Long,
+    // 摘要创建时间，用于选择和恢复历史摘要。
     val createTime: Long,
+    // 摘要正文。
     val content: String,
+    // 该摘要已覆盖的最后一条群聊消息 ID。
     val coveredMessageId: Long
 )

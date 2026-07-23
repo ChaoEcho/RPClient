@@ -641,9 +641,8 @@
     <string name="prompt_source_post_processing">Post-traitement du prompt</string>
     <string name="prompt_source_other">Autre</string>
     <string name="regex_script_title">Scripts Regex</string>
-    <string name="regex_script_entry_subtitle">Gérer les scripts globaux, de preset et de personnage autorisés</string>
+    <string name="regex_script_entry_subtitle">Gérer les scripts globaux et les scripts de personnage autorisés</string>
     <string name="regex_scope_global">Global</string>
-    <string name="regex_scope_preset">Preset</string>
     <string name="regex_scope_character">Personnage</string>
     <string name="regex_authorization">Autoriser l’exécution de scripts</string>
     <string name="regex_authorization_desc">Les scripts intégrés restent stockés mais ne s’exécutent qu’après autorisation explicite.</string>
@@ -656,6 +655,11 @@
     <string name="regex_delete_title">Supprimer le script Regex ?</string>
     <string name="regex_editor_title">Éditeur de script Regex</string>
     <string name="regex_script_name">Nom du script</string>
+    <string name="regex_section_basic">Informations de base</string>
+    <string name="regex_section_expressions">Motif et remplacement</string>
+    <string name="regex_section_switches">Options</string>
+    <string name="regex_section_advanced">Paramètres avancés</string>
+    <string name="regex_execution_mode">Mode d’exécution</string>
     <string name="regex_find_regex">Regex de recherche (/pattern/flags)</string>
     <string name="regex_replace_string">Chaîne de remplacement</string>
     <string name="regex_trim_strings">Chaînes Trim Out (une par ligne)</string>

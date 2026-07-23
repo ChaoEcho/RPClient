@@ -16,6 +16,12 @@ object AppModel : KotprefModel() {
     // 仓库地址。
     const val GITHUB_REPO = "https://github.com/KafuuNeko/RPClient"
 
+    // 最后一个成功完成的业务升级步骤 versionCode；保留属性名以兼容既有偏好键。
+    var lastMigratedVersionCode by intPref(default = 0, commitByDefault = true)
+
+    // 最后一个成功清理旧存储的业务升级步骤 versionCode。
+    var lastCleanedUpgradeVersionCode by intPref(default = 0, commitByDefault = true)
+
     // 默认主提示词，作为普通对话生成时的全局系统指令。
     const val DEFAULT_MAIN_PROMPT = """
 Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
@@ -202,15 +208,4 @@ Rules:
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)
 
-    // 全局 Regex 脚本，使用 SillyTavern RegexScriptData 数组格式保存。
-    var globalRegexScriptsJson by stringPref(default = "[]")
-
-    // 当前 Prompt 预设携带的 Regex 脚本。
-    var presetRegexScriptsJson by stringPref(default = "[]")
-
-    // 预设脚本必须由用户显式授权后才进入执行管线。
-    var presetRegexScriptsAuthorized by booleanPref(default = false)
-
-    // 已授权执行内嵌 Regex 脚本的角色 ID 列表。
-    var authorizedCharacterRegexIdsJson by stringPref(default = "[]")
 }

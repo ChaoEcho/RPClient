@@ -651,9 +651,8 @@
     <string name="prompt_source_post_processing">Prompt 后处理</string>
     <string name="prompt_source_other">其他</string>
     <string name="regex_script_title">Regex 脚本</string>
-    <string name="regex_script_entry_subtitle">管理全局、预设和已授权的角色卡脚本</string>
+    <string name="regex_script_entry_subtitle">管理全局和已授权的角色卡脚本</string>
     <string name="regex_scope_global">全局</string>
-    <string name="regex_scope_preset">预设</string>
     <string name="regex_scope_character">角色卡</string>
     <string name="regex_authorization">允许执行脚本</string>
     <string name="regex_authorization_desc">内嵌脚本会继续保留，但只有显式授权后才会执行。</string>

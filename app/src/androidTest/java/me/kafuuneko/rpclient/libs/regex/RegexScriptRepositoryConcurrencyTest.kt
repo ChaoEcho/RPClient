@@ -3,14 +3,12 @@ package me.kafuuneko.rpclient.libs.regex
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -27,30 +25,28 @@ import java.util.UUID
 class RegexScriptRepositoryConcurrencyTest {
     private lateinit var database: AppDatabase
     private lateinit var repository: RegexScriptRepository
-    private var previousGlobalJson = "[]"
+    private lateinit var characterRepository: CharacterRepository
 
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        Kotpref.init(context)
-        previousGlobalJson = AppModel.globalRegexScriptsJson
-        AppModel.globalRegexScriptsJson = "[]"
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         val gson = Gson()
+        val codec = RegexScriptCodec(gson)
+        characterRepository = CharacterRepository(database, gson, codec)
         repository = RegexScriptRepository(
             context,
             gson,
-            CharacterRepository(database, gson),
-            RegexScriptCodec(gson)
+            database,
+            codec
         )
     }
 
     @After
     fun tearDown() {
         database.close()
-        AppModel.globalRegexScriptsJson = previousGlobalJson
     }
 
     @Test
@@ -117,6 +113,56 @@ class RegexScriptRepositoryConcurrencyTest {
         assertEquals(listOf("embedded"), repository.getScripts(target).map { it.id })
     }
 
+    @Test
+    fun characterSave_extractsRegexAndDeleteCascadesOwnedState() = runBlocking {
+        val characterId = characterRepository.saveCharacter(
+            Character(
+                name = "Character",
+                avatar = "",
+                characterTags = "[]",
+                description = "",
+                personality = "",
+                scenario = "",
+                firstMessages = "",
+                examplesOfDialogue = "",
+                postHistoryInstructions = "",
+                extensionsJson = """
+                    {
+                      "vendor":{"kept":true},
+                      "regex_scripts":[{
+                        "id":"embedded",
+                        "scriptName":"Embedded",
+                        "findRegex":"x",
+                        "replaceString":"y",
+                        "placement":[2]
+                      }]
+                    }
+                """.trimIndent()
+            )
+        )
+        repository.setCharacterAuthorized(characterId, true)
+
+        val stored = requireNotNull(characterRepository.getCharacterById(characterId))
+        assertTrue(stored.extensionsJson.contains("vendor"))
+        assertTrue(!stored.extensionsJson.contains("regex_scripts"))
+        assertEquals(
+            listOf("embedded"),
+            repository.getScripts(
+                RegexScriptTarget(RegexScriptScope.Character, characterId)
+            ).map { it.id }
+        )
+
+        characterRepository.deleteCharacter(characterId)
+
+        assertEquals(
+            emptyList<RegexScript>(),
+            repository.getScripts(
+                RegexScriptTarget(RegexScriptScope.Character, characterId)
+            )
+        )
+        assertTrue(!repository.isCharacterAuthorized(characterId))
+    }
+
     private fun script(id: String) = RegexScript(
         id = id,
         scriptName = id,
@@ -124,4 +170,5 @@ class RegexScriptRepositoryConcurrencyTest {
         replaceString = "y",
         placement = listOf(RegexPlacement.AiResponse.value)
     )
+
 }

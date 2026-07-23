@@ -12,7 +12,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
  */
 @Entity(tableName = "llm_request_logs")
 data class LLMRequestLog(
-    // Log ID
+    // 请求日志 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 创建时间
     val createTime: Long = System.currentTimeMillis(),

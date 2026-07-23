@@ -13,6 +13,46 @@ import com.google.gson.JsonParser
 class RegexScriptCodec(
     private val mGson: Gson
 ) {
+    /**
+     * 从角色扩展中提取 Regex 脚本，并返回移除已识别字段后的扩展 JSON。
+     *
+     * 无法解析的扩展保持原样，避免迁移或角色编辑误删第三方数据。
+     */
+    fun extractFromCharacterExtensions(json: String): RegexExtensionsExtraction {
+        val extensions = runCatching {
+            JsonParser.parseString(json).asJsonObject.deepCopy()
+        }.getOrNull() ?: return RegexExtensionsExtraction(
+            scripts = emptyList(),
+            extensionsJson = json,
+            hadRegexScripts = false
+        )
+        val regexElement = extensions.remove(REGEX_SCRIPTS_KEY)
+        val scripts = regexElement
+            ?.takeIf { it.isJsonArray }
+            ?.let { parseList(mGson.toJson(it)) }
+            .orEmpty()
+        return RegexExtensionsExtraction(
+            scripts = scripts,
+            extensionsJson = mGson.toJson(extensions),
+            hadRegexScripts = regexElement != null
+        )
+    }
+
+    /** 将 Room 中的角色脚本临时注入扩展 JSON，供角色卡导出使用。 */
+    fun injectIntoCharacterExtensions(
+        json: String,
+        scripts: List<RegexScript>
+    ): String {
+        val extensions = runCatching {
+            JsonParser.parseString(json).asJsonObject.deepCopy()
+        }.getOrDefault(JsonObject())
+        extensions.add(
+            REGEX_SCRIPTS_KEY,
+            JsonParser.parseString(toJson(scripts)).asJsonArray
+        )
+        return mGson.toJson(extensions)
+    }
+
     /** 解析脚本数组；为兼容手工文件，也接受单个脚本对象。 */
     fun parseList(json: String): List<RegexScript> {
         if (json.isBlank()) return emptyList()
@@ -104,4 +144,15 @@ class RegexScriptCodec(
                 runCatching { it.takeIf { value -> !value.isJsonNull }?.asInt }.getOrNull()
             }
         }.getOrDefault(emptyList())
+
+    private companion object {
+        const val REGEX_SCRIPTS_KEY = "regex_scripts"
+    }
 }
+
+/** 角色扩展 Regex 字段的提取结果。 */
+data class RegexExtensionsExtraction(
+    val scripts: List<RegexScript>,
+    val extensionsJson: String,
+    val hadRegexScripts: Boolean
+)

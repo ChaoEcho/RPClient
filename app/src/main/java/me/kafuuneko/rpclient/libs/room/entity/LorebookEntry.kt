@@ -28,9 +28,9 @@ import me.kafuuneko.rpclient.utils.toStringList
     ]
 )
 data class LorebookEntry(
-    // 世界书条目id
+    // 世界书条目 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
-    // 世界树id, 关联[Lorebook.id]
+    // 所属世界书 ID；关联 Lorebook.id，世界书删除时条目级联删除。
     val lorebookId: Long,
     // 名称
     val name: String,
@@ -66,10 +66,13 @@ data class LorebookEntry(
     val matchWholeWords: Boolean? = null,
     // 是否大小写敏感；为空或 false 时按忽略大小写处理。
     val caseSensitive: Boolean? = null,
-    // ST inclusion group 相关字段：同组条目可按权重或 override 规则只激活一个。
+    // 是否启用 ST inclusion group 的组内评分。
     val useGroupScoring: Boolean = false,
+    // inclusion group 名称；同名条目属于同一互斥候选组。
     val group: String = "",
+    // 是否在命中后覆盖同组其他条目，强制优先选择本条目。
     val groupOverride: Boolean = false,
+    // 组内随机选择权重；为空时使用兼容默认权重。
     val groupWeight: Int? = null,
     // 递归扫描时阻止该条目被后续轮次触发。
     val preventRecursion: Boolean = false,

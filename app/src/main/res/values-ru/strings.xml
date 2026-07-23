@@ -642,9 +642,8 @@
     <string name="prompt_source_post_processing">Постобработка промпта</string>
     <string name="prompt_source_other">Другое</string>
     <string name="regex_script_title">Regex-скрипты</string>
-    <string name="regex_script_entry_subtitle">Управление глобальными, пресетными и авторизованными скриптами персонажей</string>
+    <string name="regex_script_entry_subtitle">Управление глобальными и авторизованными скриптами персонажей</string>
     <string name="regex_scope_global">Глобально</string>
-    <string name="regex_scope_preset">Пресет</string>
     <string name="regex_scope_character">Персонаж</string>
     <string name="regex_authorization">Разрешить выполнение скриптов</string>
     <string name="regex_authorization_desc">Встроенные скрипты сохраняются, но не выполняются до явной авторизации.</string>
@@ -657,6 +656,11 @@
     <string name="regex_delete_title">Удалить Regex-скрипт?</string>
     <string name="regex_editor_title">Редактор Regex-скрипта</string>
     <string name="regex_script_name">Имя скрипта</string>
+    <string name="regex_section_basic">Основная информация</string>
+    <string name="regex_section_expressions">Шаблон и замена</string>
+    <string name="regex_section_switches">Параметры</string>
+    <string name="regex_section_advanced">Расширенные настройки</string>
+    <string name="regex_execution_mode">Режим выполнения</string>
     <string name="regex_find_regex">Regex поиска (/pattern/flags)</string>
     <string name="regex_replace_string">Строка замены</string>
     <string name="regex_trim_strings">Строки Trim Out (по одной на строку)</string>

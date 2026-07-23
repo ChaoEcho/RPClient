@@ -63,7 +63,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 ### Regex 脚本
 
 - 兼容常见 SillyTavern Regex 脚本 JSON
-- Global、Preset 和 Character 三种作用域
+- Global 和 Character 两种作用域
 - Source、Markdown 和 Prompt 三种执行模式
 - 支持脚本排序、复制、测试、导入与导出
 - 角色卡内嵌脚本默认不会自动获得执行授权

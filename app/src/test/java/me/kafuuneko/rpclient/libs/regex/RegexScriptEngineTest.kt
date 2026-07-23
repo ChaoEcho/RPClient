@@ -11,14 +11,13 @@ class RegexScriptEngineTest {
     fun scriptsRunInScopeAndListOrder() {
         val scripts = listOf(
             scoped(script("global", "/a/g", "b"), RegexScriptScope.Global, 0),
-            scoped(script("preset", "/b/g", "c"), RegexScriptScope.Preset, 0),
-            scoped(script("character", "/c/g", "d"), RegexScriptScope.Character, 0)
+            scoped(script("character", "/b/g", "c"), RegexScriptScope.Character, 0)
         )
 
         val result = engine.execute("a", scripts, context())
 
-        assertEquals("d", result.text)
-        assertEquals(listOf("global", "preset", "character"), result.hits.map { it.scriptId })
+        assertEquals("c", result.text)
+        assertEquals(listOf("global", "character"), result.hits.map { it.scriptId })
     }
 
     @Test

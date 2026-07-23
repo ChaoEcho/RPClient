@@ -29,13 +29,21 @@ import androidx.room.PrimaryKey
     ]
 )
 data class GroupChatMessage(
+    // 群聊消息 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    // 所属群聊会话 ID；会话删除时消息级联删除。
     val sessionId: Long,
+    // 消息创建时间。
     val createTime: Long,
+    // 消息来源类型，用于区分角色、用户和系统消息。
     val source: Source,
+    // 消息正文。
     val content: String,
+    // 发言角色 ID；用户或系统消息为空，角色删除后历史消息仍保留该快照关联值。
     val speakerCharacterId: Long? = null,
+    // 消息生成时的发言者名称快照，避免角色改名影响历史显示。
     val speakerNameSnapshot: String,
+    // 自动群聊同一生成轮次的批次 ID；普通或手动消息为空。
     val generationBatchId: String? = null
 ) {
     /** 群聊消息来源。 */

@@ -117,17 +117,23 @@ class CharacterCardMapperTest {
         assertEquals(25, parsed.embeddedLorebook.lorebook.tokenBudget)
         assertEquals(true, JsonParser.parseString(parsed.character.extensionsJson).asJsonObject.has("third_party"))
         assertEquals(
-            "Hide metadata",
+            false,
             JsonParser.parseString(parsed.character.extensionsJson)
                 .asJsonObject
-                .getAsJsonArray("regex_scripts")[0]
-                .asJsonObject
-                .get("scriptName")
-                .asString
+                .has("regex_scripts")
+        )
+        assertEquals(
+            "Hide metadata",
+            parsed.regexScripts.single().scriptName
         )
 
         val exported = JsonParser.parseString(
-            mapper.toV2Json(parsed.character, parsed.embeddedLorebook.lorebook, parsed.embeddedLorebook.entries)
+            mapper.toV2Json(
+                parsed.character,
+                parsed.embeddedLorebook.lorebook,
+                parsed.embeddedLorebook.entries,
+                parsed.regexScripts
+            )
         ).asJsonObject
         val data = exported.getAsJsonObject("data")
 

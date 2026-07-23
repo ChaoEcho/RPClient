@@ -95,13 +95,12 @@ class RegexScriptViewModel :
             .setup()
     }
 
-    /** 更新预设或角色作用域授权；全局脚本始终允许执行。 */
+    /** 更新角色作用域授权；全局脚本始终允许执行。 */
     @UiIntentObserver(RegexScriptUiIntent.ToggleAuthorization::class)
-    private fun onToggleAuthorization(intent: RegexScriptUiIntent.ToggleAuthorization) {
+    private suspend fun onToggleAuthorization(intent: RegexScriptUiIntent.ToggleAuthorization) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         when (state.scope) {
             RegexScriptScope.Global -> Unit
-            RegexScriptScope.Preset -> mRepository.setPresetAuthorized(intent.authorized)
             RegexScriptScope.Character -> state.selectedCharacterId?.let {
                 mRepository.setCharacterAuthorized(it, intent.authorized)
             }
@@ -406,8 +405,9 @@ class RegexScriptViewModel :
         }.orEmpty()
         val authorized = when (scope) {
             RegexScriptScope.Global -> true
-            RegexScriptScope.Preset -> mRepository.isPresetAuthorized()
-            RegexScriptScope.Character -> characterId?.let(mRepository::isCharacterAuthorized) ?: false
+            RegexScriptScope.Character -> characterId?.let {
+                mRepository.isCharacterAuthorized(it)
+            } ?: false
         }
         return copy(
             selectedCharacterId = characterId,
@@ -433,7 +433,6 @@ class RegexScriptViewModel :
     private fun RegexScriptUiState.Normal.targetOrNull(): RegexScriptTarget? {
         return when (scope) {
             RegexScriptScope.Global -> RegexScriptTarget(RegexScriptScope.Global)
-            RegexScriptScope.Preset -> RegexScriptTarget(RegexScriptScope.Preset)
             RegexScriptScope.Character -> selectedCharacterId?.let {
                 RegexScriptTarget(RegexScriptScope.Character, it)
             }

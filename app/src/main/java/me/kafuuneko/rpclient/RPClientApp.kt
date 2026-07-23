@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
@@ -36,6 +38,10 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
+import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
+import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
+import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260103
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -48,9 +54,12 @@ class RPClientApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Kotpref.init(this)
-        startKoin {
+        val koinApplication = startKoin {
             androidContext(this@RPClientApp)
             modules(appModules)
+        }
+        runBlocking(Dispatchers.IO) {
+            koinApplication.koin.get<AppUpgradeManager>().upgrade()
         }
     }
 }
@@ -99,6 +108,18 @@ internal val appModules = module {
     singleOf(::RegexScriptCodec)
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)
+
+    // App Upgrade
+    singleOf(::AndroidAppVersionCodeProvider)
+    singleOf(::AppModelUpgradeVersionStore)
+    singleOf(::Upgrade20260103)
+    single {
+        AppUpgradeManager(
+            versionCodeProvider = get<AndroidAppVersionCodeProvider>(),
+            versionStore = get<AppModelUpgradeVersionStore>(),
+            upgrades = listOf(get<Upgrade20260103>())
+        )
+    }
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")

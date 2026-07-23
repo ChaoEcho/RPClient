@@ -653,9 +653,8 @@
     <string name="prompt_source_post_processing">Post-Processing</string>
     <string name="prompt_source_other">Other</string>
     <string name="regex_script_title">Regex Scripts</string>
-    <string name="regex_script_entry_subtitle">Manage global, preset, and authorized character scripts</string>
+    <string name="regex_script_entry_subtitle">Manage global and authorized character scripts</string>
     <string name="regex_scope_global">Global</string>
-    <string name="regex_scope_preset">Preset</string>
     <string name="regex_scope_character">Character</string>
     <string name="regex_authorization">Allow script execution</string>
     <string name="regex_authorization_desc">Embedded scripts remain stored but do not run until explicitly authorized.</string>

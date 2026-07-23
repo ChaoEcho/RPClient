@@ -111,7 +111,59 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate2To3_addsRegexStorageAndKeepsCharacters() {
+        migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
+            execSQL(
+                """
+                INSERT INTO character (
+                    id, name, avatar, characterTags, description, personality, scenario,
+                    firstMessages, examplesOfDialogue, postHistoryInstructions, extensionsJson
+                ) VALUES (
+                    101, 'character', '', '[]', '', '', '', '', '', '',
+                    '{"regex_scripts":[{"id":"legacy"}],"vendor":{"kept":true}}'
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            RegexDatabaseName,
+            3,
+            true
+        )
+
+        migrated.query(
+            """
+            SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name IN (
+                'regex_scripts',
+                'regex_character_authorizations',
+                'data_migration_markers'
+            )
+            ORDER BY name
+            """.trimIndent()
+        ).use { cursor ->
+            val tableNames = buildList {
+                while (cursor.moveToNext()) add(cursor.getString(0))
+            }
+            assertEquals(
+                listOf(
+                    "regex_character_authorizations",
+                    "regex_scripts"
+                ),
+                tableNames
+            )
+        }
+        migrated.query("SELECT extensionsJson FROM character WHERE id = 101").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(true, cursor.getString(0).contains("regex_scripts"))
+        }
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
+        const val RegexDatabaseName = "app-regex-migration-test"
     }
 }

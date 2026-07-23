@@ -34,8 +34,12 @@ import androidx.room.Index
     ]
 )
 data class GroupChatMember(
+    // 所属群聊会话 ID；会话删除时成员关系级联删除。
     val sessionId: Long,
+    // 成员角色 ID；角色删除时成员关系级联删除。
     val characterId: Long,
+    // 成员在群聊和 Join 模式角色卡中的顺序，数值越小越靠前。
     val sortOrder: Int,
+    // 是否禁止成员自动发言；其角色卡是否进入 Prompt 还受会话 includeMutedCards 控制。
     val muted: Boolean = false
 )

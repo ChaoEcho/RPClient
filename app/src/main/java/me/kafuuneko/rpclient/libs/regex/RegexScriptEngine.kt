@@ -251,8 +251,7 @@ class RegexScriptEngine {
 
     private fun RegexScriptScope.priority(): Int = when (this) {
         RegexScriptScope.Global -> 0
-        RegexScriptScope.Preset -> 1
-        RegexScriptScope.Character -> 2
+        RegexScriptScope.Character -> 1
     }
 
     private data class ParsedRegex(

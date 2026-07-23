@@ -13,7 +13,7 @@ Features include:
 - Streaming responses, regeneration, continuation, and impersonation
 - Long-term summary memory
 - Prompt presets, macro expansion, prompt inspection, and token budgeting
-- Global, preset, and character-scoped regex scripts
+- Global and character-scoped regex scripts
 - Local request log debugging mode
 - Material 3 UI with multiple interface languages
 

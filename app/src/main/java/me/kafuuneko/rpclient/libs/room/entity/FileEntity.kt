@@ -12,8 +12,11 @@ import androidx.room.PrimaryKey
  */
 @Entity(tableName = "files")
 data class FileEntity(
+    // 文件记录 UUID，供 Character 等业务实体稳定引用，不随物理文件名变化。
     @PrimaryKey
     val uuid: String,
+    // 文件内容的 SHA-256 哈希值，同时作为应用私有目录中的物理文件名。
     val hash: String,
+    // 文件 MIME 类型；为空表示导入时无法可靠识别。
     val mimeType: String? = null
 )

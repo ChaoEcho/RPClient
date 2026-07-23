@@ -48,10 +48,12 @@
 ## 5. Regex 脚本
 
 1. Regex 脚本解析、存储和运行放在 `libs/regex/`，不要在聊天页面直接处理脚本 JSON。
-2. Global、Preset、Character 作用域必须明确，角色卡内嵌脚本默认不应自动获得执行授权。
+2. Global、Character 作用域必须明确，角色卡内嵌脚本默认不应自动获得执行授权。
 3. Source、Markdown、Prompt 三种执行模式的输入输出边界必须可测试。
 4. 脚本排序、启用状态、复制、导入导出属于业务状态，持久化必须通过 Repository。
 5. Regex 执行可能改变模型可见内容，涉及 Prompt 模式时必须检查 Prompt Inspector 输出。
+6. Global、Character 脚本和角色授权以 Room 为唯一权威来源；角色卡导入时提取
+   `extensions.regex_scripts`，导出时再临时回填，不能在 `extensionsJson` 中保留第二份本地副本。
 
 ---
 

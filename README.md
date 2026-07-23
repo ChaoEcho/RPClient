@@ -63,7 +63,7 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 ### Regex Scripts
 
 - Compatible with commonly used SillyTavern Regex script JSON
-- Global, Preset, and Character scopes
+- Global and Character scopes
 - Source, Markdown, and Prompt execution modes
 - Script ordering, duplication, testing, import, and export
 - Scripts embedded in character cards are not automatically granted permission to run

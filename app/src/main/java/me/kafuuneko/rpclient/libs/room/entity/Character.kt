@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.utils.toStringList
     tableName = "character"
 )
 data class Character(
+    // 角色 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 角色名称
     val name: String,

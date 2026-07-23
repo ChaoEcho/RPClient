@@ -651,9 +651,8 @@
     <string name="prompt_source_post_processing">Prompt 後處理</string>
     <string name="prompt_source_other">其他</string>
     <string name="regex_script_title">Regex 腳本</string>
-    <string name="regex_script_entry_subtitle">管理全域、預設與已授權角色腳本</string>
+    <string name="regex_script_entry_subtitle">管理全域與已授權角色腳本</string>
     <string name="regex_scope_global">全域</string>
-    <string name="regex_scope_preset">預設</string>
     <string name="regex_scope_character">角色</string>
     <string name="regex_authorization">允許腳本執行</string>
     <string name="regex_authorization_desc">內嵌腳本會保留，但只有明確授權後才會執行。</string>
@@ -666,6 +665,11 @@
     <string name="regex_delete_title">刪除 Regex 腳本？</string>
     <string name="regex_editor_title">Regex 腳本編輯器</string>
     <string name="regex_script_name">腳本名稱</string>
+    <string name="regex_section_basic">基本資訊</string>
+    <string name="regex_section_expressions">規則與取代</string>
+    <string name="regex_section_switches">選項</string>
+    <string name="regex_section_advanced">進階設定</string>
+    <string name="regex_execution_mode">執行模式</string>
     <string name="regex_find_regex">尋找 Regex（/pattern/flags）</string>
     <string name="regex_replace_string">替換字串</string>
     <string name="regex_trim_strings">Trim Out 字串（每行一項）</string>

@@ -27,7 +27,7 @@ import androidx.room.PrimaryKey
     ]
 )
 data class ChatMessage(
-    // Message ID
+    // 消息 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 对话 ID
     val sessionId: Long,

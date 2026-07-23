@@ -2,6 +2,9 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
+import me.kafuuneko.rpclient.libs.regex.normalizeRegexScriptIds
+import me.kafuuneko.rpclient.libs.regex.toEntity
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.utils.toJsonString
@@ -10,9 +13,11 @@ import me.kafuuneko.rpclient.utils.toStringList
 /** 角色实体读写及标签、开场白序列化的业务仓库。 */
 class CharacterRepository(
     private val mAppDatabase: AppDatabase,
-    private val mGson: Gson
+    private val mGson: Gson,
+    private val mRegexCodec: RegexScriptCodec
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
+    private val mRegexDao = mAppDatabase.getRegexScriptDao()
 
     /**
      * 获取所有角色。
@@ -42,11 +47,9 @@ class CharacterRepository(
      * @return 保存后的角色 id。
      */
     suspend fun saveCharacter(character: Character): Long {
-        if (character.id == 0L) {
-            return mCharacterDao.insertOrReplace(character)
+        return mAppDatabase.withTransaction {
+            saveCharacterInTransaction(character)
         }
-        mCharacterDao.update(character)
-        return character.id
     }
 
     /**
@@ -55,7 +58,7 @@ class CharacterRepository(
      * @param character 要更新的角色。
      */
     suspend fun updateCharacter(character: Character) {
-        mCharacterDao.update(character)
+        saveCharacter(character)
     }
 
     /**
@@ -70,8 +73,8 @@ class CharacterRepository(
         return mAppDatabase.withTransaction {
             val current = mCharacterDao.getCharacterById(id) ?: return@withTransaction null
             val updated = current.copy(extensionsJson = transform(current.extensionsJson))
-            mCharacterDao.update(updated)
-            updated
+            saveCharacterInTransaction(updated)
+            mCharacterDao.getCharacterById(id)
         }
     }
 
@@ -133,5 +136,38 @@ class CharacterRepository(
         val character = getCharacterById(id) ?: return false
         updateCharacter(character.copy(characterTags = mGson.toJsonString(tags)))
         return true
+    }
+
+    /**
+     * 保存角色并在同一事务内提取显式提供的 `extensions.regex_scripts`。
+     *
+     * 本地 Character 只保留未知扩展；Regex 表是脚本的唯一权威来源。扩展中没有该字段时保留
+     * 既有脚本，显式空数组则清空对应角色脚本。
+     */
+    private suspend fun saveCharacterInTransaction(character: Character): Long {
+        val extraction = mRegexCodec.extractFromCharacterExtensions(character.extensionsJson)
+        val persistedCharacter = if (extraction.hadRegexScripts) {
+            character.copy(extensionsJson = extraction.extensionsJson)
+        } else {
+            character
+        }
+        val characterId = if (persistedCharacter.id == 0L) {
+            mCharacterDao.insertOrReplace(persistedCharacter)
+        } else {
+            mCharacterDao.update(persistedCharacter)
+            persistedCharacter.id
+        }
+        if (extraction.hadRegexScripts) {
+            mRegexDao.deleteCharacterScripts(characterId)
+            val scripts = extraction.scripts.normalizeRegexScriptIds()
+            if (scripts.isNotEmpty()) {
+                mRegexDao.insertScripts(
+                    scripts.mapIndexed { index, script ->
+                        script.toEntity(characterId, index, mGson)
+                    }
+                )
+            }
+        }
+        return characterId
     }
 }

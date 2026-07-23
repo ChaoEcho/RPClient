@@ -1,9 +1,8 @@
 package me.kafuuneko.rpclient.libs.regex
 
-/** Regex 脚本的来源作用域；执行时按全局、预设、角色卡的顺序依次应用。 */
+/** Regex 脚本的来源作用域；执行时按全局、角色卡的顺序依次应用。 */
 enum class RegexScriptScope {
     Global,
-    Preset,
     Character
 }
 

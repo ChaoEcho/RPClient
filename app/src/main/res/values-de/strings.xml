@@ -641,9 +641,8 @@
     <string name="prompt_source_post_processing">Prompt-Nachbearbeitung</string>
     <string name="prompt_source_other">Sonstiges</string>
     <string name="regex_script_title">Regex-Skripte</string>
-    <string name="regex_script_entry_subtitle">Globale, Preset- und autorisierte Charakterskripte verwalten</string>
+    <string name="regex_script_entry_subtitle">Globale und autorisierte Charakterskripte verwalten</string>
     <string name="regex_scope_global">Global</string>
-    <string name="regex_scope_preset">Preset</string>
     <string name="regex_scope_character">Charakter</string>
     <string name="regex_authorization">Skriptausführung erlauben</string>
     <string name="regex_authorization_desc">Eingebettete Skripte bleiben gespeichert, werden aber erst nach ausdrücklicher Autorisierung ausgeführt.</string>
@@ -656,6 +655,11 @@
     <string name="regex_delete_title">Regex-Skript löschen?</string>
     <string name="regex_editor_title">Regex-Skripteditor</string>
     <string name="regex_script_name">Skriptname</string>
+    <string name="regex_section_basic">Grundinformationen</string>
+    <string name="regex_section_expressions">Muster und Ersetzung</string>
+    <string name="regex_section_switches">Optionen</string>
+    <string name="regex_section_advanced">Erweiterte Einstellungen</string>
+    <string name="regex_execution_mode">Ausführungsmodus</string>
     <string name="regex_find_regex">Regex suchen (/pattern/flags)</string>
     <string name="regex_replace_string">Ersetzungszeichenfolge</string>
     <string name="regex_trim_strings">Trim-Out-Zeichenfolgen (eine pro Zeile)</string>

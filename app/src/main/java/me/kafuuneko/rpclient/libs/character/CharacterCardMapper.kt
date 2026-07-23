@@ -4,6 +4,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -16,7 +18,8 @@ import me.kafuuneko.rpclient.utils.toJsonString
  * 会尽可能保留，避免一次导入导出破坏本项目尚未支持的配置。
  */
 class CharacterCardMapper(
-    private val gson: Gson
+    private val gson: Gson,
+    private val regexCodec: RegexScriptCodec = RegexScriptCodec(gson)
 ) {
     /**
      * 解析 Tavern 生态角色卡 JSON。
@@ -28,14 +31,22 @@ class CharacterCardMapper(
         val root = JsonParser.parseString(json).asJsonObject
         val data = root.optJsonObject("data")
         return if (data != null) {
+            val character = data.toCharacter(avatar, characterLorebookId)
+            val regexExtraction = regexCodec.extractFromCharacterExtensions(
+                character.extensionsJson
+            )
             CharacterCardImport(
-                character = data.toCharacter(avatar, characterLorebookId),
-                embeddedLorebook = data.optJsonObject("character_book")?.toLorebookImport()
+                character = character.copy(
+                    extensionsJson = regexExtraction.extensionsJson
+                ),
+                embeddedLorebook = data.optJsonObject("character_book")?.toLorebookImport(),
+                regexScripts = regexExtraction.scripts
             )
         } else {
             CharacterCardImport(
                 character = root.toV1Character(avatar, characterLorebookId),
-                embeddedLorebook = null
+                embeddedLorebook = null,
+                regexScripts = emptyList()
             )
         }
     }
@@ -44,7 +55,8 @@ class CharacterCardMapper(
     fun toV2Json(
         character: Character,
         lorebook: Lorebook? = null,
-        entries: List<LorebookEntry> = emptyList()
+        entries: List<LorebookEntry> = emptyList(),
+        regexScripts: List<RegexScript> = emptyList()
     ): String {
         // 导出统一使用 Character Card V2；角色绑定世界书会重新嵌入 data.character_book。
         val data = JsonObject()
@@ -61,7 +73,14 @@ class CharacterCardMapper(
         data.add("tags", parseArrayOrEmpty(character.characterTags))
         data.addProperty("creator", character.creator)
         data.addProperty("character_version", character.characterVersion)
-        data.add("extensions", parseObjectOrEmpty(character.extensionsJson).withDepthPrompt(character))
+        val extensionsWithRegex = regexCodec.injectIntoCharacterExtensions(
+            character.extensionsJson,
+            regexScripts
+        )
+        data.add(
+            "extensions",
+            parseObjectOrEmpty(extensionsWithRegex).withDepthPrompt(character)
+        )
         if (lorebook != null) {
             data.add("character_book", lorebook.toCharacterBook(entries))
         }
@@ -325,7 +344,8 @@ class CharacterCardMapper(
 /** 角色卡导入的聚合结果，嵌入世界书尚未写入数据库。 */
 data class CharacterCardImport(
     val character: Character,
-    val embeddedLorebook: CharacterBookImport?
+    val embeddedLorebook: CharacterBookImport?,
+    val regexScripts: List<RegexScript> = emptyList()
 )
 
 /** 从角色卡或独立文件解析出的、尚未持久化的世界书数据。 */
