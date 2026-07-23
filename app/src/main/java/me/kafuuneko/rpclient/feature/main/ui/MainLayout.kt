@@ -494,6 +494,15 @@ private fun HomePage(
                     onClick = { MainUiIntent.OpenWorldBookManager.emit() }
                 )
             }
+            item {
+                HomeEntryCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.DataObject,
+                    title = stringResource(R.string.regex_script_title),
+                    subtitle = stringResource(R.string.regex_script_entry_subtitle),
+                    onClick = { MainUiIntent.OpenRegexScripts.emit() }
+                )
+            }
         }
         item {
             RpSectionHeader(
@@ -825,7 +834,6 @@ private fun SettingsPage(
         item { PromptBehaviorPanel(state, emit) }
         item { WorldInfoBudgetPanel(state, emit) }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
-        item { RegexScriptEntryCard { MainUiIntent.OpenRegexScripts.emit() } }
         item { SummaryPanel(state, emit) }
         item { DebugPanel(state, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
@@ -1276,18 +1284,6 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
         icon = Icons.Rounded.AutoAwesome,
         title = stringResource(R.string.prompt_preset_title),
         subtitle = stringResource(R.string.prompt_preset_entry_subtitle)
-    )
-}
-
-@Composable
-private fun RegexScriptEntryCard(onClick: () -> Unit) {
-    RpInfoCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        icon = Icons.Rounded.DataObject,
-        title = stringResource(R.string.regex_script_title),
-        subtitle = stringResource(R.string.regex_script_entry_subtitle)
     )
 }
 
