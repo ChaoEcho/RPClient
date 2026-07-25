@@ -41,11 +41,18 @@ class AnthropicModelCatalogClient(
     }
 }
 
+/** Anthropic 单页模型结果；[nextAfterId] 为空表示服务端分页已经结束。 */
 internal data class AnthropicModelCatalogPage(
     val models: List<LLMAvailableModel>,
     val nextAfterId: String?
 )
 
+/**
+ * 解析 Anthropic 模型页并校验游标完整性。
+ *
+ * 服务端声明仍有下一页却未返回 `last_id` 时直接判为无效响应，避免调用方把截断目录
+ * 误认为完整结果。
+ */
 internal fun parseAnthropicModelCatalogPage(raw: String): AnthropicModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
     val data = json.arrayOrNull("data")

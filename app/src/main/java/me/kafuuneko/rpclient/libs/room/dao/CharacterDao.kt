@@ -5,6 +5,7 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 
+/** 角色表的基础查询入口；跨表导入、删除和文件清理由 Repository 统一编排。 */
 @Dao
 interface CharacterDao : MutableDao<Character> {
     /**

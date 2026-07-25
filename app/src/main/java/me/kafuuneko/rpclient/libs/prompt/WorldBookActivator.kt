@@ -267,6 +267,12 @@ class WorldBookActivator {
         return isNotBlank()
     }
 
+    /**
+     * 对同一 inclusion group 的已激活条目执行互斥选择。
+     *
+     * 已在前一递归轮次激活的组不再选择新成员；当前 sticky 条目优先于评分和随机选择。
+     * 启用 group scoring 时先淘汰低分候选，再按 override、权重随机的顺序决定唯一赢家。
+     */
     private fun List<LorebookEntry>.applyInclusionGroups(
         activationScores: Map<Long, Int>,
         stickyIds: Set<Long>,
@@ -356,6 +362,12 @@ class WorldBookActivator {
         return "$speakerName: $content"
     }
 
+    /**
+     * 解析 SillyTavern 风格的 `/pattern/flags` 世界书关键词。
+     *
+     * 只接受 i/m/s/y 标志；y 沿用 JavaScript sticky 语义，要求匹配从扫描文本开头开始。
+     * 格式或正则无效时返回 null，让调用方按普通关键词处理，避免坏配置中断整轮激活。
+     */
     private fun parseRegexKeyword(keyword: String): ParsedRegexKeyword? {
         if (!keyword.startsWith('/')) return null
         val delimiterIndex = keyword.lastIndexOf('/')
@@ -395,6 +407,12 @@ class WorldBookActivator {
         return false
     }
 
+    /**
+     * 将最终激活条目按 SillyTavern position 拆成 Prompt 注入分组。
+     *
+     * 输入先按 order 降序遍历、再通过头部插入恢复同位置的稳定升序；相同 depth 和 role
+     * 合并为一条消息，避免协议后处理改变条目之间的相对顺序。
+     */
     private fun List<LorebookEntry>.toActivationResult(
         nextStateJson: String,
         previousStateJson: String,
@@ -466,6 +484,12 @@ class WorldBookActivator {
         return (sticky ?: 0) > 0 || (cooldown ?: 0) > 0
     }
 
+    /**
+     * 生成 timed effect 的行为签名。
+     *
+     * 任何会影响激活或注入的字段发生变化后，旧 sticky/cooldown 状态应立即失效；
+     * 此签名只用于当前本地运行状态校验，不作为跨版本稳定标识。
+     */
     private fun LorebookEntry.timedSignature(): String {
         return listOf(
             content,
@@ -513,6 +537,12 @@ class WorldBookActivator {
         return TimedWorldInfoState(lastMessageCount = messageCount)
     }
 
+    /**
+     * 仅以最终保留进 Prompt 的条目推进 sticky/cooldown 时钟。
+     *
+     * 仍处于 sticky 的条目复用原期限，新触发条目从当前消息数开始计算；已过期记录
+     * 会先清理，防止状态 JSON 随会话轮次无限增长。
+     */
     private fun TimedWorldInfoState.next(
         messageCount: Int,
         entries: List<LorebookEntry>,

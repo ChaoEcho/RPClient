@@ -53,10 +53,11 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = SurfaceVariantColor
 )
 
+/** 应用 Material 3 配色与字体；动态配色仅在调用方显式启用且系统支持时生效。 */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    // Android 12 起系统才提供动态配色 API。
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

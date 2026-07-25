@@ -234,6 +234,12 @@ class GroupChatViewModel :
         )
     }
 
+    /**
+     * 根据当前激活策略选出本轮发言者，并在启动生成前提交用户消息。
+     *
+     * 空输入用于继续推进自动/手动发言，不会创建空的用户消息；发言者选择基于写入前的
+     * 聚合快照，保证本轮激活文本和候选成员来自同一数据版本。
+     */
     @UiIntentObserver(GroupChatUiIntent.SendMessage::class)
     private suspend fun onSendMessage() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -441,6 +447,11 @@ class GroupChatViewModel :
         }
     }
 
+    /**
+     * 保存会话设置，并仅在摘要正文确有变化时推进摘要快照。
+     *
+     * 空摘要具有“覆盖边界归零”的业务语义，不能随每次普通设置保存重复写入。
+     */
     @UiIntentObserver(GroupChatUiIntent.SaveSettings::class)
     private suspend fun onSaveSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -723,6 +734,7 @@ class GroupChatViewModel :
         )
     }
 
+    /** 由最后一条角色消息的原发言者续写，新回复仍作为独立消息保存。 */
     @UiIntentObserver(GroupChatUiIntent.ContinueLast::class)
     private suspend fun onContinueLast() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -791,7 +803,12 @@ class GroupChatViewModel :
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
     }
 
-    /** 启动一轮或自动连续多轮的成员回复生成。 */
+    /**
+     * 启动一轮或自动连续多轮的成员回复生成。
+     *
+     * 同一次初始选择共享 batchId；进入自动模式的新一轮会重读数据库再选择成员，
+     * 因而能看到上一轮刚提交的消息和用户在间隙修改的成员配置。
+     */
     private fun launchGeneration(
         sessionId: Long,
         speakers: List<GroupChatMemberData>,
@@ -1032,7 +1049,11 @@ class GroupChatViewModel :
         summarizeSession(sessionId, showToast = false)
     }
 
-    /** 摘要尚未覆盖的消息，并推进摘要覆盖边界。 */
+    /**
+     * 摘要尚未覆盖的消息，并推进到构建器实际纳入请求的最后一条消息边界。
+     *
+     * 预算可能只允许处理部分候选消息，因此不能直接以数据库中的最新消息作为覆盖边界。
+     */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
         runCatching {
             val data = withContext(Dispatchers.IO) {

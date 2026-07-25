@@ -212,6 +212,12 @@ class ChatPromptBuilder(
         )
     }
 
+    /**
+     * 构建聊天历史外侧的固定 Prompt 区段。
+     *
+     * 角色回复专用的主提示和 PHI 不进入 Continue/Impersonate，避免特殊任务与“生成下一条
+     * 角色回复”的约束同时出现。
+     */
     private fun buildFixedMessages(
         context: PromptBuildContext,
         worldInfo: WorldBookActivationResult
@@ -300,6 +306,11 @@ class ChatPromptBuilder(
         )
     }
 
+    /**
+     * 收集按 depth 插入历史内部的摘要、作者注释、角色注释和世界书条目。
+     *
+     * 这里只保留相对深度和稳定排序键，实际索引必须等当前用户消息加入历史后再计算。
+     */
     private fun buildInChatPieces(
         context: PromptBuildContext,
         worldInfo: WorldBookActivationResult
@@ -390,6 +401,11 @@ class ChatPromptBuilder(
         return pieces
     }
 
+    /**
+     * 将示例对话和示例位置世界书条目转换为可独立裁剪的消息块。
+     *
+     * 无法识别发言者格式的块以 system 原文保留，防止第三方角色卡示例在导入后静默丢失。
+     */
     private fun buildExamplePieces(
         context: PromptBuildContext,
         worldInfo: WorldBookActivationResult,
@@ -469,6 +485,12 @@ class ChatPromptBuilder(
             .resolve(context, history, outlets)
     }
 
+    /**
+     * 组装真实聊天历史，并把所有 depth 注入项插入最终相对位置。
+     *
+     * 同一插入点先按世界书 order、再按稳定 tieBreaker 排序；最后一条真实历史不可裁剪，
+     * 以维持当前生成任务与用户最近输入的一致性。
+     */
     private fun buildChatMessages(
         historyMessages: List<ChatMessage>,
         context: PromptBuildContext,

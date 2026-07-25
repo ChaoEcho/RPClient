@@ -103,6 +103,12 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         WorldBookListViewEvent.OpenWorldBookImporter.tryEmit()
     }
 
+    /**
+     * 解析独立世界书，并在低固定预算需要确认时暂存导入草稿。
+     *
+     * 确认前不写数据库；任务 token 只允许当前导入或导出任务结束 Loading，
+     * 避免 Activity Result 与 onResume 的刷新顺序造成状态闪回。
+     */
     @UiIntentObserver(WorldBookListUiIntent.ImportWorldBook::class)
     private fun onImportWorldBook(intent: WorldBookListUiIntent.ImportWorldBook) {
         val uiState = getOrNull<WorldBookListUiState.Normal>() ?: return
@@ -147,6 +153,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         continuePendingImport(followGlobal = false)
     }
 
+    /** 消费一次待确认世界书，并按用户选择保留固定预算或改为跟随全局预算。 */
     private fun continuePendingImport(followGlobal: Boolean) {
         val uiState = getOrNull<WorldBookListUiState.Normal>() ?: return
         if (uiState.dialogState !is WorldBookListDialogState.LowTokenBudgetConfirm) return

@@ -503,7 +503,7 @@ private fun ScriptCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Header 区域：拖拽手柄 + 名称 + 开关
+            // 顶部区域包含拖拽手柄、名称和启用开关。
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -530,7 +530,7 @@ private fun ScriptCard(
                 )
             }
 
-            // Placement 触发位置标签组
+            // 触发位置以标签组展示，避免把持久化数值直接暴露给用户。
             val matchedPlacements = RegexPlacement.entries.filter { it.value in script.placement }
             if (matchedPlacements.isNotEmpty()) {
                 FlowRow(

@@ -7,7 +7,11 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
-/** 将业务枚举按稳定名称写入 Room 字符串列。 */
+/**
+ * 将业务枚举按名称写入 Room 字符串列。
+ *
+ * 枚举名称属于持久化格式的一部分；重命名成员时必须提供数据库迁移，不能只修改 Kotlin 名称。
+ */
 class Converters {
     @TypeConverter
     fun toChatMessageSource(value: String): ChatMessage.Source {

@@ -5,6 +5,7 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 
+/** 单聊会话元数据访问接口；消息写入和世界书运行时状态不得在此处单独编排。 */
 @Dao
 interface ChatSessionDao : MutableDao<ChatSession> {
     /**

@@ -61,7 +61,7 @@ internal fun fitWorldInfoToBudget(
             val lorebookBudget = lorebooks[entry.lorebookId]
                 ?.resolveTokenBudget()
             val lorebookUsedTokens = usedByLorebook[entry.lorebookId] ?: 0
-            // SillyTavern stops before an entry that would meet or exceed the global budget.
+            // SillyTavern 在下一条目达到或超过全局预算时即停止纳入，因此这里使用 >=。
             val exceedsGlobalBudget = globalUsedTokens + nextTokens >= globalTokenBudget
             val exceedsLorebookBudget = lorebookBudget != null &&
                 lorebookUsedTokens + nextTokens > lorebookBudget
@@ -118,6 +118,12 @@ internal fun WorldBookActivationResult.retainStateEntries(
     )
 }
 
+/**
+ * 用同一 ID 集合裁剪激活结果的所有位置索引。
+ *
+ * 不能只过滤 [WorldBookActivationResult.activatedEntries]，否则已被预算移除的条目仍可能
+ * 从 depth、示例或 outlet 分组注入最终 Prompt。
+ */
 internal fun WorldBookActivationResult.filterEntries(
     selectedIds: Set<Long>
 ): WorldBookActivationResult {

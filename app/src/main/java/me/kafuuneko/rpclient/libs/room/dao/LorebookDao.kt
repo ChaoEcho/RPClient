@@ -5,6 +5,7 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 
+/** 世界书主体的基础访问接口；条目及角色绑定的一致性由 LorebookRepository 维护。 */
 @Dao
 interface LorebookDao : MutableDao<Lorebook> {
     /**

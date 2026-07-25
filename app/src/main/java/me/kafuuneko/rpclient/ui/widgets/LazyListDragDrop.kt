@@ -30,7 +30,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 /**
- * 列表拖拽重排状态管理器
+ * 列表拖拽重排状态管理器。
+ *
+ * 使用稳定 item key 而非可变索引追踪拖拽项，列表在 [onMove] 后立即重排时仍能找到
+ * 当前项目；拖拽结束回调只在一次手势结束或取消时触发。
  */
 class LazyListDragDropState internal constructor(
     private val state: LazyListState,
@@ -157,6 +160,11 @@ class LazyListDragDropState internal constructor(
     }
 }
 
+/**
+ * 创建并记住与指定 [LazyListState] 绑定的拖拽状态。
+ *
+ * 回调通过最新值包装，避免重组后拖拽状态继续捕获旧闭包；返回值不能跨列表复用。
+ */
 @Composable
 fun rememberLazyListDragDropState(
     lazyListState: LazyListState,
@@ -186,6 +194,7 @@ fun rememberLazyListDragDropState(
     return state
 }
 
+/** 为列表容器安装长按拖拽手势，并把结束与取消统一交给状态管理器收尾。 */
 fun Modifier.dragContainer(dragDropState: LazyListDragDropState): Modifier {
     return pointerInput(dragDropState) {
         detectDragGesturesAfterLongPress(
@@ -200,6 +209,11 @@ fun Modifier.dragContainer(dragDropState: LazyListDragDropState): Modifier {
     }
 }
 
+/**
+ * 为具有稳定 [key] 的 Lazy 列表项应用拖拽位移和归位动画。
+ *
+ * [key] 必须与 Lazy 列表声明的 key 一致，否则重排后无法继续追踪同一项目。
+ */
 @Composable
 fun LazyItemScope.DraggableItem(
     dragDropState: LazyListDragDropState,

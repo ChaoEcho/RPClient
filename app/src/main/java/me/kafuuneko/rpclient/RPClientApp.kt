@@ -109,7 +109,7 @@ internal val appModules = module {
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)
 
-    // App Upgrade
+    // 业务数据升级
     singleOf(::AndroidAppVersionCodeProvider)
     singleOf(::AppModelUpgradeVersionStore)
     singleOf(::Upgrade20260103)

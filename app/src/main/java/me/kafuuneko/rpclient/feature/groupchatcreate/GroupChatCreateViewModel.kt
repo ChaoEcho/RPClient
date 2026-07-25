@@ -256,6 +256,12 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /**
+     * 规划群聊开场白并事务创建会话、成员和开场消息。
+     *
+     * GreetingPlanner 先把随机/手动选择固定为有序快照，Repository 再一次性提交，
+     * 防止创建过程中成员顺序或随机候选发生变化。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.Create::class)
     private suspend fun onCreate() {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return

@@ -182,7 +182,7 @@ private fun ChatNormal(
     ) {
         if (state.conversationState.messages.isNotEmpty()) {
             if (isFirstLoad || shouldFollowBottom) {
-                // Header + messages + the trailing anchor.
+                // 列表项包含顶部占位、消息正文和用于自动滚动的末尾锚点。
                 listState.scrollToItem(state.conversationState.messages.size + 1)
                 isFirstLoad = false
             }

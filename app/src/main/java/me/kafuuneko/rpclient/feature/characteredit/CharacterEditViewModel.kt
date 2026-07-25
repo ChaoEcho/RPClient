@@ -106,6 +106,12 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         CharacterEditViewEvent.OpenAvatarPicker.tryEmit()
     }
 
+    /**
+     * 将选择结果复制到应用私有文件，并替换表单持有的临时头像。
+     *
+     * 连续选择时只删除尚未提交的上一份临时文件；数据库仍引用的原头像必须等角色保存
+     * 成功或用户确认删除后才能清理。
+     */
     @UiIntentObserver(CharacterEditUiIntent.AvatarSelected::class)
     private suspend fun onAvatarSelected(intent: CharacterEditUiIntent.AvatarSelected) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
@@ -229,6 +235,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onChangeExtensionsJson(intent: CharacterEditUiIntent.ChangeExtensionsJson) =
         updateForm { copy(extensionsJson = intent.value) }
 
+    /** 先提交角色对新头像的引用，再清理不再使用的原头像文件。 */
     @UiIntentObserver(CharacterEditUiIntent.SaveCharacter::class)
     private suspend fun onSaveCharacter() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
@@ -304,6 +311,11 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         deleteCharacter(lorebookId = dialogState.lorebookId)
     }
 
+    /**
+     * 删除角色及其头像；只有用户在关联确认中明确选择时才一并删除世界书。
+     *
+     * 表单尚未提交的新头像不受数据库实体追踪，需要在同一流程中额外清理。
+     */
     private suspend fun deleteCharacter(lorebookId: Long? = null) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (uiState.form.isNew) return

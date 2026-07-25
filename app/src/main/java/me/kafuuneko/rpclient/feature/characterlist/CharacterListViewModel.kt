@@ -86,6 +86,12 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
     }
 
+    /**
+     * 根据当前可见 ID 和实际渲染尺寸维护头像加载集合。
+     *
+     * 尺寸变化会使旧位图立即失效；离开可视区或 key 已变化的任务主动取消，
+     * 防止快速滚动后过期缩略图回写到被复用的列表项。
+     */
     @UiIntentObserver(CharacterListUiIntent.VisibleCharactersChanged::class)
     private fun onVisibleCharactersChanged(
         intent: CharacterListUiIntent.VisibleCharactersChanged
@@ -138,6 +144,12 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         CharacterListViewEvent.OpenCharacterCardImporter.tryEmit()
     }
 
+    /**
+     * 解析角色卡并在需要时暂停于内嵌世界书预算确认。
+     *
+     * 确认前只保存进程内草稿，不写入角色、头像或世界书；传输 token 保证被替换或页面结束
+     * 的旧任务不能清除新任务的 Loading 状态。
+     */
     @UiIntentObserver(CharacterListUiIntent.ImportCharacterCard::class)
     private fun onImportCharacterCard(intent: CharacterListUiIntent.ImportCharacterCard) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
@@ -184,6 +196,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         continuePendingImport(followGlobal = false)
     }
 
+    /** 消费一次待确认草稿，应用用户选择的预算策略后再开始事务导入。 */
     private fun continuePendingImport(followGlobal: Boolean) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState !is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm) return
@@ -254,6 +267,12 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
+    /**
+     * 重建角色列表的搜索快照，并使已变更或删除头像对应的异步加载失效。
+     *
+     * [mRefreshGeneration] 防止较早的数据库查询晚返回后覆盖新列表；头像位图只按当前
+     * 可见项延迟加载，不进入完整角色列表状态。
+     */
     private suspend fun refreshCharacters(selectedCharacterId: Long?) {
         if (!isStateOf<CharacterListUiState.Normal>()) return
         val generation = ++mRefreshGeneration

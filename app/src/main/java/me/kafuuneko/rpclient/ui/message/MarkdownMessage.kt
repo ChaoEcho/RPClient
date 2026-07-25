@@ -34,6 +34,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
+/**
+ * 渲染聊天消息支持的轻量 Markdown 子集。
+ *
+ * 解析器刻意不执行 HTML，也不加载链接或远程资源；用户消息与模型消息只在配色上不同，
+ * 以免展示层改变持久化正文或向外部地址泄露会话内容。
+ */
 @Composable
 fun MarkdownMessageText(
     content: String,
@@ -261,6 +267,12 @@ private val unorderedListRegex = Regex("""^\s*[-*+]\s+(.+)$""")
 private val orderedListRegex = Regex("""^\s*(\d+)[.)]\s+(.+)$""")
 private val dividerRegex = Regex("""^\s*([-*_])(\s*\1){2,}\s*$""")
 
+/**
+ * 单次顺序扫描消息正文并切分受支持的块级 Markdown。
+ *
+ * 未闭合代码围栏会消费到消息末尾，适配流式生成中的中间状态；其余无法识别的语法
+ * 统一保留为段落文本，避免模型输出因解析失败而丢失。
+ */
 private fun String.parseMarkdownBlocks(): List<MarkdownBlock> {
     val lines = replace("\r\n", "\n").replace('\r', '\n').lines()
     val blocks = mutableListOf<MarkdownBlock>()
@@ -356,6 +368,12 @@ private fun String.isListLine(): Boolean {
     return unorderedListRegex.matches(this) || orderedListRegex.matches(this)
 }
 
+/**
+ * 从左到右解析受支持的行内标记并直接写入 AnnotatedString。
+ *
+ * 链接只渲染标签而不注册点击或访问目标地址；缺少闭合符的标记按普通字符输出，
+ * 保证流式文本追加闭合符之前不会吞掉后续内容。
+ */
 private fun AnnotatedString.Builder.appendMarkdownInline(
     source: String,
     textColor: Color,
@@ -454,6 +472,11 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
     }
 }
 
+/**
+ * 追加一段允许嵌套的定界样式，并返回下一个扫描位置。
+ *
+ * 未找到闭合定界符时只消费首字符，让主扫描器继续保留其余原文。
+ */
 private fun AnnotatedString.Builder.appendDelimitedMarkdown(
     source: String,
     start: Int,

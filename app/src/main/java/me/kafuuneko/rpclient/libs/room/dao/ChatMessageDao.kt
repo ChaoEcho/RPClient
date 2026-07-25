@@ -5,6 +5,11 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 
+/**
+ * 单聊普通消息与摘要快照的数据库访问接口。
+ *
+ * 本接口只表达查询边界；消息、摘要与会话元数据的一致提交必须由 ChatRepository 事务完成。
+ */
 @Dao
 interface ChatMessageDao : MutableDao<ChatMessage> {
     /**

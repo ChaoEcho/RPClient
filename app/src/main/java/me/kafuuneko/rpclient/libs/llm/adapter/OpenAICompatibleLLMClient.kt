@@ -223,11 +223,18 @@ class OpenAICompatibleLLMClient(
     }
 }
 
+/**
+ * 读取 OpenAI Compatible 的文本字段。
+ *
+ * 部分网关会把缺失内容序列化为字符串 `"null"`，这里统一转为空串，避免该字面量
+ * 出现在聊天正文或推理块中。
+ */
 internal fun JSONObject.optContentString(name: String): String {
     if (!has(name) || isNull(name)) return ""
     return cleanContentString(optString(name))
 }
 
+/** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
 internal fun cleanContentString(value: String): String {
     return if (value.equals("null", ignoreCase = true)) "" else value
 }

@@ -182,6 +182,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         }
     }
 
+    /**
+     * 将创建表单转换为会话及可选开场消息，然后在事务成功后进入聊天页。
+     *
+     * 开场白宏使用与新会话完全相同的用户和角色快照解析；会话与首条消息由 Repository
+     * 原子创建，页面不会观察到只有会话而缺少开场白的中间状态。
+     */
     @UiIntentObserver(ChatCreateUiIntent.CreateChat::class)
     private suspend fun onCreateChat() {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return

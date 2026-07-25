@@ -6,6 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 
+/**
+ * 应用私有文件索引的数据库访问接口。
+ *
+ * 物理文件读写与共享哈希引用计数由 FileRepository 处理，DAO 不直接操作文件系统。
+ */
 @Dao
 interface FileDao {
     /**

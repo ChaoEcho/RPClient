@@ -44,6 +44,12 @@ data class PromptPostProcessingNames(
     val groupNames: List<String> = emptyList()
 )
 
+/**
+ * 后处理阶段携带来源追踪的消息。
+ *
+ * role 或正文可以因协议兼容策略改变，但 [sources] 必须随合并结果保留，供预算检查器
+ * 和世界书时序提交判断实际进入请求的内容。
+ */
 internal data class TrackedPromptMessage(
     val role: LLMMessageRole,
     val content: String,

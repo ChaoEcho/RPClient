@@ -291,6 +291,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         regenerateLastAssistantMessage(sessionId)
     }
 
+    /**
+     * 从指定普通消息创建独立会话分支。
+     *
+     * Repository 在事务中复制消息并选择该边界仍有效的摘要；原会话和当前页面状态
+     * 保持不变，分支成功后通过一次性事件打开新会话。
+     */
     @UiIntentObserver(ChatUiIntent.BranchFromMessage::class)
     private suspend fun onBranchFromMessage(intent: ChatUiIntent.BranchFromMessage) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -754,6 +760,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /**
+     * 继续最后一轮对话。
+     *
+     * 最后一条为用户消息时退化为普通角色回复；最后一条为角色消息时使用 Continue
+     * 任务提示，并新建消息保存续写结果，避免覆盖已存在的历史正文。
+     */
     private suspend fun continueLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
@@ -814,6 +826,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /** 让模型生成用户口吻的下一条消息，并以 User 来源提交，不能混入角色回复历史。 */
     private suspend fun generateUserImpersonation(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
@@ -865,6 +878,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /** 非流式结果完成 Source Regex 后，与世界书时序状态一起原子提交。 */
     private suspend fun generateOnce(
         sessionId: Long,
         request: LLMGenerationRequest,
@@ -894,6 +908,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
+    /**
+     * 收集流式增量并保证取消、异常或正常结束时只提交一次最终快照。
+     *
+     * UI 使用 Markdown Regex 的临时结果，但持久化时只对原始完整响应执行一次 Source Regex；
+     * 收尾运行在 NonCancellable 中，因此用户停止生成后仍会保留已收到的 partial 内容，并清理
+     * 尚未收到内容的占位消息。
+     */
     private suspend fun generateStreaming(
         sessionId: Long,
         request: LLMGenerationRequest,
@@ -997,6 +1018,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
+    /** 串行替换当前摘要任务，并确保取消后关闭仍停留在“总结中”的对话框状态。 */
     private fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
         mSummaryJob?.cancel()
         val job = viewModelScope.launch {
@@ -1021,6 +1043,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         return job
     }
 
+    /** 仅在会话未暂停且未总结消息达到阈值时触发自动摘要，并等待其写入完成。 */
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
@@ -1035,6 +1058,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /**
+     * 生成增量摘要，并以构建器实际选中的最后一条消息作为覆盖边界。
+     *
+     * 手动刷新允许重写最新摘要，自动任务只处理新增长度达到阈值的历史；提交前再次检查
+     * 协程状态，避免取消后的旧响应覆盖用户随后生成的新摘要。
+     */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
         runCatching {
             val data = withContext(Dispatchers.IO) {
@@ -1104,12 +1133,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /**
+     * 收集单聊 Prompt 所需领域快照并交给 ChatPromptBuilder 最终化。
+     *
+     * 重新生成的目标消息若恰好也是最新摘要覆盖边界，需要回退一版摘要重新取历史，
+     * 否则请求会继续包含由待替换消息生成的摘要内容。
+     */
     private suspend fun buildGenerationRequest(
         sessionId: Long,
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         excludedMessageId: Long? = null
     ): BuiltGenerationRequest {
-        // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
         val summaryContext = mChatRepository.getSummaryContext(sessionId)
@@ -1197,6 +1231,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /**
+     * 从持久化领域数据重建完整页面状态。
+     *
+     * Markdown Regex 只作用于本次展示副本，Room 中的 Source 正文保持不变；敏感且体积较大的
+     * Prompt 检查详情继续保存在 ViewModel 私有快照中，UiState 只暴露是否可查看。
+     */
     private suspend fun loadNormalState(
         sessionId: Long,
         inputDraft: String = "",
@@ -1210,7 +1250,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         editingMessageDraft: String = "",
         dialogState: ChatDialogState = ChatDialogState.None
     ): ChatUiState.Normal? {
-        // 所有 UI model 在 ViewModel 中组装，Compose 只负责渲染和发送 intent。
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
@@ -1351,6 +1390,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val worldInfoStateJson: String
     )
 
+    /**
+     * 在用户正文持久化前执行 Source Regex。
+     *
+     * 以 `/` 开头的输入先经过 SlashCommand placement，再进入 UserInput placement；
+     * 编辑已有消息时透传 [isEdit]，让脚本的 runOnEdit 约束生效。
+     */
     private suspend fun applyUserRegex(
         sessionId: Long,
         input: String,
@@ -1420,6 +1465,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /**
+     * 使用生成启动时冻结的脚本和宏，对完整 partial 快照执行最终 Source Regex。
+     *
+     * 收尾可能运行在取消后的 NonCancellable 区域，因此不再查询数据库，避免用户在生成途中
+     * 修改脚本导致屏幕上看到的内容与最终持久化规则来自不同脚本版本。
+     */
     private fun applyStreamingGeneratedRegex(snapshot: ActiveStreamingGeneration): String {
         if (snapshot.output.source() != ChatMessage.Source.User) {
             return mRegexRuntime.executeAiMessage(

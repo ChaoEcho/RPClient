@@ -50,6 +50,12 @@ class ViewEventWrapper(private val content: IViewEvent) {
     private val mMutex = Mutex()
     private val mHasHandled = MutableStateFlow(false)
 
+    /**
+     * 串行执行唯一一次事件处理。
+     *
+     * 只有 [handle] 正常返回后才标记已消费；处理抛出异常时保留未消费状态，
+     * 等待方也不会把失败处理误认为已经完成。
+     */
     suspend fun consumeIfNotHandled(handle: suspend (IViewEvent) -> Unit) = mMutex.withLock {
         if (mHasHandled.value) return@withLock false
         handle(content)
@@ -59,6 +65,7 @@ class ViewEventWrapper(private val content: IViewEvent) {
 
     fun isHandled() = mHasHandled.value
 
+    /** 等待事件完成唯一一次成功处理；已经消费时立即返回。 */
     suspend fun waitForConsumption() {
         if (mHasHandled.value) return
         mHasHandled.first { it }

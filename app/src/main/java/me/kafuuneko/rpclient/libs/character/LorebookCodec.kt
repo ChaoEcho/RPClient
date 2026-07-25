@@ -109,6 +109,12 @@ class LorebookCodec(
         )
     }
 
+    /**
+     * 将本地条目覆盖回 SillyTavern 世界书对象。
+     *
+     * 以导入时保存的 [LorebookEntry.rawJson] 为底稿，只覆盖 RPClient 已理解的字段，
+     * 未知第三方字段继续保留；高级匹配字段同时写入 extensions，兼容仍从扩展读取的客户端。
+     */
     private fun LorebookEntry.toStWorldBookEntry(uid: Int): JsonObject {
         val entry = parseObjectOrEmpty(rawJson)
         entry.addProperty("uid", uid)

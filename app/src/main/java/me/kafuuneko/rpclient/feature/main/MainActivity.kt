@@ -17,6 +17,8 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 /** 应用主页面宿主，承载首页与全局设置。 */
 class MainActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<MainViewModel>()
+
+    /** 用户头像选择结果交由 ViewModel 协调保存，Activity 不直接持久化 URI 或位图。 */
     private val mUserAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { mViewModel.emit(MainUiIntent.UserAvatarSelected(it)) }
     }

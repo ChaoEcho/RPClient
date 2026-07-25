@@ -44,11 +44,17 @@ class GeminiModelCatalogClient(
     }
 }
 
+/** Gemini 单页模型结果；分页 token 只在当前一次目录查询中使用，不持久化。 */
 internal data class GeminiModelCatalogPage(
     val models: List<LLMAvailableModel>,
     val nextPageToken: String?
 )
 
+/**
+ * 解析 Gemini 模型页，仅保留明确声明支持 `generateContent` 的模型。
+ *
+ * 同时兼容官方 `supportedGenerationMethods` 与部分网关使用的 `supportedActions` 字段。
+ */
 internal fun parseGeminiModelCatalogPage(raw: String): GeminiModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
     val data = json.arrayOrNull("models")

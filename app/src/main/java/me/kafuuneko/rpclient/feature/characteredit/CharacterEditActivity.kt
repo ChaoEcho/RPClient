@@ -17,6 +17,8 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 /** 角色创建与编辑页面宿主，处理头像文件选择等系统事件。 */
 class CharacterEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterEditViewModel>()
+
+    /** 头像 URI 只作为一次性选择结果交回 ViewModel，文件复制由数据层完成。 */
     private val mAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { mViewModel.emit(CharacterEditUiIntent.AvatarSelected(it)) }
     }

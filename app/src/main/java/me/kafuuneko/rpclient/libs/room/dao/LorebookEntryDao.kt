@@ -5,6 +5,7 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
+/** 世界书条目的基础访问接口，不负责触发扫描、预算裁剪或导入兼容转换。 */
 @Dao
 interface LorebookEntryDao : MutableDao<LorebookEntry> {
     /**

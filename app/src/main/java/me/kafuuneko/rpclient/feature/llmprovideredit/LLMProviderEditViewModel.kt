@@ -355,7 +355,7 @@ class LLMProviderEditViewModel :
                     )
                 ).setup()
             } catch (_: CancellationException) {
-                // Cancellation is an expected user action and should not be shown as a failure.
+                // 用户主动取消目录查询属于正常操作，不应展示为连接失败。
             } catch (_: Throwable) {
                 val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 latestState.copy(
