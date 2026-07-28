@@ -3,7 +3,11 @@ package me.kafuuneko.rpclient.feature.main
 import android.content.Context
 import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
@@ -20,6 +24,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
+import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.MainSessionType
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
@@ -32,6 +37,9 @@ import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.chat.ChatArchive
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -67,7 +75,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mFileRepository by inject<FileRepository>()
+    private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mContext by inject<Context>()
+
+    /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
+    private var mPendingChatImport: ChatArchive? = null
+    /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
+    private var mChatImportJob: Job? = null
 
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
@@ -212,7 +226,139 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
+        if (importDialog?.isImporting == true) return
+        if (importDialog != null) {
+            mPendingChatImport = null
+        }
         uiState.copy(dialogState = MainDialogState.None).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ImportChatClick::class)
+    private fun onImportChatClick() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.settingsState.isChatImportReading || mChatImportJob?.isActive == true) return
+        MainViewEvent.OpenChatImporter.tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.ImportChatResult::class)
+    private fun onImportChatResult(intent: MainUiIntent.ImportChatResult) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.settingsState.isChatImportReading || mChatImportJob?.isActive == true) return
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(isChatImportReading = true)
+        ).setup()
+        mChatImportJob = viewModelScope.launch {
+            try {
+                val archive = mChatArchiveRepository.readImportFromUri(intent.uri)
+                val characters = mCharacterRepository.getAllCharacters()
+                mPendingChatImport = archive
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val items = characters.map { it.toImportCharacterItem() }
+                current.copy(
+                    settingsState = current.settingsState.copy(isChatImportReading = false),
+                    dialogState = MainDialogState.ImportChatCharacterSelection(
+                        title = archive.title,
+                        sourceCharacterName = archive.characterNameHint,
+                        messageCount = archive.messages.size,
+                        query = "",
+                        characters = items,
+                        visibleCharacters = items,
+                        selectedCharacterId = ChatCharacterMatcher.suggestCharacterId(
+                            archive,
+                            characters
+                        )
+                    )
+                ).setup()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                mPendingChatImport = null
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                getOrNull<MainUiState.Normal>()?.let { current ->
+                    current.copy(
+                        settingsState = current.settingsState.copy(isChatImportReading = false)
+                    ).setup()
+                }
+            } finally {
+                mChatImportJob = null
+            }
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeImportCharacterQuery::class)
+    private fun onChangeImportCharacterQuery(
+        intent: MainUiIntent.ChangeImportCharacterQuery
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting) return
+        val query = intent.value.trim()
+        val visible = if (query.isBlank()) {
+            dialog.characters
+        } else {
+            dialog.characters.filter { item ->
+                item.name.contains(query, ignoreCase = true) ||
+                    item.details.contains(query, ignoreCase = true)
+            }
+        }
+        uiState.copy(
+            dialogState = dialog.copy(
+                query = intent.value,
+                visibleCharacters = visible
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.SelectImportCharacter::class)
+    private fun onSelectImportCharacter(intent: MainUiIntent.SelectImportCharacter) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
+        uiState.copy(
+            dialogState = dialog.copy(selectedCharacterId = intent.characterId)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ConfirmImportChat::class)
+    private fun onConfirmImportChat() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        val characterId = dialog.selectedCharacterId ?: return
+        val archive = mPendingChatImport ?: return
+        if (dialog.isImporting || mChatImportJob?.isActive == true) return
+        uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
+        mChatImportJob = viewModelScope.launch {
+            try {
+                val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
+                mPendingChatImport = null
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                current.copy(
+                    homeState = buildHomeState(),
+                    dialogState = MainDialogState.None
+                ).setup()
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
+                AppViewEvent.StartActivity(
+                    activity = ChatActivity::class.java,
+                    extras = Bundle().apply {
+                        putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
+                    }
+                ).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val currentDialog = current.dialogState
+                    as? MainDialogState.ImportChatCharacterSelection
+                    ?: return@launch
+                current.copy(
+                    dialogState = currentDialog.copy(isImporting = false)
+                ).setup()
+            } finally {
+                mChatImportJob = null
+            }
+        }
     }
 
     @UiIntentObserver(MainUiIntent.SelectPage::class)
@@ -728,6 +874,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             baseUrl = baseUrl,
             model = model,
             isEnabled = isEnabled
+        )
+    }
+
+    private fun Character.toImportCharacterItem(): MainImportCharacterItem {
+        return MainImportCharacterItem(
+            id = id,
+            name = name,
+            details = creator.takeIf { it.isNotBlank() }
+                ?: description.lineSequence().firstOrNull().orEmpty().take(80)
         )
     }
 

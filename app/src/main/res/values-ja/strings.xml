@@ -708,4 +708,25 @@
     <string name="generation_error_http">モデルプロバイダーが HTTP %1$d を返しました。</string>
     <string name="generation_error_network">モデルプロバイダーに接続できません。ネットワークを確認して再試行してください。</string>
     <string name="generation_error_empty_response">モデルから空の応答が返されました。</string>
+    <string name="data_management">データ管理</string>
+    <string name="import_chat">チャットをインポート</string>
+    <string name="import_chat_desc">SillyTavern または RPClient の JSONL チャットをインポート</string>
+    <string name="reading_chat_file">チャットファイルを読み込み中…</string>
+    <string name="import_chat_failed">チャットのインポートに失敗しました</string>
+    <string name="import_chat_success">チャットをインポートしました</string>
+    <string name="select_import_character_title">キャラクターカードを関連付ける</string>
+    <string name="import_chat_source_character">元のキャラクター：%1$s</string>
+    <string name="import_chat_message_count">%1$d 件のメッセージ</string>
+    <string name="search_characters">キャラクターを検索</string>
+    <string name="no_characters_for_chat_import">関連付け可能なキャラクターカードがありません。先に作成またはインポートしてください。</string>
+    <string name="no_matching_characters">一致するキャラクターがありません</string>
+    <string name="importing_chat">インポート中…</string>
+    <string name="export_chat">現在のチャットをエクスポート</string>
+    <string name="export_chat_desc">SillyTavern 互換の JSONL として保存</string>
+    <string name="exporting_chat">チャットをエクスポート中…</string>
+    <string name="export_chat_success">チャットをエクスポートしました</string>
+    <string name="export_chat_failed">チャットのエクスポートに失敗しました</string>
+    <string name="stop_generation_before_exporting">生成を停止してからエクスポートしてください</string>
+    <string name="wait_for_summary_before_exporting">要約が完了してからエクスポートしてください</string>
+    <string name="chat_export_in_progress">チャットのエクスポート完了をお待ちください</string>
 </resources>

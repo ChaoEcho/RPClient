@@ -709,4 +709,25 @@
     <string name="generation_error_http">Le fournisseur de modèle a renvoyé HTTP %1$d.</string>
     <string name="generation_error_network">Impossible de joindre le fournisseur de modèle. Vérifiez le réseau et réessayez.</string>
     <string name="generation_error_empty_response">Le modèle a renvoyé une réponse vide.</string>
+    <string name="data_management">Gestion des données</string>
+    <string name="import_chat">Importer une discussion</string>
+    <string name="import_chat_desc">Importer une discussion JSONL SillyTavern ou RPClient</string>
+    <string name="reading_chat_file">Lecture du fichier de discussion…</string>
+    <string name="import_chat_failed">Échec de l\'importation de la discussion</string>
+    <string name="import_chat_success">Discussion importée</string>
+    <string name="select_import_character_title">Associer une carte de personnage</string>
+    <string name="import_chat_source_character">Personnage source : %1$s</string>
+    <string name="import_chat_message_count">%1$d messages</string>
+    <string name="search_characters">Rechercher des personnages</string>
+    <string name="no_characters_for_chat_import">Aucune carte de personnage disponible. Créez ou importez-en une avant cette discussion.</string>
+    <string name="no_matching_characters">Aucun personnage correspondant</string>
+    <string name="importing_chat">Importation…</string>
+    <string name="export_chat">Exporter la discussion actuelle</string>
+    <string name="export_chat_desc">Enregistrer au format JSONL compatible avec SillyTavern</string>
+    <string name="exporting_chat">Exportation de la discussion…</string>
+    <string name="export_chat_success">Discussion exportée</string>
+    <string name="export_chat_failed">Échec de l\'exportation de la discussion</string>
+    <string name="stop_generation_before_exporting">Arrêtez la génération avant l\'exportation</string>
+    <string name="wait_for_summary_before_exporting">Attendez la fin du résumé avant l\'exportation</string>
+    <string name="chat_export_in_progress">Attendez la fin de l\'exportation de la discussion</string>
 </resources>

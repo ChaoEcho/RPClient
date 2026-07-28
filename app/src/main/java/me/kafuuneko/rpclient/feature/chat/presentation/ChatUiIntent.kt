@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
+import android.net.Uri
+
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
     data class Init(val sessionId: String?) : ChatUiIntent()
@@ -41,6 +43,10 @@ sealed class ChatUiIntent {
     data object OpenPromptInspector : ChatUiIntent()
 
     data object CloseChatSettings : ChatUiIntent()
+
+    data object ExportChatClick : ChatUiIntent()
+
+    data class ExportChatResult(val uri: Uri) : ChatUiIntent()
 
     data object SummarizeNow : ChatUiIntent()
 

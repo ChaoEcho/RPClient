@@ -48,6 +48,16 @@ sealed class MainUiIntent {
 
     data object ClearUserAvatar : MainUiIntent()
 
+    data object ImportChatClick : MainUiIntent()
+
+    data class ImportChatResult(val uri: Uri) : MainUiIntent()
+
+    data class ChangeImportCharacterQuery(val value: String) : MainUiIntent()
+
+    data class SelectImportCharacter(val characterId: Long) : MainUiIntent()
+
+    data object ConfirmImportChat : MainUiIntent()
+
     data class ChangeUserName(val value: String) : MainUiIntent()
 
     data class ChangeUserDescription(val value: String) : MainUiIntent()

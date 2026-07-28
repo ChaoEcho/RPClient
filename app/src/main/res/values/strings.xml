@@ -708,4 +708,25 @@
     <string name="generation_error_http">The model provider returned HTTP %1$d.</string>
     <string name="generation_error_network">Could not reach the model provider. Check the network and try again.</string>
     <string name="generation_error_empty_response">The model returned an empty response.</string>
+    <string name="data_management">Data management</string>
+    <string name="import_chat">Import chat</string>
+    <string name="import_chat_desc">Import a SillyTavern or RPClient JSONL chat</string>
+    <string name="reading_chat_file">Reading chat file…</string>
+    <string name="import_chat_failed">Failed to import chat</string>
+    <string name="import_chat_success">Chat imported</string>
+    <string name="select_import_character_title">Associate character card</string>
+    <string name="import_chat_source_character">Source character: %1$s</string>
+    <string name="import_chat_message_count">%1$d messages</string>
+    <string name="search_characters">Search characters</string>
+    <string name="no_characters_for_chat_import">No character cards are available. Create or import one before importing this chat.</string>
+    <string name="no_matching_characters">No matching characters</string>
+    <string name="importing_chat">Importing…</string>
+    <string name="export_chat">Export current chat</string>
+    <string name="export_chat_desc">Save as SillyTavern-compatible JSONL</string>
+    <string name="exporting_chat">Exporting chat…</string>
+    <string name="export_chat_success">Chat exported</string>
+    <string name="export_chat_failed">Failed to export chat</string>
+    <string name="stop_generation_before_exporting">Stop generation before exporting</string>
+    <string name="wait_for_summary_before_exporting">Wait for summarization to finish before exporting</string>
+    <string name="chat_export_in_progress">Wait for the chat export to finish</string>
 </resources>

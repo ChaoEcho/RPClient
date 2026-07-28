@@ -71,6 +71,8 @@ sealed class ChatLoadState {
 sealed class ChatDialogState {
     data object None : ChatDialogState()
 
+    data object Exporting : ChatDialogState()
+
     data object Summarizing : ChatDialogState()
 
     data class PromptInspector(
@@ -84,4 +86,18 @@ sealed class ChatDialogState {
     data class DeleteMessageConfirm(
         val messageId: String
     ) : ChatDialogState()
+}
+
+/**
+ * 文件选择器返回会触发页面刷新，刷新任务可能携带已经过期的导出对话框快照。
+ * 导出任务结束后不再接受该快照，避免 loading 对话框被重新打开。
+ */
+internal fun ChatDialogState.resolveExportDialogState(
+    isExportActive: Boolean
+): ChatDialogState {
+    return if (this == ChatDialogState.Exporting && !isExportActive) {
+        ChatDialogState.None
+    } else {
+        this
+    }
 }

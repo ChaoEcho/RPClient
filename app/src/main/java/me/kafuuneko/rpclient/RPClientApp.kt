@@ -7,6 +7,8 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
@@ -100,6 +102,8 @@ internal val appModules = module {
     }
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
+    singleOf(::ChatArchiveCodec)
+    singleOf(::ChatArchiveRepository)
     singleOf(::GroupChatPromptBuilder)
     singleOf(::GroupChatGreetingPlanner)
     singleOf(::GroupChatSpeakerSelector)

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.main
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -21,6 +22,20 @@ class MainActivity : CoreActivityWithEvent() {
     /** 用户头像选择结果交由 ViewModel 协调保存，Activity 不直接持久化 URI 或位图。 */
     private val mUserAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { mViewModel.emit(MainUiIntent.UserAvatarSelected(it)) }
+    }
+
+    /** 对话文件只在 ViewModel 完成解析并由用户选择角色后才会写入数据库。 */
+    private val mChatImportLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@registerForActivityResult
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        mViewModel.emit(MainUiIntent.ImportChatResult(uri))
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -53,6 +68,14 @@ class MainActivity : CoreActivityWithEvent() {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
             MainViewEvent.OpenUserAvatarPicker -> mUserAvatarPickerLauncher.launch("image/*")
+            MainViewEvent.OpenChatImporter -> mChatImportLauncher.launch(
+                arrayOf(
+                    "application/x-ndjson",
+                    "application/json",
+                    "text/plain",
+                    "application/octet-stream"
+                )
+            )
         }
     }
 }

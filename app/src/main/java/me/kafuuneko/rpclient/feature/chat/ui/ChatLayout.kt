@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Refresh
@@ -1148,11 +1149,17 @@ private fun ChatSettingsPage(
                         subtitle = stringResource(R.string.restore_previous_summary_desc)
                     ) { ChatUiIntent.RestorePreviousSummary.emit() }
                     MenuAction(
+                        icon = Icons.Rounded.FileUpload,
+                        title = stringResource(R.string.export_chat),
+                        subtitle = stringResource(R.string.export_chat_desc),
+                        enabled = loadState == ChatLoadState.None
+                    ) { ChatUiIntent.ExportChatClick.emit() }
+                    MenuAction(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.delete_chat_title),
                         subtitle = stringResource(R.string.delete_chat_desc),
                         iconTint = MaterialTheme.colorScheme.error,
-                        enabled = loadState != ChatLoadState.Deleting
+                        enabled = loadState == ChatLoadState.None
                     ) { ChatUiIntent.DeleteSessionClick.emit() }
                 }
             }
@@ -1326,7 +1333,13 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         ChatDialogState.None -> Unit
-        ChatDialogState.Summarizing -> SummarizingDialog(
+        ChatDialogState.Exporting -> ChatLoadingDialog(
+            title = stringResource(R.string.exporting_chat),
+            description = stringResource(R.string.export_chat_desc)
+        )
+        ChatDialogState.Summarizing -> ChatLoadingDialog(
+            title = stringResource(R.string.updating_summary),
+            description = stringResource(R.string.summarize_now_desc),
             onCancel = { ChatUiIntent.CancelSummary.emit() }
         )
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
@@ -1367,8 +1380,10 @@ private fun DialogSwitch(
 }
 
 @Composable
-private fun SummarizingDialog(
-    onCancel: () -> Unit
+private fun ChatLoadingDialog(
+    title: String,
+    description: String,
+    onCancel: (() -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = {},
@@ -1407,34 +1422,36 @@ private fun SummarizingDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.updating_summary),
+                        text = title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = stringResource(R.string.summarize_now_desc),
+                        text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         textAlign = TextAlign.Center
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                if (onCancel != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                OutlinedButton(
-                    onClick = onCancel,
-                    shape = RoundedCornerShape(100.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.cancel),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-                    )
+                    OutlinedButton(
+                        onClick = onCancel,
+                        shape = RoundedCornerShape(100.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.cancel),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
                 }
             }
         }

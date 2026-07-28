@@ -283,6 +283,11 @@ private fun DialogSwitch(
             onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
             onDismiss = { MainUiIntent.DismissDialog.emit() }
         )
+
+        is MainDialogState.ImportChatCharacterSelection -> ImportChatCharacterDialog(
+            state = dialogState,
+            emit = emit
+        )
     }
 }
 
@@ -835,6 +840,7 @@ private fun SettingsPage(
         item { WorldInfoBudgetPanel(state, emit) }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { SummaryPanel(state, emit) }
+        item { ChatDataManagementPanel(state, emit) }
         item { DebugPanel(state, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
     }

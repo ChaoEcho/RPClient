@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
+import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
@@ -43,6 +44,17 @@ sealed class MainDialogState {
     data class EditGenerationParameter(
         val parameter: MainGenerationParameter,
         val draftValue: String
+    ) : MainDialogState()
+
+    data class ImportChatCharacterSelection(
+        val title: String,
+        val sourceCharacterName: String,
+        val messageCount: Int,
+        val query: String,
+        val characters: List<MainImportCharacterItem>,
+        val visibleCharacters: List<MainImportCharacterItem>,
+        val selectedCharacterId: Long?,
+        val isImporting: Boolean = false
     ) : MainDialogState()
 }
 
@@ -90,5 +102,6 @@ data class MainSettingsState(
     val summaryResponseTokens: Int,
     val summaryInjectionPosition: SummaryInjectionPosition,
     val summaryInjectionDepth: Int,
-    val summaryInjectionRole: SummaryInjectionRole
+    val summaryInjectionRole: SummaryInjectionRole,
+    val isChatImportReading: Boolean = false
 )

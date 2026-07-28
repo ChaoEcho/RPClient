@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +23,13 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ChatViewModel>()
+
+    /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
+    private val mChatExporterLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-ndjson")
+    ) { uri ->
+        uri?.let { mViewModel.emit(ChatUiIntent.ExportChatResult(it)) }
+    }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -57,6 +65,9 @@ class ChatActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             is ChatViewEvent.CopyText -> copyText(viewEvent.text)
             is ChatViewEvent.OpenSession -> openSession(viewEvent.sessionId)
+            is ChatViewEvent.OpenChatExporter -> {
+                mChatExporterLauncher.launch(viewEvent.fileName)
+            }
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }

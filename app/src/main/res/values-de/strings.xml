@@ -709,4 +709,25 @@
     <string name="generation_error_http">Der Modellanbieter hat HTTP %1$d zurückgegeben.</string>
     <string name="generation_error_network">Der Modellanbieter ist nicht erreichbar. Prüfe das Netzwerk und versuche es erneut.</string>
     <string name="generation_error_empty_response">Das Modell hat eine leere Antwort zurückgegeben.</string>
+    <string name="data_management">Datenverwaltung</string>
+    <string name="import_chat">Chat importieren</string>
+    <string name="import_chat_desc">SillyTavern- oder RPClient-Chat als JSONL importieren</string>
+    <string name="reading_chat_file">Chatdatei wird gelesen…</string>
+    <string name="import_chat_failed">Chat konnte nicht importiert werden</string>
+    <string name="import_chat_success">Chat importiert</string>
+    <string name="select_import_character_title">Charakterkarte zuordnen</string>
+    <string name="import_chat_source_character">Quellcharakter: %1$s</string>
+    <string name="import_chat_message_count">%1$d Nachrichten</string>
+    <string name="search_characters">Charaktere suchen</string>
+    <string name="no_characters_for_chat_import">Keine Charakterkarten verfügbar. Erstelle oder importiere zuerst eine Karte.</string>
+    <string name="no_matching_characters">Keine passenden Charaktere</string>
+    <string name="importing_chat">Wird importiert…</string>
+    <string name="export_chat">Aktuellen Chat exportieren</string>
+    <string name="export_chat_desc">Als SillyTavern-kompatible JSONL-Datei speichern</string>
+    <string name="exporting_chat">Chat wird exportiert…</string>
+    <string name="export_chat_success">Chat exportiert</string>
+    <string name="export_chat_failed">Chat konnte nicht exportiert werden</string>
+    <string name="stop_generation_before_exporting">Beende die Generierung vor dem Export</string>
+    <string name="wait_for_summary_before_exporting">Warte vor dem Export auf das Ende der Zusammenfassung</string>
+    <string name="chat_export_in_progress">Warte, bis der Chat-Export abgeschlossen ist</string>
 </resources>

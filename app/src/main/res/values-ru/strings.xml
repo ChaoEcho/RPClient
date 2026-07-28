@@ -710,4 +710,25 @@
     <string name="generation_error_http">Поставщик модели вернул HTTP %1$d.</string>
     <string name="generation_error_network">Не удалось связаться с поставщиком модели. Проверьте сеть и повторите попытку.</string>
     <string name="generation_error_empty_response">Модель вернула пустой ответ.</string>
+    <string name="data_management">Управление данными</string>
+    <string name="import_chat">Импортировать чат</string>
+    <string name="import_chat_desc">Импортировать чат SillyTavern или RPClient в формате JSONL</string>
+    <string name="reading_chat_file">Чтение файла чата…</string>
+    <string name="import_chat_failed">Не удалось импортировать чат</string>
+    <string name="import_chat_success">Чат импортирован</string>
+    <string name="select_import_character_title">Связать карточку персонажа</string>
+    <string name="import_chat_source_character">Исходный персонаж: %1$s</string>
+    <string name="import_chat_message_count">%1$d сообщений</string>
+    <string name="search_characters">Поиск персонажей</string>
+    <string name="no_characters_for_chat_import">Нет доступных карточек персонажей. Сначала создайте или импортируйте карточку.</string>
+    <string name="no_matching_characters">Подходящие персонажи не найдены</string>
+    <string name="importing_chat">Импорт…</string>
+    <string name="export_chat">Экспортировать текущий чат</string>
+    <string name="export_chat_desc">Сохранить как JSONL, совместимый с SillyTavern</string>
+    <string name="exporting_chat">Экспорт чата…</string>
+    <string name="export_chat_success">Чат экспортирован</string>
+    <string name="export_chat_failed">Не удалось экспортировать чат</string>
+    <string name="stop_generation_before_exporting">Остановите генерацию перед экспортом</string>
+    <string name="wait_for_summary_before_exporting">Дождитесь завершения сводки перед экспортом</string>
+    <string name="chat_export_in_progress">Дождитесь завершения экспорта чата</string>
 </resources>

@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
+import me.kafuuneko.rpclient.feature.chat.presentation.resolveExportDialogState
 import me.kafuuneko.rpclient.feature.chat.utils.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.utils.replaceStreamingMessage
 import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
@@ -34,6 +35,7 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -60,6 +62,7 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
 import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
@@ -84,6 +87,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexRuntime by inject<RegexScriptRuntime>()
+    private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
@@ -92,6 +96,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mGenerationJob: Job? = null
     /** 后台自动总结任务，与正文生成分开取消和收尾。 */
     private var mSummaryJob: Job? = null
+    /** 用户明确触发的对话文件导出任务；运行期间阻止页面结束以免留下半写入文件。 */
+    private var mChatExportJob: Job? = null
     /** 仅暴露当前不可变流式快照供 UI 刷新读取；生成协程是唯一写入者和收尾所有者。 */
     private var mActiveStreamingGeneration: ActiveStreamingGeneration? = null
     /** 最近一次实际发送请求的检查报告，供调试对话框读取。 */
@@ -142,11 +148,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ChatUiState.finished(uiStateFlow.value).setup()
             return
         }
-        refreshed.setup()
+        refreshed.copy(
+            dialogState = refreshed.dialogState.resolveExportDialogState(
+                isExportActive = mChatExportJob?.isActive == true
+            )
+        ).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.Back::class)
     private suspend fun onBack() {
+        if (mChatExportJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.chat_export_in_progress).tryEmit()
+            return
+        }
         val uiState = getOrNull<ChatUiState.Normal>()
         if (uiState?.page == ChatPage.Settings) {
             uiState.copy(page = ChatPage.Conversation).setup()
@@ -392,6 +406,65 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onCloseChatSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ExportChatClick::class)
+    private fun onExportChatClick() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.stop_generation_before_exporting
+            ).tryEmit()
+            return
+        }
+        if (mSummaryJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.wait_for_summary_before_exporting
+            ).tryEmit()
+            return
+        }
+        val timestamp = System.currentTimeMillis().formatTimestamp("yyyyMMdd_HHmmss")
+        ChatViewEvent.OpenChatExporter(fileName = "chat_$timestamp.jsonl").tryEmit()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ExportChatResult::class)
+    private fun onExportChatResult(intent: ChatUiIntent.ExportChatResult) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.stop_generation_before_exporting
+            ).tryEmit()
+            return
+        }
+        if (mSummaryJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.wait_for_summary_before_exporting
+            ).tryEmit()
+            return
+        }
+        uiState.copy(dialogState = ChatDialogState.Exporting).setup()
+        mChatExportJob = viewModelScope.launch {
+            try {
+                mChatArchiveRepository.exportToUri(sessionId, intent.uri)
+                AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.export_chat_failed).tryEmit()
+            } finally {
+                mChatExportJob = null
+                getOrNull<ChatUiState.Normal>()?.let { current ->
+                    current.copy(
+                        dialogState = current.dialogState.resolveExportDialogState(
+                            isExportActive = false
+                        )
+                    ).setup()
+                }
+            }
+        }
     }
 
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)

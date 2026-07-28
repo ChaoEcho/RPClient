@@ -706,4 +706,25 @@
     <string name="generation_error_http">模型供应商返回 HTTP %1$d。</string>
     <string name="generation_error_network">无法连接模型供应商，请检查网络后重试。</string>
     <string name="generation_error_empty_response">模型返回了空响应。</string>
+    <string name="data_management">数据管理</string>
+    <string name="import_chat">导入对话</string>
+    <string name="import_chat_desc">导入酒馆或 RPClient 的 JSONL 对话</string>
+    <string name="reading_chat_file">正在读取对话文件…</string>
+    <string name="import_chat_failed">导入对话失败</string>
+    <string name="import_chat_success">对话已导入</string>
+    <string name="select_import_character_title">关联角色卡</string>
+    <string name="import_chat_source_character">来源角色：%1$s</string>
+    <string name="import_chat_message_count">%1$d 条消息</string>
+    <string name="search_characters">搜索角色</string>
+    <string name="no_characters_for_chat_import">当前没有可关联的角色卡，请先创建或导入角色卡。</string>
+    <string name="no_matching_characters">没有匹配的角色</string>
+    <string name="importing_chat">正在导入…</string>
+    <string name="export_chat">导出当前对话</string>
+    <string name="export_chat_desc">保存为酒馆兼容的 JSONL 文件</string>
+    <string name="exporting_chat">正在导出对话…</string>
+    <string name="export_chat_success">对话已导出</string>
+    <string name="export_chat_failed">导出对话失败</string>
+    <string name="stop_generation_before_exporting">请先停止生成再导出对话</string>
+    <string name="wait_for_summary_before_exporting">请等待总结完成后再导出对话</string>
+    <string name="chat_export_in_progress">请等待对话导出完成</string>
 </resources>
