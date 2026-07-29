@@ -34,6 +34,18 @@ sealed class MainUiState {
     }
 }
 
+internal fun MainUiState.Normal.mergeResumeRefresh(
+    homeState: MainHomeState,
+    settingsState: MainSettingsState
+): MainUiState.Normal {
+    return copy(
+        homeState = homeState,
+        settingsState = settingsState.copy(
+            isChatImportReading = this.settingsState.isChatImportReading
+        )
+    )
+}
+
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()

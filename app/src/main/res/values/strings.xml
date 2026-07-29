@@ -716,7 +716,10 @@
     <string name="import_chat_success">Chat imported</string>
     <string name="select_import_character_title">Associate character card</string>
     <string name="import_chat_source_character">Source character: %1$s</string>
-    <string name="import_chat_message_count">%1$d messages</string>
+    <plurals name="import_chat_message_count">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
     <string name="search_characters">Search characters</string>
     <string name="no_characters_for_chat_import">No character cards are available. Create or import one before importing this chat.</string>
     <string name="no_matching_characters">No matching characters</string>

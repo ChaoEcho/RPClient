@@ -9,7 +9,8 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import java.io.ByteArrayOutputStream
+import java.io.FilterInputStream
+import java.io.InputStream
 
 /**
  * 单聊归档文件的应用层协调器。
@@ -38,23 +39,15 @@ class ChatArchiveRepository(
 
     /** 从 URI 读取并解析对话，但不创建会话或消息。 */
     suspend fun readImportFromUri(uri: Uri): ChatArchive = withContext(Dispatchers.IO) {
-        val jsonl = mContext.contentResolver.openInputStream(uri)?.use { input ->
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            var totalBytes = 0
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                totalBytes += count
-                require(totalBytes <= MAX_IMPORT_BYTES) { "Chat archive is too large" }
-                output.write(buffer, 0, count)
+        val fallbackTitle = resolveDisplayTitle(uri)
+        mContext.contentResolver.openInputStream(uri)?.use { input ->
+            SizeLimitedInputStream(input, MAX_IMPORT_BYTES.toLong()).reader(Charsets.UTF_8).use {
+                mCodec.decode(
+                    reader = it,
+                    fallbackTitle = fallbackTitle
+                )
             }
-            output.toString(Charsets.UTF_8.name())
         } ?: error("Cannot read chat archive")
-        mCodec.decode(
-            jsonl = jsonl,
-            fallbackTitle = resolveDisplayTitle(uri)
-        )
     }
 
     /**
@@ -195,6 +188,30 @@ class ChatArchiveRepository(
             ChatArchiveMessageRole.User -> ChatMessage.Source.User
             ChatArchiveMessageRole.Character -> ChatMessage.Source.Char
             ChatArchiveMessageRole.Narrator -> ChatMessage.Source.System
+        }
+    }
+
+    private class SizeLimitedInputStream(
+        input: InputStream,
+        private val maxBytes: Long
+    ) : FilterInputStream(input) {
+        private var totalBytes = 0L
+
+        override fun read(): Int {
+            return super.read().also { value ->
+                if (value >= 0) recordBytes(1)
+            }
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            return super.read(buffer, offset, length).also { count ->
+                if (count > 0) recordBytes(count)
+            }
+        }
+
+        private fun recordBytes(count: Int) {
+            totalBytes += count
+            require(totalBytes <= maxBytes) { "Chat archive is too large" }
         }
     }
 

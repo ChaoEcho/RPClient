@@ -5,6 +5,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
+import java.io.Reader
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
@@ -41,19 +42,24 @@ class ChatArchiveCodec(
         fallbackTitle: String,
         fallbackTime: Long = System.currentTimeMillis()
     ): ChatArchive {
-        val objects = parseLines(jsonl)
-        require(objects.isNotEmpty()) { "Chat archive is empty" }
-        val header = objects.first()
+        return decode(
+            reader = jsonl.reader(),
+            fallbackTitle = fallbackTitle,
+            fallbackTime = fallbackTime
+        )
+    }
+
+    fun decode(
+        reader: Reader,
+        fallbackTitle: String,
+        fallbackTime: Long = System.currentTimeMillis()
+    ): ChatArchive {
+        val parsed = parseLines(reader, fallbackTime)
+        val header = parsed.header
         require(header.isChatHeader()) { "Chat archive header is missing" }
         val metadata = header.objectOrNull(KEY_CHAT_METADATA)
         val rpclient = metadata?.objectOrNull(KEY_RPCLIENT)
-        val decodedMessages = objects.drop(1)
-            .mapIndexedNotNull { index, json ->
-                decodeMessage(json, fallbackTime + index)
-            }
-            .take(MAX_MESSAGE_COUNT)
-            .normalizeTimes()
-        require(objects.size - 1 <= MAX_MESSAGE_COUNT) { "Chat archive has too many messages" }
+        val decodedMessages = parsed.messages.normalizeTimes()
 
         val customCreateTime = rpclient?.longOrNull(KEY_CREATE_TIME)
         val createTime = customCreateTime
@@ -168,21 +174,41 @@ class ChatArchiveCodec(
         }
     }
 
-    private fun parseLines(jsonl: String): List<JsonObject> {
-        val normalized = jsonl.removePrefix(BYTE_ORDER_MARK)
-        return normalized.lineSequence()
-            .mapIndexedNotNull { index, line ->
-                if (line.isBlank()) return@mapIndexedNotNull null
-                try {
-                    JsonParser.parseString(line).asJsonObject
-                } catch (error: Exception) {
-                    throw IllegalArgumentException(
-                        "Invalid chat archive JSON at line ${index + 1}",
-                        error
-                    )
-                }
+    private fun parseLines(reader: Reader, fallbackTime: Long): ParsedArchiveLines {
+        var header: JsonObject? = null
+        val messages = mutableListOf<DecodedMessage>()
+        var messageObjectCount = 0
+        reader.buffered().lineSequence().forEachIndexed { index, sourceLine ->
+            val line = if (index == 0) sourceLine.removePrefix(BYTE_ORDER_MARK) else sourceLine
+            if (line.isBlank()) return@forEachIndexed
+
+            if (header == null) {
+                header = parseLine(line, index)
+                return@forEachIndexed
             }
-            .toList()
+
+            require(messageObjectCount < MAX_MESSAGE_COUNT) {
+                "Chat archive has too many messages"
+            }
+            val json = parseLine(line, index)
+            decodeMessage(json, fallbackTime + messageObjectCount)?.let(messages::add)
+            messageObjectCount += 1
+        }
+        return ParsedArchiveLines(
+            header = requireNotNull(header) { "Chat archive is empty" },
+            messages = messages
+        )
+    }
+
+    private fun parseLine(line: String, index: Int): JsonObject {
+        return try {
+            JsonParser.parseString(line).asJsonObject
+        } catch (error: Exception) {
+            throw IllegalArgumentException(
+                "Invalid chat archive JSON at line ${index + 1}",
+                error
+            )
+        }
     }
 
     private fun decodeMessage(json: JsonObject, fallbackTime: Long): DecodedMessage? {
@@ -210,6 +236,9 @@ class ChatArchiveCodec(
             val normalizedTime = if (decoded.message.createTime > previousTime) {
                 decoded.message.createTime
             } else {
+                require(previousTime < Long.MAX_VALUE) {
+                    "Chat archive message timestamps cannot be normalized"
+                }
                 previousTime + 1L
             }
             previousTime = normalizedTime
@@ -324,6 +353,11 @@ class ChatArchiveCodec(
     private data class DecodedMessage(
         val message: ChatArchiveMessage,
         val speakerName: String
+    )
+
+    private data class ParsedArchiveLines(
+        val header: JsonObject,
+        val messages: List<DecodedMessage>
     )
 
     private companion object {

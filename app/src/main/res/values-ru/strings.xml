@@ -718,7 +718,12 @@
     <string name="import_chat_success">Чат импортирован</string>
     <string name="select_import_character_title">Связать карточку персонажа</string>
     <string name="import_chat_source_character">Исходный персонаж: %1$s</string>
-    <string name="import_chat_message_count">%1$d сообщений</string>
+    <plurals name="import_chat_message_count">
+        <item quantity="one">%1$d сообщение</item>
+        <item quantity="few">%1$d сообщения</item>
+        <item quantity="many">%1$d сообщений</item>
+        <item quantity="other">%1$d сообщения</item>
+    </plurals>
     <string name="search_characters">Поиск персонажей</string>
     <string name="no_characters_for_chat_import">Нет доступных карточек персонажей. Сначала создайте или импортируйте карточку.</string>
     <string name="no_matching_characters">Подходящие персонажи не найдены</string>

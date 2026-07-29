@@ -107,4 +107,33 @@ class ChatArchiveCodecTest {
             codec.decode("""{"chat_metadata":{}}\nnot-json""", "Fallback")
         }
     }
+
+    @Test
+    fun messageLimitIsEnforcedWhileReadingLines() {
+        val jsonl = buildString {
+            appendLine("""{"chat_metadata":{}}""")
+            repeat(100_000) {
+                appendLine("{}")
+            }
+            appendLine("not-json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            codec.decode(jsonl.reader(), "Fallback")
+        }
+        assertEquals("Chat archive has too many messages", error.message)
+    }
+
+    @Test
+    fun timestampNormalizationRejectsLongOverflow() {
+        val jsonl = """
+            {"chat_metadata":{}}
+            {"name":"Alice","is_user":true,"send_date":9223372036854775807,"mes":"Hello"}
+            {"name":"Seraphina","is_user":false,"send_date":0,"mes":"Welcome"}
+        """.trimIndent()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            codec.decode(jsonl, "Fallback")
+        }
+    }
 }

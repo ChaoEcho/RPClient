@@ -714,7 +714,9 @@
     <string name="import_chat_success">对话已导入</string>
     <string name="select_import_character_title">关联角色卡</string>
     <string name="import_chat_source_character">来源角色：%1$s</string>
-    <string name="import_chat_message_count">%1$d 条消息</string>
+    <plurals name="import_chat_message_count">
+        <item quantity="other">%1$d 条消息</item>
+    </plurals>
     <string name="search_characters">搜索角色</string>
     <string name="no_characters_for_chat_import">当前没有可关联的角色卡，请先创建或导入角色卡。</string>
     <string name="no_matching_characters">没有匹配的角色</string>

@@ -717,7 +717,10 @@
     <string name="import_chat_success">Chat importiert</string>
     <string name="select_import_character_title">Charakterkarte zuordnen</string>
     <string name="import_chat_source_character">Quellcharakter: %1$s</string>
-    <string name="import_chat_message_count">%1$d Nachrichten</string>
+    <plurals name="import_chat_message_count">
+        <item quantity="one">%1$d Nachricht</item>
+        <item quantity="other">%1$d Nachrichten</item>
+    </plurals>
     <string name="search_characters">Charaktere suchen</string>
     <string name="no_characters_for_chat_import">Keine Charakterkarten verfügbar. Erstelle oder importiere zuerst eine Karte.</string>
     <string name="no_matching_characters">Keine passenden Charaktere</string>

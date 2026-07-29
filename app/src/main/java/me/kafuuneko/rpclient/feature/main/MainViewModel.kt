@@ -32,6 +32,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
+import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
@@ -101,38 +102,41 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val providers = mLLMRepository.getEnabledProviders()
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
-        uiState.copy(
-            homeState = buildHomeState(),
-            settingsState = uiState.settingsState.copy(
-                selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
-                providers = providers.map { it.toMainProviderItem() },
-                userName = AppModel.userName,
-                hasUserAvatar = AppModel.userAvatar.isNotBlank(),
-                userAvatarImage = resolveUserAvatarImage(),
-                userDescription = AppModel.userDescription,
-                temperature = selectedProvider?.temperature ?: 0f,
-                topP = selectedProvider?.topP ?: 0f,
-                maxTokens = selectedProvider?.maxTokens ?: 0,
-                contextTokens = selectedProvider?.contextTokens ?: 0,
-                streamEnabled = AppModel.streamEnabled,
-                promptPostProcessingMode = selectedProvider?.postProcessingMode()
-                    ?: PromptPostProcessingMode.None,
-                exampleDialogueBehavior = readExampleDialogueBehavior(),
-                includeThinkInContext = AppModel.includeThinkInContext,
-                worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
-                worldInfoBudgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
-                worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert,
-                contextTrimmingAlert = AppModel.contextTrimmingAlert,
-                debugModeEnabled = AppModel.debugModeEnabled,
-                autoSummaryEnabled = AppModel.autoSummaryEnabled,
-                summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
-                summaryWordsLimit = AppModel.summaryWordsLimit,
-                summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
-                summaryResponseTokens = AppModel.summaryResponseTokens,
-                summaryInjectionPosition = readSummaryInjectionPosition(),
-                summaryInjectionDepth = AppModel.summaryInjectionDepth,
-                summaryInjectionRole = readSummaryInjectionRole()
-            )
+        val homeState = buildHomeState()
+        val settingsState = uiState.settingsState.copy(
+            selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
+            providers = providers.map { it.toMainProviderItem() },
+            userName = AppModel.userName,
+            hasUserAvatar = AppModel.userAvatar.isNotBlank(),
+            userAvatarImage = resolveUserAvatarImage(),
+            userDescription = AppModel.userDescription,
+            temperature = selectedProvider?.temperature ?: 0f,
+            topP = selectedProvider?.topP ?: 0f,
+            maxTokens = selectedProvider?.maxTokens ?: 0,
+            contextTokens = selectedProvider?.contextTokens ?: 0,
+            streamEnabled = AppModel.streamEnabled,
+            promptPostProcessingMode = selectedProvider?.postProcessingMode()
+                ?: PromptPostProcessingMode.None,
+            exampleDialogueBehavior = readExampleDialogueBehavior(),
+            includeThinkInContext = AppModel.includeThinkInContext,
+            worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
+            worldInfoBudgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
+            worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert,
+            contextTrimmingAlert = AppModel.contextTrimmingAlert,
+            debugModeEnabled = AppModel.debugModeEnabled,
+            autoSummaryEnabled = AppModel.autoSummaryEnabled,
+            summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
+            summaryWordsLimit = AppModel.summaryWordsLimit,
+            summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
+            summaryResponseTokens = AppModel.summaryResponseTokens,
+            summaryInjectionPosition = readSummaryInjectionPosition(),
+            summaryInjectionDepth = AppModel.summaryInjectionDepth,
+            summaryInjectionRole = readSummaryInjectionRole()
+        )
+        val current = getOrNull<MainUiState.Normal>() ?: return
+        current.mergeResumeRefresh(
+            homeState = homeState,
+            settingsState = settingsState
         ).setup()
     }
 
