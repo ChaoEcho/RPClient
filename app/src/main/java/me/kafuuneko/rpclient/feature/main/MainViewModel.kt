@@ -18,21 +18,38 @@ import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
-import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
+import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.MainSessionType
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
+import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
+import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
+import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
+import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
+import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
+import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
+import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
+import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
+import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
+import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
@@ -103,36 +120,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         val homeState = buildHomeState()
-        val settingsState = uiState.settingsState.copy(
-            selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
-            providers = providers.map { it.toMainProviderItem() },
-            userName = AppModel.userName,
-            hasUserAvatar = AppModel.userAvatar.isNotBlank(),
-            userAvatarImage = resolveUserAvatarImage(),
-            userDescription = AppModel.userDescription,
-            temperature = selectedProvider?.temperature ?: 0f,
-            topP = selectedProvider?.topP ?: 0f,
-            maxTokens = selectedProvider?.maxTokens ?: 0,
-            contextTokens = selectedProvider?.contextTokens ?: 0,
-            streamEnabled = AppModel.streamEnabled,
-            promptPostProcessingMode = selectedProvider?.postProcessingMode()
-                ?: PromptPostProcessingMode.None,
-            exampleDialogueBehavior = readExampleDialogueBehavior(),
-            includeThinkInContext = AppModel.includeThinkInContext,
-            worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
-            worldInfoBudgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
-            worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert,
-            contextTrimmingAlert = AppModel.contextTrimmingAlert,
-            debugModeEnabled = AppModel.debugModeEnabled,
-            autoSummaryEnabled = AppModel.autoSummaryEnabled,
-            summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
-            summaryWordsLimit = AppModel.summaryWordsLimit,
-            summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
-            summaryResponseTokens = AppModel.summaryResponseTokens,
-            summaryInjectionPosition = readSummaryInjectionPosition(),
-            summaryInjectionDepth = AppModel.summaryInjectionDepth,
-            summaryInjectionRole = readSummaryInjectionRole()
-        )
+        val settingsState = buildSettingsState(providers, selectedProvider)
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.mergeResumeRefresh(
             homeState = homeState,
@@ -143,11 +131,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.multiSelectMode) {
+        if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) {
             uiState.copy(
                 homeState = uiState.homeState.copy(
-                    multiSelectMode = false,
-                    selectedSessions = emptySet()
+                    selectionState = MainHomeSelectionState.None
                 )
             ).setup()
             return
@@ -162,11 +149,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.EnterMultiSelect::class)
     private fun onEnterMultiSelect(intent: MainUiIntent.EnterMultiSelect) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.multiSelectMode) return
+        if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) return
         uiState.copy(
             homeState = uiState.homeState.copy(
-                multiSelectMode = true,
-                selectedSessions = setOf(intent.session)
+                selectionState = MainHomeSelectionState.Selecting(
+                    selectedSessions = setOf(intent.session)
+                )
             )
         ).setup()
     }
@@ -174,25 +162,51 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ToggleSessionSelection::class)
     private fun onToggleSessionSelection(intent: MainUiIntent.ToggleSessionSelection) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (!uiState.homeState.multiSelectMode) return
-        val current = uiState.homeState.selectedSessions
+        val selectionState = uiState.homeState.selectionState
+            as? MainHomeSelectionState.Selecting
+            ?: return
+        val current = selectionState.selectedSessions
         val updated = if (intent.session in current) {
             current - intent.session
         } else {
             current + intent.session
         }
         uiState.copy(
-            homeState = uiState.homeState.copy(selectedSessions = updated)
+            homeState = uiState.homeState.copy(
+                selectionState = selectionState.copy(selectedSessions = updated)
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ToggleSessionGroup::class)
+    private fun onToggleSessionGroup(intent: MainUiIntent.ToggleSessionGroup) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val recentChatsState = uiState.homeState.recentChatsState
+            as? MainRecentChatsState.Content
+            ?: return
+        if (recentChatsState.sessionGroups.none { it.characterId == intent.characterId }) return
+        val collapsedCharacterIds = recentChatsState.collapsedCharacterIds
+        val updated = if (intent.characterId in collapsedCharacterIds) {
+            collapsedCharacterIds - intent.characterId
+        } else {
+            collapsedCharacterIds + intent.characterId
+        }
+        uiState.copy(
+            homeState = uiState.homeState.copy(
+                recentChatsState = recentChatsState.copy(
+                    collapsedCharacterIds = updated
+                )
+            )
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.ExitMultiSelect::class)
     private fun onExitMultiSelect() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.homeState.selectionState !is MainHomeSelectionState.Selecting) return
         uiState.copy(
             homeState = uiState.homeState.copy(
-                multiSelectMode = false,
-                selectedSessions = emptySet()
+                selectionState = MainHomeSelectionState.None
             )
         ).setup()
     }
@@ -200,7 +214,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ShowDeleteSelectedDialog::class)
     private fun onShowDeleteSelectedDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val count = uiState.homeState.selectedSessions.size
+        val selectionState = uiState.homeState.selectionState
+            as? MainHomeSelectionState.Selecting
+            ?: return
+        val count = selectionState.selectedSessions.size
         if (count == 0) return
         uiState.copy(
             dialogState = MainDialogState.DeleteSelectedSessions(count = count)
@@ -211,7 +228,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onConfirmDeleteSelected() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.DeleteSelectedSessions ?: return
-        val selections = uiState.homeState.selectedSessions
+        val selectionState = uiState.homeState.selectionState
+            as? MainHomeSelectionState.Selecting
+        val selections = selectionState?.selectedSessions.orEmpty()
         withContext(Dispatchers.IO) {
             selections.forEach { selection ->
                 val sessionId = selection.sessionId.toLongOrNull() ?: return@forEach
@@ -223,7 +242,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
         uiState.copy(
             dialogState = MainDialogState.None,
-            homeState = buildHomeState()
+            homeState = buildHomeState().preserveCollapsedGroupsFrom(uiState.homeState)
         ).setup()
     }
 
@@ -241,16 +260,24 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ImportChatClick::class)
     private fun onImportChatClick() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.settingsState.isChatImportReading || mChatImportJob?.isActive == true) return
+        if (
+            uiState.settingsState.chatDataManagementState == MainChatDataManagementState.Reading ||
+            mChatImportJob?.isActive == true
+        ) return
         MainViewEvent.OpenChatImporter.tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.ImportChatResult::class)
     private fun onImportChatResult(intent: MainUiIntent.ImportChatResult) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.settingsState.isChatImportReading || mChatImportJob?.isActive == true) return
+        if (
+            uiState.settingsState.chatDataManagementState == MainChatDataManagementState.Reading ||
+            mChatImportJob?.isActive == true
+        ) return
         uiState.copy(
-            settingsState = uiState.settingsState.copy(isChatImportReading = true)
+            settingsState = uiState.settingsState.copy(
+                chatDataManagementState = MainChatDataManagementState.Reading
+            )
         ).setup()
         mChatImportJob = viewModelScope.launch {
             try {
@@ -260,7 +287,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 val items = characters.map { it.toImportCharacterItem() }
                 current.copy(
-                    settingsState = current.settingsState.copy(isChatImportReading = false),
+                    settingsState = current.settingsState.copy(
+                        chatDataManagementState = MainChatDataManagementState.Idle
+                    ),
                     dialogState = MainDialogState.ImportChatCharacterSelection(
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
@@ -281,7 +310,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
                 getOrNull<MainUiState.Normal>()?.let { current ->
                     current.copy(
-                        settingsState = current.settingsState.copy(isChatImportReading = false)
+                        settingsState = current.settingsState.copy(
+                            chatDataManagementState = MainChatDataManagementState.Idle
+                        )
                     ).setup()
                 }
             } finally {
@@ -338,7 +369,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 mPendingChatImport = null
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 current.copy(
-                    homeState = buildHomeState(),
+                    homeState = buildHomeState()
+                        .preserveCollapsedGroupsFrom(current.homeState),
                     dialogState = MainDialogState.None
                 ).setup()
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
@@ -424,11 +456,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenSelectedProviderEdit::class)
     private fun onOpenSelectedProviderEdit() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerId = uiState.settingsState.selectedProviderId.toLongOrNull() ?: return
+        val providerState = uiState.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
         AppViewEvent.StartActivity(
             activity = LLMProviderEditActivity::class.java,
             extras = Bundle().apply {
-                putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerId)
+                putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerState.selectedProviderId)
             }
         ).tryEmit()
     }
@@ -438,9 +472,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         intent: MainUiIntent.ShowGenerationParameterDialog
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerId = uiState.settingsState.selectedProviderId.toLongOrNull() ?: return
+        val providerState = uiState.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
         val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerId)
+            mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
         uiState.copy(
             dialogState = MainDialogState.EditGenerationParameter(
@@ -465,9 +501,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onConfirmGenerationParameter() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.EditGenerationParameter ?: return
-        val providerId = uiState.settingsState.selectedProviderId.toLongOrNull() ?: return
+        val providerState = uiState.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
         val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerId)
+            mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
         val updatedProvider = dialog.parameter.updateProviderOrNull(provider, dialog.draftValue)
         if (updatedProvider == null) {
@@ -485,10 +523,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             dialogState = MainDialogState.None,
             settingsState = uiState.settingsState.copy(
-                temperature = updatedProvider.temperature,
-                topP = updatedProvider.topP,
-                maxTokens = updatedProvider.maxTokens,
-                contextTokens = updatedProvider.contextTokens
+                providerState = providerState.copy(
+                    generationParametersState = updatedProvider.toGenerationParametersState()
+                )
             )
         ).setup()
     }
@@ -532,8 +569,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                hasUserAvatar = true,
-                userAvatarImage = resolveUserAvatarImage()
+                identityState = uiState.settingsState.identityState.copy(
+                    avatarState = MainUserAvatarState.Configured(resolveUserAvatarImage())
+                )
             )
         ).setup()
     }
@@ -552,8 +590,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                hasUserAvatar = false,
-                userAvatarImage = null
+                identityState = uiState.settingsState.identityState.copy(
+                    avatarState = MainUserAvatarState.None
+                )
             )
         ).setup()
     }
@@ -588,7 +627,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val value = intent.value.trim()
         AppModel.userName = value.ifBlank { "You" }
         uiState.copy(
-            settingsState = uiState.settingsState.copy(userName = intent.value)
+            settingsState = uiState.settingsState.copy(
+                identityState = uiState.settingsState.identityState.copy(
+                    userName = intent.value
+                )
+            )
         ).setup()
     }
 
@@ -597,28 +640,30 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.userDescription = intent.value.trim()
         uiState.copy(
-            settingsState = uiState.settingsState.copy(userDescription = intent.value)
+            settingsState = uiState.settingsState.copy(
+                identityState = uiState.settingsState.identityState.copy(
+                    userDescription = intent.value
+                )
+            )
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
     private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerId = intent.providerId.toLongOrNull() ?: return
-        mLLMRepository.updateCurrentProvider(providerId)
+        mLLMRepository.updateCurrentProvider(intent.providerId)
         val providers = mLLMRepository.getEnabledProviders()
-        val selectedProvider = providers.firstOrNull { it.id == providerId }
+        val selectedProvider = providers.firstOrNull { it.id == intent.providerId } ?: return
+        val promptBehaviorState = uiState.settingsState.promptBehaviorState
         uiState.copy(
             selectedPage = MainPage.Settings,
             settingsState = uiState.settingsState.copy(
-                selectedProviderId = intent.providerId,
-                providers = providers.map { it.toMainProviderItem() },
-                temperature = selectedProvider?.temperature ?: uiState.settingsState.temperature,
-                topP = selectedProvider?.topP ?: uiState.settingsState.topP,
-                maxTokens = selectedProvider?.maxTokens ?: uiState.settingsState.maxTokens,
-                contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens,
-                promptPostProcessingMode = selectedProvider?.postProcessingMode()
-                    ?: PromptPostProcessingMode.None
+                providerState = buildProviderSettingsState(providers, selectedProvider),
+                promptBehaviorState = promptBehaviorState.copy(
+                    providerPostProcessingState = MainProviderPostProcessingState.Available(
+                        selectedProvider.postProcessingMode()
+                    )
+                )
             )
         ).setup()
     }
@@ -628,7 +673,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.autoSummaryEnabled = intent.enabled
         uiState.copy(
-            settingsState = uiState.settingsState.copy(autoSummaryEnabled = intent.enabled)
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    autoSummaryEnabled = intent.enabled
+                )
+            )
         ).setup()
     }
 
@@ -636,7 +685,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
         updateSettingsInt(intent.value, minimum = 1) {
             AppModel.summaryTriggerMessageCount = it
-            copy(summaryTriggerMessageCount = it)
+            copy(
+                summaryState = summaryState.copy(triggerMessageCount = it)
+            )
         }
     }
 
@@ -644,7 +695,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
         updateSettingsInt(intent.value, minimum = 50) {
             AppModel.summaryWordsLimit = it
-            copy(summaryWordsLimit = it)
+            copy(
+                summaryState = summaryState.copy(wordsLimit = it)
+            )
         }
     }
 
@@ -652,7 +705,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
         updateSettingsInt(intent.value, minimum = 0) {
             AppModel.summaryMaxMessagesPerRequest = it
-            copy(summaryMaxMessagesPerRequest = it)
+            copy(
+                summaryState = summaryState.copy(maxMessagesPerRequest = it)
+            )
         }
     }
 
@@ -660,7 +715,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
         updateSettingsInt(intent.value, minimum = 128) {
             AppModel.summaryResponseTokens = it
-            copy(summaryResponseTokens = it)
+            copy(
+                summaryState = summaryState.copy(responseTokens = it)
+            )
         }
     }
 
@@ -672,25 +729,43 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.summaryInjectionPosition = intent.position.persistedValue
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                summaryInjectionPosition = intent.position
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = buildSummaryInjectionState(intent.position)
+                )
             )
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionDepth::class)
     private fun onChangeSummaryInjectionDepth(intent: MainUiIntent.ChangeSummaryInjectionDepth) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.summaryInjectionDepth = it
-            copy(summaryInjectionDepth = it)
-        }
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val injectionState = uiState.settingsState.summaryState.injectionState
+            as? MainSummaryInjectionState.InChat
+            ?: return
+        val value = intent.value.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        AppModel.summaryInjectionDepth = value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = injectionState.copy(depth = value)
+                )
+            )
+        ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionRole::class)
     private fun onSelectSummaryInjectionRole(intent: MainUiIntent.SelectSummaryInjectionRole) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val injectionState = uiState.settingsState.summaryState.injectionState
+            as? MainSummaryInjectionState.InChat
+            ?: return
         AppModel.summaryInjectionRole = intent.role.persistedValue
         uiState.copy(
-            settingsState = uiState.settingsState.copy(summaryInjectionRole = intent.role)
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = injectionState.copy(role = intent.role)
+                )
+            )
         ).setup()
     }
 
@@ -699,16 +774,22 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.streamEnabled = intent.enabled
         uiState.copy(
-            settingsState = uiState.settingsState.copy(streamEnabled = intent.enabled)
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    streamEnabled = intent.enabled
+                )
+            )
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
     private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerId = uiState.settingsState.selectedProviderId.toLongOrNull() ?: return
+        val providerState = uiState.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
         val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerId)
+            mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
         val updatedProvider = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
         withContext(Dispatchers.IO) {
@@ -716,7 +797,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                promptPostProcessingMode = intent.mode
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    providerPostProcessingState = MainProviderPostProcessingState.Available(
+                        intent.mode
+                    )
+                )
             )
         ).setup()
     }
@@ -726,7 +811,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.includeThinkInContext = intent.enabled
         uiState.copy(
-            settingsState = uiState.settingsState.copy(includeThinkInContext = intent.enabled)
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    includeThinkInContext = intent.enabled
+                )
+            )
         ).setup()
     }
 
@@ -736,7 +825,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val percent = intent.value.coerceIn(0, 100)
         AppModel.worldInfoBudgetPercent = percent
         uiState.copy(
-            settingsState = uiState.settingsState.copy(worldInfoBudgetPercent = percent)
+            settingsState = uiState.settingsState.copy(
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
+                    budgetPercent = percent
+                )
+            )
         ).setup()
     }
 
@@ -744,7 +837,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChangeWorldInfoBudgetCap(intent: MainUiIntent.ChangeWorldInfoBudgetCap) {
         updateSettingsInt(intent.value, minimum = 0) {
             AppModel.worldInfoBudgetCap = it
-            copy(worldInfoBudgetCap = it)
+            copy(
+                worldInfoBudgetState = worldInfoBudgetState.copy(budgetCap = it)
+            )
         }
     }
 
@@ -754,7 +849,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.worldInfoOverflowAlert = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                worldInfoOverflowAlert = intent.enabled
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
+                    overflowAlert = intent.enabled
+                )
             )
         ).setup()
     }
@@ -765,7 +862,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.contextTrimmingAlert = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                contextTrimmingAlert = intent.enabled
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    contextTrimmingAlert = intent.enabled
+                )
             )
         ).setup()
     }
@@ -778,7 +877,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.exampleDialogueBehavior = intent.behavior.persistedValue
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                exampleDialogueBehavior = intent.behavior
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    exampleDialogueBehavior = intent.behavior
+                )
             )
         ).setup()
     }
@@ -788,7 +889,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.debugModeEnabled = intent.enabled
         uiState.copy(
-            settingsState = uiState.settingsState.copy(debugModeEnabled = intent.enabled)
+            settingsState = uiState.settingsState.copy(
+                debugState = uiState.settingsState.debugState.copy(enabled = intent.enabled)
+            )
         ).setup()
     }
 
@@ -801,32 +904,44 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val sessionItems = sessions.map { session ->
                 session.toUiModel(characterMap[session.characterId])
             }
+            val sessionGroups = sessionItems.groupBy { it.characterId }.map { (id, items) ->
+                MainChatSessionGroup(
+                    characterId = id,
+                    characterName = items.firstOrNull()?.characterName.orEmpty(),
+                    sessions = items
+                )
+            }
+            val groupChatItems = groupSessions.map { session ->
+                val data = mGroupChatRepository.getGroupChatData(session.id)
+                MainGroupChatSessionItem(
+                    id = session.id.toString(),
+                    title = session.title,
+                    memberNames = data?.members
+                        ?.joinToString(", ") { it.character.name }
+                        .orEmpty(),
+                    preview = data?.messages?.lastOrNull()?.content
+                        ?.stripThinkBlocks()
+                        ?.takeIf { it.isNotBlank() }
+                        ?: mContext.getString(R.string.no_messages_yet),
+                    messageCount = data?.messages?.size ?: 0,
+                    updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
+                )
+            }
             MainHomeState(
-                sessionGroups = sessionItems.groupBy { it.characterId }.map { (id, items) ->
-                    MainChatSessionGroup(
-                        characterId = id,
-                        characterName = items.firstOrNull()?.characterName.orEmpty(),
-                        sessions = items
-                    )
+                resourceState = MainHomeResourceState(
+                    totalCharacters = characters.size,
+                    totalWorldBooks = mLorebookRepository.getAllLorebooks().size
+                ),
+                recentChatsState = if (sessionGroups.isEmpty()) {
+                    MainRecentChatsState.Empty
+                } else {
+                    MainRecentChatsState.Content(sessionGroups = sessionGroups)
                 },
-                groupChatSessions = groupSessions.map { session ->
-                    val data = mGroupChatRepository.getGroupChatData(session.id)
-                    MainGroupChatSessionItem(
-                        id = session.id.toString(),
-                        title = session.title,
-                        memberNames = data?.members
-                            ?.joinToString(", ") { it.character.name }
-                            .orEmpty(),
-                        preview = data?.messages?.lastOrNull()?.content
-                            ?.stripThinkBlocks()
-                            ?.takeIf { it.isNotBlank() }
-                            ?: mContext.getString(R.string.no_messages_yet),
-                        messageCount = data?.messages?.size ?: 0,
-                        updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
-                    )
+                recentGroupChatsState = if (groupChatItems.isEmpty()) {
+                    MainRecentGroupChatsState.Empty
+                } else {
+                    MainRecentGroupChatsState.Content(sessions = groupChatItems)
                 },
-                totalCharacters = characters.size,
-                totalWorldBooks = mLorebookRepository.getAllLorebooks().size
             )
         }
     }
@@ -836,34 +951,62 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         selectedProvider: LLMProvider?
     ): MainSettingsState {
         return MainSettingsState(
-            userName = AppModel.userName,
-            hasUserAvatar = AppModel.userAvatar.isNotBlank(),
-            userAvatarImage = resolveUserAvatarImage(),
-            userDescription = AppModel.userDescription,
-            selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
+            identityState = MainUserIdentityState(
+                userName = AppModel.userName,
+                userDescription = AppModel.userDescription,
+                avatarState = if (AppModel.userAvatar.isBlank()) {
+                    MainUserAvatarState.None
+                } else {
+                    MainUserAvatarState.Configured(resolveUserAvatarImage())
+                }
+            ),
+            providerState = buildProviderSettingsState(providers, selectedProvider),
+            promptBehaviorState = MainPromptBehaviorState(
+                providerPostProcessingState = selectedProvider?.let {
+                    MainProviderPostProcessingState.Available(it.postProcessingMode())
+                } ?: MainProviderPostProcessingState.Unavailable,
+                exampleDialogueBehavior = readExampleDialogueBehavior(),
+                includeThinkInContext = AppModel.includeThinkInContext,
+                contextTrimmingAlert = AppModel.contextTrimmingAlert,
+                streamEnabled = AppModel.streamEnabled
+            ),
+            worldInfoBudgetState = MainWorldInfoBudgetState(
+                budgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
+                budgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
+                overflowAlert = AppModel.worldInfoOverflowAlert
+            ),
+            summaryState = MainSummarySettingsState(
+                autoSummaryEnabled = AppModel.autoSummaryEnabled,
+                triggerMessageCount = AppModel.summaryTriggerMessageCount,
+                wordsLimit = AppModel.summaryWordsLimit,
+                maxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
+                responseTokens = AppModel.summaryResponseTokens,
+                injectionState = buildSummaryInjectionState(readSummaryInjectionPosition())
+            ),
+            debugState = MainDebugSettingsState(
+                enabled = AppModel.debugModeEnabled
+            )
+        )
+    }
+
+    private fun buildProviderSettingsState(
+        providers: List<LLMProvider>,
+        selectedProvider: LLMProvider?
+    ): MainProviderSettingsState {
+        if (selectedProvider == null) return MainProviderSettingsState.Empty
+        return MainProviderSettingsState.Available(
+            selectedProviderId = selectedProvider.id,
             providers = providers.map { it.toMainProviderItem() },
-            temperature = selectedProvider?.temperature ?: 0.8f,
-            topP = selectedProvider?.topP ?: 1.0f,
-            maxTokens = selectedProvider?.maxTokens ?: 1200,
-            contextTokens = selectedProvider?.contextTokens ?: 8192,
-            streamEnabled = AppModel.streamEnabled,
-            promptPostProcessingMode = selectedProvider?.postProcessingMode()
-                ?: PromptPostProcessingMode.None,
-            exampleDialogueBehavior = readExampleDialogueBehavior(),
-            includeThinkInContext = AppModel.includeThinkInContext,
-            worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
-            worldInfoBudgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
-            worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert,
-            contextTrimmingAlert = AppModel.contextTrimmingAlert,
-            debugModeEnabled = AppModel.debugModeEnabled,
-            autoSummaryEnabled = AppModel.autoSummaryEnabled,
-            summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
-            summaryWordsLimit = AppModel.summaryWordsLimit,
-            summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
-            summaryResponseTokens = AppModel.summaryResponseTokens,
-            summaryInjectionPosition = readSummaryInjectionPosition(),
-            summaryInjectionDepth = AppModel.summaryInjectionDepth,
-            summaryInjectionRole = readSummaryInjectionRole()
+            generationParametersState = selectedProvider.toGenerationParametersState()
+        )
+    }
+
+    private fun buildSummaryInjectionState(
+        position: SummaryInjectionPosition
+    ): MainSummaryInjectionState {
+        return position.toMainSummaryInjectionState(
+            depth = AppModel.summaryInjectionDepth,
+            role = readSummaryInjectionRole()
         )
     }
 
@@ -887,6 +1030,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             name = name,
             details = creator.takeIf { it.isNotBlank() }
                 ?: description.lineSequence().firstOrNull().orEmpty().take(80)
+        )
+    }
+
+    private fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
+        return MainGenerationParametersState(
+            temperature = temperature,
+            topP = topP,
+            maxTokens = maxTokens,
+            contextTokens = contextTokens
         )
     }
 

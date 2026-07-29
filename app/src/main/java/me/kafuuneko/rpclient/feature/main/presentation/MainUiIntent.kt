@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import android.net.Uri
-import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
+import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -62,7 +62,7 @@ sealed class MainUiIntent {
 
     data class ChangeUserDescription(val value: String) : MainUiIntent()
 
-    data class SelectProvider(val providerId: String) : MainUiIntent()
+    data class SelectProvider(val providerId: Long) : MainUiIntent()
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
 
@@ -115,6 +115,8 @@ sealed class MainUiIntent {
     data class EnterMultiSelect(val session: MainSessionSelection) : MainUiIntent()
 
     data class ToggleSessionSelection(val session: MainSessionSelection) : MainUiIntent()
+
+    data class ToggleSessionGroup(val characterId: String) : MainUiIntent()
 
     data object ExitMultiSelect : MainUiIntent()
 

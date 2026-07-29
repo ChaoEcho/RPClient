@@ -39,8 +39,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
@@ -51,9 +51,10 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 /** 设置页中的对话文件导入入口。 */
 @Composable
 internal fun ChatDataManagementPanel(
-    state: MainSettingsState,
+    state: MainChatDataManagementState,
     emit: MainUiIntent.() -> Unit
 ) {
+    val isReading = state == MainChatDataManagementState.Reading
     Card(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
@@ -70,18 +71,18 @@ internal fun ChatDataManagementPanel(
             RpInfoCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = !state.isChatImportReading) {
+                    .clickable(enabled = !isReading) {
                         MainUiIntent.ImportChatClick.emit()
                     },
                 icon = Icons.Rounded.FileDownload,
                 title = stringResource(R.string.import_chat),
-                subtitle = if (state.isChatImportReading) {
+                subtitle = if (isReading) {
                     stringResource(R.string.reading_chat_file)
                 } else {
                     stringResource(R.string.import_chat_desc)
                 },
                 trailing = {
-                    if (state.isChatImportReading) {
+                    if (isReading) {
                         CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(

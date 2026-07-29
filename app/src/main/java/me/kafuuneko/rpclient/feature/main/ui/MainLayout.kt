@@ -65,7 +65,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,12 +87,26 @@ import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.feature.main.model.MainSessionType
+import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
+import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
+import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
+import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
+import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
+import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
+import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
+import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -152,13 +165,15 @@ private fun MainNormal(
                 MainPage.Settings -> SettingsPage(uiState.settingsState, emit)
             }
 
-            if (uiState.homeState.multiSelectMode && uiState.selectedPage == MainPage.Home) {
+            val selectionState = uiState.homeState.selectionState
+                as? MainHomeSelectionState.Selecting
+            if (selectionState != null && uiState.selectedPage == MainPage.Home) {
                 MultiSelectBottomBar(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 24.dp, vertical = 16.dp)
                         .navigationBarsPadding(),
-                    selectedCount = uiState.homeState.selectedSessions.size,
+                    selectedCount = selectionState.selectedSessions.size,
                     emit = emit
                 )
             } else {
@@ -436,7 +451,9 @@ private fun HomePage(
     state: MainHomeState,
     emit: MainUiIntent.() -> Unit
 ) {
-    val collapsedCharacterIds = remember { mutableStateListOf<String>() }
+    val selectionState = state.selectionState as? MainHomeSelectionState.Selecting
+    val multiSelectMode = selectionState != null
+    val selectedSessions = selectionState?.selectedSessions.orEmpty()
 
     LazyColumn(
         modifier = Modifier
@@ -445,13 +462,13 @@ private fun HomePage(
         contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        if (state.multiSelectMode) {
+        if (multiSelectMode) {
             item {
                 Spacer(modifier = Modifier.statusBarsPadding())
             }
             item {
                 Text(
-                    text = stringResource(R.string.selected_count, state.selectedSessions.size),
+                    text = stringResource(R.string.selected_count, selectedSessions.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -482,10 +499,10 @@ private fun HomePage(
                 HomeEntryCard(
                     modifier = Modifier.fillMaxWidth(),
                     icon = Icons.Rounded.Person,
-                    title = stringResource(R.string.character),
-                    subtitle = stringResource(
-                        R.string.character_cards_count,
-                        state.totalCharacters
+                        title = stringResource(R.string.character),
+                        subtitle = stringResource(
+                            R.string.character_cards_count,
+                            state.resourceState.totalCharacters
                     ),
                     onClick = { MainUiIntent.OpenCharacterManager.emit() }
                 )
@@ -495,7 +512,10 @@ private fun HomePage(
                     modifier = Modifier.fillMaxWidth(1f),
                     icon = Icons.Rounded.Book,
                     title = stringResource(R.string.world_book),
-                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
+                    subtitle = stringResource(
+                        R.string.lorebook_count,
+                        state.resourceState.totalWorldBooks
+                    ),
                     onClick = { MainUiIntent.OpenWorldBookManager.emit() }
                 )
             }
@@ -512,131 +532,137 @@ private fun HomePage(
         item {
             RpSectionHeader(
                 title = stringResource(R.string.recent_chats),
-                action = if (state.multiSelectMode) "" else stringResource(R.string.new_session)
-            ) { if (!state.multiSelectMode) MainUiIntent.OpenCreateChat.emit() }
+                action = if (multiSelectMode) "" else stringResource(R.string.new_session)
+            ) { if (!multiSelectMode) MainUiIntent.OpenCreateChat.emit() }
         }
-        if (state.sessionGroups.isEmpty()) {
-            item {
-                RpInfoCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.ChatBubble,
-                    title = stringResource(R.string.no_recent_chats),
-                    subtitle = stringResource(R.string.no_recent_chats_desc)
-                )
+        when (val recentChatsState = state.recentChatsState) {
+            MainRecentChatsState.Empty -> {
+                item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.ChatBubble,
+                        title = stringResource(R.string.no_recent_chats),
+                        subtitle = stringResource(R.string.no_recent_chats_desc)
+                    )
+                }
             }
-        }
-        state.sessionGroups.forEach { group ->
-            val characterId = group.characterId
-            val characterName = group.characterName
-            val sessions = group.sessions
-            val expanded = characterId !in collapsedCharacterIds
-            item(key = "character-$characterId") {
-                SessionCharacterHeader(
-                    modifier = Modifier.animateItem(),
-                    characterName = characterName,
-                    sessionCount = sessions.size,
-                    expanded = expanded,
-                    onClick = {
-                        if (expanded) {
-                            collapsedCharacterIds.add(characterId)
-                        } else {
-                            collapsedCharacterIds.remove(characterId)
+
+            is MainRecentChatsState.Content -> {
+                recentChatsState.sessionGroups.forEach { group ->
+                    val characterId = group.characterId
+                    val characterName = group.characterName
+                    val sessions = group.sessions
+                    val expanded = characterId !in recentChatsState.collapsedCharacterIds
+                    item(key = "character-$characterId") {
+                        SessionCharacterHeader(
+                            modifier = Modifier.animateItem(),
+                            characterName = characterName,
+                            sessionCount = sessions.size,
+                            expanded = expanded,
+                            onClick = {
+                                MainUiIntent.ToggleSessionGroup(characterId).emit()
+                            }
+                        )
+                    }
+                    if (expanded) {
+                        items(
+                            items = sessions,
+                            key = { session -> "session-${session.id}" }
+                        ) { session ->
+                            val selection = MainSessionSelection(
+                                type = MainSessionType.Chat,
+                                sessionId = session.id
+                            )
+                            HomeSessionCard(
+                                modifier = Modifier.animateItem(),
+                                accentKey = session.characterName,
+                                icon = Icons.Rounded.ChatBubble,
+                                title = session.title,
+                                preview = session.preview,
+                                metadata = listOf(
+                                    session.characterName,
+                                    stringResource(R.string.message_count, session.messageCount),
+                                    session.updatedAt
+                                ),
+                                multiSelectMode = multiSelectMode,
+                                selected = selection in selectedSessions,
+                                onClick = {
+                                    if (multiSelectMode) {
+                                        MainUiIntent.ToggleSessionSelection(selection).emit()
+                                    } else {
+                                        MainUiIntent.OpenChat(session.id).emit()
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!multiSelectMode) {
+                                        MainUiIntent.EnterMultiSelect(selection).emit()
+                                    }
+                                }
+                            )
                         }
                     }
-                )
-            }
-            if (expanded) {
-                items(
-                    items = sessions,
-                    key = { session -> "session-${session.id}" }
-                ) { session ->
-                    val selection = MainSessionSelection(
-                        type = MainSessionType.Chat,
-                        sessionId = session.id
-                    )
-                    HomeSessionCard(
-                        modifier = Modifier.animateItem(),
-                        accentKey = session.characterName,
-                        icon = Icons.Rounded.ChatBubble,
-                        title = session.title,
-                        preview = session.preview,
-                        metadata = listOf(
-                            session.characterName,
-                            stringResource(R.string.message_count, session.messageCount),
-                            session.updatedAt
-                        ),
-                        multiSelectMode = state.multiSelectMode,
-                        selected = selection in state.selectedSessions,
-                        onClick = {
-                            if (state.multiSelectMode) {
-                                MainUiIntent.ToggleSessionSelection(selection).emit()
-                            } else {
-                                MainUiIntent.OpenChat(session.id).emit()
-                            }
-                        },
-                        onLongClick = {
-                            if (!state.multiSelectMode) {
-                                MainUiIntent.EnterMultiSelect(selection).emit()
-                            }
-                        }
-                    )
                 }
             }
         }
         item {
             RpSectionHeader(
                 title = stringResource(R.string.recent_group_chats),
-                action = if (state.multiSelectMode) "" else stringResource(R.string.new_group_chat)
+                action = if (multiSelectMode) "" else stringResource(R.string.new_group_chat)
             ) {
-                if (!state.multiSelectMode) {
+                if (!multiSelectMode) {
                     MainUiIntent.OpenCreateGroupChat.emit()
                 }
             }
         }
-        if (state.groupChatSessions.isEmpty()) {
-            item {
-                RpInfoCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.Groups,
-                    title = stringResource(R.string.no_group_chats),
-                    subtitle = stringResource(R.string.no_group_chats_desc)
-                )
-            }
-        }
-        items(
-            items = state.groupChatSessions,
-            key = { "group-session-${it.id}" }
-        ) { session ->
-            val selection = MainSessionSelection(
-                type = MainSessionType.GroupChat,
-                sessionId = session.id
-            )
-            HomeSessionCard(
-                modifier = Modifier.animateItem(),
-                accentKey = session.title,
-                icon = Icons.Rounded.Groups,
-                title = session.title,
-                preview = session.preview,
-                metadata = listOf(
-                    session.memberNames,
-                    stringResource(R.string.message_count, session.messageCount),
-                    session.updatedAt
-                ),
-                multiSelectMode = state.multiSelectMode,
-                selected = selection in state.selectedSessions,
-                onClick = {
-                    if (state.multiSelectMode) {
-                        MainUiIntent.ToggleSessionSelection(selection).emit()
-                    } else {
-                        MainUiIntent.OpenGroupChat(session.id).emit()
-                    }
-                },
-                onLongClick = {
-                    if (!state.multiSelectMode) {
-                        MainUiIntent.EnterMultiSelect(selection).emit()
-                    }
+        when (val recentGroupChatsState = state.recentGroupChatsState) {
+            MainRecentGroupChatsState.Empty -> {
+                item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.Groups,
+                        title = stringResource(R.string.no_group_chats),
+                        subtitle = stringResource(R.string.no_group_chats_desc)
+                    )
                 }
-            )
+            }
+
+            is MainRecentGroupChatsState.Content -> {
+                items(
+                    items = recentGroupChatsState.sessions,
+                    key = { "group-session-${it.id}" }
+                ) { session ->
+                    val selection = MainSessionSelection(
+                        type = MainSessionType.GroupChat,
+                        sessionId = session.id
+                    )
+                    HomeSessionCard(
+                        modifier = Modifier.animateItem(),
+                        accentKey = session.title,
+                        icon = Icons.Rounded.Groups,
+                        title = session.title,
+                        preview = session.preview,
+                        metadata = listOf(
+                            session.memberNames,
+                            stringResource(R.string.message_count, session.messageCount),
+                            session.updatedAt
+                        ),
+                        multiSelectMode = multiSelectMode,
+                        selected = selection in selectedSessions,
+                        onClick = {
+                            if (multiSelectMode) {
+                                MainUiIntent.ToggleSessionSelection(selection).emit()
+                            } else {
+                                MainUiIntent.OpenGroupChat(session.id).emit()
+                            }
+                        },
+                        onLongClick = {
+                            if (!multiSelectMode) {
+                                MainUiIntent.EnterMultiSelect(selection).emit()
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -817,38 +843,42 @@ private fun SettingsPage(
                 subtitle = stringResource(R.string.setting_subtitle)
             )
         }
-        item { UserIdentityPanel(state, emit) }
+        item { UserIdentityPanel(state.identityState, emit) }
         item {
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
                 action = stringResource(R.string.manage)
             ) { MainUiIntent.OpenProviderManager.emit() }
         }
-        if (state.providers.isEmpty()) {
-            item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
-        } else {
-            items(state.providers) { provider ->
-                ProviderCard(
-                    provider = provider,
-                    selected = provider.id.toString() == state.selectedProviderId,
-                    onClick = { MainUiIntent.SelectProvider(provider.id.toString()).emit() }
-                )
+        when (val providerState = state.providerState) {
+            MainProviderSettingsState.Empty -> {
+                item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
             }
-            item { ParameterPanel(state, emit) }
+
+            is MainProviderSettingsState.Available -> {
+                items(providerState.providers) { provider ->
+                    ProviderCard(
+                        provider = provider,
+                        selected = provider.id == providerState.selectedProviderId,
+                        onClick = { MainUiIntent.SelectProvider(provider.id).emit() }
+                    )
+                }
+                item { ParameterPanel(providerState.generationParametersState, emit) }
+            }
         }
-        item { PromptBehaviorPanel(state, emit) }
-        item { WorldInfoBudgetPanel(state, emit) }
+        item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
+        item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
-        item { SummaryPanel(state, emit) }
-        item { ChatDataManagementPanel(state, emit) }
-        item { DebugPanel(state, emit) }
+        item { SummaryPanel(state.summaryState, emit) }
+        item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
     }
 }
 
 @Composable
 private fun WorldInfoBudgetPanel(
-    state: MainSettingsState,
+    state: MainWorldInfoBudgetState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -871,13 +901,13 @@ private fun WorldInfoBudgetPanel(
             )
             RpPercentageSlider(
                 title = stringResource(R.string.world_info_context_percent),
-                value = state.worldInfoBudgetPercent,
+                value = state.budgetPercent,
                 helper = stringResource(R.string.world_info_context_percent_helper),
                 onValueChange = { MainUiIntent.ChangeWorldInfoBudgetPercent(it).emit() }
             )
             NumberSettingRow(
                 title = stringResource(R.string.world_info_budget_cap),
-                value = state.worldInfoBudgetCap.toString(),
+                value = state.budgetCap.toString(),
                 helper = stringResource(R.string.world_info_budget_cap_helper),
                 onValueChange = { MainUiIntent.ChangeWorldInfoBudgetCap(it).emit() }
             )
@@ -885,7 +915,7 @@ private fun WorldInfoBudgetPanel(
                 icon = Icons.Rounded.Book,
                 title = stringResource(R.string.world_info_overflow_alert),
                 subtitle = stringResource(R.string.world_info_overflow_alert_desc),
-                checked = state.worldInfoOverflowAlert,
+                checked = state.overflowAlert,
                 onCheckedChange = { MainUiIntent.ToggleWorldInfoOverflowAlert(it).emit() }
             )
         }
@@ -894,7 +924,7 @@ private fun WorldInfoBudgetPanel(
 
 @Composable
 private fun UserIdentityPanel(
-    state: MainSettingsState,
+    state: MainUserIdentityState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -935,7 +965,7 @@ private fun UserIdentityPanel(
                         maxLines = 6,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (state.hasUserAvatar) {
+                    if (state.avatarState is MainUserAvatarState.Configured) {
                         TextButton(
                             onClick = { MainUiIntent.ClearUserAvatar.emit() }
                         ) {
@@ -950,7 +980,7 @@ private fun UserIdentityPanel(
 
 @Composable
 private fun UserAvatarPicker(
-    state: MainSettingsState,
+    state: MainUserIdentityState,
     emit: MainUiIntent.() -> Unit
 ) {
     val avatarText = state.userName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
@@ -966,7 +996,9 @@ private fun UserAvatarPicker(
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (state.userAvatarImage == null) {
+            val avatarState = state.avatarState
+            val avatarImage = (avatarState as? MainUserAvatarState.Configured)?.image
+            if (avatarImage == null) {
                 RpAvatar(
                     text = avatarText,
                     color = avatarColor,
@@ -975,7 +1007,7 @@ private fun UserAvatarPicker(
                 )
             } else {
                 Image(
-                    bitmap = state.userAvatarImage,
+                    bitmap = avatarImage,
                     contentDescription = null,
                     modifier = Modifier
                         .size(72.dp)
@@ -1001,7 +1033,7 @@ private fun UserAvatarPicker(
 
 @Composable
 private fun PromptBehaviorPanel(
-    state: MainSettingsState,
+    state: MainPromptBehaviorState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -1022,10 +1054,14 @@ private fun PromptBehaviorPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
             )
+            val postProcessingState = state.providerPostProcessingState
+            val selectedMode = (postProcessingState as? MainProviderPostProcessingState.Available)
+                ?.mode
             PromptPostProcessingMode.entries.forEach { mode ->
                 PromptPostProcessingModeRow(
                     mode = mode,
-                    selected = mode == state.promptPostProcessingMode,
+                    selected = mode == selectedMode,
+                    enabled = postProcessingState is MainProviderPostProcessingState.Available,
                     onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
                 )
             }
@@ -1081,12 +1117,13 @@ private fun PromptBehaviorPanel(
 private fun PromptPostProcessingModeRow(
     mode: PromptPostProcessingMode,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = enabled) { onClick() },
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = 1.dp,
@@ -1222,7 +1259,7 @@ private fun ProviderCard(
 
 @Composable
 private fun ParameterPanel(
-    state: MainSettingsState,
+    state: MainGenerationParametersState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -1295,7 +1332,7 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
 
 @Composable
 private fun SummaryPanel(
-    state: MainSettingsState,
+    state: MainSummarySettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -1325,23 +1362,23 @@ private fun SummaryPanel(
             )
             NumberSettingRow(
                 title = stringResource(R.string.summary_update_every_messages),
-                value = state.summaryTriggerMessageCount.toString(),
+                value = state.triggerMessageCount.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
             )
             NumberSettingRow(
                 title = stringResource(R.string.summary_target_words),
-                value = state.summaryWordsLimit.toString(),
+                value = state.wordsLimit.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
             )
             NumberSettingRow(
                 title = stringResource(R.string.summary_max_messages_per_request),
-                value = state.summaryMaxMessagesPerRequest.toString(),
+                value = state.maxMessagesPerRequest.toString(),
                 helper = stringResource(R.string.summary_max_messages_helper),
                 onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
             )
             NumberSettingRow(
                 title = stringResource(R.string.summary_response_tokens),
-                value = state.summaryResponseTokens.toString(),
+                value = state.responseTokens.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
             )
             Text(
@@ -1355,7 +1392,7 @@ private fun SummaryPanel(
             ) {
                 SummaryInjectionPosition.entries.forEach { position ->
                     FilterChip(
-                        selected = position == state.summaryInjectionPosition,
+                        selected = position == state.injectionState.position,
                         onClick = {
                             MainUiIntent.SelectSummaryInjectionPosition(position).emit()
                         },
@@ -1363,10 +1400,11 @@ private fun SummaryPanel(
                     )
                 }
             }
-            if (state.summaryInjectionPosition == SummaryInjectionPosition.InChat) {
+            val injectionState = state.injectionState
+            if (injectionState is MainSummaryInjectionState.InChat) {
                 NumberSettingRow(
                     title = stringResource(R.string.summary_injection_depth),
-                    value = state.summaryInjectionDepth.toString(),
+                    value = injectionState.depth.toString(),
                     onValueChange = {
                         MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
                     }
@@ -1381,7 +1419,7 @@ private fun SummaryPanel(
                 ) {
                     SummaryInjectionRole.entries.forEach { role ->
                         FilterChip(
-                            selected = role == state.summaryInjectionRole,
+                            selected = role == injectionState.role,
                             onClick = {
                                 MainUiIntent.SelectSummaryInjectionRole(role).emit()
                             },
@@ -1440,7 +1478,7 @@ private fun NumberSettingRow(
 
 @Composable
 private fun DebugPanel(
-    state: MainSettingsState,
+    state: MainDebugSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
@@ -1460,10 +1498,10 @@ private fun DebugPanel(
                 Icons.Rounded.BugReport,
                 stringResource(R.string.debug_mode),
                 stringResource(R.string.debug_mode_desc),
-                state.debugModeEnabled,
+                state.enabled,
                 onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
             )
-            if (state.debugModeEnabled) {
+            if (state.enabled) {
                 RpInfoCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1598,64 +1636,70 @@ private fun MainLayoutPreview() {
         MainLayout(
             uiState = MainUiState.Normal(
                 homeState = MainHomeState(
-                    sessionGroups = listOf(
-                        MainChatSessionGroup(
-                            characterId = "1",
-                            characterName = "Luna",
-                            sessions = listOf(
-                                MainChatSessionItem(
-                                    id = "1",
-                                    characterId = "1",
-                                    characterName = "Luna",
-                                    title = "Night train",
-                                    preview = "The city lights recede beyond the window.",
-                                    messageCount = 18,
-                                    updatedAt = "06-15 21:30"
+                    resourceState = MainHomeResourceState(
+                        totalCharacters = 24,
+                        totalWorldBooks = 7
+                    ),
+                    recentChatsState = MainRecentChatsState.Content(
+                        sessionGroups = listOf(
+                            MainChatSessionGroup(
+                                characterId = "1",
+                                characterName = "Luna",
+                                sessions = listOf(
+                                    MainChatSessionItem(
+                                        id = "1",
+                                        characterId = "1",
+                                        characterName = "Luna",
+                                        title = "Night train",
+                                        preview = "The city lights recede beyond the window.",
+                                        messageCount = 18,
+                                        updatedAt = "06-15 21:30"
+                                    )
                                 )
                             )
                         )
                     ),
-                    groupChatSessions = listOf(
-                        MainGroupChatSessionItem(
-                            id = "1",
-                            title = "Expedition team",
-                            memberNames = "Luna, Aster, Rowan",
-                            preview = "We should reach the ruins before sunrise.",
-                            messageCount = 42,
-                            updatedAt = "06-15 22:10"
+                    recentGroupChatsState = MainRecentGroupChatsState.Content(
+                        sessions = listOf(
+                            MainGroupChatSessionItem(
+                                id = "1",
+                                title = "Expedition team",
+                                memberNames = "Luna, Aster, Rowan",
+                                preview = "We should reach the ruins before sunrise.",
+                                messageCount = 42,
+                                updatedAt = "06-15 22:10"
+                            )
                         )
-                    ),
-                    totalCharacters = 24,
-                    totalWorldBooks = 7
+                    )
                 ),
                 settingsState = MainSettingsState(
-                    userName = "You",
-                    hasUserAvatar = false,
-                    userAvatarImage = null,
-                    userDescription = "",
-                    selectedProviderId = "",
-                    providers = emptyList(),
-                    temperature = 0.8f,
-                    topP = 1.0f,
-                    maxTokens = 1200,
-                    contextTokens = 8192,
-                    streamEnabled = true,
-                    promptPostProcessingMode = PromptPostProcessingMode.None,
-                    exampleDialogueBehavior = ExampleDialogueBehavior.default,
-                    includeThinkInContext = false,
-                    worldInfoBudgetPercent = 25,
-                    worldInfoBudgetCap = 0,
-                    worldInfoOverflowAlert = true,
-                    contextTrimmingAlert = true,
-                    debugModeEnabled = false,
-                    autoSummaryEnabled = false,
-                    summaryTriggerMessageCount = 20,
-                    summaryWordsLimit = 500,
-                    summaryMaxMessagesPerRequest = 0,
-                    summaryResponseTokens = 800,
-                    summaryInjectionPosition = SummaryInjectionPosition.default,
-                    summaryInjectionDepth = 2,
-                    summaryInjectionRole = SummaryInjectionRole.System
+                    identityState = MainUserIdentityState(
+                        userName = "You",
+                        userDescription = "",
+                        avatarState = MainUserAvatarState.None
+                    ),
+                    providerState = MainProviderSettingsState.Empty,
+                    promptBehaviorState = MainPromptBehaviorState(
+                        providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
+                        exampleDialogueBehavior = ExampleDialogueBehavior.default,
+                        includeThinkInContext = false,
+                        contextTrimmingAlert = true,
+                        streamEnabled = true
+                    ),
+                    worldInfoBudgetState = MainWorldInfoBudgetState(
+                        budgetPercent = 25,
+                        budgetCap = 0,
+                        overflowAlert = true
+                    ),
+                    summaryState = MainSummarySettingsState(
+                        autoSummaryEnabled = false,
+                        triggerMessageCount = 20,
+                        wordsLimit = 500,
+                        maxMessagesPerRequest = 0,
+                        responseTokens = 800,
+                        injectionState = MainSummaryInjectionState.AfterMain
+                    ),
+                    debugState = MainDebugSettingsState(enabled = false)
                 )
             ),
             emit = {}

@@ -2,11 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class MainResumeStateTest {
@@ -30,49 +26,61 @@ class MainResumeStateTest {
 
         val merged = current.mergeResumeRefresh(
             homeState = home(totalCharacters = 2),
-            settingsState = staleSettings.copy(userName = "Refreshed")
+            settingsState = staleSettings.copy(
+                identityState = staleSettings.identityState.copy(userName = "Refreshed")
+            )
         )
 
         assertEquals(dialog, merged.dialogState)
-        assertFalse(merged.settingsState.isChatImportReading)
-        assertEquals("Refreshed", merged.settingsState.userName)
-        assertEquals(2, merged.homeState.totalCharacters)
+        assertEquals(
+            MainChatDataManagementState.Idle,
+            merged.settingsState.chatDataManagementState
+        )
+        assertEquals("Refreshed", merged.settingsState.identityState.userName)
+        assertEquals(2, merged.homeState.resourceState.totalCharacters)
     }
 
     private fun home(totalCharacters: Int) = MainHomeState(
-        sessionGroups = emptyList(),
-        totalCharacters = totalCharacters,
-        totalWorldBooks = 0
+        resourceState = MainHomeResourceState(
+            totalCharacters = totalCharacters,
+            totalWorldBooks = 0
+        ),
+        recentChatsState = MainRecentChatsState.Empty,
+        recentGroupChatsState = MainRecentGroupChatsState.Empty
     )
 
     private fun settings(isImportReading: Boolean) = MainSettingsState(
-        userName = "You",
-        hasUserAvatar = false,
-        userAvatarImage = null,
-        userDescription = "",
-        selectedProviderId = "",
-        providers = emptyList(),
-        temperature = 0.8f,
-        topP = 1f,
-        maxTokens = 1_200,
-        contextTokens = 8_192,
-        streamEnabled = true,
-        promptPostProcessingMode = PromptPostProcessingMode.None,
-        exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
-        includeThinkInContext = false,
-        worldInfoBudgetPercent = 10,
-        worldInfoBudgetCap = 0,
-        worldInfoOverflowAlert = true,
-        contextTrimmingAlert = true,
-        debugModeEnabled = false,
-        autoSummaryEnabled = false,
-        summaryTriggerMessageCount = 20,
-        summaryWordsLimit = 200,
-        summaryMaxMessagesPerRequest = 20,
-        summaryResponseTokens = 400,
-        summaryInjectionPosition = SummaryInjectionPosition.AfterMain,
-        summaryInjectionDepth = 0,
-        summaryInjectionRole = SummaryInjectionRole.System,
-        isChatImportReading = isImportReading
+        identityState = MainUserIdentityState(
+            userName = "You",
+            userDescription = "",
+            avatarState = MainUserAvatarState.None
+        ),
+        providerState = MainProviderSettingsState.Empty,
+        promptBehaviorState = MainPromptBehaviorState(
+            providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
+            exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
+            includeThinkInContext = false,
+            contextTrimmingAlert = true,
+            streamEnabled = true
+        ),
+        worldInfoBudgetState = MainWorldInfoBudgetState(
+            budgetPercent = 10,
+            budgetCap = 0,
+            overflowAlert = true
+        ),
+        summaryState = MainSummarySettingsState(
+            autoSummaryEnabled = false,
+            triggerMessageCount = 20,
+            wordsLimit = 200,
+            maxMessagesPerRequest = 20,
+            responseTokens = 400,
+            injectionState = MainSummaryInjectionState.AfterMain
+        ),
+        chatDataManagementState = if (isImportReading) {
+            MainChatDataManagementState.Reading
+        } else {
+            MainChatDataManagementState.Idle
+        },
+        debugState = MainDebugSettingsState(enabled = false)
     )
 }
