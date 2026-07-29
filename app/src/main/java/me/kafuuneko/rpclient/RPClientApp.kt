@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
+import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
@@ -61,6 +62,7 @@ class RPClientApp : Application() {
             modules(appModules)
         }
         runBlocking(Dispatchers.IO) {
+            contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
         }
     }

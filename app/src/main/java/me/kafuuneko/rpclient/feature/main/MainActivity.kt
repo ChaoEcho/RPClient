@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.main
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -13,6 +12,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.ui.MainLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 应用主页面宿主，承载首页与全局设置。 */
@@ -26,15 +26,9 @@ class MainActivity : CoreActivityWithEvent() {
 
     /** 对话文件只在 ViewModel 完成解析并由用户选择角色后才会写入数据库。 */
     private val mChatImportLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        GetContentWithMimeTypes()
     ) { uri ->
         uri ?: return@registerForActivityResult
-        runCatching {
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-        }
         mViewModel.emit(MainUiIntent.ImportChatResult(uri))
     }
 

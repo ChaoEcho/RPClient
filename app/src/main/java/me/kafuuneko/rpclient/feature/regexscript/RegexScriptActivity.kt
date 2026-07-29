@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptUiState
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptViewEvent
 import me.kafuuneko.rpclient.feature.regexscript.ui.RegexScriptLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /**
@@ -24,7 +25,7 @@ class RegexScriptActivity : CoreActivityWithEvent() {
 
     /** 打开系统文档选择器，并将选中的 JSON URI 交回 ViewModel。 */
     private val mImporter = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        GetContentWithMimeTypes()
     ) { uri ->
         uri?.let { mViewModel.emit(RegexScriptUiIntent.ImportJson(it)) }
     }

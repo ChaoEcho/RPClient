@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -13,6 +12,7 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiS
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.feature.characterlist.ui.CharacterListLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 角色列表页面宿主，桥接角色卡导入导出文件选择器。 */
@@ -22,14 +22,11 @@ class CharacterListActivity : CoreActivityWithEvent() {
     /** 记录系统导出选择器对应的角色；结果交付或取消后立即清空，避免串到下一次导出。 */
     private var pendingExportCharacterId: Long? = null
 
-    /** 请求可持久读取权限后，把角色卡 URI 交给 ViewModel 执行解析和事务导入。 */
+    /** 把一次性读取的角色卡 URI 交给 ViewModel 执行解析和事务导入。 */
     private val importCharacterCardLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        GetContentWithMimeTypes()
     ) { uri ->
         uri ?: return@registerForActivityResult
-        runCatching {
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
         mViewModel.emit(CharacterListUiIntent.ImportCharacterCard(uri))
     }
 

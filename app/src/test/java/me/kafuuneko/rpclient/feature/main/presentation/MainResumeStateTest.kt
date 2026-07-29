@@ -3,6 +3,8 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MainResumeStateTest {
@@ -38,6 +40,37 @@ class MainResumeStateTest {
         )
         assertEquals("Refreshed", merged.settingsState.identityState.userName)
         assertEquals(2, merged.homeState.resourceState.totalCharacters)
+    }
+
+    @Test
+    fun dialogIsBlockedWhileImportIsReading() {
+        val state = MainUiState.Normal(
+            homeState = home(totalCharacters = 1),
+            settingsState = settings(isImportReading = true)
+        )
+
+        assertFalse(state.canOpenDialog())
+    }
+
+    @Test
+    fun dialogIsBlockedWhenAnotherDialogIsVisible() {
+        val state = MainUiState.Normal(
+            homeState = home(totalCharacters = 1),
+            settingsState = settings(isImportReading = false),
+            dialogState = MainDialogState.DeleteSelectedSessions(count = 1)
+        )
+
+        assertFalse(state.canOpenDialog())
+    }
+
+    @Test
+    fun dialogCanOpenWhenImportIsIdleAndNoDialogIsVisible() {
+        val state = MainUiState.Normal(
+            homeState = home(totalCharacters = 1),
+            settingsState = settings(isImportReading = false)
+        )
+
+        assertTrue(state.canOpenDialog())
     }
 
     private fun home(totalCharacters: Int) = MainHomeState(

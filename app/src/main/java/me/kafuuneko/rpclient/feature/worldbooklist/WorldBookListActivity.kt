@@ -9,11 +9,11 @@ import androidx.compose.runtime.getValue
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
 import me.kafuuneko.rpclient.feature.worldbooklist.ui.WorldBookListLayout
-import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 
 /** 世界书列表页面宿主，桥接 JSON 导入导出文件选择器。 */
 class WorldBookListActivity : CoreActivityWithEvent() {
@@ -21,12 +21,9 @@ class WorldBookListActivity : CoreActivityWithEvent() {
     private var mPendingExportLorebookId: Long? = null
 
     private val mImportWorldBookLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        GetContentWithMimeTypes()
     ) { uri ->
         uri ?: return@registerForActivityResult
-        runCatching {
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
         mViewModel.emit(WorldBookListUiIntent.ImportWorldBook(uri))
     }
 

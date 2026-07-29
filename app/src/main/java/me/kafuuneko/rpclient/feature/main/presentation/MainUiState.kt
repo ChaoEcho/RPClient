@@ -36,6 +36,11 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
     )
 }
 
+internal fun MainUiState.Normal.canOpenDialog(): Boolean {
+    return dialogState == MainDialogState.None &&
+        settingsState.chatDataManagementState == MainChatDataManagementState.Idle
+}
+
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()
