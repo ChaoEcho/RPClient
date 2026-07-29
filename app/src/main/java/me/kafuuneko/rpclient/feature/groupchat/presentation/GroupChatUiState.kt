@@ -44,6 +44,13 @@ sealed class GroupChatUiState {
     }
 }
 
+/** 更新未保存的设置草稿，同时保持会话当前正在使用的根状态字段不变。 */
+internal fun GroupChatUiState.Normal.withSettingsDraft(
+    transform: GroupChatSettingsState.() -> GroupChatSettingsState
+): GroupChatUiState.Normal {
+    return copy(settingsState = settingsState.transform())
+}
+
 /** 群聊消息、成员选择、输入与生成生命周期子状态。 */
 data class GroupChatConversationState(
     val messages: List<GroupChatMessageItem>,

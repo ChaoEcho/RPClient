@@ -46,6 +46,18 @@ sealed class MainHomeSelectionState {
     ) : MainHomeSelectionState()
 }
 
+/** 切换单个会话的选择状态；会话类型属于稳定键的一部分。 */
+internal fun MainHomeSelectionState.Selecting.toggleSession(
+    session: MainSessionSelection
+): MainHomeSelectionState.Selecting {
+    val updated = if (session in selectedSessions) {
+        selectedSessions - session
+    } else {
+        selectedSessions + session
+    }
+    return copy(selectedSessions = updated)
+}
+
 /**
  * 数据刷新后仅保留仍存在的单聊分组折叠状态。
  *

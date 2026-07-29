@@ -50,6 +50,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
+import me.kafuuneko.rpclient.feature.main.presentation.toggleSession
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
@@ -166,15 +167,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val selectionState = uiState.homeState.selectionState
             as? MainHomeSelectionState.Selecting
             ?: return
-        val current = selectionState.selectedSessions
-        val updated = if (intent.session in current) {
-            current - intent.session
-        } else {
-            current + intent.session
-        }
         uiState.copy(
             homeState = uiState.homeState.copy(
-                selectionState = selectionState.copy(selectedSessions = updated)
+                selectionState = selectionState.toggleSession(intent.session)
             )
         ).setup()
     }

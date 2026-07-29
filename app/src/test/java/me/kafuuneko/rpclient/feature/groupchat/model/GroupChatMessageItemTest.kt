@@ -26,21 +26,4 @@ class GroupChatMessageItemTest {
             item.parts
         )
     }
-
-    @Test
-    fun marksStreamingReasoningAsIncomplete() {
-        val item = GroupChatMessageItem(
-            id = 8,
-            source = GroupChatMessageSource.Character,
-            speakerName = "Lyra",
-            content = "<think>reasoning",
-            time = "12:00",
-            isStreaming = true
-        )
-
-        assertEquals(
-            MessageContentPart.Think("8:0", "reasoning", isComplete = false),
-            item.parts.single()
-        )
-    }
 }

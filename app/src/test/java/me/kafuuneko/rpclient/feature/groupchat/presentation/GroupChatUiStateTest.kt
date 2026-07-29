@@ -7,7 +7,7 @@ import org.junit.Test
 
 class GroupChatUiStateTest {
     @Test
-    fun settingsDraftDoesNotChangeCommittedConversationStrategy() {
+    fun updatingSettingsDraftPreservesActiveConversationState() {
         val members = listOf(GroupChatMemberItem(1L, "A", "", muted = false))
         val state = GroupChatUiState.Normal(
             sessionId = 1L,
@@ -23,11 +23,11 @@ class GroupChatUiStateTest {
             )
         )
 
-        val edited = state.copy(
-            settingsState = state.settingsState.copy(
+        val edited = state.withSettingsDraft {
+            copy(
                 activationStrategy = GroupChatActivationStrategy.Manual
             )
-        )
+        }
 
         assertEquals(GroupChatActivationStrategy.Natural, edited.activeActivationStrategy)
         assertEquals(GroupChatActivationStrategy.Manual, edited.settingsState.activationStrategy)

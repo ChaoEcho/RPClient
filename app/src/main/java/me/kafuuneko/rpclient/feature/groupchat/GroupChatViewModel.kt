@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsSta
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
+import me.kafuuneko.rpclient.feature.groupchat.presentation.withSettingsDraft
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -1430,12 +1431,12 @@ class GroupChatViewModel :
     }
 
     /** 仅允许在设置页更新表单草稿，保持页面状态边界明确。 */
-    private inline fun updateSettingsState(
+    private fun updateSettingsState(
         transform: GroupChatSettingsState.() -> GroupChatSettingsState
     ) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.page != GroupChatPage.Settings) return
-        uiState.copy(settingsState = uiState.settingsState.transform()).setup()
+        uiState.withSettingsDraft(transform).setup()
     }
 
     private fun List<GroupChatLorebookGroupItem>.filterForQuery(
