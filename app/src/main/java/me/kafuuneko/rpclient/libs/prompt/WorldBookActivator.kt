@@ -365,8 +365,9 @@ class WorldBookActivator {
     /**
      * 解析 SillyTavern 风格的 `/pattern/flags` 世界书关键词。
      *
-     * 只接受 i/m/s/y 标志；y 沿用 JavaScript sticky 语义，要求匹配从扫描文本开头开始。
-     * 格式或正则无效时返回 null，让调用方按普通关键词处理，避免坏配置中断整轮激活。
+     * 接受常见 JavaScript 标志 g/i/m/s/u/y；i/m/s 映射为 Kotlin 选项，g/u 不改变这里只判断
+     * 是否命中的语义，y 要求匹配从扫描文本开头开始。格式、重复标志或正则无效时返回 null，
+     * 让调用方按普通关键词处理，避免坏配置中断整轮激活。
      */
     private fun parseRegexKeyword(keyword: String): ParsedRegexKeyword? {
         if (!keyword.startsWith('/')) return null
@@ -487,32 +488,44 @@ class WorldBookActivator {
     /**
      * 生成 timed effect 的行为签名。
      *
-     * 任何会影响激活或注入的字段发生变化后，旧 sticky/cooldown 状态应立即失效；
+     * 当前条目任何会影响激活、预算或注入的字段发生变化后，旧 sticky/cooldown 状态立即失效；
      * 此签名只用于当前本地运行状态校验，不作为跨版本稳定标识。
      */
     private fun LorebookEntry.timedSignature(): String {
         return listOf(
+            lorebookId.toString(),
             content,
             keywords,
             secondaryKeywords,
             constant.toString(),
+            disabled.toString(),
             order.toString(),
             position.toString(),
             depth.toString(),
             role.toString(),
             probability.toString(),
+            ignoreBudget.toString(),
             scanDepth?.toString().orEmpty(),
             matchWholeWords?.toString().orEmpty(),
             caseSensitive?.toString().orEmpty(),
             selectiveLogic.toString(),
-            triggers,
             group,
             groupOverride.toString(),
             groupWeight?.toString().orEmpty(),
             useGroupScoring.toString(),
+            preventRecursion.toString(),
+            delayUntilRecursion.toString(),
             sticky?.toString().orEmpty(),
             cooldown?.toString().orEmpty(),
-            delay?.toString().orEmpty()
+            delay?.toString().orEmpty(),
+            outletName,
+            triggers,
+            matchPersonaDescription.toString(),
+            matchCharacterDescription.toString(),
+            matchCharacterPersonality.toString(),
+            matchCharacterDepthPrompt.toString(),
+            matchScenario.toString(),
+            matchCreatorNotes.toString()
         ).joinToString("\u001F").hashCode().toString()
     }
 

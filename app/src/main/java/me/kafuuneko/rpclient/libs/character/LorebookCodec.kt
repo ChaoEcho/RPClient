@@ -123,15 +123,15 @@ class LorebookCodec(
         entry.addProperty("comment", name)
         entry.addProperty("content", content)
         entry.addProperty("constant", constant)
-        entry.addProperty("vectorized", false)
+        if (!entry.has("vectorized")) entry.addProperty("vectorized", false)
         entry.addProperty("selective", getSecondaryKeywordList().isNotEmpty())
         entry.addProperty("selectiveLogic", selectiveLogic)
-        entry.addProperty("addMemo", true)
+        if (!entry.has("addMemo")) entry.addProperty("addMemo", true)
         entry.addProperty("order", order)
         entry.addProperty("position", position)
         entry.addProperty("disable", disabled)
         entry.addProperty("ignoreBudget", ignoreBudget)
-        entry.addProperty("excludeRecursion", false)
+        if (!entry.has("excludeRecursion")) entry.addProperty("excludeRecursion", false)
         entry.addProperty("preventRecursion", preventRecursion)
         entry.addProperty("delayUntilRecursion", delayUntilRecursion)
         entry.addProperty("probability", probability)
@@ -145,7 +145,7 @@ class LorebookCodec(
         matchWholeWords?.let { entry.addProperty("matchWholeWords", it) }
         entry.addProperty("useGroupScoring", useGroupScoring)
         entry.add("triggers", parseArrayOrEmpty(triggers))
-        entry.addProperty("automationId", "")
+        if (!entry.has("automationId")) entry.addProperty("automationId", "")
         entry.addProperty("role", role)
         sticky?.let { entry.addProperty("sticky", it) }
         cooldown?.let { entry.addProperty("cooldown", it) }

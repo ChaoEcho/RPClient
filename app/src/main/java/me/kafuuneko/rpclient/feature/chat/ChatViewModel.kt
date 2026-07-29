@@ -12,6 +12,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.toGenerationFailureMessage
@@ -98,6 +100,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mSummaryJob: Job? = null
     /** 用户明确触发的对话文件导出任务；运行期间阻止页面结束以免留下半写入文件。 */
     private var mChatExportJob: Job? = null
+    /** 串行化摘要任务的替换与取消，避免两个任务的 UI 收尾交错。 */
+    private val mSummaryJobMutex = Mutex()
     /** 仅暴露当前不可变流式快照供 UI 刷新读取；生成协程是唯一写入者和收尾所有者。 */
     private var mActiveStreamingGeneration: ActiveStreamingGeneration? = null
     /** 最近一次实际发送请求的检查报告，供调试对话框读取。 */
@@ -505,9 +509,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     @UiIntentObserver(ChatUiIntent.CancelSummary::class)
-    private fun onCancelSummary() {
+    private suspend fun onCancelSummary() {
         if (!isStateOf<ChatUiState.Normal>()) return
-        mSummaryJob?.cancel()
+        mSummaryJobMutex.withLock {
+            mSummaryJob?.cancelAndJoin()
+        }
     }
 
     @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
@@ -1091,29 +1097,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
-    /** 串行替换当前摘要任务，并确保取消后关闭仍停留在“总结中”的对话框状态。 */
-    private fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
-        mSummaryJob?.cancel()
-        val job = viewModelScope.launch {
-            try {
-                summarizeSession(sessionId, showToast)
-            } finally {
-                withContext(NonCancellable) {
-                    val currentState = getOrNull<ChatUiState.Normal>()
-                    if (currentState != null && currentState.dialogState is ChatDialogState.Summarizing) {
-                        refreshUiState(
-                            sessionId = sessionId,
-                            inputDraft = currentState.conversationState.inputDraft,
-                            isExpanded = currentState.lorebookState.isExpanded,
-                            expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
-                            dialogState = ChatDialogState.None
-                        )
+    /**
+     * 等待上一摘要任务完成取消和 UI 收尾后，再启动替代任务。
+     *
+     * Mutex 同时串行化手动触发、自动触发和取消操作，避免旧任务的 finally 关闭新任务
+     * 刚展示的“总结中”对话框。
+     */
+    private suspend fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
+        return mSummaryJobMutex.withLock {
+            mSummaryJob?.cancelAndJoin()
+            viewModelScope.launch {
+                try {
+                    summarizeSession(sessionId, showToast)
+                } finally {
+                    withContext(NonCancellable) {
+                        val currentState = getOrNull<ChatUiState.Normal>()
+                        if (currentState != null && currentState.dialogState is ChatDialogState.Summarizing) {
+                            refreshUiState(
+                                sessionId = sessionId,
+                                inputDraft = currentState.conversationState.inputDraft,
+                                isExpanded = currentState.lorebookState.isExpanded,
+                                expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
+                                dialogState = ChatDialogState.None
+                            )
+                        }
                     }
                 }
-            }
+            }.also { mSummaryJob = it }
         }
-        mSummaryJob = job
-        return job
     }
 
     /** 仅在会话未暂停且未总结消息达到阈值时触发自动摘要，并等待其写入完成。 */

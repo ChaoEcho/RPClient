@@ -42,8 +42,10 @@ internal fun JsonObject.objectOrNull(name: String): JsonObject? {
 /** 将异构数组中的有效非空字符串去重，并保持服务端原始顺序。 */
 internal fun JsonArray.toStringSet(): Set<String> {
     return mapNotNullTo(linkedSetOf()) { element ->
-        runCatching { element.asString.trim() }
-            .getOrNull()
+        element
+            .takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+            ?.asString
+            ?.trim()
             ?.takeIf { it.isNotBlank() }
     }
 }
@@ -51,6 +53,8 @@ internal fun JsonArray.toStringSet(): Set<String> {
 /** 在忽略非字符串成员的前提下检查能力名称。 */
 internal fun JsonArray.containsString(value: String): Boolean {
     return any { element ->
-        runCatching { element.asString == value }.getOrDefault(false)
+        element.isJsonPrimitive &&
+            element.asJsonPrimitive.isString &&
+            element.asString == value
     }
 }

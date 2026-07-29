@@ -178,6 +178,48 @@ class WorldBookActivatorTest {
     }
 
     @Test
+    fun behaviorChangesInvalidateStickyStateImmediately() {
+        val entry = lorebookEntry(
+            id = 1L,
+            keywords = """["harbor"]""",
+            sticky = 3
+        ).copy(
+            position = LorebookEntry.POSITION_OUTLET,
+            outletName = "first"
+        )
+        val activated = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("harbor")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+                totalMessageCount = 1
+            )
+        )
+
+        val disabled = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("no key")),
+                currentUserMessage = null,
+                entries = listOf(entry.copy(disabled = true)),
+                worldInfoStateJson = activated.nextStateJson,
+                totalMessageCount = 2
+            )
+        )
+        val movedOutlet = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("no key")),
+                currentUserMessage = null,
+                entries = listOf(entry.copy(outletName = "second")),
+                worldInfoStateJson = activated.nextStateJson,
+                totalMessageCount = 2
+            )
+        )
+
+        assertEquals(emptyList<LorebookEntry>(), disabled.activatedEntries)
+        assertEquals(emptyList<LorebookEntry>(), movedOutlet.activatedEntries)
+    }
+
+    @Test
     fun inclusionGroupKeepsOnlyPrioritizedEntry() {
         val low = lorebookEntry(id = 1L, constant = true, order = 10, group = "weather", groupOverride = true)
         val high = lorebookEntry(id = 2L, constant = true, order = 30, group = "weather", groupOverride = true)
@@ -272,6 +314,22 @@ class WorldBookActivatorTest {
         )
 
         assertEquals(listOf(multilineEntry, slashEntry), activated)
+    }
+
+    @Test
+    fun regexAcceptsGlobalAndUnicodeCompatibilityFlags() {
+        val globalEntry = lorebookEntry(id = 1L, keywords = """["/harbor/g"]""")
+        val unicodeEntry = lorebookEntry(id = 2L, keywords = """["/港口/u"]""")
+
+        val activated = activator.activate(
+            context(
+                listOf(chatMessage("The harbor is also called 港口.")),
+                null,
+                listOf(globalEntry, unicodeEntry)
+            )
+        )
+
+        assertEquals(setOf(globalEntry, unicodeEntry), activated.toSet())
     }
 
     @Test

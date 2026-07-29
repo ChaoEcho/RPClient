@@ -52,6 +52,10 @@ class LorebookCodecTest {
                   "order": 90,
                   "position": 4,
                   "disable": false,
+                  "vectorized": true,
+                  "addMemo": false,
+                  "excludeRecursion": true,
+                  "automationId": "third-party-automation",
                   "depth": 2,
                   "role": 0,
                   "triggers": ["continue"],
@@ -98,6 +102,10 @@ class LorebookCodecTest {
         assertTrue(exportedEntry.get("matchWholeWords")?.isJsonNull != false)
         assertFalse(exportedEntry.has("caseSensitive"))
         assertEquals("continue", exportedEntry.getAsJsonArray("triggers")[0].asString)
+        assertTrue(exportedEntry.get("vectorized").asBoolean)
+        assertFalse(exportedEntry.get("addMemo").asBoolean)
+        assertTrue(exportedEntry.get("excludeRecursion").asBoolean)
+        assertEquals("third-party-automation", exportedEntry.get("automationId").asString)
         assertEquals("continue", extensions.getAsJsonArray("triggers")[0].asString)
         assertTrue(extensions.get("match_creator_notes").asBoolean)
         assertEquals("kept", extensions.get("custom_extension").asString)
