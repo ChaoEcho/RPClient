@@ -6,6 +6,8 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import java.io.Reader
+import java.io.StringWriter
+import java.io.Writer
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
@@ -21,15 +23,38 @@ import java.time.format.DateTimeFormatter
 class ChatArchiveCodec(
     private val mGson: Gson
 ) {
-    /** 将单聊归档编码为可被 SillyTavern 导入的 UTF-8 JSONL。 */
+    /** 将小型单聊归档编码为可被 SillyTavern 导入的 JSONL 字符串。 */
     fun encode(archive: ChatArchive): String {
-        val lines = buildList {
-            add(buildHeader(archive))
+        return StringWriter().also { writer ->
+            encodeHeader(archive, writer)
             archive.messages.forEach { message ->
-                add(buildMessage(archive, message))
+                encodeMessage(archive, message, writer)
             }
-        }
-        return lines.joinToString(separator = "\n", postfix = "\n") { mGson.toJson(it) }
+        }.toString()
+    }
+
+    /**
+     * 将归档头直接写入目标字符流。
+     *
+     * 调用方负责按顺序继续写入消息并管理 writer 生命周期；该边界允许 Repository 分页读取
+     * Room，避免大型对话同时驻留为实体列表、完整 JSONL 字符串和 UTF-8 字节数组。
+     */
+    internal fun encodeHeader(archive: ChatArchive, writer: Writer) {
+        writeJsonLine(buildHeader(archive), writer)
+    }
+
+    /** 将单条归档消息直接写入目标字符流，不关闭或刷新 writer。 */
+    internal fun encodeMessage(
+        archive: ChatArchive,
+        message: ChatArchiveMessage,
+        writer: Writer
+    ) {
+        writeJsonLine(buildMessage(archive, message), writer)
+    }
+
+    private fun writeJsonLine(json: JsonObject, writer: Writer) {
+        mGson.toJson(json, writer)
+        writer.write("\n")
     }
 
     /**

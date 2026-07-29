@@ -38,7 +38,7 @@ class RegexScriptEngineTest {
         val scripts = listOf(
             scoped(script("multiline", "/^foo$/gm", "line"), order = 0),
             scoped(script("dotall", "/a.b/gs", "joined"), order = 1),
-            scoped(script("unicode", "/😊/gu", "face"), order = 2)
+            scoped(script("unicode", "/\\u{1F60A}/gu", "face"), order = 2)
         )
 
         val result = engine.execute(
@@ -48,6 +48,15 @@ class RegexScriptEngineTest {
         )
 
         assertEquals("line\njoined face", result.text)
+    }
+
+    @Test
+    fun rejectsUnicodeCodePointEscapeOutsideValidRange() {
+        val invalid = script("invalid-unicode", "/\\u{110000}/u", "replacement")
+
+        val validationError = engine.validate(invalid)
+
+        assertTrue(validationError?.contains("Unicode code point escape") == true)
     }
 
     @Test

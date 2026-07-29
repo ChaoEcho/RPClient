@@ -317,13 +317,13 @@ class WorldBookActivatorTest {
     }
 
     @Test
-    fun regexAcceptsGlobalAndUnicodeCompatibilityFlags() {
+    fun regexAcceptsGlobalFlagAndUnicodeCodePointEscape() {
         val globalEntry = lorebookEntry(id = 1L, keywords = """["/harbor/g"]""")
-        val unicodeEntry = lorebookEntry(id = 2L, keywords = """["/港口/u"]""")
+        val unicodeEntry = lorebookEntry(id = 2L, keywords = """["/\\u{1F600}/u"]""")
 
         val activated = activator.activate(
             context(
-                listOf(chatMessage("The harbor is also called 港口.")),
+                listOf(chatMessage("The harbor sign is 😀.")),
                 null,
                 listOf(globalEntry, unicodeEntry)
             )

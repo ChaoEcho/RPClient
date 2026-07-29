@@ -719,6 +719,7 @@
     <string name="import_chat_source_character">Personnage source : %1$s</string>
     <plurals name="import_chat_message_count">
         <item quantity="one">%1$d message</item>
+        <item quantity="many">%1$d messages</item>
         <item quantity="other">%1$d messages</item>
     </plurals>
     <string name="search_characters">Rechercher des personnages</string>

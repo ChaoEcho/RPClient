@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.regex.JavaScriptRegexCompiler
 import kotlin.random.Random
 
 /**
@@ -15,7 +16,7 @@ import kotlin.random.Random
  * 激活只决定候选内容，最终是否进入请求仍由世界书和 Prompt 预算器裁剪。
  */
 class WorldBookActivator {
-    private val gson = Gson()
+    private val mGson = Gson()
 
     /**
      * 仅返回最终激活条目的兼容入口。
@@ -66,7 +67,7 @@ class WorldBookActivator {
     /** 使用与具体聊天实体解耦的扫描上下文激活世界书。 */
     fun activateStructured(context: WorldBookScanContext): WorldBookActivationResult {
         val messageCount = context.totalMessageCount
-        val state = TimedWorldInfoState.fromJson(context.worldInfoStateJson, gson)
+        val state = TimedWorldInfoState.fromJson(context.worldInfoStateJson, mGson)
             .discardIfChatRewound(messageCount)
         val activated = linkedMapOf<Long, LorebookEntry>()
         val timedStickyIds = mutableSetOf<Long>()
@@ -147,7 +148,7 @@ class WorldBookActivator {
         )
 
         return activated.values.toList().toActivationResult(
-            nextStateJson = nextState.toJson(gson),
+            nextStateJson = nextState.toJson(mGson),
             previousStateJson = context.worldInfoStateJson,
             messageCount = messageCount
         )
@@ -157,7 +158,7 @@ class WorldBookActivator {
      * 预算裁剪后重新生成时序状态，避免未实际注入 Prompt 的条目进入 sticky/cooldown。
      */
     fun resolveNextState(result: WorldBookActivationResult): WorldBookActivationResult {
-        val state = TimedWorldInfoState.fromJson(result.previousStateJson, gson)
+        val state = TimedWorldInfoState.fromJson(result.previousStateJson, mGson)
             .discardIfChatRewound(result.messageCount)
         val stickyIds = result.activatedEntries
             .filter { it.isStickyActive(state, result.messageCount) }
@@ -173,7 +174,7 @@ class WorldBookActivator {
             stickyIds = stickyIds,
             freshTimedIds = freshTimedIds
         )
-        return result.copy(nextStateJson = nextState.toJson(gson))
+        return result.copy(nextStateJson = nextState.toJson(mGson))
     }
 
     private fun LorebookEntry.activationScore(
@@ -365,9 +366,9 @@ class WorldBookActivator {
     /**
      * 解析 SillyTavern 风格的 `/pattern/flags` 世界书关键词。
      *
-     * 接受常见 JavaScript 标志 g/i/m/s/u/y；i/m/s 映射为 Kotlin 选项，g/u 不改变这里只判断
-     * 是否命中的语义，y 要求匹配从扫描文本开头开始。格式、重复标志或正则无效时返回 null，
-     * 让调用方按普通关键词处理，避免坏配置中断整轮激活。
+     * 接受常见 JavaScript 标志 g/i/m/s/u/y；g 不改变这里只判断是否命中的语义，u 会转换
+     * ECMAScript code point escape，y 要求匹配从扫描文本开头开始。格式、重复标志或正则
+     * 无效时返回 null，让调用方按普通关键词处理，避免坏配置中断整轮激活。
      */
     private fun parseRegexKeyword(keyword: String): ParsedRegexKeyword? {
         if (!keyword.startsWith('/')) return null
@@ -384,13 +385,10 @@ class WorldBookActivator {
         ) {
             return null
         }
-        val options = buildSet {
-            if ('i' in flags) add(RegexOption.IGNORE_CASE)
-            if ('m' in flags) add(RegexOption.MULTILINE)
-            if ('s' in flags) add(RegexOption.DOT_MATCHES_ALL)
-        }
         val pattern = rawPattern.replace("\\/", "/")
-        val regex = runCatching { Regex(pattern, options) }.getOrNull() ?: return null
+        val regex = runCatching {
+            JavaScriptRegexCompiler.compile(pattern, flags.toSet())
+        }.getOrNull() ?: return null
         return ParsedRegexKeyword(regex = regex, sticky = 'y' in flags)
     }
 

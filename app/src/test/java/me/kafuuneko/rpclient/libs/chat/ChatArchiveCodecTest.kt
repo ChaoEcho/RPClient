@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.StringWriter
 
 class ChatArchiveCodecTest {
     private val codec = ChatArchiveCodec(Gson())
@@ -63,6 +64,19 @@ class ChatArchiveCodecTest {
         val decoded = codec.decode(encoded, fallbackTitle = "Fallback", fallbackTime = 9_000L)
 
         assertEquals(archive, decoded)
+    }
+
+    @Test
+    fun streamingEncoderMatchesStringEncoder() {
+        val archive = archive()
+        val writer = StringWriter()
+
+        codec.encodeHeader(archive, writer)
+        archive.messages.forEach { message ->
+            codec.encodeMessage(archive, message, writer)
+        }
+
+        assertEquals(codec.encode(archive), writer.toString())
     }
 
     @Test
@@ -135,5 +149,27 @@ class ChatArchiveCodecTest {
         assertThrows(IllegalArgumentException::class.java) {
             codec.decode(jsonl, "Fallback")
         }
+    }
+
+    private fun archive(): ChatArchive {
+        return ChatArchive(
+            title = "Streaming",
+            createTime = 1_000L,
+            latestTime = 2_000L,
+            userName = "Alice",
+            userDescription = "",
+            userNote = "",
+            creatorNotes = null,
+            lorebookEntrySet = "[]",
+            worldInfoStateJson = "{}",
+            autoSummaryPaused = false,
+            characterNameHint = "Seraphina",
+            characterFingerprint = null,
+            messages = listOf(
+                ChatArchiveMessage(1_000L, ChatArchiveMessageRole.User, "Hello"),
+                ChatArchiveMessage(2_000L, ChatArchiveMessageRole.Character, "Welcome")
+            ),
+            summary = null
+        )
     }
 }

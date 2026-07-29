@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -462,10 +463,10 @@ private fun HomePage(
         contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        item {
+            Spacer(modifier = Modifier.statusBarsPadding())
+        }
         if (multiSelectMode) {
-            item {
-                Spacer(modifier = Modifier.statusBarsPadding())
-            }
             item {
                 Text(
                     text = stringResource(R.string.selected_count, selectedSessions.size),
@@ -476,193 +477,208 @@ private fun HomePage(
                 )
             }
         } else {
-            item {
-                Spacer(modifier = Modifier.statusBarsPadding())
-            }
-            item {
-                HeroEntryCard(
-                    title = stringResource(R.string.new_session),
-                    subtitle = stringResource(R.string.new_session_desc),
-                    onClick = { MainUiIntent.OpenCreateChat.emit() }
-                )
-            }
-            item {
-                HomeEntryCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.Groups,
-                    title = stringResource(R.string.group_chat),
-                    subtitle = stringResource(R.string.group_chat_home_desc),
-                    onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
-                )
-            }
-            item {
-                HomeEntryCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.Person,
-                        title = stringResource(R.string.character),
-                        subtitle = stringResource(
-                            R.string.character_cards_count,
-                            state.resourceState.totalCharacters
-                    ),
-                    onClick = { MainUiIntent.OpenCharacterManager.emit() }
-                )
-            }
-            item {
-                HomeEntryCard(
-                    modifier = Modifier.fillMaxWidth(1f),
-                    icon = Icons.Rounded.Book,
-                    title = stringResource(R.string.world_book),
-                    subtitle = stringResource(
-                        R.string.lorebook_count,
-                        state.resourceState.totalWorldBooks
-                    ),
-                    onClick = { MainUiIntent.OpenWorldBookManager.emit() }
-                )
-            }
-            item {
-                HomeEntryCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.DataObject,
-                    title = stringResource(R.string.regex_script_title),
-                    subtitle = stringResource(R.string.regex_script_entry_subtitle),
-                    onClick = { MainUiIntent.OpenRegexScripts.emit() }
-                )
-            }
+            homeEntryItems(state.resourceState, emit)
         }
-        item {
-            RpSectionHeader(
-                title = stringResource(R.string.recent_chats),
-                action = if (multiSelectMode) "" else stringResource(R.string.new_session)
-            ) { if (!multiSelectMode) MainUiIntent.OpenCreateChat.emit() }
-        }
-        when (val recentChatsState = state.recentChatsState) {
-            MainRecentChatsState.Empty -> {
-                item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.ChatBubble,
-                        title = stringResource(R.string.no_recent_chats),
-                        subtitle = stringResource(R.string.no_recent_chats_desc)
-                    )
-                }
-            }
+        recentChatItems(state.recentChatsState, multiSelectMode, selectedSessions, emit)
+        recentGroupChatItems(
+            state.recentGroupChatsState,
+            multiSelectMode,
+            selectedSessions,
+            emit
+        )
+    }
+}
 
-            is MainRecentChatsState.Content -> {
-                recentChatsState.sessionGroups.forEach { group ->
-                    val characterId = group.characterId
-                    val characterName = group.characterName
-                    val sessions = group.sessions
-                    val expanded = characterId !in recentChatsState.collapsedCharacterIds
-                    item(key = "character-$characterId") {
-                        SessionCharacterHeader(
-                            modifier = Modifier.animateItem(),
-                            characterName = characterName,
-                            sessionCount = sessions.size,
-                            expanded = expanded,
-                            onClick = {
-                                MainUiIntent.ToggleSessionGroup(characterId).emit()
-                            }
-                        )
-                    }
-                    if (expanded) {
-                        items(
-                            items = sessions,
-                            key = { session -> "session-${session.id}" }
-                        ) { session ->
-                            val selection = MainSessionSelection(
-                                type = MainSessionType.Chat,
-                                sessionId = session.id
-                            )
-                            HomeSessionCard(
-                                modifier = Modifier.animateItem(),
-                                accentKey = session.characterName,
-                                icon = Icons.Rounded.ChatBubble,
-                                title = session.title,
-                                preview = session.preview,
-                                metadata = listOf(
-                                    session.characterName,
-                                    stringResource(R.string.message_count, session.messageCount),
-                                    session.updatedAt
-                                ),
-                                multiSelectMode = multiSelectMode,
-                                selected = selection in selectedSessions,
-                                onClick = {
-                                    if (multiSelectMode) {
-                                        MainUiIntent.ToggleSessionSelection(selection).emit()
-                                    } else {
-                                        MainUiIntent.OpenChat(session.id).emit()
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!multiSelectMode) {
-                                        MainUiIntent.EnterMultiSelect(selection).emit()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            RpSectionHeader(
-                title = stringResource(R.string.recent_group_chats),
-                action = if (multiSelectMode) "" else stringResource(R.string.new_group_chat)
-            ) {
-                if (!multiSelectMode) {
-                    MainUiIntent.OpenCreateGroupChat.emit()
-                }
-            }
-        }
-        when (val recentGroupChatsState = state.recentGroupChatsState) {
-            MainRecentGroupChatsState.Empty -> {
-                item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.Groups,
-                        title = stringResource(R.string.no_group_chats),
-                        subtitle = stringResource(R.string.no_group_chats_desc)
-                    )
-                }
-            }
+private fun LazyListScope.homeEntryItems(
+    resourceState: MainHomeResourceState,
+    emit: MainUiIntent.() -> Unit
+) {
+    item {
+        HeroEntryCard(
+            title = stringResource(R.string.new_session),
+            subtitle = stringResource(R.string.new_session_desc),
+            onClick = { MainUiIntent.OpenCreateChat.emit() }
+        )
+    }
+    item {
+        HomeEntryCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.Groups,
+            title = stringResource(R.string.group_chat),
+            subtitle = stringResource(R.string.group_chat_home_desc),
+            onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
+        )
+    }
+    item {
+        HomeEntryCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.Person,
+            title = stringResource(R.string.character),
+            subtitle = stringResource(
+                R.string.character_cards_count,
+                resourceState.totalCharacters
+            ),
+            onClick = { MainUiIntent.OpenCharacterManager.emit() }
+        )
+    }
+    item {
+        HomeEntryCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.Book,
+            title = stringResource(R.string.world_book),
+            subtitle = stringResource(R.string.lorebook_count, resourceState.totalWorldBooks),
+            onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+        )
+    }
+    item {
+        HomeEntryCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.DataObject,
+            title = stringResource(R.string.regex_script_title),
+            subtitle = stringResource(R.string.regex_script_entry_subtitle),
+            onClick = { MainUiIntent.OpenRegexScripts.emit() }
+        )
+    }
+}
 
-            is MainRecentGroupChatsState.Content -> {
-                items(
-                    items = recentGroupChatsState.sessions,
-                    key = { "group-session-${it.id}" }
-                ) { session ->
-                    val selection = MainSessionSelection(
-                        type = MainSessionType.GroupChat,
-                        sessionId = session.id
-                    )
-                    HomeSessionCard(
-                        modifier = Modifier.animateItem(),
-                        accentKey = session.title,
-                        icon = Icons.Rounded.Groups,
-                        title = session.title,
-                        preview = session.preview,
-                        metadata = listOf(
-                            session.memberNames,
-                            stringResource(R.string.message_count, session.messageCount),
-                            session.updatedAt
-                        ),
-                        multiSelectMode = multiSelectMode,
-                        selected = selection in selectedSessions,
-                        onClick = {
-                            if (multiSelectMode) {
-                                MainUiIntent.ToggleSessionSelection(selection).emit()
-                            } else {
-                                MainUiIntent.OpenGroupChat(session.id).emit()
-                            }
-                        },
-                        onLongClick = {
-                            if (!multiSelectMode) {
-                                MainUiIntent.EnterMultiSelect(selection).emit()
-                            }
-                        }
-                    )
+private fun LazyListScope.recentChatItems(
+    state: MainRecentChatsState,
+    multiSelectMode: Boolean,
+    selectedSessions: Set<MainSessionSelection>,
+    emit: MainUiIntent.() -> Unit
+) {
+    item {
+        RpSectionHeader(
+            title = stringResource(R.string.recent_chats),
+            action = if (multiSelectMode) "" else stringResource(R.string.new_session)
+        ) {
+            if (!multiSelectMode) MainUiIntent.OpenCreateChat.emit()
+        }
+    }
+    when (state) {
+        MainRecentChatsState.Empty -> item {
+            RpInfoCard(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Rounded.ChatBubble,
+                title = stringResource(R.string.no_recent_chats),
+                subtitle = stringResource(R.string.no_recent_chats_desc)
+            )
+        }
+
+        is MainRecentChatsState.Content -> recentChatSessionItems(
+            state = state,
+            multiSelectMode = multiSelectMode,
+            selectedSessions = selectedSessions,
+            emit = emit
+        )
+    }
+}
+
+private fun LazyListScope.recentChatSessionItems(
+    state: MainRecentChatsState.Content,
+    multiSelectMode: Boolean,
+    selectedSessions: Set<MainSessionSelection>,
+    emit: MainUiIntent.() -> Unit
+) {
+    state.sessionGroups.forEach { group ->
+        val characterId = group.characterId
+        val expanded = characterId !in state.collapsedCharacterIds
+        item(key = "character-$characterId") {
+            SessionCharacterHeader(
+                modifier = Modifier.animateItem(),
+                characterName = group.characterName,
+                sessionCount = group.sessions.size,
+                expanded = expanded,
+                onClick = { MainUiIntent.ToggleSessionGroup(characterId).emit() }
+            )
+        }
+        if (!expanded) return@forEach
+        items(
+            items = group.sessions,
+            key = { session -> "session-${session.id}" }
+        ) { session ->
+            val selection = MainSessionSelection(MainSessionType.Chat, session.id)
+            HomeSessionCard(
+                modifier = Modifier.animateItem(),
+                accentKey = session.characterName,
+                icon = Icons.Rounded.ChatBubble,
+                title = session.title,
+                preview = session.preview,
+                metadata = listOf(
+                    session.characterName,
+                    stringResource(R.string.message_count, session.messageCount),
+                    session.updatedAt
+                ),
+                multiSelectMode = multiSelectMode,
+                selected = selection in selectedSessions,
+                onClick = {
+                    if (multiSelectMode) {
+                        MainUiIntent.ToggleSessionSelection(selection).emit()
+                    } else {
+                        MainUiIntent.OpenChat(session.id).emit()
+                    }
+                },
+                onLongClick = {
+                    if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
                 }
-            }
+            )
+        }
+    }
+}
+
+private fun LazyListScope.recentGroupChatItems(
+    state: MainRecentGroupChatsState,
+    multiSelectMode: Boolean,
+    selectedSessions: Set<MainSessionSelection>,
+    emit: MainUiIntent.() -> Unit
+) {
+    item {
+        RpSectionHeader(
+            title = stringResource(R.string.recent_group_chats),
+            action = if (multiSelectMode) "" else stringResource(R.string.new_group_chat)
+        ) {
+            if (!multiSelectMode) MainUiIntent.OpenCreateGroupChat.emit()
+        }
+    }
+    when (state) {
+        MainRecentGroupChatsState.Empty -> item {
+            RpInfoCard(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Rounded.Groups,
+                title = stringResource(R.string.no_group_chats),
+                subtitle = stringResource(R.string.no_group_chats_desc)
+            )
+        }
+
+        is MainRecentGroupChatsState.Content -> items(
+            items = state.sessions,
+            key = { "group-session-${it.id}" }
+        ) { session ->
+            val selection = MainSessionSelection(MainSessionType.GroupChat, session.id)
+            HomeSessionCard(
+                modifier = Modifier.animateItem(),
+                accentKey = session.title,
+                icon = Icons.Rounded.Groups,
+                title = session.title,
+                preview = session.preview,
+                metadata = listOf(
+                    session.memberNames,
+                    stringResource(R.string.message_count, session.messageCount),
+                    session.updatedAt
+                ),
+                multiSelectMode = multiSelectMode,
+                selected = selection in selectedSessions,
+                onClick = {
+                    if (multiSelectMode) {
+                        MainUiIntent.ToggleSessionSelection(selection).emit()
+                    } else {
+                        MainUiIntent.OpenGroupChat(session.id).emit()
+                    }
+                },
+                onLongClick = {
+                    if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+                }
+            )
         }
     }
 }

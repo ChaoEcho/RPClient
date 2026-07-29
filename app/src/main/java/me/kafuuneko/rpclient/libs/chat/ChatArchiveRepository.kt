@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.io.Writer
 
 /**
  * 单聊归档文件的应用层协调器。
@@ -29,12 +30,44 @@ class ChatArchiveRepository(
 
     /** 将指定会话的原始 Room 数据导出到用户选择的文档 URI。 */
     suspend fun exportToUri(sessionId: Long, uri: Uri) = withContext(Dispatchers.IO) {
-        val archive = loadArchive(sessionId)
-        val bytes = mCodec.encode(archive).toByteArray(Charsets.UTF_8)
-        mContext.contentResolver.openOutputStream(uri)?.use { output ->
-            output.write(bytes)
-            output.flush()
-        } ?: error("Cannot open chat export destination")
+        mContext.contentResolver.openOutputStream(uri)
+            ?.bufferedWriter(Charsets.UTF_8)
+            ?.use { writer ->
+                mAppDatabase.withTransaction {
+                    writeArchive(sessionId, writer)
+                }
+                writer.flush()
+            }
+            ?: error("Cannot open chat export destination")
+    }
+
+    /**
+     * 在同一 Room 读取事务中分页写出归档。
+     *
+     * 事务保证分页之间不会混入并发更新；每次只保留一页消息，writer 则直接接收每一行 JSON，
+     * 因此内存峰值不再随整份导出文件额外复制。
+     */
+    private suspend fun writeArchive(sessionId: Long, writer: Writer) {
+        val archive = loadArchiveMetadata(sessionId)
+        mCodec.encodeHeader(archive, writer)
+        var afterCreateTime = Long.MIN_VALUE
+        var afterMessageId = Long.MIN_VALUE
+        while (true) {
+            val messages = mChatMessageDao.getMessagePageBySessionId(
+                sessionId = sessionId,
+                afterCreateTime = afterCreateTime,
+                afterMessageId = afterMessageId,
+                limit = EXPORT_PAGE_SIZE
+            )
+            if (messages.isEmpty()) return
+            messages.forEach { message ->
+                mCodec.encodeMessage(archive, message.toArchiveMessage(), writer)
+            }
+            val lastMessage = messages.last()
+            afterCreateTime = lastMessage.createTime
+            afterMessageId = lastMessage.id
+            if (messages.size < EXPORT_PAGE_SIZE) return
+        }
     }
 
     /** 从 URI 读取并解析对话，但不创建会话或消息。 */
@@ -111,47 +144,50 @@ class ChatArchiveRepository(
             }
         }
 
-    private suspend fun loadArchive(sessionId: Long): ChatArchive {
-        return mAppDatabase.withTransaction {
-            val session = requireNotNull(mChatSessionDao.getSessionById(sessionId)) {
-                "Chat session not found"
-            }
-            val character = requireNotNull(mCharacterDao.getCharacterById(session.characterId)) {
-                "Chat character not found"
-            }
-            val messages = mChatMessageDao.getMessagesBySessionId(sessionId)
-            val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
-            ChatArchive(
-                title = session.title,
-                createTime = session.createTime,
-                latestTime = session.latestTime,
-                userName = session.userName,
-                userDescription = session.userDescription,
-                userNote = session.userNote,
-                creatorNotes = session.creatorNotes,
-                lorebookEntrySet = session.lorebookEntrySet,
-                worldInfoStateJson = session.worldInfoStateJson,
-                autoSummaryPaused = session.autoSummaryPaused,
-                characterNameHint = character.name,
-                characterFingerprint = ChatCharacterMatcher.fingerprintOf(character),
-                messages = messages.map { message ->
-                    ChatArchiveMessage(
-                        createTime = message.createTime,
-                        role = message.source.toArchiveRole(),
-                        content = message.content
-                    )
-                },
-                summary = summary?.let {
-                    ChatArchiveSummary(
-                        content = it.content,
-                        createTime = it.createTime,
-                        coveredMessageIndex = messages.indexOfFirst { message ->
-                            message.id == it.coveredMessageId
-                        }
-                    )
-                }
-            )
+    private suspend fun loadArchiveMetadata(sessionId: Long): ChatArchive {
+        val session = requireNotNull(mChatSessionDao.getSessionById(sessionId)) {
+            "Chat session not found"
         }
+        val character = requireNotNull(mCharacterDao.getCharacterById(session.characterId)) {
+            "Chat character not found"
+        }
+        val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+        val coveredMessageIndex = summary?.coveredMessageId
+            ?.takeIf { it > 0L }
+            ?.let { messageId ->
+                mChatMessageDao.getMessageIndexBySessionId(sessionId, messageId)
+            }
+            ?: -1
+        return ChatArchive(
+            title = session.title,
+            createTime = session.createTime,
+            latestTime = session.latestTime,
+            userName = session.userName,
+            userDescription = session.userDescription,
+            userNote = session.userNote,
+            creatorNotes = session.creatorNotes,
+            lorebookEntrySet = session.lorebookEntrySet,
+            worldInfoStateJson = session.worldInfoStateJson,
+            autoSummaryPaused = session.autoSummaryPaused,
+            characterNameHint = character.name,
+            characterFingerprint = ChatCharacterMatcher.fingerprintOf(character),
+            messages = emptyList(),
+            summary = summary?.let {
+                ChatArchiveSummary(
+                    content = it.content,
+                    createTime = it.createTime,
+                    coveredMessageIndex = coveredMessageIndex
+                )
+            }
+        )
+    }
+
+    private fun ChatMessage.toArchiveMessage(): ChatArchiveMessage {
+        return ChatArchiveMessage(
+            createTime = createTime,
+            role = source.toArchiveRole(),
+            content = content
+        )
     }
 
     private fun resolveDisplayTitle(uri: Uri): String {
@@ -193,9 +229,9 @@ class ChatArchiveRepository(
 
     private class SizeLimitedInputStream(
         input: InputStream,
-        private val maxBytes: Long
+        private val mMaxBytes: Long
     ) : FilterInputStream(input) {
-        private var totalBytes = 0L
+        private var mTotalBytes = 0L
 
         override fun read(): Int {
             return super.read().also { value ->
@@ -210,12 +246,13 @@ class ChatArchiveRepository(
         }
 
         private fun recordBytes(count: Int) {
-            totalBytes += count
-            require(totalBytes <= maxBytes) { "Chat archive is too large" }
+            mTotalBytes += count
+            require(mTotalBytes <= mMaxBytes) { "Chat archive is too large" }
         }
     }
 
     private companion object {
+        const val EXPORT_PAGE_SIZE = 256
         const val MAX_IMPORT_BYTES = 32 * 1024 * 1024
         const val DEFAULT_TITLE = "Imported chat"
         const val DEFAULT_USER_NAME = "You"

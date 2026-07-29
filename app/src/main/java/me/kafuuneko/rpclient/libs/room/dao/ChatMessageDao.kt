@@ -22,6 +22,61 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getMessagesBySessionId(sessionId: Long): List<ChatMessage>
 
     /**
+     * 按稳定的创建时间与主键顺序分页读取普通消息。
+     *
+     * 使用键集边界而不是 OFFSET，避免大型会话越往后扫描成本越高；调用方需要在同一读取
+     * 事务中遍历所有页面，才能得到一致快照。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND (
+              createTime > :afterCreateTime
+              OR (createTime = :afterCreateTime AND id > :afterMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessagePageBySessionId(
+        sessionId: Long,
+        afterCreateTime: Long,
+        afterMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /**
+     * 获取普通消息在稳定导出顺序中的零基位置。
+     *
+     * 消息不存在、不属于指定会话或是总结时返回 null。
+     */
+    @Query(
+        """
+        SELECT (
+            SELECT COUNT(*)
+            FROM chat_messages AS candidate
+            WHERE candidate.sessionId = boundary.sessionId
+              AND candidate.source != 'Summary'
+              AND (
+                  candidate.createTime < boundary.createTime
+                  OR (
+                      candidate.createTime = boundary.createTime
+                      AND candidate.id < boundary.id
+                  )
+              )
+        )
+        FROM chat_messages AS boundary
+        WHERE boundary.id = :messageId
+          AND boundary.sessionId = :sessionId
+          AND boundary.source != 'Summary'
+        LIMIT 1
+        """
+    )
+    suspend fun getMessageIndexBySessionId(sessionId: Long, messageId: Long): Int?
+
+    /**
      * 获取指定总结边界之后的普通消息。
      *
      * @param sessionId 会话 id。

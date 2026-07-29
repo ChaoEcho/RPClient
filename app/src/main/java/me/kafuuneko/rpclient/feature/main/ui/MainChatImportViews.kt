@@ -114,76 +114,10 @@ internal fun ImportChatCharacterDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ImportPreview(state)
-                if (state.characters.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_characters_for_chat_import),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = state.query,
-                        onValueChange = {
-                            MainUiIntent.ChangeImportCharacterQuery(it).emit()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !state.isImporting,
-                        label = { Text(stringResource(R.string.search_characters)) },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Search, contentDescription = null)
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    if (state.visibleCharacters.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.no_matching_characters),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 360.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(state.visibleCharacters, key = { it.id }) { character ->
-                                ImportCharacterItem(
-                                    character = character,
-                                    selected = character.id == state.selectedCharacterId,
-                                    enabled = !state.isImporting,
-                                    onClick = {
-                                        MainUiIntent.SelectImportCharacter(character.id).emit()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            ImportCharacterSelectionContent(state, emit)
         },
         confirmButton = {
-            TextButton(
-                onClick = { MainUiIntent.ConfirmImportChat.emit() },
-                enabled = state.selectedCharacterId != null && !state.isImporting
-            ) {
-                if (state.isImporting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                }
-                Text(
-                    stringResource(
-                        if (state.isImporting) R.string.importing_chat else R.string.import_chat
-                    )
-                )
-            }
+            ImportChatConfirmButton(state, emit)
         },
         dismissButton = {
             TextButton(
@@ -194,6 +128,84 @@ internal fun ImportChatCharacterDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ImportCharacterSelectionContent(
+    state: MainDialogState.ImportChatCharacterSelection,
+    emit: MainUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ImportPreview(state)
+        if (state.characters.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_characters_for_chat_import),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            return@Column
+        }
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = { MainUiIntent.ChangeImportCharacterQuery(it).emit() },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isImporting,
+            label = { Text(stringResource(R.string.search_characters)) },
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+        if (state.visibleCharacters.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_matching_characters),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(state.visibleCharacters, key = { it.id }) { character ->
+                    ImportCharacterItem(
+                        character = character,
+                        selected = character.id == state.selectedCharacterId,
+                        enabled = !state.isImporting,
+                        onClick = {
+                            MainUiIntent.SelectImportCharacter(character.id).emit()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportChatConfirmButton(
+    state: MainDialogState.ImportChatCharacterSelection,
+    emit: MainUiIntent.() -> Unit
+) {
+    TextButton(
+        onClick = { MainUiIntent.ConfirmImportChat.emit() },
+        enabled = state.selectedCharacterId != null && !state.isImporting
+    ) {
+        if (state.isImporting) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(18.dp),
+                strokeWidth = 2.dp
+            )
+        }
+        Text(
+            stringResource(
+                if (state.isImporting) R.string.importing_chat else R.string.import_chat
+            )
+        )
+    }
 }
 
 @Composable

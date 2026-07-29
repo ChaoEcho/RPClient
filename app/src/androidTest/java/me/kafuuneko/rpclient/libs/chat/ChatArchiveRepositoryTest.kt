@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.chat
 
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -14,6 +15,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class ChatArchiveRepositoryTest {
@@ -82,6 +84,27 @@ class ChatArchiveRepositoryTest {
         }
     }
 
+    @Test
+    fun exportStreamsMultiplePagesInStableOrderAndPreservesSummaryBoundary() = runBlocking {
+        val archive = largeArchive()
+        val sessionId = repository.saveImport(archive, characterId)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val exportFile = File.createTempFile("chat-export-", ".jsonl", context.cacheDir)
+
+        try {
+            repository.exportToUri(sessionId, Uri.fromFile(exportFile))
+            val decoded = exportFile.reader(Charsets.UTF_8).use { reader ->
+                ChatArchiveCodec(Gson()).decode(reader, fallbackTitle = "Fallback")
+            }
+
+            assertEquals(archive.messages.map { it.content }, decoded.messages.map { it.content })
+            assertEquals(archive.messages.map { it.role }, decoded.messages.map { it.role })
+            assertEquals(archive.summary?.coveredMessageIndex, decoded.summary?.coveredMessageIndex)
+        } finally {
+            exportFile.delete()
+        }
+    }
+
     private fun archive(): ChatArchive {
         return ChatArchive(
             title = "Imported",
@@ -105,6 +128,29 @@ class ChatArchiveRepositoryTest {
                 content = "Summary",
                 createTime = 4_000L,
                 coveredMessageIndex = 1
+            )
+        )
+    }
+
+    private fun largeArchive(): ChatArchive {
+        val messages = List(300) { index ->
+            ChatArchiveMessage(
+                createTime = 1_000L + index / 3,
+                role = when (index % 3) {
+                    0 -> ChatArchiveMessageRole.User
+                    1 -> ChatArchiveMessageRole.Character
+                    else -> ChatArchiveMessageRole.Narrator
+                },
+                content = "Message $index"
+            )
+        }
+        return archive().copy(
+            latestTime = messages.last().createTime,
+            messages = messages,
+            summary = ChatArchiveSummary(
+                content = "Large summary",
+                createTime = messages.last().createTime + 1L,
+                coveredMessageIndex = 257
             )
         )
     }

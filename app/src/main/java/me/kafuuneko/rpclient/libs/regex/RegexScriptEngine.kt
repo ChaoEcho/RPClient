@@ -141,7 +141,7 @@ class RegexScriptEngine {
         }
         val parsed = parseRegex(find)
         return CompiledRegex(
-            regex = Regex(parsed.pattern, parsed.options),
+            regex = JavaScriptRegexCompiler.compile(parsed.pattern, parsed.flags),
             global = 'g' in parsed.flags,
             sticky = 'y' in parsed.flags
         )
@@ -150,7 +150,7 @@ class RegexScriptEngine {
     /** 解析 JavaScript `/pattern/flags` 写法；普通字符串按无 flags 的表达式处理。 */
     private fun parseRegex(value: String): ParsedRegex {
         if (!value.startsWith('/')) {
-            return ParsedRegex(value, emptySet(), emptySet())
+            return ParsedRegex(value, emptySet())
         }
         val delimiter = value.lastUnescapedSlash()
         require(delimiter > 0) { "Find Regex must use /pattern/flags syntax" }
@@ -162,12 +162,7 @@ class RegexScriptEngine {
         require(flags.all { it in SUPPORTED_FLAGS }) {
             "Unsupported regex flags: ${flags.filterNot { it in SUPPORTED_FLAGS }.joinToString("")}"
         }
-        val options = buildSet {
-            if ('i' in flags) add(RegexOption.IGNORE_CASE)
-            if ('m' in flags) add(RegexOption.MULTILINE)
-            if ('s' in flags) add(RegexOption.DOT_MATCHES_ALL)
-        }
-        return ParsedRegex(pattern, options, flags)
+        return ParsedRegex(pattern, flags)
     }
 
     /** 展开 `{{match}}`、编号/命名捕获组、Trim Out 和替换文本宏。 */
@@ -256,7 +251,6 @@ class RegexScriptEngine {
 
     private data class ParsedRegex(
         val pattern: String,
-        val options: Set<RegexOption>,
         val flags: Set<Char>
     )
 
