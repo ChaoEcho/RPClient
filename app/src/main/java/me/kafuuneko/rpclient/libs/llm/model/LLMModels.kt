@@ -1,5 +1,11 @@
 package me.kafuuneko.rpclient.libs.llm.model
 
+/** 新供应商为模型回复预留的默认 Token 数。 */
+const val DEFAULT_LLM_MAX_TOKENS = 8192
+
+/** 新供应商用于输入与输出的默认总上下文预算。 */
+const val DEFAULT_LLM_CONTEXT_TOKENS = 32768
+
 /**
  * 在线模型供应商类型，用于 UI 展示和统计归类。
  */
@@ -37,8 +43,8 @@ data class LLMProviderConfig(
     val customHeadersJson: String = "",
     val temperature: Float = 0.8f,
     val topP: Float = 1.0f,
-    val maxTokens: Int = 1200,
-    val contextTokens: Int = 8192,
+    val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
+    val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true
 )

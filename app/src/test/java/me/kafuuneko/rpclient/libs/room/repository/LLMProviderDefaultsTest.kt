@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -14,6 +16,7 @@ class LLMProviderDefaultsTest {
 
         assertEquals(DEFAULT_GEMINI_MODEL, providers.getValue("Gemini").model)
         assertEquals(DEFAULT_CLAUDE_MODEL, providers.getValue("Claude").model)
+        assertEquals(DEFAULT_DEEPSEEK_MODEL, providers.getValue("DeepSeek").model)
         assertEquals(DEFAULT_GROK_MODEL, providers.getValue("Grok").model)
         assertEquals(LLMProviderType.Grok, providers.getValue("Grok").providerType)
         assertEquals(
@@ -22,6 +25,14 @@ class LLMProviderDefaultsTest {
         )
         assertEquals("https://api.x.ai/v1", providers.getValue("Grok").baseUrl)
         assertEquals(DEFAULT_OPENROUTER_MODEL, providers.getValue("OpenRouter").model)
+        assertEquals(
+            setOf(DEFAULT_LLM_MAX_TOKENS),
+            providers.values.map { it.maxTokens }.toSet()
+        )
+        assertEquals(
+            setOf(DEFAULT_LLM_CONTEXT_TOKENS),
+            providers.values.map { it.contextTokens }.toSet()
+        )
         assertFalse(providers.getValue("Claude").sendTopP)
         assertFalse(providers.values.any { it.isEnabled })
         assertEquals(

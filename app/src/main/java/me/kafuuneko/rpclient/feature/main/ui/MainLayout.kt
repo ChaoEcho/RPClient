@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.ChatBubble
@@ -103,6 +104,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -507,6 +509,15 @@ private fun LazyListScope.homeEntryItems(
             title = stringResource(R.string.group_chat),
             subtitle = stringResource(R.string.group_chat_home_desc),
             onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
+        )
+    }
+    item {
+        HomeEntryCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.AutoStories,
+            title = stringResource(R.string.story_library),
+            subtitle = stringResource(R.string.story_home_desc),
+            onClick = { MainUiIntent.OpenStoryLibrary.emit() }
         )
     }
     item {
@@ -1364,87 +1375,125 @@ private fun SummaryPanel(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             RpSectionHeader(
-                title = stringResource(R.string.summary_memory),
-                action = if (state.autoSummaryEnabled) stringResource(R.string.auto) else stringResource(
-                    R.string.manual
+                title = stringResource(R.string.summary_memory)
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MainSummarySettingsTab.entries.forEach { tab ->
+                    FilterChip(
+                        selected = tab == state.selectedTab,
+                        onClick = { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
+                        label = { Text(stringResource(tab.titleRes())) }
+                    )
+                }
+            }
+            when (state.selectedTab) {
+                MainSummarySettingsTab.General -> GeneralSummarySettings(state, emit)
+                MainSummarySettingsTab.Conversation -> ConversationSummarySettings(state, emit)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneralSummarySettings(
+    state: MainSummarySettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        NumberSettingRow(
+            title = stringResource(R.string.summary_target_words),
+            value = state.wordsLimit.toString(),
+            onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
+        )
+        NumberSettingRow(
+            title = stringResource(R.string.summary_response_tokens),
+            value = state.responseTokens.toString(),
+            onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
+        )
+    }
+}
+
+@Composable
+private fun ConversationSummarySettings(
+    state: MainSummarySettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SettingSwitchRow(
+            Icons.Rounded.AutoAwesome,
+            stringResource(R.string.auto_summarize),
+            stringResource(R.string.auto_summarize_desc),
+            state.autoSummaryEnabled,
+            onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
+        )
+        NumberSettingRow(
+            title = stringResource(R.string.summary_update_every_messages),
+            value = state.triggerMessageCount.toString(),
+            onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
+        )
+        NumberSettingRow(
+            title = stringResource(R.string.summary_max_messages_per_request),
+            value = state.maxMessagesPerRequest.toString(),
+            helper = stringResource(R.string.summary_max_messages_helper),
+            onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
+        )
+        Text(
+            text = stringResource(R.string.summary_injection_position),
+            style = MaterialTheme.typography.titleSmall
+        )
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SummaryInjectionPosition.entries.forEach { position ->
+                FilterChip(
+                    selected = position == state.injectionState.position,
+                    onClick = {
+                        MainUiIntent.SelectSummaryInjectionPosition(position).emit()
+                    },
+                    label = { Text(stringResource(position.titleRes())) }
                 )
-            )
-            SettingSwitchRow(
-                Icons.Rounded.AutoAwesome,
-                stringResource(R.string.auto_summarize),
-                stringResource(R.string.auto_summarize_desc),
-                state.autoSummaryEnabled,
-                onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
-            )
+            }
+        }
+        val injectionState = state.injectionState
+        if (injectionState is MainSummaryInjectionState.InChat) {
             NumberSettingRow(
-                title = stringResource(R.string.summary_update_every_messages),
-                value = state.triggerMessageCount.toString(),
-                onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
-            )
-            NumberSettingRow(
-                title = stringResource(R.string.summary_target_words),
-                value = state.wordsLimit.toString(),
-                onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
-            )
-            NumberSettingRow(
-                title = stringResource(R.string.summary_max_messages_per_request),
-                value = state.maxMessagesPerRequest.toString(),
-                helper = stringResource(R.string.summary_max_messages_helper),
-                onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
-            )
-            NumberSettingRow(
-                title = stringResource(R.string.summary_response_tokens),
-                value = state.responseTokens.toString(),
-                onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
+                title = stringResource(R.string.summary_injection_depth),
+                value = injectionState.depth.toString(),
+                onValueChange = {
+                    MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
+                }
             )
             Text(
-                text = stringResource(R.string.summary_injection_position),
+                text = stringResource(R.string.summary_injection_role),
                 style = MaterialTheme.typography.titleSmall
             )
-
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                SummaryInjectionPosition.entries.forEach { position ->
+                SummaryInjectionRole.entries.forEach { role ->
                     FilterChip(
-                        selected = position == state.injectionState.position,
+                        selected = role == injectionState.role,
                         onClick = {
-                            MainUiIntent.SelectSummaryInjectionPosition(position).emit()
+                            MainUiIntent.SelectSummaryInjectionRole(role).emit()
                         },
-                        label = { Text(stringResource(position.titleRes())) }
+                        label = { Text(stringResource(role.titleRes())) }
                     )
                 }
             }
-            val injectionState = state.injectionState
-            if (injectionState is MainSummaryInjectionState.InChat) {
-                NumberSettingRow(
-                    title = stringResource(R.string.summary_injection_depth),
-                    value = injectionState.depth.toString(),
-                    onValueChange = {
-                        MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
-                    }
-                )
-                Text(
-                    text = stringResource(R.string.summary_injection_role),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SummaryInjectionRole.entries.forEach { role ->
-                        FilterChip(
-                            selected = role == injectionState.role,
-                            onClick = {
-                                MainUiIntent.SelectSummaryInjectionRole(role).emit()
-                            },
-                            label = { Text(stringResource(role.titleRes())) }
-                        )
-                    }
-                }
-            }
         }
+    }
+}
+
+private fun MainSummarySettingsTab.titleRes(): Int {
+    return when (this) {
+        MainSummarySettingsTab.General -> R.string.general_summary_memory
+        MainSummarySettingsTab.Conversation -> R.string.conversation_summary_memory
     }
 }
 

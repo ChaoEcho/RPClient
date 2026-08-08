@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -28,8 +30,8 @@ data class LLMProviderEditForm(
     val customHeadersEditMode: CredentialEditMode = CredentialEditMode.KeepExisting,
     val temperature: String = "0.8",
     val topP: String = "1.0",
-    val maxTokens: String = "1200",
-    val contextTokens: String = "8192",
+    val maxTokens: String = DEFAULT_LLM_MAX_TOKENS.toString(),
+    val contextTokens: String = DEFAULT_LLM_CONTEXT_TOKENS.toString(),
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,

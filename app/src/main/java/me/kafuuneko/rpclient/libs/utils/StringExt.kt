@@ -7,9 +7,14 @@ fun String?.takeIfNotBlank(): String? {
     return this?.takeIf { it.isNotBlank() }
 }
 
+/** 移除 think 块并保留块外原始空白。 */
+fun String.removeThinkBlocks(): String {
+    return replace(ThinkBlockRegex, "")
+}
+
 /** 移除保存回复中的 think 块，避免推理内容继续进入后续上下文。 */
 fun String.stripThinkBlocks(): String {
-    return replace(ThinkBlockRegex, "").trim()
+    return removeThinkBlocks().trim()
 }
 
 /** 生成适合列表展示的预览，并按需截断长度。 */

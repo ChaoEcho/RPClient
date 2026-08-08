@@ -26,6 +26,14 @@ enum class PromptSourceKind {
     GroupIdentity,
     CharacterCard,
     GroupNudge,
+    StoryMainPrompt,
+    StoryMemory,
+    StorySummary,
+    StoryAuthorNote,
+    StoryCharacter,
+    StoryDocumentContext,
+    StoryContinuationGuidance,
+    StoryTask,
     PostProcessing,
     Other
 }

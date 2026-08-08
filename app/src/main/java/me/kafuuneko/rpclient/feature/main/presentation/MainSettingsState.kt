@@ -78,14 +78,20 @@ data class MainWorldInfoBudgetState(
     val overflowAlert: Boolean
 )
 
-/** 摘要生成与注入面板状态。 */
+enum class MainSummarySettingsTab {
+    General,
+    Conversation
+}
+
+/** 通用摘要参数与对话摘要行为面板状态。 */
 data class MainSummarySettingsState(
     val autoSummaryEnabled: Boolean,
     val triggerMessageCount: Int,
     val wordsLimit: Int,
     val maxMessagesPerRequest: Int,
     val responseTokens: Int,
-    val injectionState: MainSummaryInjectionState
+    val injectionState: MainSummaryInjectionState,
+    val selectedTab: MainSummarySettingsTab = MainSummarySettingsTab.General
 )
 
 /** 摘要注入位置；只有聊天历史内注入需要额外的深度和角色。 */

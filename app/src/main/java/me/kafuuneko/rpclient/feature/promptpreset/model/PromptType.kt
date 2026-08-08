@@ -21,5 +21,11 @@ enum class PromptType {
     PersonalityFormat,
     GroupNudge,
     NewGroupChat,
-    GroupSummarize
+    GroupSummarize,
+    StoryMain,
+    StoryMemory,
+    StorySummary,
+    StorySummarize,
+    StoryContinuationGuidance,
+    StoryContinue
 }

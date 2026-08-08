@@ -29,7 +29,7 @@ To provide app features, RPClient may process the following information locally:
 1. App settings and preferences, such as language, theme, selected model provider, streaming settings, summary settings, prompt templates, username, user persona description, and Regex script authorization status.
 2. Model provider configuration, such as provider name, base URL, protocol type, model name, API key, custom headers, temperature, top-p, maximum output tokens, and context token budget.
 3. Character and lorebook data, such as character names, avatars, tags, descriptions, personality, scenario, greetings, example dialogues, creator notes, lorebook entries, trigger keywords, priority, depth, probability, and token budget.
-4. Chat and group chat data, such as single chat messages, group chat messages, session settings, long-term summary memory, group members, message timestamps, and message roles.
+4. Chat, group chat, and Story data, such as messages, session settings, manuscripts, Story memory and summaries, group members, timestamps, and message roles.
 5. Imported and exported file data, such as Character Card JSON/PNG files, lorebook JSON files, Regex script JSON files, avatars, and other compatible files that you choose to import or export.
 6. Debug log data. If you enable debug mode, RPClient stores raw LLM request JSON and response JSON locally. These logs may include prompts, chat content, character settings, lorebook content, and model responses. When debug mode is disabled, RPClient stops writing new debug logs.
 
@@ -49,7 +49,7 @@ The data sent to a model provider may include:
 
 1. API keys or authentication headers.
 2. Model names, generation parameters, and streaming settings.
-3. Prompt content required to generate a response, including character settings, activated lorebook content, chat history, summary memory, user input, and system prompts.
+3. Prompt content required to generate a response or Story summary, including character settings, activated lorebook content, chat history, cropped Story manuscript context, Story memory, the current Story summary, user input, and system prompts.
 4. Request data required for connection tests, summary generation, continuation, regeneration, or group chat replies.
 
 Built-in templates may refer to providers such as OpenAI, Google Gemini, Anthropic, DeepSeek, xAI, and OpenRouter. RPClient also supports OpenAI-compatible APIs and custom proxy endpoints. Third-party providers process your request data under their own privacy policies, terms of service, and data processing rules. The RPClient developer cannot control how third-party providers store, use, or delete your data.

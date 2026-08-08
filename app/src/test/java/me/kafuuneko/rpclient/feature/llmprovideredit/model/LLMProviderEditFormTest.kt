@@ -4,6 +4,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
@@ -11,6 +13,21 @@ class LLMProviderEditFormTest {
     @Test
     fun newFormDefaultsTokenEstimateReserveToFifteenPercent() {
         assertEquals(15, LLMProviderEditForm().tokenEstimateReservePercent)
+    }
+
+    @Test
+    fun newFormReservesEnoughOutputAndPromptBudget() {
+        val form = LLMProviderEditForm()
+
+        assertEquals(DEFAULT_LLM_MAX_TOKENS.toString(), form.maxTokens)
+        assertEquals(DEFAULT_LLM_CONTEXT_TOKENS.toString(), form.contextTokens)
+        assertNotNull(
+            form.copy(
+                name = "Test",
+                baseUrl = "https://example.com",
+                model = "model"
+            ).toProviderOrNull()
+        )
     }
 
     @Test

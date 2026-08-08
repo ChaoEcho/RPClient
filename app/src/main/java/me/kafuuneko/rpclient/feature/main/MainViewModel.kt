@@ -41,6 +41,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -52,6 +53,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
 import me.kafuuneko.rpclient.feature.main.presentation.toggleSession
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
+import me.kafuuneko.rpclient.feature.story.list.StoryListActivity
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
@@ -440,6 +442,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(GroupChatCreateActivity::class.java).tryEmit()
     }
 
+    @UiIntentObserver(MainUiIntent.OpenStoryLibrary::class)
+    private fun onOpenStoryLibrary() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(StoryListActivity::class.java).tryEmit()
+    }
+
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
     private fun onOpenCharacterManager() {
         if (!isStateOf<MainUiState.Normal>()) return
@@ -746,6 +754,18 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 summaryState = summaryState.copy(responseTokens = it)
             )
         }
+    }
+
+    @UiIntentObserver(MainUiIntent.SelectSummarySettingsTab::class)
+    private fun onSelectSummarySettingsTab(intent: MainUiIntent.SelectSummarySettingsTab) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    selectedTab = intent.tab
+                )
+            )
+        ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)

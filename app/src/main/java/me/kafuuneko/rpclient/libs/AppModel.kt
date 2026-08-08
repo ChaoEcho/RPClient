@@ -98,6 +98,50 @@ Rules:
 - Keep it within {{words}} words.
 """
 
+    const val DEFAULT_STORY_MAIN_PROMPT = """
+You are a fiction-writing assistant editing a continuous manuscript.
+Treat Story Memory, Story Summary, Character References, and Lorebook entries as factual constraints.
+Follow the requested writing operation and return only prose that can directly replace or extend the manuscript.
+Do not explain your work, repeat the task, or wrap the result in a code block.
+Preserve the manuscript's language, narrative voice, tense, style, and established facts unless explicitly instructed otherwise.
+"""
+
+    const val DEFAULT_STORY_MEMORY_TEMPLATE = """
+Story Memory:
+{{memory}}
+"""
+
+    const val DEFAULT_STORY_SUMMARY_TEMPLATE = """
+Current Story Summary:
+{{summary}}
+"""
+
+    const val DEFAULT_STORY_SUMMARIZE_PROMPT = """
+Update the current story summary using the supplied story memory, current summary, and manuscript context.
+Rules:
+- Return the complete replacement summary, not commentary about the task.
+- Only record events and facts stated or confirmed in the supplied material.
+- Preserve important events, relationships, promises, injuries, locations, goals, character knowledge, unresolved threads, and the latest scene state.
+- Distinguish plans, beliefs, suspicions, and unresolved questions from confirmed facts.
+- Replace superseded temporary states with the latest confirmed state.
+- Do not continue the story or add character-card lore, world information, writing instructions, or future plot ideas.
+- Keep it within {{words}} words.
+"""
+
+    const val DEFAULT_STORY_CONTINUE_PROMPT = """
+Continue the manuscript immediately after its current ending.
+Do not repeat or summarize existing text. Advance the current scene naturally and return only the continuation.
+"""
+
+    const val DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT = """
+Follow the user-provided continuation guidance below when writing the next passage.
+Treat it as an instruction, not as manuscript text. Do not quote, repeat, explain, or mention the guidance in the output.
+
+--- BEGIN CONTINUATION GUIDANCE ---
+{{guidance}}
+--- END CONTINUATION GUIDANCE ---
+"""
+
     // 当前选中的模型供应商 ID。
     var currentLLMProvider by longPref()
 
@@ -146,6 +190,16 @@ Rules:
     // 群聊专用摘要提示词。
     var groupSummarizePrompt by stringPref(default = DEFAULT_GROUP_SUMMARIZE_PROMPT)
 
+    // 连续故事正文的主指令、上下文模板、摘要指令和续写任务。
+    var storyMainPrompt by stringPref(default = DEFAULT_STORY_MAIN_PROMPT)
+    var storyMemoryTemplate by stringPref(default = DEFAULT_STORY_MEMORY_TEMPLATE)
+    var storySummaryTemplate by stringPref(default = DEFAULT_STORY_SUMMARY_TEMPLATE)
+    var storySummarizePrompt by stringPref(default = DEFAULT_STORY_SUMMARIZE_PROMPT)
+    var storyContinuationGuidancePrompt by stringPref(
+        default = DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT
+    )
+    var storyContinuePrompt by stringPref(default = DEFAULT_STORY_CONTINUE_PROMPT)
+
     // 是否启用流式响应。
     var streamEnabled by booleanPref(default = true)
 
@@ -171,7 +225,7 @@ Rules:
     var summaryMaxMessagesPerRequest by intPref(default = 0)
 
     // 摘要请求的最大输出 token 数。
-    var summaryResponseTokens by intPref(default = 800)
+    var summaryResponseTokens by intPref(default = 1000)
 
     // 总结记忆注入常规聊天 Prompt 时使用的包装模板。
     var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)

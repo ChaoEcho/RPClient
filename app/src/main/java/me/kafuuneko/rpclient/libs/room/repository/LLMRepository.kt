@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.room.entity.toConfig
 
 internal const val DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 internal const val DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6"
+internal const val DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 internal const val DEFAULT_GROK_MODEL = "grok-4.5-latest"
 internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 
@@ -276,7 +277,7 @@ internal fun createDefaultLLMProviders(
             providerType = LLMProviderType.DeepSeek,
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.deepseek.com",
-            model = "deepseek-chat",
+            model = DEFAULT_DEEPSEEK_MODEL,
             createTime = now,
             updateTime = now,
             isEnabled = false

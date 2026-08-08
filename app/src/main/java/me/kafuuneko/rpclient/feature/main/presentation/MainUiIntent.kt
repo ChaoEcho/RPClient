@@ -26,6 +26,8 @@ sealed class MainUiIntent {
 
     data object OpenCreateGroupChat : MainUiIntent()
 
+    data object OpenStoryLibrary : MainUiIntent()
+
     data object OpenCharacterManager : MainUiIntent()
 
     data object OpenWorldBookManager : MainUiIntent()
@@ -93,6 +95,10 @@ sealed class MainUiIntent {
     data class ChangeSummaryMaxMessagesPerRequest(val value: String) : MainUiIntent()
 
     data class ChangeSummaryResponseTokens(val value: String) : MainUiIntent()
+
+    data class SelectSummarySettingsTab(
+        val tab: MainSummarySettingsTab
+    ) : MainUiIntent()
 
     data class SelectSummaryInjectionPosition(
         val position: SummaryInjectionPosition

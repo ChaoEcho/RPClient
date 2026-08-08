@@ -86,6 +86,12 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.GroupNudge -> AppModel.groupNudgePrompt
             PromptType.NewGroupChat -> AppModel.newGroupChatPrompt
             PromptType.GroupSummarize -> AppModel.groupSummarizePrompt
+            PromptType.StoryMain -> AppModel.storyMainPrompt
+            PromptType.StoryMemory -> AppModel.storyMemoryTemplate
+            PromptType.StorySummary -> AppModel.storySummaryTemplate
+            PromptType.StorySummarize -> AppModel.storySummarizePrompt
+            PromptType.StoryContinuationGuidance -> AppModel.storyContinuationGuidancePrompt
+            PromptType.StoryContinue -> AppModel.storyContinuePrompt
         }
     }
 
@@ -107,6 +113,12 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.GroupNudge -> AppModel.groupNudgePrompt = text
             PromptType.NewGroupChat -> AppModel.newGroupChatPrompt = text
             PromptType.GroupSummarize -> AppModel.groupSummarizePrompt = text
+            PromptType.StoryMain -> AppModel.storyMainPrompt = text
+            PromptType.StoryMemory -> AppModel.storyMemoryTemplate = text
+            PromptType.StorySummary -> AppModel.storySummaryTemplate = text
+            PromptType.StorySummarize -> AppModel.storySummarizePrompt = text
+            PromptType.StoryContinuationGuidance -> AppModel.storyContinuationGuidancePrompt = text
+            PromptType.StoryContinue -> AppModel.storyContinuePrompt = text
         }
     }
 }

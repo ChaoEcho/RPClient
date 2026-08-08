@@ -261,6 +261,17 @@ private val promptGroups = listOf(
         )
     ),
     PromptGroup(
+        titleRes = R.string.prompt_story_section,
+        types = listOf(
+            PromptType.StoryMain,
+            PromptType.StoryMemory,
+            PromptType.StorySummary,
+            PromptType.StorySummarize,
+            PromptType.StoryContinuationGuidance,
+            PromptType.StoryContinue
+        )
+    ),
+    PromptGroup(
         titleRes = R.string.prompt_format_section,
         types = listOf(
             PromptType.WorldInfoFormat,
@@ -282,6 +293,9 @@ private fun PromptType.icon(): ImageVector {
     return when (this) {
         PromptType.Summarize -> Icons.Rounded.Compress
         PromptType.GroupSummarize -> Icons.Rounded.Compress
+        PromptType.StoryMemory -> Icons.Rounded.Compress
+        PromptType.StorySummary -> Icons.Rounded.Compress
+        PromptType.StorySummarize -> Icons.Rounded.Compress
         PromptType.SummaryInjection -> Icons.Rounded.Compress
         else -> Icons.Rounded.AutoAwesome
     }
@@ -305,6 +319,12 @@ private fun PromptType.titleRes(): Int {
         PromptType.GroupNudge -> R.string.prompt_group_nudge_title
         PromptType.NewGroupChat -> R.string.prompt_new_group_chat_title
         PromptType.GroupSummarize -> R.string.prompt_group_summarize_title
+        PromptType.StoryMain -> R.string.prompt_story_main_title
+        PromptType.StoryMemory -> R.string.prompt_story_memory_title
+        PromptType.StorySummary -> R.string.prompt_story_summary_title
+        PromptType.StorySummarize -> R.string.prompt_story_summarize_title
+        PromptType.StoryContinuationGuidance -> R.string.prompt_story_continuation_guidance_title
+        PromptType.StoryContinue -> R.string.prompt_story_continue_title
     }
 }
 
@@ -326,6 +346,12 @@ private fun PromptType.descriptionRes(): Int {
         PromptType.GroupNudge -> R.string.prompt_group_nudge_desc
         PromptType.NewGroupChat -> R.string.prompt_new_group_chat_desc
         PromptType.GroupSummarize -> R.string.prompt_group_summarize_desc
+        PromptType.StoryMain -> R.string.prompt_story_main_desc
+        PromptType.StoryMemory -> R.string.prompt_story_memory_desc
+        PromptType.StorySummary -> R.string.prompt_story_summary_desc
+        PromptType.StorySummarize -> R.string.prompt_story_summarize_desc
+        PromptType.StoryContinuationGuidance -> R.string.prompt_story_continuation_guidance_desc
+        PromptType.StoryContinue -> R.string.prompt_story_continue_desc
     }
 }
 

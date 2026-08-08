@@ -19,6 +19,13 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
+import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
+import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
+import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
+import me.kafuuneko.rpclient.libs.story.StoryContextSelector
+import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
+import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
+import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehaviorProvider
@@ -41,6 +48,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
@@ -111,6 +119,13 @@ internal val appModules = module {
     singleOf(::GroupChatSpeakerSelector)
     singleOf(::GroupChatSummaryPromptBuilder)
     singleOf(::GroupChatOutputSanitizer)
+    singleOf(::StoryCharacterActivator)
+    singleOf(::StoryContextSelector)
+    singleOf(::StoryPromptBuilder)
+    singleOf(::StorySummaryPromptBuilder)
+    singleOf(::StoryOutputSanitizer)
+    singleOf(::StoryArchiveCodec)
+    singleOf(::StoryArchiveRepository)
     singleOf(::RegexScriptCodec)
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)
@@ -148,5 +163,6 @@ internal val appModules = module {
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)
+    singleOf(::StoryRepository)
 
 }

@@ -112,7 +112,7 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate2To3_addsRegexStorageAndKeepsCharacters() {
+    fun migrate2To3_addsRegexAndStoryStorageAndKeepsCharacters() {
         migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
             execSQL(
                 """
@@ -140,7 +140,8 @@ class AppDatabaseMigrationTest {
             WHERE type = 'table' AND name IN (
                 'regex_scripts',
                 'regex_character_authorizations',
-                'data_migration_markers'
+                'stories',
+                'story_characters'
             )
             ORDER BY name
             """.trimIndent()
@@ -151,7 +152,9 @@ class AppDatabaseMigrationTest {
             assertEquals(
                 listOf(
                     "regex_character_authorizations",
-                    "regex_scripts"
+                    "regex_scripts",
+                    "stories",
+                    "story_characters"
                 ),
                 tableNames
             )
@@ -159,6 +162,48 @@ class AppDatabaseMigrationTest {
         migrated.query("SELECT extensionsJson FROM character WHERE id = 101").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(true, cursor.getString(0).contains("regex_scripts"))
+        }
+        migrated.execSQL(
+            """
+            INSERT INTO stories (
+                id, title, content, memory, summary, authorNote, lorebookEntrySet,
+                worldInfoStateJson, worldInfoGenerationStep, contentRevision,
+                createTime, latestTime
+            ) VALUES (202, 'draft', 'body', 'memory', 'summary', 'note', '[]', '{}', 3, 4, 5, 6)
+            """.trimIndent()
+        )
+        migrated.execSQL(
+            """
+            INSERT INTO story_characters (
+                storyId, characterId, sortOrder, activationMode, activationKeysJson
+            ) VALUES (202, 101, 0, 1, '["alias"]')
+            """.trimIndent()
+        )
+        migrated.query(
+            """
+            SELECT title, content, memory, summary, authorNote,
+                   worldInfoGenerationStep, contentRevision
+            FROM stories WHERE id = 202
+            """.trimIndent()
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("draft", cursor.getString(0))
+            assertEquals("body", cursor.getString(1))
+            assertEquals("memory", cursor.getString(2))
+            assertEquals("summary", cursor.getString(3))
+            assertEquals("note", cursor.getString(4))
+            assertEquals(3, cursor.getInt(5))
+            assertEquals(4L, cursor.getLong(6))
+        }
+        migrated.query(
+            """
+            SELECT characterId, activationKeysJson
+            FROM story_characters WHERE storyId = 202
+            """.trimIndent()
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(101L, cursor.getLong(0))
+            assertEquals("[\"alias\"]", cursor.getString(1))
         }
     }
 

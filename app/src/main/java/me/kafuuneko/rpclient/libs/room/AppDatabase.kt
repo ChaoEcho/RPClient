@@ -16,6 +16,8 @@ import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
+import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
+import me.kafuuneko.rpclient.libs.room.dao.StoryDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -29,6 +31,8 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
+import me.kafuuneko.rpclient.libs.room.entity.Story
+import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spec
 
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
@@ -46,7 +50,9 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spe
         GroupChatMessage::class,
         GroupChatSummary::class,
         RegexScriptEntity::class,
-        RegexCharacterAuthorization::class
+        RegexCharacterAuthorization::class,
+        Story::class,
+        StoryCharacter::class
     ],
     version = 3,
     autoMigrations = [
@@ -69,5 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getGroupChatMessageDao(): GroupChatMessageDao
     abstract fun getGroupChatSummaryDao(): GroupChatSummaryDao
     abstract fun getRegexScriptDao(): RegexScriptDao
+    abstract fun getStoryDao(): StoryDao
+    abstract fun getStoryCharacterDao(): StoryCharacterDao
 
 }

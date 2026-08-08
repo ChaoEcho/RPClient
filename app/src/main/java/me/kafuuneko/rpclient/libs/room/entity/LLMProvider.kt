@@ -3,6 +3,8 @@ package me.kafuuneko.rpclient.libs.room.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -31,9 +33,9 @@ data class LLMProvider(
     // 默认 Top P
     val topP: Float = 1.0f,
     // 默认最大输出 Token
-    val maxTokens: Int = 1200,
+    val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     // 默认上下文 Token 预算
-    val contextTokens: Int = 8192,
+    val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
     // 代理 Tokenizer 的本地预算预留率，不会发送给供应商。
     @ColumnInfo(defaultValue = "15")
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,

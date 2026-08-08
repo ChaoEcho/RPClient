@@ -60,6 +60,14 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 - Prompt Inspector for reviewing final messages, Token budgets, lorebook matches, Regex processing, and omitted content
 - Debug mode for locally recording and viewing raw request and response JSON
 
+### Story Writing
+
+- Continuous manuscript editor with debounced local autosave and revision conflict protection
+- End-of-document continuation with optional one-shot guidance and multi-step session undo/redo
+- Story Memory, Author's Note, per-story character activation, lorebook matching, and Prompt Inspector
+- Streaming generation with stop, recoverable partial output, and multi-step session undo/redo
+- TXT/Markdown import and export, plus portable `.rpstory.json` archives
+
 ### Regex Scripts
 
 - Compatible with commonly used SillyTavern Regex script JSON
@@ -82,7 +90,7 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 3. Enter the API key, model name, and service URL. Test the connection, then enable the provider.
 4. Create a character or import an existing JSON/PNG character card.
 5. Import lorebooks and associate them with characters as needed.
-6. Create a one-on-one chat or group chat and start chatting.
+6. Create a one-on-one chat or group chat, or open "Story Writing" to create a continuous manuscript.
 
 API keys are stored only on the device, but they are sent to the configured provider with model requests. Only use API endpoints and proxy services that you trust.
 

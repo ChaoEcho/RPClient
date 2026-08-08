@@ -72,6 +72,14 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.story.list.StoryListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
+            android:name=".feature.story.editor.StoryEditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.characterlist.CharacterListActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />

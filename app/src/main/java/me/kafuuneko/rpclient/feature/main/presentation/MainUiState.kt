@@ -31,7 +31,10 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
     return copy(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
         settingsState = settingsState.copy(
-            chatDataManagementState = this.settingsState.chatDataManagementState
+            chatDataManagementState = this.settingsState.chatDataManagementState,
+            summaryState = settingsState.summaryState.copy(
+                selectedTab = this.settingsState.summaryState.selectedTab
+            )
         )
     )
 }

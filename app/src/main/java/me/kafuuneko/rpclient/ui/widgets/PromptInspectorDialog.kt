@@ -366,6 +366,14 @@ private fun PromptSource.label(): String {
             PromptSourceKind.GroupIdentity -> R.string.prompt_source_group_identity
             PromptSourceKind.CharacterCard -> R.string.prompt_source_character_card
             PromptSourceKind.GroupNudge -> R.string.prompt_source_group_nudge
+            PromptSourceKind.StoryMainPrompt -> R.string.prompt_source_story_main
+            PromptSourceKind.StoryMemory -> R.string.prompt_source_story_memory
+            PromptSourceKind.StorySummary -> R.string.prompt_source_story_summary
+            PromptSourceKind.StoryAuthorNote -> R.string.prompt_source_story_author_note
+            PromptSourceKind.StoryCharacter -> R.string.prompt_source_story_character
+            PromptSourceKind.StoryDocumentContext -> R.string.prompt_source_story_document
+            PromptSourceKind.StoryContinuationGuidance -> R.string.prompt_source_story_continuation_guidance
+            PromptSourceKind.StoryTask -> R.string.prompt_source_story_task
             PromptSourceKind.PostProcessing -> R.string.prompt_source_post_processing
             PromptSourceKind.Other -> R.string.prompt_source_other
         }

@@ -60,6 +60,14 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 - Prompt Inspector：检查最终消息、Token 预算、世界书命中、Regex 处理与省略内容
 - 调试模式：在本地记录并查看原始请求和响应 JSON
 
+### 故事创作
+
+- 连续正文编辑器，支持本地防抖自动保存与 revision 冲突保护
+- 支持可选单次引导的文档末尾续写，以及会话期内的多步撤销与恢复
+- Story Memory、作者注释、Story 专属角色激活、世界书匹配与 Prompt Inspector
+- 流式生成、停止、部分结果恢复、会话内多步撤销与恢复
+- TXT/Markdown 导入导出及可迁移的 `.rpstory.json` 归档
+
 ### Regex 脚本
 
 - 兼容常见 SillyTavern Regex 脚本 JSON
@@ -82,7 +90,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 3. 填写 API Key、模型名称和服务地址，测试连接后启用该 Provider。
 4. 创建角色，或导入已有的 JSON/PNG 角色卡。
 5. 根据需要导入世界书并关联角色。
-6. 新建单人会话或群聊，开始对话。
+6. 新建单人会话或群聊开始对话，或进入“故事创作”创建连续正文。
 
 API Key 仅保存在应用本地，但会随模型请求发送给所配置的服务商。请只使用可信的 API 地址和中转服务。
 
