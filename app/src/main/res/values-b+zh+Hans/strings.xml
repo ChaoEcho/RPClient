@@ -457,6 +457,16 @@
     <string name="prompt_preset_section">提示词模板</string>
     <string name="prompt_preset_entry_subtitle">管理系统提示词预设和工具提示词</string>
     <string name="prompt_behavior_section">请求行为</string>
+    <string name="reasoning_effort_section">推理强度</string>
+    <string name="reasoning_effort_description">对话与故事请求分别使用独立强度。“最低”会在模型支持时关闭思考，否则使用模型允许的最低档。</string>
+    <string name="conversation_reasoning_effort">对话</string>
+    <string name="story_reasoning_effort">故事编写</string>
+    <string name="reasoning_effort_auto">自动</string>
+    <string name="reasoning_effort_minimum">最低</string>
+    <string name="reasoning_effort_low">低</string>
+    <string name="reasoning_effort_medium">中</string>
+    <string name="reasoning_effort_high">高</string>
+    <string name="reasoning_effort_maximum">最大</string>
     <string name="prompt_manager_section">Prompt Manager</string>
     <string name="prompt_utility_section">工具提示词</string>
     <string name="prompt_format_section">格式模板</string>

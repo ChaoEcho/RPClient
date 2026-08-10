@@ -99,6 +99,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainReasoningSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
@@ -111,6 +112,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
@@ -893,6 +895,7 @@ private fun SettingsPage(
                 item { ParameterPanel(providerState.generationParametersState, emit) }
             }
         }
+        item { ReasoningEffortPanel(state.reasoningState, emit) }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
@@ -900,6 +903,67 @@ private fun SettingsPage(
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun ReasoningEffortPanel(
+    state: MainReasoningSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RpSectionHeader(title = stringResource(R.string.reasoning_effort_section))
+            Text(
+                text = stringResource(R.string.reasoning_effort_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            )
+            ReasoningEffortSelector(
+                title = stringResource(R.string.conversation_reasoning_effort),
+                selected = state.conversationEffort,
+                onSelect = { MainUiIntent.SelectConversationReasoningEffort(it).emit() }
+            )
+            ReasoningEffortSelector(
+                title = stringResource(R.string.story_reasoning_effort),
+                selected = state.storyEffort,
+                onSelect = { MainUiIntent.SelectStoryReasoningEffort(it).emit() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReasoningEffortSelector(
+    title: String,
+    selected: LLMReasoningEffort,
+    onSelect: (LLMReasoningEffort) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleSmall)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            LLMReasoningEffort.entries.forEach { effort ->
+                FilterChip(
+                    selected = effort == selected,
+                    onClick = { onSelect(effort) },
+                    label = { Text(stringResource(effort.titleRes())) }
+                )
+            }
+        }
     }
 }
 
@@ -1654,6 +1718,17 @@ private fun PromptPostProcessingMode.titleRes(): Int {
     }
 }
 
+private fun LLMReasoningEffort.titleRes(): Int {
+    return when (this) {
+        LLMReasoningEffort.Auto -> R.string.reasoning_effort_auto
+        LLMReasoningEffort.Minimum -> R.string.reasoning_effort_minimum
+        LLMReasoningEffort.Low -> R.string.reasoning_effort_low
+        LLMReasoningEffort.Medium -> R.string.reasoning_effort_medium
+        LLMReasoningEffort.High -> R.string.reasoning_effort_high
+        LLMReasoningEffort.Maximum -> R.string.reasoning_effort_maximum
+    }
+}
+
 private fun PromptPostProcessingMode.descriptionRes(): Int {
     return when (this) {
         PromptPostProcessingMode.None -> R.string.prompt_post_processing_none_desc
@@ -1744,6 +1819,10 @@ private fun MainLayoutPreview() {
                         avatarState = MainUserAvatarState.None
                     ),
                     providerState = MainProviderSettingsState.Empty,
+                    reasoningState = MainReasoningSettingsState(
+                        conversationEffort = LLMReasoningEffort.Auto,
+                        storyEffort = LLMReasoningEffort.Minimum
+                    ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,

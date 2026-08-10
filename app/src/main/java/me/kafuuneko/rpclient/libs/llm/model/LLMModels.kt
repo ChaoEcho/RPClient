@@ -107,6 +107,7 @@ data class LLMGenerationRequest(
     val messages: List<LLMMessage>,
     val model: String? = null,
     val options: LLMGenerationOptions = LLMGenerationOptions(),
+    val reasoningEffort: LLMReasoningEffort = LLMReasoningEffort.Auto,
     val includeReasoningInContent: Boolean = false,
     /** 已完成宏展开、后处理和最终上下文预算，不应在 Repository 中再次改写。 */
     val isPromptFinalized: Boolean = false

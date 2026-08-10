@@ -94,6 +94,12 @@ class OpenAICompatibleLLMClient(
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
         if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
+        payload.applyOpenAICompatibleReasoning(
+            providerType = mProvider.providerType,
+            model = model,
+            effort = request.reasoningEffort,
+            includeReasoningInContent = request.includeReasoningInContent
+        )
 
         return LLMHttpRequest(
             request = Request.Builder()

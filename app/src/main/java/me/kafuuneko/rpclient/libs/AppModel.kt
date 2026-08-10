@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs
 
 import com.chibatching.kotpref.KotprefModel
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 
@@ -202,6 +203,29 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 
     // 是否启用流式响应。
     var streamEnabled by booleanPref(default = true)
+
+    // 对话与故事请求独立使用的推理强度；显式数值避免枚举重排改变已有偏好。
+    private var conversationReasoningEffortValue by intPref(
+        default = LLMReasoningEffort.conversationDefault.persistedValue
+    )
+    private var storyReasoningEffortValue by intPref(
+        default = LLMReasoningEffort.storyDefault.persistedValue
+    )
+
+    var conversationReasoningEffort: LLMReasoningEffort
+        get() = LLMReasoningEffort.fromPersistedValue(conversationReasoningEffortValue)
+        set(value) {
+            conversationReasoningEffortValue = value.persistedValue
+        }
+
+    var storyReasoningEffort: LLMReasoningEffort
+        get() = LLMReasoningEffort.fromPersistedValue(
+            storyReasoningEffortValue,
+            fallback = LLMReasoningEffort.storyDefault
+        )
+        set(value) {
+            storyReasoningEffortValue = value.persistedValue
+        }
 
     // Prompt 宏中的用户名称，对应 {{user}}。
     var userName by stringPref(default = "You")

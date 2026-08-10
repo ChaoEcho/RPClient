@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -11,6 +12,7 @@ import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 data class MainSettingsState(
     val identityState: MainUserIdentityState,
     val providerState: MainProviderSettingsState,
+    val reasoningState: MainReasoningSettingsState,
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
     val summaryState: MainSummarySettingsState,
@@ -52,6 +54,12 @@ data class MainGenerationParametersState(
     val topP: Float,
     val maxTokens: Int,
     val contextTokens: Int
+)
+
+/** 对话与故事生成分别使用的全局推理强度。 */
+data class MainReasoningSettingsState(
+    val conversationEffort: LLMReasoningEffort,
+    val storyEffort: LLMReasoningEffort
 )
 
 /** Prompt 行为面板状态。 */

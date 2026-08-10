@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -247,6 +248,24 @@ class PromptRequestFinalizerTest {
 
         assertEquals(PromptTokenizerStrategy.Estimated, result.inspection.tokenizerStrategy)
         assertEquals(35, result.inspection.tokenizerReservePercent)
+    }
+
+    @Test
+    fun finalizedRequestPreservesReasoningEffort() {
+        val result = PromptRequestFinalizer(PromptTokenizerRegistry()).finalize(
+            drafts = listOf(draft("Required", priority = 1_000, canDrop = false)),
+            provider = null,
+            model = "test",
+            options = LLMGenerationOptions(maxTokens = 10),
+            reasoningEffort = LLMReasoningEffort.High,
+            includeReasoningInContent = false,
+            maxContextTokens = 100,
+            maxResponseTokens = 10,
+            postProcessingMode = PromptPostProcessingMode.None,
+            strictPromptPlaceholder = "[Start]"
+        )
+
+        assertEquals(LLMReasoningEffort.High, result.request.reasoningEffort)
     }
 
     @Test

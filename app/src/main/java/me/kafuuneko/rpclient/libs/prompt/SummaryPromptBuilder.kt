@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -21,7 +23,9 @@ data class SummaryPromptBuildResult(
 class SummaryPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
-    private val mRequestFinalizer: PromptRequestFinalizer
+    private val mRequestFinalizer: PromptRequestFinalizer,
+    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
+        LLMReasoningEffortProvider.defaults
 ) {
     /**
      * 构建独立的总结请求。
@@ -98,6 +102,7 @@ class SummaryPromptBuilder(
                 maxTokens = responseTokens,
                 topP = provider?.topP
             ),
+            reasoningEffort = mReasoningEffortProvider.current(LLMReasoningScope.Conversation),
             isPromptFinalized = true
         )
         return SummaryPromptBuildResult(request, selected)

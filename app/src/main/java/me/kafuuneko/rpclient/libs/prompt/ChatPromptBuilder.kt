@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -30,7 +32,9 @@ class ChatPromptBuilder(
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
-        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default }
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
+        LLMReasoningEffortProvider.defaults
 ) {
     /**
      * 构建最终提交给模型的请求。
@@ -184,6 +188,7 @@ class ChatPromptBuilder(
                 maxTokens = context.maxResponseTokens,
                 topP = context.provider?.topP
             ),
+            reasoningEffort = mReasoningEffortProvider.current(LLMReasoningScope.Conversation),
             includeReasoningInContent = true,
             maxContextTokens = context.maxContextTokens,
             maxResponseTokens = context.maxResponseTokens,

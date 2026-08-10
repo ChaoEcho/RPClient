@@ -445,6 +445,16 @@
     <string name="prompt_preset_section">프롬프트 템플릿</string>
     <string name="prompt_preset_entry_subtitle">시스템 프롬프트 프리셋 및 유틸리티 프롬프트 관리</string>
     <string name="prompt_behavior_section">요청 동작 (Request Behavior)</string>
+    <string name="reasoning_effort_section">추론 강도</string>
+    <string name="reasoning_effort_description">대화와 스토리 요청은 각각 별도의 추론 강도를 사용합니다. ‘최소’는 모델이 지원하면 사고를 끄고, 그렇지 않으면 지원되는 가장 낮은 단계를 사용합니다.</string>
+    <string name="conversation_reasoning_effort">대화</string>
+    <string name="story_reasoning_effort">스토리 작성</string>
+    <string name="reasoning_effort_auto">자동</string>
+    <string name="reasoning_effort_minimum">최소</string>
+    <string name="reasoning_effort_low">낮음</string>
+    <string name="reasoning_effort_medium">보통</string>
+    <string name="reasoning_effort_high">높음</string>
+    <string name="reasoning_effort_maximum">최대</string>
     <string name="prompt_manager_section">프롬프트 관리자</string>
     <string name="prompt_utility_section">유틸리티 프롬프트</string>
     <string name="prompt_format_section">형식 템플릿</string>

@@ -445,6 +445,16 @@
     <string name="prompt_preset_section">Шаблоны промптов</string>
     <string name="prompt_preset_entry_subtitle">Управление пресетами системных промптов и вспомогательными промптами</string>
     <string name="prompt_behavior_section">Поведение запроса</string>
+    <string name="reasoning_effort_section">Интенсивность рассуждений</string>
+    <string name="reasoning_effort_description">Для диалогов и историй задаются отдельные уровни рассуждений. «Минимум» отключает рассуждения, если модель это поддерживает, иначе используется самый низкий доступный уровень.</string>
+    <string name="conversation_reasoning_effort">Диалог</string>
+    <string name="story_reasoning_effort">Написание истории</string>
+    <string name="reasoning_effort_auto">Авто</string>
+    <string name="reasoning_effort_minimum">Минимум</string>
+    <string name="reasoning_effort_low">Низкая</string>
+    <string name="reasoning_effort_medium">Средняя</string>
+    <string name="reasoning_effort_high">Высокая</string>
+    <string name="reasoning_effort_maximum">Максимум</string>
     <string name="prompt_manager_section">Менеджер промптов</string>
     <string name="prompt_utility_section">Вспомогательные промпты</string>
     <string name="prompt_format_section">Шаблоны форматирования</string>

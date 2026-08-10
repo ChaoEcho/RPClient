@@ -84,6 +84,12 @@ class AnthropicMessagesLLMClient(
         val systemPrompt = request.messages.leadingSystemPrompt()
         if (systemPrompt.isNotBlank()) payload.put("system", systemPrompt)
         if (options.stop.isNotEmpty()) payload.put("stop_sequences", options.stop.toJsonArray())
+        payload.applyAnthropicReasoning(
+            providerType = mProvider.providerType,
+            model = model,
+            effort = request.reasoningEffort,
+            maxTokens = options.maxTokens
+        )
 
         return LLMHttpRequest(
             request = Request.Builder()

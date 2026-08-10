@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 最终可发送请求及其同源检查报告。 */
@@ -48,6 +49,7 @@ class PromptRequestFinalizer(
         provider: LLMProvider?,
         model: String?,
         options: LLMGenerationOptions,
+        reasoningEffort: LLMReasoningEffort = LLMReasoningEffort.Auto,
         includeReasoningInContent: Boolean,
         maxContextTokens: Int,
         maxResponseTokens: Int,
@@ -81,6 +83,7 @@ class PromptRequestFinalizer(
                         messages = messages,
                         model = model,
                         options = options,
+                        reasoningEffort = reasoningEffort,
                         includeReasoningInContent = includeReasoningInContent,
                         isPromptFinalized = true
                     ),

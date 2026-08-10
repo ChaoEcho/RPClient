@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehaviorProvider
@@ -93,7 +95,9 @@ class GroupChatPromptBuilder(
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
-        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default }
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
+        LLMReasoningEffortProvider.defaults
 ) {
     /** 构建可直接发送给模型的群聊生成请求。 */
     fun build(context: GroupChatPromptContext): LLMGenerationRequest {
@@ -214,6 +218,7 @@ class GroupChatPromptBuilder(
                 maxTokens = context.provider.maxTokens,
                 topP = context.provider.topP
             ),
+            reasoningEffort = mReasoningEffortProvider.current(LLMReasoningScope.Conversation),
             includeReasoningInContent = true,
             maxContextTokens = context.provider.contextTokens,
             maxResponseTokens = context.provider.maxTokens,
