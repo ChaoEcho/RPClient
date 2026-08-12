@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorDocument
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryLorebookEntryItem
@@ -107,7 +108,6 @@ import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationFa
 import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.story.editor.presentation.StorySettingsSection
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryTextExportFormat
-import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -1123,21 +1123,21 @@ private fun CharacterSettingCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     FilterChip(
-                        selected = character.activationMode == StoryCharacter.ACTIVATION_ALWAYS,
+                        selected = character.activationMode == StoryCharacterActivationMode.Always,
                         onClick = {
                             StoryEditorUiIntent.SetCharacterActivationMode(
                                 character.id,
-                                StoryCharacter.ACTIVATION_ALWAYS
+                                StoryCharacterActivationMode.Always
                             ).emit()
                         },
                         label = { Text(stringResource(R.string.story_character_always)) }
                     )
                     FilterChip(
-                        selected = character.activationMode == StoryCharacter.ACTIVATION_AUTO,
+                        selected = character.activationMode == StoryCharacterActivationMode.Auto,
                         onClick = {
                             StoryEditorUiIntent.SetCharacterActivationMode(
                                 character.id,
-                                StoryCharacter.ACTIVATION_AUTO
+                                StoryCharacterActivationMode.Auto
                             ).emit()
                         },
                         label = { Text(stringResource(R.string.story_character_auto)) }

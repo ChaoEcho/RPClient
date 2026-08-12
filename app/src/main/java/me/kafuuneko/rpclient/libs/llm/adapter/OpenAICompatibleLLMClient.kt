@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
@@ -89,11 +90,19 @@ class OpenAICompatibleLLMClient(
         val payload = JSONObject()
             .put("model", model)
             .put("messages", request.messages.toOpenAIMessages())
-            .put("max_tokens", options.maxTokens)
+            .put(
+                openAICompatibleTokenLimitField(mProvider.providerType),
+                options.maxTokens
+            )
             .put("stream", stream)
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
-        if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
+        if (
+            options.stop.isNotEmpty() &&
+            supportsOpenAICompatibleStopSequences(mProvider.providerType, model)
+        ) {
+            payload.put("stop", options.stop.toJsonArray())
+        }
         payload.applyOpenAICompatibleReasoning(
             providerType = mProvider.providerType,
             model = model,
@@ -244,4 +253,26 @@ internal fun JSONObject.optContentString(name: String): String {
 /** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
 internal fun cleanContentString(value: String): String {
     return if (value.equals("null", ignoreCase = true)) "" else value
+}
+
+/**
+ * 返回 OpenAI-compatible 请求的输出 Token 上限字段。
+ *
+ * OpenAI 官方接口已用 max_completion_tokens 取代 max_tokens；第三方兼容服务可能尚未
+ * 实现新字段，因此只对明确的 ChatGPT Provider 使用新名称。
+ */
+internal fun openAICompatibleTokenLimitField(providerType: LLMProviderType): String {
+    return if (providerType == LLMProviderType.ChatGPT) {
+        "max_completion_tokens"
+    } else {
+        "max_tokens"
+    }
+}
+
+/** xAI 推理模型收到 stop 会直接拒绝请求，其他兼容供应商保留标准行为。 */
+internal fun supportsOpenAICompatibleStopSequences(
+    providerType: LLMProviderType,
+    model: String
+): Boolean {
+    return providerType != LLMProviderType.Grok || !isKnownGrokReasoningModel(model)
 }

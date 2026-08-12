@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.story.editor.model
 
-import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 
 /** Compose 文本编辑状态与 ViewModel 草稿之间的轻量同步快照。 */
@@ -34,12 +33,18 @@ data class StoryCharacterOptionItem(
     val name: String,
     val description: String,
     val selected: Boolean,
-    val activationMode: Int = StoryCharacter.ACTIVATION_AUTO,
+    val activationMode: StoryCharacterActivationMode = StoryCharacterActivationMode.Auto,
     val activationKeysDraft: String = "",
     val sortOrder: Int = Int.MAX_VALUE,
     val linkedLorebookId: Long? = null,
     val linkedLorebookName: String? = null
 )
+
+/** Story 设置页可选择的角色激活方式，不暴露 Room 的持久化取值。 */
+enum class StoryCharacterActivationMode {
+    Always,
+    Auto
+}
 
 /** Story 设置页中的世界书条目。 */
 data class StoryLorebookEntryItem(

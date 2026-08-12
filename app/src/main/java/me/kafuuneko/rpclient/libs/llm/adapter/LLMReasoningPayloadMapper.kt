@@ -120,11 +120,19 @@ internal fun resolveAnthropicReasoning(
     maxTokens: Int
 ): LLMReasoningPayloadMutation {
     if (providerType != LLMProviderType.Claude) return LLMReasoningPayloadMutation()
-    if (effort == LLMReasoningEffort.Auto) return LLMReasoningPayloadMutation()
     val normalizedModel = model.lowercase()
+    val strictSamplingFields = if (normalizedModel.rejectsNonDefaultClaudeSampling()) {
+        setOf("temperature", "top_p")
+    } else {
+        emptySet()
+    }
+    if (effort == LLMReasoningEffort.Auto) {
+        return LLMReasoningPayloadMutation(removedFields = strictSamplingFields)
+    }
     if (effort == LLMReasoningEffort.Minimum && !normalizedModel.requiresClaudeThinking()) {
         return LLMReasoningPayloadMutation(
-            fields = mapOf("thinking" to mapOf("type" to "disabled"))
+            fields = mapOf("thinking" to mapOf("type" to "disabled")),
+            removedFields = strictSamplingFields
         )
     }
 
@@ -218,7 +226,9 @@ private fun grokReasoningEffort(model: String, effort: LLMReasoningEffort): Stri
     if (effort == LLMReasoningEffort.Auto) return null
     val normalizedModel = model.lowercase()
     return when (effort) {
-        LLMReasoningEffort.Minimum -> if ("grok-4.5" in normalizedModel) "low" else "none"
+        LLMReasoningEffort.Minimum -> {
+            if (isKnownGrokReasoningModel(normalizedModel)) "low" else "none"
+        }
         LLMReasoningEffort.Low -> "low"
         LLMReasoningEffort.Medium -> "medium"
         LLMReasoningEffort.High -> "high"
@@ -249,10 +259,12 @@ private fun openRouterReasoningEffort(model: String, effort: LLMReasoningEffort)
 
 private fun gemini3ThinkingLevel(model: String, effort: LLMReasoningEffort): String {
     val isPro = "pro" in model
+    // 旧 Gemini 3 Pro 只接受 low/high；3.1 Pro 起已支持 medium。
+    val isLegacyPro = model.startsWith("gemini-3-pro")
     return when (effort) {
         LLMReasoningEffort.Minimum -> if (isPro) "low" else "minimal"
         LLMReasoningEffort.Low -> "low"
-        LLMReasoningEffort.Medium -> if (isPro) "low" else "medium"
+        LLMReasoningEffort.Medium -> if (isLegacyPro) "low" else "medium"
         LLMReasoningEffort.High,
         LLMReasoningEffort.Maximum -> "high"
         LLMReasoningEffort.Auto -> error("Auto does not send thinkingConfig")
@@ -288,6 +300,22 @@ private fun String.supportsAdaptiveClaudeThinking(): Boolean {
 
 private fun String.requiresClaudeThinking(): Boolean {
     return "fable-5" in this || "mythos" in this
+}
+
+/** 已知会强制推理的 Grok 模型不能接收 `none`，也不接受 stop 序列。 */
+internal fun isKnownGrokReasoningModel(model: String): Boolean {
+    val normalizedModel = model.lowercase()
+    return normalizedModel.startsWith("grok-4.5") ||
+        normalizedModel.startsWith("grok-build") ||
+        "-reasoning" in normalizedModel ||
+        "multi-agent" in normalizedModel
+}
+
+/** Claude 4.7+ 与第五代指定模型会在收到非默认采样参数时直接返回 400。 */
+private fun String.rejectsNonDefaultClaudeSampling(): Boolean {
+    return Regex("claude-(?:opus|sonnet)-4-(?:[7-9]|[1-9][0-9])").containsMatchIn(this) ||
+        Regex("claude-(?:opus|sonnet|fable|mythos)-[5-9]").containsMatchIn(this) ||
+        "claude-mythos-preview" in this
 }
 
 private fun LLMReasoningEffort.toAdaptiveClaudeEffort(): String {

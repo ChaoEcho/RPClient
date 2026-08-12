@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.story.editor.presentation
 
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorSnapshot
+import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryTextExportFormat
 import android.net.Uri
 
@@ -25,7 +26,7 @@ sealed class StoryEditorUiIntent {
     data class ToggleStoryCharacter(val characterId: Long) : StoryEditorUiIntent()
     data class SetCharacterActivationMode(
         val characterId: Long,
-        val activationMode: Int
+        val activationMode: StoryCharacterActivationMode
     ) : StoryEditorUiIntent()
     data class ChangeCharacterActivationKeys(
         val characterId: Long,

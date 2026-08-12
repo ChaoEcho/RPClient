@@ -87,7 +87,9 @@ class StoryListViewModel : CoreViewModelWithEvent<StoryListUiIntent, StoryListUi
                 if (dialog.storyId == null) {
                     mStoryRepository.createStory(title)
                 } else {
-                    mStoryRepository.renameStory(dialog.storyId, title)
+                    check(mStoryRepository.renameStory(dialog.storyId, title)) {
+                        "Story no longer exists"
+                    }
                     dialog.storyId
                 }
             }

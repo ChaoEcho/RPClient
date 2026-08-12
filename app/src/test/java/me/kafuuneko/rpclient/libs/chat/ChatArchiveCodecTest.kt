@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -149,6 +150,31 @@ class ChatArchiveCodecTest {
         assertThrows(IllegalArgumentException::class.java) {
             codec.decode(jsonl, "Fallback")
         }
+    }
+
+    @Test
+    fun futureRpclientSchemaIsRejected() {
+        val jsonl = """
+            {"chat_metadata":{"rpclient":{"schema_version":2}}}
+        """.trimIndent()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            codec.decode(jsonl, "Fallback")
+        }
+
+        assertTrue(error.message?.contains("schema version") == true)
+    }
+
+    @Test
+    fun outOfRangeSummaryBoundaryIsIgnored() {
+        val jsonl = """
+            {"chat_metadata":{"rpclient":{"schema_version":1,"summary":{"content":"Wrong boundary","covered_message_index":1}}}}
+            {"name":"Alice","is_user":true,"mes":"Hello"}
+        """.trimIndent()
+
+        val decoded = codec.decode(jsonl, "Fallback")
+
+        assertNull(decoded.summary)
     }
 
     private fun archive(): ChatArchive {

@@ -83,7 +83,9 @@ class ChatArchiveCodec(
         val header = parsed.header
         require(header.isChatHeader()) { "Chat archive header is missing" }
         val metadata = header.objectOrNull(KEY_CHAT_METADATA)
-        val rpclient = metadata?.objectOrNull(KEY_RPCLIENT)
+        val rpclient = metadata
+            ?.objectOrNull(KEY_RPCLIENT)
+            ?.supportedMetadataOrNull()
         val decodedMessages = parsed.messages.normalizeTimes()
 
         val customCreateTime = rpclient?.longOrNull(KEY_CREATE_TIME)
@@ -123,7 +125,10 @@ class ChatArchiveCodec(
             characterNameHint = characterNameHint.orEmpty(),
             characterFingerprint = characterObject?.stringOrNull(KEY_FINGERPRINT),
             messages = decodedMessages.map { it.message },
-            summary = rpclient?.objectOrNull(KEY_SUMMARY)?.toSummary(createTime)
+            summary = rpclient
+                ?.objectOrNull(KEY_SUMMARY)
+                ?.toSummary(createTime)
+                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) }
         )
     }
 
@@ -294,6 +299,20 @@ class ChatArchiveCodec(
             createTime = longOrNull(KEY_CREATE_TIME) ?: defaultTime,
             coveredMessageIndex = intOrNull(KEY_COVERED_MESSAGE_INDEX) ?: -1
         )
+    }
+
+    /** 仅解释当前协议元数据；未来主版本必须停止导入，旧式无版本扩展按普通酒馆文件处理。 */
+    private fun JsonObject.supportedMetadataOrNull(): JsonObject? {
+        val schemaVersion = intOrNull(KEY_SCHEMA_VERSION) ?: return null
+        require(schemaVersion <= SCHEMA_VERSION) {
+            "Unsupported RPClient chat archive schema version: $schemaVersion"
+        }
+        return takeIf { schemaVersion == SCHEMA_VERSION }
+    }
+
+    /** 摘要只允许指向已有普通消息，-1 表示没有覆盖任何消息。 */
+    private fun ChatArchiveSummary.hasValidBoundary(messageCount: Int): Boolean {
+        return coveredMessageIndex == -1 || coveredMessageIndex in 0 until messageCount
     }
 
     private fun JsonObject.elementOrNull(key: String): JsonElement? {

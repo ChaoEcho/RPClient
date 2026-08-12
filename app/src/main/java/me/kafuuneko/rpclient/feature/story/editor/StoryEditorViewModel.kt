@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditHistory
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorDocument
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorSnapshot
@@ -270,11 +271,14 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mDraftContent = story.content
         mPersistedContent = story.content
         mRevision = story.contentRevision
+        clearEditHistory()
         publishDocument(story.content)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         current.copy(
             topBarState = current.topBarState.copy(saveState = StorySaveState.Saved),
-            contentState = current.contentState.copy(characterCount = story.content.length)
+            contentState = current.contentState.copy(characterCount = story.content.length),
+            canUndoEdit = false,
+            canRedoEdit = false
         ).setup()
     }
 
@@ -424,7 +428,6 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private fun onSetCharacterActivationMode(
         intent: StoryEditorUiIntent.SetCharacterActivationMode
     ) {
-        if (!StoryCharacter.isValidActivationMode(intent.activationMode)) return
         updateSettings {
             copy(
                 characters = characters.map { item ->
@@ -525,7 +528,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                         .map { item ->
                             StoryCharacterSelection(
                                 characterId = item.id,
-                                activationMode = item.activationMode,
+                                activationMode = item.activationMode.toStorageValue(),
                                 activationKeys = parseActivationKeys(item.activationKeysDraft)
                             )
                         }
@@ -1123,7 +1126,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             )
         }
         if (reverted == null) {
-            clearAiHistory()
+            clearEditHistory()
             uiState.copy(
                 generationState = StoryGenerationState.Failed(StoryGenerationFailure.Conflict),
                 canUndoEdit = false,
@@ -1176,7 +1179,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             )
         }
         if (applied == null) {
-            clearAiHistory()
+            clearEditHistory()
             uiState.copy(
                 generationState = StoryGenerationState.Failed(StoryGenerationFailure.Conflict),
                 canUndoEdit = false,
@@ -1278,7 +1281,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         return title.replace(INVALID_FILE_NAME_CHARS, "_").trim().ifBlank { "story" }
     }
 
-    private fun clearAiHistory() {
+    private fun clearEditHistory() {
         mEditHistory.clear()
     }
 
@@ -1347,7 +1350,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 description = character.description,
                 selected = relation != null,
                 activationMode = relation?.relation?.activationMode
-                    ?: StoryCharacter.ACTIVATION_AUTO,
+                    .toStoryCharacterActivationMode(),
                 activationKeysDraft = relation?.activationKeys.orEmpty().joinToString(", "),
                 sortOrder = relation?.relation?.sortOrder ?: Int.MAX_VALUE,
                 linkedLorebookId = character.characterLorebookId.takeIf { it > 0L },
@@ -1397,6 +1400,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             .sortedBy { it.name.lowercase() }
             .map { it.copy(sortOrder = Int.MAX_VALUE) }
         return selected + unselected
+    }
+
+    private fun Int?.toStoryCharacterActivationMode(): StoryCharacterActivationMode {
+        return if (this == StoryCharacter.ACTIVATION_ALWAYS) {
+            StoryCharacterActivationMode.Always
+        } else {
+            StoryCharacterActivationMode.Auto
+        }
+    }
+
+    private fun StoryCharacterActivationMode.toStorageValue(): Int {
+        return when (this) {
+            StoryCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
+            StoryCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
+        }
     }
 
     private fun parseActivationKeys(value: String): List<String> {
