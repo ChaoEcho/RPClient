@@ -2,6 +2,9 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
+import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
+import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
+import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -28,6 +31,7 @@ data class LLMProviderEditForm(
     val model: String = "",
     val hasExistingCustomHeaders: Boolean = false,
     val customHeadersEditMode: CredentialEditMode = CredentialEditMode.KeepExisting,
+    val requestBodyPatchJson: String = "{}",
     val temperature: String = "0.8",
     val topP: String = "1.0",
     val maxTokens: String = DEFAULT_LLM_MAX_TOKENS.toString(),
@@ -55,6 +59,14 @@ data class LLMProviderEditForm(
         ) return null
         if (sendTemperature && parsedTemperature !in capabilities.temperatureRange) return null
         if (sendTopP && parsedTopP !in capabilities.topPRange) return null
+        if (validateRequestBodyPatch(
+                requestBodyPatchJson,
+                protectedRequestBodyPaths(protocol, providerType)
+            ).isFailure
+        ) return null
+        if (providerType == LLMProviderType.OpenRouter &&
+            !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
+        ) return null
         return LLMProvider(
             id = id,
             name = name.trim(),
@@ -64,6 +76,7 @@ data class LLMProviderEditForm(
             apiKey = apiKey.trim(),
             model = model.trim(),
             customHeadersJson = customHeadersJson.trim(),
+            requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
             temperature = parsedTemperature,
             topP = parsedTopP,
             maxTokens = parsedMaxTokens,
@@ -99,6 +112,7 @@ fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
         temperature = temperature.trim(),
         topP = topP.trim(),
         maxTokens = maxTokens.trim(),
-        contextTokens = contextTokens.trim()
+        contextTokens = contextTokens.trim(),
+        requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
     )
 }

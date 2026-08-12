@@ -100,6 +100,7 @@ class GeminiLLMClient(
                 )
             )
         }
+        val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
 
         val action = if (stream) "streamGenerateContent" else "generateContent"
         val url = "${mProvider.normalizedBaseUrl()}/v1beta/models/$model:$action"
@@ -111,11 +112,11 @@ class GeminiLLMClient(
         return LLMHttpRequest(
             request = Request.Builder()
                 .url(url)
-                .post(payload.toRequestBody())
+                .post(finalPayload.toRequestBody())
                 .header("Content-Type", "application/json")
                 .applyProviderHeaders(mProvider)
                 .build(),
-            payloadJson = payload.toString()
+            payloadJson = finalPayload.toString()
         )
     }
 

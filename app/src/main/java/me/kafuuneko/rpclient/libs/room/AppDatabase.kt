@@ -34,6 +34,7 @@ import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spec
+import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spec
 
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
@@ -57,7 +58,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spe
     version = 3,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
-        AutoMigration(from = 2, to = 3)
+        AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class)
     ],
     exportSchema = true
 )

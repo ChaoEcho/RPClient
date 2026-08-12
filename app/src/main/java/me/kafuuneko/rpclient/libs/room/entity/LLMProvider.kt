@@ -28,6 +28,9 @@ data class LLMProvider(
     val model: String,
     // 额外请求头 JSON
     val customHeadersJson: String = "",
+    // 合并到协议请求体的 JSON Merge Patch；默认不改变基础请求。
+    @ColumnInfo(defaultValue = "'{}'")
+    val requestBodyPatchJson: String = "{}",
     // 默认 Temp
     val temperature: Float = 0.8f,
     // 默认 Top P
@@ -66,6 +69,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     apiKey = apiKey,
     model = model,
     customHeadersJson = customHeadersJson,
+    requestBodyPatchJson = requestBodyPatchJson,
     temperature = temperature,
     topP = topP,
     maxTokens = maxTokens,

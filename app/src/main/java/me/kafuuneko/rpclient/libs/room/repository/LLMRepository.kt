@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
+import me.kafuuneko.rpclient.libs.llm.RoutingSessionId
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -161,19 +163,24 @@ class LLMRepository(
     /**
      * 使用当前选中的供应商进行一次性生成。
      */
-    suspend fun generateWithSelectedProvider(request: LLMGenerationRequest): LLMGenerationResponse {
+    suspend fun generateWithSelectedProvider(
+        request: LLMGenerationRequest,
+        routingSessionKey: String? = null
+    ): LLMGenerationResponse {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
         return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider)
+            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
         ).requireNonEmptyContent()
     }
 
-    /**
-     * 使用临时供应商配置进行一次性生成，适合编辑页保存前测试。
-     */
-    suspend fun generateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): LLMGenerationResponse {
+    /** 使用调用方指定的供应商生成，并可为网关附加稳定的业务会话路由键。 */
+    suspend fun generateWithProvider(
+        provider: LLMProvider,
+        request: LLMGenerationRequest,
+        routingSessionKey: String? = null
+    ): LLMGenerationResponse {
         return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider)
+            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
         ).requireNonEmptyContent()
     }
 
@@ -191,10 +198,13 @@ class LLMRepository(
     /**
      * 使用当前选中的供应商进行流式生成。
      */
-    suspend fun streamGenerateWithSelectedProvider(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
+    suspend fun streamGenerateWithSelectedProvider(
+        request: LLMGenerationRequest,
+        routingSessionKey: String? = null
+    ): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider)
+            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
         ).requireNonEmptyContent()
     }
 
@@ -220,6 +230,13 @@ class LLMRepository(
             ),
             strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER
         )
+    }
+
+    private fun LLMGenerationRequest.withRoutingSession(
+        routingSessionKey: String?
+    ): LLMGenerationRequest {
+        if (routingSessionKey == null) return this
+        return copy(routingSessionId = RoutingSessionId.forConversation(routingSessionKey))
     }
 
     /**
@@ -298,6 +315,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://openrouter.ai/api/v1",
             model = DEFAULT_OPENROUTER_MODEL,
+            requestBodyPatchJson = DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
             createTime = now,
             updateTime = now,
             isEnabled = false

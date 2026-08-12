@@ -15,6 +15,8 @@ sealed class LLMProviderEditUiState {
         val initialForm: LLMProviderEditForm = form,
         val loadState: LLMProviderEditLoadState = LLMProviderEditLoadState.None,
         val testState: LLMProviderEditTestState = LLMProviderEditTestState.None,
+        val requestExtensionsState: LLMProviderEditRequestExtensionsState =
+            LLMProviderEditRequestExtensionsState(),
         val modelCatalogState: LLMProviderEditModelCatalogState =
             LLMProviderEditModelCatalogState.Idle,
         val dialogState: LLMProviderEditDialogState = LLMProviderEditDialogState.None
@@ -29,6 +31,14 @@ sealed class LLMProviderEditUiState {
         }
     }
 }
+
+/** 请求扩展面板的可渲染状态，避免 Compose 直接解析 Provider JSON。 */
+data class LLMProviderEditRequestExtensionsState(
+    val isOpenRouter: Boolean = false,
+    val usesPreferredProvider: Boolean = false,
+    val preferredProvider: String = "",
+    val allowFallbacks: Boolean = true
+)
 
 /** Provider 页面当前是新增还是编辑。 */
 enum class LLMProviderEditMode {
@@ -68,6 +78,7 @@ sealed class LLMProviderEditDialogState {
     data object UnsavedChangesConfirm : LLMProviderEditDialogState()
     data object ApiKeyEditor : LLMProviderEditDialogState()
     data object CustomHeadersEditor : LLMProviderEditDialogState()
+    data class RequestBodyPatchEditor(val initialValue: String) : LLMProviderEditDialogState()
     data class ModelPicker(
         val searchQuery: String,
         val items: List<LLMAvailableModel>

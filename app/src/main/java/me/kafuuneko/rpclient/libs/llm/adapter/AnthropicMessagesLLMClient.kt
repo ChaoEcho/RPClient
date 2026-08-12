@@ -90,17 +90,18 @@ class AnthropicMessagesLLMClient(
             effort = request.reasoningEffort,
             maxTokens = options.maxTokens
         )
+        val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
 
         return LLMHttpRequest(
             request = Request.Builder()
                 .url("${mProvider.normalizedBaseUrl()}/v1/messages")
-                .post(payload.toRequestBody())
+                .post(finalPayload.toRequestBody())
                 .header("x-api-key", mProvider.apiKey)
                 .header("anthropic-version", "2023-06-01")
                 .header("Content-Type", "application/json")
                 .applyProviderHeaders(mProvider)
                 .build(),
-            payloadJson = payload.toString()
+            payloadJson = finalPayload.toString()
         )
     }
 

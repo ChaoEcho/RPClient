@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
@@ -25,6 +26,10 @@ class LLMProviderDefaultsTest {
         )
         assertEquals("https://api.x.ai/v1", providers.getValue("Grok").baseUrl)
         assertEquals(DEFAULT_OPENROUTER_MODEL, providers.getValue("OpenRouter").model)
+        assertEquals(
+            DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
+            providers.getValue("OpenRouter").requestBodyPatchJson
+        )
         assertEquals(
             setOf(DEFAULT_LLM_MAX_TOKENS),
             providers.values.map { it.maxTokens }.toSet()

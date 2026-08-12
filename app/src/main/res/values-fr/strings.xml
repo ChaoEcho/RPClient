@@ -881,4 +881,15 @@
     <string name="prompt_story_summarize_title">Prompt de résumé d’histoire</string>
     <string name="prompt_story_summarize_desc">Contrôle la mise à jour du résumé de l’histoire</string>
     <string name="prompt_source_story_summary">Résumé de l’histoire</string>
+    <string name="request_extensions">Extensions de requête</string>
+    <string name="request_body_patch_description">Fusionne des champs supplémentaires dans le corps de requête généré. RPClient protège les champs de structure et de génération gérés par l’application.</string>
+    <string name="request_body_patch_json">Patch JSON du corps de requête</string>
+    <string name="edit_request_body_patch">Modifier le JSON avancé</string>
+    <string name="request_body_patch_editor_title">Modifier le patch du corps de requête</string>
+    <string name="request_body_patch_editor_note">Saisissez un objet JSON avec la sémantique JSON Merge Patch. null supprime un champ, les objets sont fusionnés récursivement et les tableaux sont remplacés. Utilisez &quot;$rpclient.routing_session_id&quot; comme valeur de champ pour insérer l’ID de routage anonyme et stable de la conversation actuelle.</string>
+    <string name="request_body_patch_invalid">Le patch du corps de requête doit être un objet JSON valide, utiliser des variables système prises en charge et ne pas remplacer les champs protégés.</string>
+    <string name="openrouter_preferred_provider">Préférer un fournisseur OpenRouter précis</string>
+    <string name="openrouter_provider_slug">Identifiant du fournisseur (par exemple deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">Autoriser le fournisseur de secours</string>
+    <string name="openrouter_session_affinity_note">En mode Auto, RPClient envoie un ID de session anonyme stable par conversation pour le routage persistant. L’ordre de fournisseurs préféré est prioritaire lorsqu’il est activé.</string>
 </resources>

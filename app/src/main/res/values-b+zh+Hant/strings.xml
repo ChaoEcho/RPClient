@@ -876,4 +876,15 @@
     <string name="prompt_story_summarize_title">故事摘要提示詞</string>
     <string name="prompt_story_summarize_desc">控制劇情摘要的更新方式</string>
     <string name="prompt_source_story_summary">劇情摘要</string>
+    <string name="request_extensions">請求擴充</string>
+    <string name="request_body_patch_description">將額外欄位合併至產生的請求主體。RPClient 會保護由應用程式管理的結構與產生參數。</string>
+    <string name="request_body_patch_json">請求主體 Patch JSON</string>
+    <string name="edit_request_body_patch">編輯進階 JSON</string>
+    <string name="request_body_patch_editor_title">編輯請求主體 Patch</string>
+    <string name="request_body_patch_editor_note">請輸入 JSON 物件並使用 JSON Merge Patch 語意：null 會刪除欄位、物件遞迴合併、陣列整體取代。可將 &quot;$rpclient.routing_session_id&quot; 作為欄位值，插入目前對話穩定且匿名的路由 ID。</string>
+    <string name="request_body_patch_invalid">請求主體 Patch 必須是有效的 JSON 物件，只能使用支援的系統變數，且不得覆寫受保護欄位。</string>
+    <string name="openrouter_preferred_provider">優先使用指定的 OpenRouter 供應商</string>
+    <string name="openrouter_provider_slug">供應商識別碼（例如 deepinfra）</string>
+    <string name="openrouter_allow_fallbacks">允許供應商備援</string>
+    <string name="openrouter_session_affinity_note">自動模式下，RPClient 會為每個對話傳送穩定的匿名工作階段 ID，以啟用黏性路由；啟用首選供應商後，其順序設定優先。</string>
 </resources>

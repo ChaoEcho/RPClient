@@ -7,6 +7,7 @@ import org.junit.Test
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
 class LLMProviderEditFormTest {
@@ -103,6 +104,44 @@ class LLMProviderEditFormTest {
         assertEquals(true, restored.sendTopP)
         assertEquals(35, restored.tokenEstimateReservePercent)
         assertEquals(PromptPostProcessingMode.SemiStrict, restored.promptPostProcessingMode)
+    }
+
+    @Test
+    fun roundTripsRequestBodyPatchAndRejectsProtectedFields() {
+        val patch = """{"provider":{"order":["deepinfra"]}}"""
+        val provider = validForm().copy(
+            providerType = LLMProviderType.OpenRouter,
+            requestBodyPatchJson = patch
+        ).toProviderOrNull() ?: error("Provider should be valid")
+
+        assertEquals(patch, provider.requestBodyPatchJson)
+        assertEquals(patch, provider.toEditForm().requestBodyPatchJson)
+        assertNull(validForm().copy(requestBodyPatchJson = """{"messages":[]}""").toProviderOrNull())
+        assertNull(
+            validForm().copy(
+                providerType = LLMProviderType.OpenRouter,
+                requestBodyPatchJson = """{"provider":{"order":[""]}}"""
+            ).toProviderOrNull()
+        )
+    }
+
+    @Test
+    fun acceptsSupportedRequestVariableAndRejectsUnknownVariable() {
+        val supportedPatch =
+            """{"metadata":{"conversation":"${'$'}rpclient.routing_session_id"}}"""
+
+        assertEquals(
+            supportedPatch,
+            validForm().copy(requestBodyPatchJson = supportedPatch)
+                .toProviderOrNull()
+                ?.requestBodyPatchJson
+        )
+        assertNull(
+            validForm().copy(
+                requestBodyPatchJson =
+                    """{"metadata":{"conversation":"${'$'}rpclient.unknown"}}"""
+            ).toProviderOrNull()
+        )
     }
 
     private fun validForm(): LLMProviderEditForm {

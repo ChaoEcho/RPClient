@@ -878,4 +878,15 @@
     <string name="prompt_story_summarize_title">ストーリー要約プロンプト</string>
     <string name="prompt_story_summarize_desc">ストーリー要約の更新方法を制御します</string>
     <string name="prompt_source_story_summary">ストーリー要約</string>
+    <string name="request_extensions">リクエスト拡張</string>
+    <string name="request_body_patch_description">生成されたリクエスト本文に追加フィールドをマージします。RPClient が管理する構造および生成フィールドは保護されます。</string>
+    <string name="request_body_patch_json">リクエスト本文 Patch JSON</string>
+    <string name="edit_request_body_patch">高度な JSON を編集</string>
+    <string name="request_body_patch_editor_title">リクエスト本文 Patch を編集</string>
+    <string name="request_body_patch_editor_note">JSON Merge Patch のセマンティクスを使用する JSON オブジェクトを入力してください。null はフィールドを削除し、オブジェクトは再帰的にマージされ、配列は全体が置換されます。フィールド値に &quot;$rpclient.routing_session_id&quot; を指定すると、現在の会話の安定した匿名ルーティング ID を挿入できます。</string>
+    <string name="request_body_patch_invalid">リクエスト本文 Patch は有効な JSON オブジェクトで、サポートされているシステム変数のみを使用し、保護されたフィールドを上書きしない必要があります。</string>
+    <string name="openrouter_preferred_provider">特定の OpenRouter プロバイダーを優先</string>
+    <string name="openrouter_provider_slug">プロバイダー識別子（例：deepinfra）</string>
+    <string name="openrouter_allow_fallbacks">プロバイダーのフォールバックを許可</string>
+    <string name="openrouter_session_affinity_note">自動モードでは、RPClient は会話ごとに安定した匿名セッション ID を送信してスティッキールーティングを有効にします。優先プロバイダー順序を有効にすると、その設定が優先されます。</string>
 </resources>

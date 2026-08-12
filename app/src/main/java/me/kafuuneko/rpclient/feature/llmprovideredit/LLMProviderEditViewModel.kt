@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditModelCatalogState
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
@@ -25,11 +26,19 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
+import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
+import me.kafuuneko.rpclient.libs.llm.adapter.readOpenRouterRoutingPreferences
+import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
+import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterFallbacks
+import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProvider
+import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProviderEnabled
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.llm.catalog.classifyModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -61,9 +70,11 @@ class LLMProviderEditViewModel :
         val provider = intent.providerId?.let { mLLMRepository.getProviderById(it) }
         mInitialApiKey = provider?.apiKey.orEmpty()
         mInitialCustomHeaders = provider?.customHeadersJson.orEmpty()
+        val form = provider?.toEditForm() ?: LLMProviderEditForm()
         LLMProviderEditUiState.Normal(
             mode = if (provider == null) LLMProviderEditMode.Create else LLMProviderEditMode.Edit,
-            form = provider?.toEditForm() ?: LLMProviderEditForm()
+            form = form,
+            requestExtensionsState = form.toRequestExtensionsState()
         ).setup()
     }
 
@@ -282,6 +293,61 @@ class LLMProviderEditViewModel :
         }
     }
 
+    @UiIntentObserver(LLMProviderEditUiIntent.ShowRequestBodyPatchDialog::class)
+    private fun onShowRequestBodyPatchDialog() {
+        val form = getOrNull<LLMProviderEditUiState.Normal>()?.form ?: return
+        showDialog(LLMProviderEditDialogState.RequestBodyPatchEditor(form.requestBodyPatchJson))
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ConfirmRequestBodyPatch::class)
+    private fun onConfirmRequestBodyPatch(intent: LLMProviderEditUiIntent.ConfirmRequestBodyPatch) {
+        val form = getOrNull<LLMProviderEditUiState.Normal>()?.form ?: return
+        val value = intent.value.trim().ifBlank { "{}" }
+        if (validateRequestBodyPatch(
+                value,
+                protectedRequestBodyPaths(form.protocol, form.providerType)
+            ).isFailure
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
+            return
+        }
+        if (form.providerType == LLMProviderType.OpenRouter &&
+            !value.hasValidOpenRouterRoutingPreferences()
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
+            return
+        }
+        updateForm { copy(requestBodyPatchJson = value) }
+        closeDialog()
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider::class)
+    private fun onToggleOpenRouterPreferredProvider(
+        intent: LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider
+    ) = updateForm {
+        copy(
+            requestBodyPatchJson = requestBodyPatchJson
+                .withOpenRouterPreferredProviderEnabled(intent.value)
+        )
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider::class)
+    private fun onChangeOpenRouterPreferredProvider(
+        intent: LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider
+    ) = updateForm {
+        copy(
+            requestBodyPatchJson = requestBodyPatchJson
+                .withOpenRouterPreferredProvider(intent.value)
+        )
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ToggleOpenRouterFallbacks::class)
+    private fun onToggleOpenRouterFallbacks(
+        intent: LLMProviderEditUiIntent.ToggleOpenRouterFallbacks
+    ) = updateForm {
+        copy(requestBodyPatchJson = requestBodyPatchJson.withOpenRouterFallbacks(intent.value))
+    }
+
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTemperature::class)
     private fun onChangeTemperature(intent: LLMProviderEditUiIntent.ChangeTemperature) =
         updateForm { copy(temperature = intent.value) }
@@ -410,8 +476,10 @@ class LLMProviderEditViewModel :
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         cancelTest()
         if (invalidateModelCatalog) cancelModelCatalogQuery()
+        val updatedForm = uiState.form.block()
         uiState.copy(
-            form = uiState.form.block(),
+            form = updatedForm,
+            requestExtensionsState = updatedForm.toRequestExtensionsState(),
             testState = LLMProviderEditTestState.None,
             modelCatalogState = if (invalidateModelCatalog) {
                 LLMProviderEditModelCatalogState.Idle
@@ -434,7 +502,8 @@ class LLMProviderEditViewModel :
             baseUrl = baseUrl.trim(),
             apiKey = credentials.apiKey.trim(),
             model = model.trim(),
-            customHeadersJson = credentials.customHeadersJson.trim()
+            customHeadersJson = credentials.customHeadersJson.trim(),
+            requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
         )
     }
 
@@ -473,6 +542,20 @@ class LLMProviderEditViewModel :
             ).tryEmit()
             return null
         }
+        if (validateRequestBodyPatch(
+                requestBodyPatchJson,
+                protectedRequestBodyPaths(protocol, providerType)
+            ).isFailure
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
+            return null
+        }
+        if (providerType == LLMProviderType.OpenRouter &&
+            !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
+            return null
+        }
         val credentials = resolveCredentials() ?: return null
         val provider = toProviderOrNull(
             apiKey = credentials.apiKey,
@@ -492,6 +575,17 @@ class LLMProviderEditViewModel :
             apiKeyReplacement = mApiKeyReplacement,
             customHeadersReplacement = mCustomHeadersReplacement
         )
+
+    private fun LLMProviderEditForm.toRequestExtensionsState():
+        LLMProviderEditRequestExtensionsState {
+        val routing = requestBodyPatchJson.readOpenRouterRoutingPreferences()
+        return LLMProviderEditRequestExtensionsState(
+            isOpenRouter = providerType == LLMProviderType.OpenRouter,
+            usesPreferredProvider = routing.usesPreferredProvider,
+            preferredProvider = routing.preferredProvider,
+            allowFallbacks = routing.allowFallbacks
+        )
+    }
 
     private fun List<LLMAvailableModel>.filterForSearch(
         query: String

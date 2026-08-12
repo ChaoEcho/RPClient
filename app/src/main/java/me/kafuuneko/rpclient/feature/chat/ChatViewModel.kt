@@ -965,7 +965,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         worldInfoStateJson: String
     ) {
         val response = withContext(Dispatchers.IO) {
-            mLLMRepository.generateWithSelectedProvider(request)
+            mLLMRepository.generateWithSelectedProvider(
+                request,
+                routingSessionKey = "chat:$sessionId"
+            )
         }
         val processedContent = withContext(Dispatchers.IO) {
             applyGeneratedRegex(sessionId, response.content, output)
@@ -1048,7 +1051,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 generationState = ChatGenerationState.Streaming(active.messageId, active.content)
             )
-            mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
+            mLLMRepository.streamGenerateWithSelectedProvider(
+                request,
+                routingSessionKey = "chat:$sessionId"
+            ).collect { event ->
                 currentCoroutineContext().ensureActive()
                 when (event) {
                     is LLMStreamEvent.Delta -> {
@@ -1190,7 +1196,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             currentCoroutineContext().ensureActive()
 
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(built.request)
+                mLLMRepository.generateWithSelectedProvider(
+                    built.request,
+                    routingSessionKey = "chat:$sessionId"
+                )
             }
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {

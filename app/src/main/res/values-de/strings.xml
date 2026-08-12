@@ -881,4 +881,15 @@
     <string name="prompt_story_summarize_title">Prompt für Story-Zusammenfassung</string>
     <string name="prompt_story_summarize_desc">Steuert, wie die Handlungszusammenfassung aktualisiert wird</string>
     <string name="prompt_source_story_summary">Handlungszusammenfassung</string>
+    <string name="request_extensions">Anfrageerweiterungen</string>
+    <string name="request_body_patch_description">Fügt dem erzeugten Anfragekörper zusätzliche Felder hinzu. RPClient schützt die von der App verwalteten Struktur- und Generierungsfelder.</string>
+    <string name="request_body_patch_json">JSON-Patch für den Anfragekörper</string>
+    <string name="edit_request_body_patch">Erweitertes JSON bearbeiten</string>
+    <string name="request_body_patch_editor_title">Anfragekörper-Patch bearbeiten</string>
+    <string name="request_body_patch_editor_note">Gib ein JSON-Objekt mit JSON-Merge-Patch-Semantik ein. null entfernt ein Feld, Objekte werden rekursiv zusammengeführt und Arrays vollständig ersetzt. Verwende &quot;$rpclient.routing_session_id&quot; als Feldwert, um die stabile anonyme Routing-ID der aktuellen Unterhaltung einzufügen.</string>
+    <string name="request_body_patch_invalid">Der Anfragekörper-Patch muss ein gültiges JSON-Objekt sein, unterstützte Systemvariablen verwenden und darf keine geschützten Felder überschreiben.</string>
+    <string name="openrouter_preferred_provider">Bestimmten OpenRouter-Anbieter bevorzugen</string>
+    <string name="openrouter_provider_slug">Anbieter-Slug (zum Beispiel deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">Anbieter-Fallback erlauben</string>
+    <string name="openrouter_session_affinity_note">Im Auto-Modus sendet RPClient pro Unterhaltung eine stabile anonyme Sitzungs-ID für Sticky Routing. Eine aktivierte Anbieterreihenfolge hat Vorrang.</string>
 </resources>

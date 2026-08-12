@@ -6,6 +6,13 @@ const val DEFAULT_LLM_MAX_TOKENS = 8192
 /** 新供应商用于输入与输出的默认总上下文预算。 */
 const val DEFAULT_LLM_CONTEXT_TOKENS = 32768
 
+/** 高级请求 JSON 中用于引用稳定匿名会话路由 ID 的系统变量名。 */
+const val LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID = "\$rpclient.routing_session_id"
+
+/** 新建及迁移 OpenRouter 配置时写入高级 JSON 的默认会话粘性模板。 */
+const val DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON =
+    "{\"session_id\":\"\$rpclient.routing_session_id\"}"
+
 /**
  * 在线模型供应商类型，用于 UI 展示和统计归类。
  */
@@ -41,6 +48,8 @@ data class LLMProviderConfig(
     val apiKey: String = "",
     val model: String,
     val customHeadersJson: String = "",
+    /** 合并到协议请求体的 JSON Merge Patch；结构字段由各协议适配器保护。 */
+    val requestBodyPatchJson: String = "{}",
     val temperature: Float = 0.8f,
     val topP: Float = 1.0f,
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
@@ -109,6 +118,8 @@ data class LLMGenerationRequest(
     val options: LLMGenerationOptions = LLMGenerationOptions(),
     val reasoningEffort: LLMReasoningEffort = LLMReasoningEffort.Auto,
     val includeReasoningInContent: Boolean = false,
+    /** 请求模板可用于会话粘性路由的不透明 ID；字段位置由 Provider 配置决定。 */
+    val routingSessionId: String? = null,
     /** 已完成宏展开、后处理和最终上下文预算，不应在 Repository 中再次改写。 */
     val isPromptFinalized: Boolean = false
 )

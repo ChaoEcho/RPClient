@@ -884,4 +884,15 @@
     <string name="prompt_story_summarize_title">Промпт сводки сюжета</string>
     <string name="prompt_story_summarize_desc">Управляет обновлением сводки сюжета</string>
     <string name="prompt_source_story_summary">Сводка сюжета</string>
+    <string name="request_extensions">Расширения запроса</string>
+    <string name="request_body_patch_description">Добавляет дополнительные поля в сформированное тело запроса. RPClient защищает поля структуры и генерации, которыми управляет приложение.</string>
+    <string name="request_body_patch_json">JSON-патч тела запроса</string>
+    <string name="edit_request_body_patch">Изменить расширенный JSON</string>
+    <string name="request_body_patch_editor_title">Изменить патч тела запроса</string>
+    <string name="request_body_patch_editor_note">Введите JSON-объект с семантикой JSON Merge Patch. null удаляет поле, объекты рекурсивно объединяются, а массивы заменяются целиком. Используйте &quot;$rpclient.routing_session_id&quot; как значение поля, чтобы вставить стабильный анонимный ID маршрутизации текущего диалога.</string>
+    <string name="request_body_patch_invalid">Патч тела запроса должен быть допустимым JSON-объектом, использовать поддерживаемые системные переменные и не переопределять защищённые поля.</string>
+    <string name="openrouter_preferred_provider">Предпочитать указанного провайдера OpenRouter</string>
+    <string name="openrouter_provider_slug">Идентификатор провайдера (например, deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">Разрешить резервного провайдера</string>
+    <string name="openrouter_session_affinity_note">В режиме Auto RPClient отправляет стабильный анонимный ID сессии для каждого диалога, чтобы включить закреплённую маршрутизацию. Включённый порядок предпочитаемых провайдеров имеет приоритет.</string>
 </resources>

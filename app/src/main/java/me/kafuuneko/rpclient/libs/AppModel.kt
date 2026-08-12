@@ -146,6 +146,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 当前选中的模型供应商 ID。
     var currentLLMProvider by longPref()
 
+    // OpenRouter 会话粘性使用的匿名安装 ID；不会发送原值，只发送按会话哈希后的 ID。
+    var llmRoutingInstallationId by stringPref(default = "")
+
     // 主提示词（Main Prompt），注入每次普通对话生成的系统区。
     var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)
 

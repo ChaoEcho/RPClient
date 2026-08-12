@@ -935,10 +935,13 @@ class GroupChatViewModel :
             )
         )
         if (AppModel.streamEnabled) {
-            collectStreamingResponse(request)
+            collectStreamingResponse(sessionId, request)
         } else {
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(request)
+                mLLMRepository.generateWithSelectedProvider(
+                    request,
+                    routingSessionKey = "group-chat:$sessionId"
+                )
             }
             mStreamingContent = response.content
         }
@@ -978,9 +981,13 @@ class GroupChatViewModel :
 
     /** 收集流式增量并实时更新当前消息的 UI 状态。 */
     private suspend fun collectStreamingResponse(
+        sessionId: Long,
         request: me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
     ) {
-        mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
+        mLLMRepository.streamGenerateWithSelectedProvider(
+            request,
+            routingSessionKey = "group-chat:$sessionId"
+        ).collect { event ->
             currentCoroutineContext().ensureActive()
             if (event is LLMStreamEvent.Delta) {
                 mStreamingContent += event.content
@@ -1075,7 +1082,10 @@ class GroupChatViewModel :
             )
             if (built.selectedMessages.isEmpty()) return
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(built.request)
+                mLLMRepository.generateWithSelectedProvider(
+                    built.request,
+                    routingSessionKey = "group-chat:$sessionId"
+                )
             }
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {

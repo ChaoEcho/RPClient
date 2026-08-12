@@ -14,6 +14,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     hasExistingApiKey = apiKey.isNotBlank(),
     model = model,
     hasExistingCustomHeaders = customHeadersJson.isNotBlank(),
+    requestBodyPatchJson = requestBodyPatchJson,
     temperature = temperature.toString(),
     topP = topP.toString(),
     maxTokens = maxTokens.toString(),

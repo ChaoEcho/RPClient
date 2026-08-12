@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -125,6 +126,30 @@ class AppDatabaseMigrationTest {
                 )
                 """.trimIndent()
             )
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model,
+                    customHeadersJson, temperature, topP, maxTokens, contextTokens,
+                    tokenEstimateReservePercent, sendTemperature, sendTopP,
+                    promptPostProcessingMode, isEnabled, createTime, updateTime
+                ) VALUES (404, 'provider', 'OpenRouter', 'OpenAICompatible',
+                    'https://openrouter.ai/api/v1', '', 'model', '', 0.8, 1.0,
+                    1200, 8192, 15, 1, 1, 0, 1, 4, 4)
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model,
+                    customHeadersJson, temperature, topP, maxTokens, contextTokens,
+                    tokenEstimateReservePercent, sendTemperature, sendTopP,
+                    promptPostProcessingMode, isEnabled, createTime, updateTime
+                ) VALUES (405, 'custom', 'Custom', 'OpenAICompatible',
+                    'https://example.invalid', '', 'model', '', 0.8, 1.0,
+                    1200, 8192, 15, 1, 1, 0, 1, 4, 4)
+                """.trimIndent()
+            )
             close()
         }
 
@@ -162,6 +187,16 @@ class AppDatabaseMigrationTest {
         migrated.query("SELECT extensionsJson FROM character WHERE id = 101").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(true, cursor.getString(0).contains("regex_scripts"))
+        }
+        migrated.query(
+            "SELECT id, requestBodyPatchJson FROM llm_providers WHERE id IN (404, 405) ORDER BY id"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(404L, cursor.getLong(0))
+            assertEquals(DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON, cursor.getString(1))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(405L, cursor.getLong(0))
+            assertEquals("{}", cursor.getString(1))
         }
         migrated.execSQL(
             """

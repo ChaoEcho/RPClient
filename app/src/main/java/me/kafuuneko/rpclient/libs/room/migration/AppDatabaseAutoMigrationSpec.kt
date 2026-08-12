@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room.migration
 import androidx.room.DeleteTable
 import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 
 /**
  * 主业务数据库 v1→v2 自动迁移所需的删表消歧义声明。
@@ -16,5 +17,24 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 class AppDatabaseAutoMigration1To2Spec : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL("UPDATE lorebooks SET tokenBudget = 0 WHERE tokenBudget = 25")
+    }
+}
+
+/**
+ * 主业务数据库 v2→v3 新增高级请求 JSON 后的一次性默认值迁移。
+ *
+ * 只有升级当下仍为空的 OpenRouter 配置会获得可见模板；迁移结束后不再自动补写，
+ * 因此用户可以从高级 JSON 删除 session_id 并持续保持关闭状态。
+ */
+class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            UPDATE llm_providers
+            SET requestBodyPatchJson = ?
+            WHERE providerType = 'OpenRouter' AND requestBodyPatchJson = '{}'
+            """.trimIndent(),
+            arrayOf(DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON)
+        )
     }
 }

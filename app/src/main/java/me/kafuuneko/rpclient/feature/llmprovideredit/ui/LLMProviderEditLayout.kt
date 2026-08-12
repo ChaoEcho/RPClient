@@ -1,21 +1,30 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -33,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,11 +53,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
@@ -57,6 +70,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditModelCatalogState
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
@@ -130,6 +144,7 @@ private fun LLMProviderEditNormal(
             }
             item { BasicPanel(state.form, state.modelCatalogState, emit) }
             item { ProtocolPanel(state.form, emit) }
+            item { RequestExtensionsPanel(state.requestExtensionsState, emit) }
             item { ParameterPanel(state.form, emit) }
             item { TestPanel(state.testState, emit) }
             item { ActionPanel(state, emit) }
@@ -394,6 +409,56 @@ private fun CredentialControl(
                     Text(stringResource(R.string.credential_undo_change))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RequestExtensionsPanel(
+    state: LLMProviderEditRequestExtensionsState,
+    emit: LLMProviderEditUiIntent.() -> Unit
+) {
+    Panel {
+        RpSectionHeader(title = stringResource(R.string.request_extensions))
+        Text(
+            text = stringResource(R.string.request_body_patch_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (state.isOpenRouter) {
+            ParameterSwitchRow(
+                title = stringResource(R.string.openrouter_preferred_provider),
+                checked = state.usesPreferredProvider,
+                onCheckedChange = {
+                    LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider(it).emit()
+                }
+            )
+            if (state.usesPreferredProvider) {
+                FormTextField(
+                    label = stringResource(R.string.openrouter_provider_slug),
+                    value = state.preferredProvider,
+                    onChange = {
+                        LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider(it).emit()
+                    }
+                )
+                ParameterSwitchRow(
+                    title = stringResource(R.string.openrouter_allow_fallbacks),
+                    checked = state.allowFallbacks,
+                    onCheckedChange = {
+                        LLMProviderEditUiIntent.ToggleOpenRouterFallbacks(it).emit()
+                    }
+                )
+            }
+            Text(
+                text = stringResource(R.string.openrouter_session_affinity_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        OutlinedButton(
+            onClick = { LLMProviderEditUiIntent.ShowRequestBodyPatchDialog.emit() }
+        ) {
+            Text(stringResource(R.string.edit_request_body_patch))
         }
     }
 }
@@ -681,9 +746,16 @@ private fun DialogSwitch(
             label = stringResource(R.string.custom_headers_json),
             password = false,
             minLines = 4,
+            noWrap = true,
             onConfirm = {
                 LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(it).emit()
             },
+            onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
+        )
+
+        is LLMProviderEditDialogState.RequestBodyPatchEditor -> JsonObjectEditorDialog(
+            initialValue = dialogState.initialValue,
+            onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(it).emit() },
             onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
         )
 
@@ -692,6 +764,41 @@ private fun DialogSwitch(
             emit = emit
         )
     }
+}
+
+@Composable
+private fun JsonObjectEditorDialog(
+    initialValue: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var value by remember(initialValue) { mutableStateOf(initialValue) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.request_body_patch_editor_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.request_body_patch_editor_note),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                NoWrapCodeEditor(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(stringResource(R.string.request_body_patch_json)) },
+                    height = 232.dp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(value) }) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
 }
 
 @Composable
@@ -803,6 +910,7 @@ private fun SensitiveValueEditorDialog(
     label: String,
     password: Boolean,
     minLines: Int,
+    noWrap: Boolean = false,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -816,18 +924,27 @@ private fun SensitiveValueEditorDialog(
                     stringResource(R.string.credential_editor_privacy_note),
                     style = MaterialTheme.typography.bodySmall
                 )
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(label) },
-                    minLines = minLines,
-                    visualTransformation = if (password) {
-                        PasswordVisualTransformation()
-                    } else {
-                        VisualTransformation.None
-                    }
-                )
+                if (noWrap) {
+                    NoWrapCodeEditor(
+                        value = value,
+                        onValueChange = { value = it },
+                        label = { Text(label) },
+                        height = 176.dp
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(label) },
+                        minLines = minLines,
+                        visualTransformation = if (password) {
+                            PasswordVisualTransformation()
+                        } else {
+                            VisualTransformation.None
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -844,6 +961,55 @@ private fun SensitiveValueEditorDialog(
             }
         }
     )
+}
+
+@Composable
+private fun NoWrapCodeEditor(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: @Composable () -> Unit,
+    height: Dp
+) {
+    val horizontalScrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        label()
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val horizontalPadding = 24.dp
+                val verticalPadding = 24.dp
+                val minimumContentWidth = (maxWidth - horizontalPadding).coerceAtLeast(0.dp)
+                val minimumContentHeight = (maxHeight - verticalPadding).coerceAtLeast(0.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .horizontalScroll(horizontalScrollState)
+                        .verticalScroll(verticalScrollState)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        modifier = Modifier
+                            .widthIn(min = minimumContentWidth)
+                            .heightIn(min = minimumContentHeight),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -897,8 +1063,12 @@ private fun LLMProviderEditLayoutPreview() {
                 mode = LLMProviderEditMode.Create,
                 form = LLMProviderEditForm(
                     name = "OpenRouter",
+                    providerType = LLMProviderType.OpenRouter,
                     baseUrl = "https://openrouter.ai/api/v1",
                     model = "~anthropic/claude-sonnet-latest"
+                ),
+                requestExtensionsState = LLMProviderEditRequestExtensionsState(
+                    isOpenRouter = true
                 )
             ),
             emit = {}

@@ -350,6 +350,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             dialogState = StoryEditorDialogState.SummarizingStory
         ).setup()
         launchSummaryJob(
+            storyId = current.storyId,
             memory = currentSettings.memory,
             currentSummary = currentSettings.summary,
             sourceContent = mDraftContent,
@@ -746,6 +747,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     private fun launchSummaryJob(
+        storyId: Long,
         memory: String,
         currentSummary: String,
         sourceContent: String,
@@ -755,6 +757,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mSummaryJob?.cancel()
         mSummaryJob = viewModelScope.launch {
             runStorySummary(
+                storyId = storyId,
                 memory = memory,
                 currentSummary = currentSummary,
                 sourceContent = sourceContent,
@@ -765,6 +768,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     private suspend fun runStorySummary(
+        storyId: Long,
         memory: String,
         currentSummary: String,
         sourceContent: String,
@@ -781,7 +785,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 )
             }
             val summary = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(provider, request)
+                mLLMRepository.generateWithProvider(
+                    provider = provider,
+                    request = request,
+                    routingSessionKey = "story:$storyId"
+                )
                     .content
                     .summarySafeContent()
                     .trim()
@@ -916,7 +924,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         var applyingResult = false
         try {
             if (AppModel.streamEnabled) {
-                mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
+                mLLMRepository.streamGenerateWithSelectedProvider(
+                    request,
+                    routingSessionKey = mStory?.id?.let { "story:$it" }
+                ).collect { event ->
                     if (event is LLMStreamEvent.Delta) {
                         active = active.copy(partialText = active.partialText + event.content)
                         mActiveGeneration = active
@@ -924,7 +935,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     }
                 }
             } else {
-                val response = mLLMRepository.generateWithSelectedProvider(request)
+                val response = mLLMRepository.generateWithSelectedProvider(
+                    request,
+                    routingSessionKey = mStory?.id?.let { "story:$it" }
+                )
                 active = active.copy(partialText = response.content)
                 mActiveGeneration = active
                 updateStreamingState(active)

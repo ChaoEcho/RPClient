@@ -100,16 +100,17 @@ class OpenAICompatibleLLMClient(
             effort = request.reasoningEffort,
             includeReasoningInContent = request.includeReasoningInContent
         )
+        val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
 
         return LLMHttpRequest(
             request = Request.Builder()
             .url("${mProvider.normalizedBaseUrl()}/chat/completions")
-            .post(payload.toRequestBody())
+            .post(finalPayload.toRequestBody())
             .header("Authorization", "Bearer ${mProvider.apiKey}")
             .header("Content-Type", "application/json")
             .applyProviderHeaders(mProvider)
             .build(),
-            payloadJson = payload.toString()
+            payloadJson = finalPayload.toString()
         )
     }
 

@@ -46,6 +46,16 @@ sealed class LLMProviderEditUiIntent {
 
     data object KeepExistingCustomHeaders : LLMProviderEditUiIntent()
 
+    data object ShowRequestBodyPatchDialog : LLMProviderEditUiIntent()
+
+    data class ConfirmRequestBodyPatch(val value: String) : LLMProviderEditUiIntent()
+
+    data class ToggleOpenRouterPreferredProvider(val value: Boolean) : LLMProviderEditUiIntent()
+
+    data class ChangeOpenRouterPreferredProvider(val value: String) : LLMProviderEditUiIntent()
+
+    data class ToggleOpenRouterFallbacks(val value: Boolean) : LLMProviderEditUiIntent()
+
     data class ChangeTemperature(val value: String) : LLMProviderEditUiIntent()
 
     data class ChangeTopP(val value: String) : LLMProviderEditUiIntent()
