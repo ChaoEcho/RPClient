@@ -972,6 +972,23 @@ private fun NoWrapCodeEditor(
 ) {
     val horizontalScrollState = rememberScrollState()
     val verticalScrollState = rememberScrollState()
+    val colorScheme = MaterialTheme.colorScheme
+    val jsonSyntaxVisualTransformation = remember(
+        colorScheme.primary,
+        colorScheme.tertiary,
+        colorScheme.secondary,
+        colorScheme.onSurfaceVariant
+    ) {
+        JsonSyntaxVisualTransformation(
+            JsonSyntaxColors(
+                key = colorScheme.primary,
+                string = colorScheme.tertiary,
+                number = colorScheme.secondary,
+                literal = colorScheme.primary,
+                punctuation = colorScheme.onSurfaceVariant
+            )
+        )
+    }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         label()
         Surface(
@@ -1004,6 +1021,7 @@ private fun NoWrapCodeEditor(
                             color = MaterialTheme.colorScheme.onSurface,
                             fontFamily = FontFamily.Monospace
                         ),
+                        visualTransformation = jsonSyntaxVisualTransformation,
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                     )
                 }
