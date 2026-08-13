@@ -5,6 +5,10 @@ import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
 import me.kafuuneko.rpclient.libs.llm.RoutingSessionId
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -274,6 +278,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.Gemini,
             baseUrl = "https://generativelanguage.googleapis.com",
             model = DEFAULT_GEMINI_MODEL,
+            requestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -284,6 +289,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.AnthropicMessages,
             baseUrl = "https://api.anthropic.com",
             model = DEFAULT_CLAUDE_MODEL,
+            requestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
             sendTopP = false,
             createTime = now,
             updateTime = now,
@@ -295,6 +301,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.deepseek.com",
             model = DEFAULT_DEEPSEEK_MODEL,
+            requestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -305,6 +312,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.x.ai/v1",
             model = DEFAULT_GROK_MODEL,
+            requestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
             createTime = now,
             updateTime = now,
             isEnabled = false

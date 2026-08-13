@@ -2,6 +2,10 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
@@ -82,16 +86,26 @@ class RequestBodyPatchTest {
     }
 
     @Test
-    fun allowsProviderNativeReasoningFieldsForEveryProtocol() {
+    fun allowsDefaultProviderReasoningTemplatesForEveryProtocol() {
+        val openAIProtectedPaths = protectedRequestBodyPaths(
+            LLMProviderProtocol.OpenAICompatible
+        )
+        listOf(
+            DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+            DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+            DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+        ).forEach { template ->
+            assertTrue(validateRequestBodyPatch(template, openAIProtectedPaths).isSuccess)
+        }
         assertTrue(
             validateRequestBodyPatch(
-                """{"thinking":{"type":"adaptive"},"output_config":{"effort":"high"}}""",
+                DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
                 protectedRequestBodyPaths(LLMProviderProtocol.AnthropicMessages)
             ).isSuccess
         )
         assertTrue(
             validateRequestBodyPatch(
-                """{"generationConfig":{"thinkingConfig":{"thinkingLevel":"high"}}}""",
+                DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
                 protectedRequestBodyPaths(LLMProviderProtocol.Gemini)
             ).isSuccess
         )

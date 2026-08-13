@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.libs.room.migration
 import androidx.room.DeleteTable
 import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.db.SupportSQLiteDatabase
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON
 
 /**
  * 主业务数据库 v1→v2 自动迁移所需的删表消歧义声明。
@@ -34,7 +34,7 @@ class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
             SET requestBodyPatchJson = ?
             WHERE providerType = 'OpenRouter' AND requestBodyPatchJson = '{}'
             """.trimIndent(),
-            arrayOf(DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON)
+            arrayOf(OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON)
         )
     }
 }

@@ -1,8 +1,12 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -26,6 +30,23 @@ class LLMProviderDefaultsTest {
         )
         assertEquals("https://api.x.ai/v1", providers.getValue("Grok").baseUrl)
         assertEquals(DEFAULT_OPENROUTER_MODEL, providers.getValue("OpenRouter").model)
+        assertEquals("{}", providers.getValue("ChatGPT").requestBodyPatchJson)
+        assertEquals(
+            DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+            providers.getValue("Gemini").requestBodyPatchJson
+        )
+        assertEquals(
+            DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+            providers.getValue("Claude").requestBodyPatchJson
+        )
+        assertEquals(
+            DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+            providers.getValue("DeepSeek").requestBodyPatchJson
+        )
+        assertEquals(
+            DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+            providers.getValue("Grok").requestBodyPatchJson
+        )
         assertEquals(
             DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
             providers.getValue("OpenRouter").requestBodyPatchJson
