@@ -446,16 +446,6 @@
     <string name="prompt_preset_section">Prompt-Vorlagen</string>
     <string name="prompt_preset_entry_subtitle">System-Prompt-Presets und Hilfs-Prompts verwalten</string>
     <string name="prompt_behavior_section">Anfrageverhalten</string>
-    <string name="reasoning_effort_section">Denkintensität</string>
-    <string name="reasoning_effort_description">Unterhaltung und Geschichte verwenden getrennte Denkstufen. „Minimum“ deaktiviert das Denken, wenn das Modell dies unterstützt, andernfalls wird die niedrigste verfügbare Stufe verwendet.</string>
-    <string name="conversation_reasoning_effort">Unterhaltung</string>
-    <string name="story_reasoning_effort">Geschichte schreiben</string>
-    <string name="reasoning_effort_auto">Automatisch</string>
-    <string name="reasoning_effort_minimum">Minimum</string>
-    <string name="reasoning_effort_low">Niedrig</string>
-    <string name="reasoning_effort_medium">Mittel</string>
-    <string name="reasoning_effort_high">Hoch</string>
-    <string name="reasoning_effort_maximum">Maximum</string>
     <string name="prompt_manager_section">Prompt-Manager</string>
     <string name="prompt_utility_section">Hilfs-Prompts</string>
     <string name="prompt_format_section">Formatvorlagen</string>
@@ -863,7 +853,7 @@
     <string name="prompt_story_summarize_desc">Steuert, wie die Handlungszusammenfassung aktualisiert wird</string>
     <string name="prompt_source_story_summary">Handlungszusammenfassung</string>
     <string name="request_extensions">Anfrageerweiterungen</string>
-    <string name="request_body_patch_description">Fügt dem erzeugten Anfragekörper zusätzliche Felder hinzu. RPClient schützt die von der App verwalteten Struktur- und Generierungsfelder.</string>
+    <string name="request_body_patch_description">Fügt dem erzeugten Anfragekörper zusätzliche Felder einschließlich anbieterspezifischer Denkeinstellungen hinzu. RPClient schützt die von der App verwalteten Struktur- und Generierungsfelder.</string>
     <string name="request_body_patch_json">JSON-Patch für den Anfragekörper</string>
     <string name="edit_request_body_patch">Erweitertes JSON bearbeiten</string>
     <string name="request_body_patch_editor_title">Anfragekörper-Patch bearbeiten</string>

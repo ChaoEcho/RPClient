@@ -4,8 +4,6 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
@@ -47,9 +45,7 @@ class StoryPromptBuilder(
     private val mCharacterActivator: StoryCharacterActivator,
     private val mContextSelector: StoryContextSelector,
     private val mWorldBookActivator: WorldBookActivator,
-    private val mRequestFinalizer: PromptRequestFinalizer,
-    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
-        LLMReasoningEffortProvider.defaults
+    private val mRequestFinalizer: PromptRequestFinalizer
 ) {
     fun build(context: StoryPromptContext): StoryPromptBuildResult {
         validateOperation(context)
@@ -96,7 +92,6 @@ class StoryPromptBuilder(
                     maxTokens = context.provider.maxTokens,
                     topP = context.provider.topP
                 ),
-                reasoningEffort = mReasoningEffortProvider.current(LLMReasoningScope.Story),
                 includeReasoningInContent = false,
                 maxContextTokens = context.provider.contextTokens,
                 maxResponseTokens = context.provider.maxTokens,

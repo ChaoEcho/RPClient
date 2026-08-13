@@ -457,16 +457,6 @@
     <string name="prompt_preset_section">提示詞範本</string>
     <string name="prompt_preset_entry_subtitle">管理系統提示詞預設和工具提示詞</string>
     <string name="prompt_behavior_section">請求行為</string>
-    <string name="reasoning_effort_section">推理強度</string>
-    <string name="reasoning_effort_description">對話與故事請求分別使用獨立強度。「最低」會在模型支援時關閉思考，否則使用模型允許的最低檔。</string>
-    <string name="conversation_reasoning_effort">對話</string>
-    <string name="story_reasoning_effort">故事編寫</string>
-    <string name="reasoning_effort_auto">自動</string>
-    <string name="reasoning_effort_minimum">最低</string>
-    <string name="reasoning_effort_low">低</string>
-    <string name="reasoning_effort_medium">中</string>
-    <string name="reasoning_effort_high">高</string>
-    <string name="reasoning_effort_maximum">最大</string>
     <string name="prompt_manager_section">Prompt Manager</string>
     <string name="prompt_utility_section">工具提示詞</string>
     <string name="prompt_format_section">格式範本</string>
@@ -858,7 +848,7 @@
     <string name="prompt_story_summarize_desc">控制劇情摘要的更新方式</string>
     <string name="prompt_source_story_summary">劇情摘要</string>
     <string name="request_extensions">請求擴充</string>
-    <string name="request_body_patch_description">將額外欄位合併至產生的請求主體。RPClient 會保護由應用程式管理的結構與產生參數。</string>
+    <string name="request_body_patch_description">將額外欄位（包括供應商原生思考設定）合併至產生的請求主體。RPClient 會保護由應用程式管理的結構與產生參數。</string>
     <string name="request_body_patch_json">請求主體 Patch JSON</string>
     <string name="edit_request_body_patch">編輯進階 JSON</string>
     <string name="request_body_patch_editor_title">編輯請求主體 Patch</string>

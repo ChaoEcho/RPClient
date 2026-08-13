@@ -82,11 +82,6 @@ class GeminiLLMClient(
         if (options.stop.isNotEmpty()) {
             generationConfig.put("stopSequences", options.stop.toJsonArray())
         }
-        generationConfig.applyGeminiReasoning(
-            model = model,
-            effort = request.reasoningEffort,
-            maxOutputTokens = options.maxTokens
-        )
         val payload = JSONObject()
             .put("contents", request.messages.toGeminiContents())
             .put("generationConfig", generationConfig)

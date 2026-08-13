@@ -409,7 +409,7 @@
     <string name="api_key_required">API key cannot be empty. Use Clear to remove it.</string>
     <string name="custom_headers_json_invalid">Custom headers must be a valid JSON object.</string>
     <string name="request_extensions">Request Extensions</string>
-    <string name="request_body_patch_description">Merge extra fields into the generated request body. RPClient protects structural and generation fields it manages.</string>
+    <string name="request_body_patch_description">Merge extra fields, including provider-native reasoning settings, into the generated request body. RPClient protects structural and generation fields it manages.</string>
     <string name="request_body_patch_json">Request body patch JSON</string>
     <string name="edit_request_body_patch">Edit advanced JSON</string>
     <string name="request_body_patch_editor_title">Edit request body patch</string>
@@ -469,16 +469,6 @@
     <string name="prompt_preset_section">Prompt Templates</string>
     <string name="prompt_preset_entry_subtitle">Manage system prompt presets and utility prompts</string>
     <string name="prompt_behavior_section">Request Behavior</string>
-    <string name="reasoning_effort_section">Reasoning effort</string>
-    <string name="reasoning_effort_description">Conversation and story requests use independent reasoning levels. Minimum turns thinking off when supported, or uses the model’s lowest available level.</string>
-    <string name="conversation_reasoning_effort">Conversation</string>
-    <string name="story_reasoning_effort">Story writing</string>
-    <string name="reasoning_effort_auto">Auto</string>
-    <string name="reasoning_effort_minimum">Minimum</string>
-    <string name="reasoning_effort_low">Low</string>
-    <string name="reasoning_effort_medium">Medium</string>
-    <string name="reasoning_effort_high">High</string>
-    <string name="reasoning_effort_maximum">Maximum</string>
     <string name="prompt_manager_section">Prompt Manager</string>
     <string name="prompt_utility_section">Utility Prompts</string>
     <string name="prompt_format_section">Format Templates</string>

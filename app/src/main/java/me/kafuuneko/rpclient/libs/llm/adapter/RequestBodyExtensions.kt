@@ -20,7 +20,7 @@ internal fun JSONObject.withRequestBodyExtensions(
         mergeRequestBodyExtensionsJson(
             baseJson = toString(),
             patchJson = provider.requestBodyPatchJson,
-            protectedPaths = protectedRequestBodyPaths(provider.protocol, provider.providerType),
+            protectedPaths = protectedRequestBodyPaths(provider.protocol),
             routingSessionId = request.routingSessionId
         )
     )

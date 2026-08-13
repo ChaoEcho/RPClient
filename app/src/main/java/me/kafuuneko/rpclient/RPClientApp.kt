@@ -19,8 +19,6 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
@@ -110,14 +108,6 @@ internal val appModules = module {
                 runCatching { AppModel.exampleDialogueBehavior }
                     .getOrDefault(ExampleDialogueBehavior.default.persistedValue)
             )
-        }
-    }
-    single<LLMReasoningEffortProvider> {
-        LLMReasoningEffortProvider { scope ->
-            when (scope) {
-                LLMReasoningScope.Conversation -> AppModel.conversationReasoningEffort
-                LLMReasoningScope.Story -> AppModel.storyReasoningEffort
-            }
         }
     }
     singleOf(::ChatPromptBuilder)

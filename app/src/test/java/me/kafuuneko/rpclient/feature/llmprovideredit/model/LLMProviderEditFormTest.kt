@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
+import com.google.gson.JsonParser
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
@@ -117,6 +118,16 @@ class LLMProviderEditFormTest {
         assertEquals(patch, provider.requestBodyPatchJson)
         assertEquals(patch, provider.toEditForm().requestBodyPatchJson)
         assertNull(validForm().copy(requestBodyPatchJson = """{"messages":[]}""").toProviderOrNull())
+        assertEquals(
+            "high",
+            validForm().copy(requestBodyPatchJson = """{"reasoning":{"effort":"high"}}""")
+                .toProviderOrNull()
+                ?.requestBodyPatchJson
+                ?.let { JsonParser.parseString(it).asJsonObject }
+                ?.getAsJsonObject("reasoning")
+                ?.get("effort")
+                ?.asString
+        )
         assertNull(
             validForm().copy(
                 providerType = LLMProviderType.OpenRouter,

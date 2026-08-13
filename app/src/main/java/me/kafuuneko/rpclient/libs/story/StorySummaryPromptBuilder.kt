@@ -4,8 +4,6 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
@@ -17,9 +15,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 /** 使用与故事续写相同的正文裁剪规则，构建单次剧情摘要请求。 */
 class StorySummaryPromptBuilder(
     private val mContextSelector: StoryContextSelector,
-    private val mRequestFinalizer: PromptRequestFinalizer,
-    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
-        LLMReasoningEffortProvider.defaults
+    private val mRequestFinalizer: PromptRequestFinalizer
 ) {
     fun build(
         memory: String,
@@ -86,7 +82,6 @@ class StorySummaryPromptBuilder(
                 maxTokens = responseTokens,
                 topP = provider.topP
             ),
-            reasoningEffort = mReasoningEffortProvider.current(LLMReasoningScope.Story),
             includeReasoningInContent = false,
             maxContextTokens = provider.contextTokens,
             maxResponseTokens = responseTokens,

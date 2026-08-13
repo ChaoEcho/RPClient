@@ -61,7 +61,7 @@ data class LLMProviderEditForm(
         if (sendTopP && parsedTopP !in capabilities.topPRange) return null
         if (validateRequestBodyPatch(
                 requestBodyPatchJson,
-                protectedRequestBodyPaths(protocol, providerType)
+                protectedRequestBodyPaths(protocol)
             ).isFailure
         ) return null
         if (providerType == LLMProviderType.OpenRouter &&

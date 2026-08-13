@@ -97,18 +97,7 @@ class OpenAICompatibleLLMClient(
             .put("stream", stream)
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
-        if (
-            options.stop.isNotEmpty() &&
-            supportsOpenAICompatibleStopSequences(mProvider.providerType, model)
-        ) {
-            payload.put("stop", options.stop.toJsonArray())
-        }
-        payload.applyOpenAICompatibleReasoning(
-            providerType = mProvider.providerType,
-            model = model,
-            effort = request.reasoningEffort,
-            includeReasoningInContent = request.includeReasoningInContent
-        )
+        if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
 
         return LLMHttpRequest(
@@ -267,12 +256,4 @@ internal fun openAICompatibleTokenLimitField(providerType: LLMProviderType): Str
     } else {
         "max_tokens"
     }
-}
-
-/** xAI 推理模型收到 stop 会直接拒绝请求，其他兼容供应商保留标准行为。 */
-internal fun supportsOpenAICompatibleStopSequences(
-    providerType: LLMProviderType,
-    model: String
-): Boolean {
-    return providerType != LLMProviderType.Grok || !isKnownGrokReasoningModel(model)
 }

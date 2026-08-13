@@ -445,16 +445,6 @@
     <string name="prompt_preset_section">Modèles de prompts</string>
     <string name="prompt_preset_entry_subtitle">Gérer les préréglages de prompts système et les prompts utilitaires</string>
     <string name="prompt_behavior_section">Comportement de requête</string>
-    <string name="reasoning_effort_section">Intensité du raisonnement</string>
-    <string name="reasoning_effort_description">Les requêtes de conversation et d’écriture utilisent des niveaux de raisonnement distincts. « Minimum » désactive la réflexion si le modèle le permet, sinon il utilise le niveau le plus bas disponible.</string>
-    <string name="conversation_reasoning_effort">Conversation</string>
-    <string name="story_reasoning_effort">Écriture d’histoire</string>
-    <string name="reasoning_effort_auto">Automatique</string>
-    <string name="reasoning_effort_minimum">Minimum</string>
-    <string name="reasoning_effort_low">Faible</string>
-    <string name="reasoning_effort_medium">Moyenne</string>
-    <string name="reasoning_effort_high">Élevée</string>
-    <string name="reasoning_effort_maximum">Maximale</string>
     <string name="prompt_manager_section">Gestionnaire de prompts</string>
     <string name="prompt_utility_section">Prompts utilitaires</string>
     <string name="prompt_format_section">Modèles de format</string>
@@ -863,7 +853,7 @@
     <string name="prompt_story_summarize_desc">Contrôle la mise à jour du résumé de l’histoire</string>
     <string name="prompt_source_story_summary">Résumé de l’histoire</string>
     <string name="request_extensions">Extensions de requête</string>
-    <string name="request_body_patch_description">Fusionne des champs supplémentaires dans le corps de requête généré. RPClient protège les champs de structure et de génération gérés par l’application.</string>
+    <string name="request_body_patch_description">Fusionne des champs supplémentaires, y compris les réglages de raisonnement natifs du fournisseur, dans le corps de requête généré. RPClient protège les champs de structure et de génération gérés par l’application.</string>
     <string name="request_body_patch_json">Patch JSON du corps de requête</string>
     <string name="edit_request_body_patch">Modifier le JSON avancé</string>
     <string name="request_body_patch_editor_title">Modifier le patch du corps de requête</string>

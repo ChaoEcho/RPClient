@@ -5,8 +5,6 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffortProvider
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningScope
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
@@ -25,9 +23,7 @@ data class GroupChatSummaryBuildResult(
 
 /** 构建群聊增量摘要请求，并按最终请求 Token 数确定覆盖边界。 */
 class GroupChatSummaryPromptBuilder(
-    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
-    private val mReasoningEffortProvider: LLMReasoningEffortProvider =
-        LLMReasoningEffortProvider.defaults
+    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /** 使用当前摘要和未覆盖消息构建群聊摘要请求。 */
     fun buildWithSelection(
@@ -83,9 +79,6 @@ class GroupChatSummaryPromptBuilder(
                     temperature = provider.temperature,
                     maxTokens = responseTokens,
                     topP = provider.topP
-                ),
-                reasoningEffort = mReasoningEffortProvider.current(
-                    LLMReasoningScope.Conversation
                 ),
                 isPromptFinalized = true
             ),

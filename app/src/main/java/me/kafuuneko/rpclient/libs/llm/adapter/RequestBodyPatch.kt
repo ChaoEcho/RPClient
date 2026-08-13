@@ -7,7 +7,6 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
-import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
 /** 用户请求体扩展无效、引用未知系统变量，或试图修改协议结构字段。 */
 internal class LLMRequestBodyPatchException(message: String) : IllegalArgumentException(message)
@@ -110,23 +109,11 @@ internal fun validateRequestBodyPatch(
 
 /** 返回当前协议由 RPClient 自己维护、扩展 Patch 不得覆盖的 JSON 路径。 */
 internal fun protectedRequestBodyPaths(
-    protocol: LLMProviderProtocol,
-    providerType: LLMProviderType
+    protocol: LLMProviderProtocol
 ): Set<String> {
     val protocolPaths = when (protocol) {
-        LLMProviderProtocol.OpenAICompatible -> OPEN_AI_PROTECTED_REQUEST_FIELDS +
-            when (providerType) {
-                LLMProviderType.OpenRouter -> setOf("reasoning")
-                LLMProviderType.DeepSeek -> setOf("thinking", "reasoning_effort")
-                LLMProviderType.ChatGPT, LLMProviderType.Grok -> setOf("reasoning_effort")
-                else -> emptySet()
-            }
-        LLMProviderProtocol.AnthropicMessages -> ANTHROPIC_PROTECTED_REQUEST_FIELDS +
-            if (providerType == LLMProviderType.Claude) {
-                setOf("thinking", "output_config")
-            } else {
-                emptySet()
-            }
+        LLMProviderProtocol.OpenAICompatible -> OPEN_AI_PROTECTED_REQUEST_FIELDS
+        LLMProviderProtocol.AnthropicMessages -> ANTHROPIC_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.Gemini -> GEMINI_PROTECTED_REQUEST_FIELDS
     }
     return protocolPaths
@@ -190,6 +177,5 @@ private val GEMINI_PROTECTED_REQUEST_FIELDS = setOf(
     "generationConfig.maxOutputTokens",
     "generationConfig.temperature",
     "generationConfig.topP",
-    "generationConfig.stopSequences",
-    "generationConfig.thinkingConfig"
+    "generationConfig.stopSequences"
 )

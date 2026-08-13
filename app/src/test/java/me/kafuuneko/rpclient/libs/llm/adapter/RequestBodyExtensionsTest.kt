@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
-import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -10,10 +9,7 @@ import org.junit.Test
 class RequestBodyExtensionsTest {
     @Test
     fun advancedJsonCanInjectSessionAndReuseIt() {
-        val protectedPaths = protectedRequestBodyPaths(
-            protocol = LLMProviderProtocol.OpenAICompatible,
-            providerType = LLMProviderType.OpenRouter
-        )
+        val protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible)
         val result = JsonParser.parseString(
             mergeRequestBodyExtensionsJson(
                 baseJson = """{"model":"test","messages":[]}""",
@@ -37,10 +33,7 @@ class RequestBodyExtensionsTest {
             mergeRequestBodyExtensionsJson(
                 baseJson = """{"model":"test","messages":[]}""",
                 patchJson = "{}",
-                protectedPaths = protectedRequestBodyPaths(
-                    LLMProviderProtocol.OpenAICompatible,
-                    LLMProviderType.OpenRouter
-                ),
+                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
                 routingSessionId = "routing-42"
             )
         ).asJsonObject
@@ -55,10 +48,7 @@ class RequestBodyExtensionsTest {
                 baseJson = """{"model":"test","messages":[]}""",
                 patchJson =
                     """{"metadata":{"conversation":"${'$'}rpclient.routing_session_id"}}""",
-                protectedPaths = protectedRequestBodyPaths(
-                    LLMProviderProtocol.OpenAICompatible,
-                    LLMProviderType.ChatGPT
-                ),
+                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
                 routingSessionId = "routing-42"
             )
         ).asJsonObject
@@ -68,5 +58,20 @@ class RequestBodyExtensionsTest {
             "routing-42",
             result.getAsJsonObject("metadata").get("conversation").asString
         )
+    }
+
+    @Test
+    fun advancedJsonIsTheSourceOfProviderNativeReasoningConfiguration() {
+        val result = JsonParser.parseString(
+            mergeRequestBodyExtensionsJson(
+                baseJson = """{"model":"test","messages":[]}""",
+                patchJson = """{"reasoning":{"effort":"high","exclude":false}}""",
+                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
+                routingSessionId = null
+            )
+        ).asJsonObject
+
+        assertEquals("high", result.getAsJsonObject("reasoning").get("effort").asString)
+        assertFalse(result.getAsJsonObject("reasoning").get("exclude").asBoolean)
     }
 }

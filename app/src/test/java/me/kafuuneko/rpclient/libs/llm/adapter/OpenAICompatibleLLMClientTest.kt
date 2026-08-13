@@ -35,28 +35,4 @@ class OpenAICompatibleLLMClientTest {
         )
     }
 
-    @Test
-    fun grokReasoningModelsRejectStopSequences() {
-        assertEquals(
-            false,
-            supportsOpenAICompatibleStopSequences(
-                providerType = LLMProviderType.Grok,
-                model = "grok-4.5-latest"
-            )
-        )
-        assertEquals(
-            true,
-            supportsOpenAICompatibleStopSequences(
-                providerType = LLMProviderType.Grok,
-                model = "grok-4.3"
-            )
-        )
-        assertEquals(
-            true,
-            supportsOpenAICompatibleStopSequences(
-                providerType = LLMProviderType.Custom,
-                model = "grok-4.5-latest"
-            )
-        )
-    }
 }

@@ -305,7 +305,7 @@ class LLMProviderEditViewModel :
         val value = intent.value.trim().ifBlank { "{}" }
         if (validateRequestBodyPatch(
                 value,
-                protectedRequestBodyPaths(form.protocol, form.providerType)
+                protectedRequestBodyPaths(form.protocol)
             ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
@@ -544,7 +544,7 @@ class LLMProviderEditViewModel :
         }
         if (validateRequestBodyPatch(
                 requestBodyPatchJson,
-                protectedRequestBodyPaths(protocol, providerType)
+                protectedRequestBodyPaths(protocol)
             ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()

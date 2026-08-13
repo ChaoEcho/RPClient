@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -90,10 +89,6 @@ class MainResumeStateTest {
             avatarState = MainUserAvatarState.None
         ),
         providerState = MainProviderSettingsState.Empty,
-        reasoningState = MainReasoningSettingsState(
-            conversationEffort = LLMReasoningEffort.Auto,
-            storyEffort = LLMReasoningEffort.Minimum
-        ),
         promptBehaviorState = MainPromptBehaviorState(
             providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
             exampleDialogueBehavior = ExampleDialogueBehavior.Normal,

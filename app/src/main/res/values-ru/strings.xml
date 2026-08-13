@@ -445,16 +445,6 @@
     <string name="prompt_preset_section">Шаблоны промптов</string>
     <string name="prompt_preset_entry_subtitle">Управление пресетами системных промптов и вспомогательными промптами</string>
     <string name="prompt_behavior_section">Поведение запроса</string>
-    <string name="reasoning_effort_section">Интенсивность рассуждений</string>
-    <string name="reasoning_effort_description">Для диалогов и историй задаются отдельные уровни рассуждений. «Минимум» отключает рассуждения, если модель это поддерживает, иначе используется самый низкий доступный уровень.</string>
-    <string name="conversation_reasoning_effort">Диалог</string>
-    <string name="story_reasoning_effort">Написание истории</string>
-    <string name="reasoning_effort_auto">Авто</string>
-    <string name="reasoning_effort_minimum">Минимум</string>
-    <string name="reasoning_effort_low">Низкая</string>
-    <string name="reasoning_effort_medium">Средняя</string>
-    <string name="reasoning_effort_high">Высокая</string>
-    <string name="reasoning_effort_maximum">Максимум</string>
     <string name="prompt_manager_section">Менеджер промптов</string>
     <string name="prompt_utility_section">Вспомогательные промпты</string>
     <string name="prompt_format_section">Шаблоны форматирования</string>
@@ -866,7 +856,7 @@
     <string name="prompt_story_summarize_desc">Управляет обновлением сводки сюжета</string>
     <string name="prompt_source_story_summary">Сводка сюжета</string>
     <string name="request_extensions">Расширения запроса</string>
-    <string name="request_body_patch_description">Добавляет дополнительные поля в сформированное тело запроса. RPClient защищает поля структуры и генерации, которыми управляет приложение.</string>
+    <string name="request_body_patch_description">Добавляет в сформированное тело запроса дополнительные поля, включая нативные настройки рассуждений поставщика. RPClient защищает поля структуры и генерации, которыми управляет приложение.</string>
     <string name="request_body_patch_json">JSON-патч тела запроса</string>
     <string name="edit_request_body_patch">Изменить расширенный JSON</string>
     <string name="request_body_patch_editor_title">Изменить патч тела запроса</string>

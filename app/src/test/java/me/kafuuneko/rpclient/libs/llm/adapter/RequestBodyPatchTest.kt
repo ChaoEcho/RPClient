@@ -5,7 +5,6 @@ import com.google.gson.JsonPrimitive
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
-import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -66,11 +65,8 @@ class RequestBodyPatchTest {
     }
 
     @Test
-    fun allowsUserOwnedOpenRouterSessionButProtectsReasoningFields() {
-        val protectedPaths = protectedRequestBodyPaths(
-            protocol = LLMProviderProtocol.OpenAICompatible,
-            providerType = LLMProviderType.OpenRouter
-        )
+    fun allowsUserOwnedOpenRouterSessionAndReasoningFields() {
+        val protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible)
 
         assertTrue(validateRequestBodyPatch("""{"session_id":"override"}""", protectedPaths).isSuccess)
         assertTrue(
@@ -79,8 +75,26 @@ class RequestBodyPatchTest {
                 protectedPaths
             ).isSuccess
         )
-        assertTrue(validateRequestBodyPatch("""{"reasoning":{"effort":"high"}}""", protectedPaths).isFailure)
+        assertTrue(validateRequestBodyPatch("""{"reasoning":{"effort":"high"}}""", protectedPaths).isSuccess)
+        assertTrue(validateRequestBodyPatch("""{"reasoning_effort":"high"}""", protectedPaths).isSuccess)
+        assertTrue(validateRequestBodyPatch("""{"thinking":{"type":"enabled"}}""", protectedPaths).isSuccess)
         assertTrue(validateRequestBodyPatch("""{"provider":{"order":["deepinfra"]}}""", protectedPaths).isSuccess)
+    }
+
+    @Test
+    fun allowsProviderNativeReasoningFieldsForEveryProtocol() {
+        assertTrue(
+            validateRequestBodyPatch(
+                """{"thinking":{"type":"adaptive"},"output_config":{"effort":"high"}}""",
+                protectedRequestBodyPaths(LLMProviderProtocol.AnthropicMessages)
+            ).isSuccess
+        )
+        assertTrue(
+            validateRequestBodyPatch(
+                """{"generationConfig":{"thinkingConfig":{"thinkingLevel":"high"}}}""",
+                protectedRequestBodyPaths(LLMProviderProtocol.Gemini)
+            ).isSuccess
+        )
     }
 
     @Test

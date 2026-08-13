@@ -446,16 +446,6 @@
     <string name="prompt_preset_section">プロンプトテンプレート</string>
     <string name="prompt_preset_entry_subtitle">システムプロンプトのプリセットとユーティリティプロンプトを管理します</string>
     <string name="prompt_behavior_section">リクエスト動作</string>
-    <string name="reasoning_effort_section">推論強度</string>
-    <string name="reasoning_effort_description">会話とストーリーのリクエストには別々の推論強度を使用します。「最小」は、モデルが対応している場合は思考を無効にし、それ以外は利用可能な最低レベルを使用します。</string>
-    <string name="conversation_reasoning_effort">会話</string>
-    <string name="story_reasoning_effort">ストーリー執筆</string>
-    <string name="reasoning_effort_auto">自動</string>
-    <string name="reasoning_effort_minimum">最小</string>
-    <string name="reasoning_effort_low">低</string>
-    <string name="reasoning_effort_medium">中</string>
-    <string name="reasoning_effort_high">高</string>
-    <string name="reasoning_effort_maximum">最大</string>
     <string name="prompt_manager_section">プロンプトマネージャー</string>
     <string name="prompt_utility_section">ユーティリティプロンプト</string>
     <string name="prompt_format_section">フォーマットテンプレート</string>
@@ -860,7 +850,7 @@
     <string name="prompt_story_summarize_desc">ストーリー要約の更新方法を制御します</string>
     <string name="prompt_source_story_summary">ストーリー要約</string>
     <string name="request_extensions">リクエスト拡張</string>
-    <string name="request_body_patch_description">生成されたリクエスト本文に追加フィールドをマージします。RPClient が管理する構造および生成フィールドは保護されます。</string>
+    <string name="request_body_patch_description">プロバイダー固有の推論設定を含む追加フィールドを、生成されたリクエスト本文にマージします。RPClient が管理する構造および生成フィールドは保護されます。</string>
     <string name="request_body_patch_json">リクエスト本文 Patch JSON</string>
     <string name="edit_request_body_patch">高度な JSON を編集</string>
     <string name="request_body_patch_editor_title">リクエスト本文 Patch を編集</string>

@@ -116,7 +116,6 @@ data class LLMGenerationRequest(
     val messages: List<LLMMessage>,
     val model: String? = null,
     val options: LLMGenerationOptions = LLMGenerationOptions(),
-    val reasoningEffort: LLMReasoningEffort = LLMReasoningEffort.Auto,
     val includeReasoningInContent: Boolean = false,
     /** 请求模板可用于会话粘性路由的不透明 ID；字段位置由 Provider 配置决定。 */
     val routingSessionId: String? = null,

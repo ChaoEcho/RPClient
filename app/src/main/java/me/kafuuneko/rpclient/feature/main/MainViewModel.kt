@@ -36,7 +36,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainReasoningSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
@@ -66,7 +65,6 @@ import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningEffort
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -831,20 +829,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    @UiIntentObserver(MainUiIntent.SelectConversationReasoningEffort::class)
-    private fun onSelectConversationReasoningEffort(
-        intent: MainUiIntent.SelectConversationReasoningEffort
-    ) {
-        updateReasoningEffort(intent.effort, isStory = false)
-    }
-
-    @UiIntentObserver(MainUiIntent.SelectStoryReasoningEffort::class)
-    private fun onSelectStoryReasoningEffort(
-        intent: MainUiIntent.SelectStoryReasoningEffort
-    ) {
-        updateReasoningEffort(intent.effort, isStory = true)
-    }
-
     @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
     private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -1029,10 +1013,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
-            reasoningState = MainReasoningSettingsState(
-                conversationEffort = AppModel.conversationReasoningEffort,
-                storyEffort = AppModel.storyReasoningEffort
-            ),
             promptBehaviorState = MainPromptBehaviorState(
                 providerPostProcessingState = selectedProvider?.let {
                     MainProviderPostProcessingState.Available(it.postProcessingMode())
@@ -1071,24 +1051,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             providers = providers.map { it.toMainProviderItem() },
             generationParametersState = selectedProvider.toGenerationParametersState()
         )
-    }
-
-    private fun updateReasoningEffort(effort: LLMReasoningEffort, isStory: Boolean) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (isStory) {
-            AppModel.storyReasoningEffort = effort
-        } else {
-            AppModel.conversationReasoningEffort = effort
-        }
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                reasoningState = if (isStory) {
-                    uiState.settingsState.reasoningState.copy(storyEffort = effort)
-                } else {
-                    uiState.settingsState.reasoningState.copy(conversationEffort = effort)
-                }
-            )
-        ).setup()
     }
 
     private fun buildSummaryInjectionState(
