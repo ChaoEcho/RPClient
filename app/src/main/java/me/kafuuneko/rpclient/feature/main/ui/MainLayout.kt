@@ -50,10 +50,17 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Stream
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -133,6 +140,11 @@ import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /** 主页面 Compose 入口，承载首页会话列表与全局设置。 */
@@ -1151,23 +1163,20 @@ private fun WorldInfoBudgetPanel(
     state: MainWorldInfoBudgetState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.world_info_budget_section))
+            Text(
+                text = stringResource(R.string.world_info_budget_section),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
             Text(
                 text = stringResource(R.string.world_info_budget_description),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
             )
             RpPercentageSlider(
                 title = stringResource(R.string.world_info_context_percent),
@@ -1181,14 +1190,17 @@ private fun WorldInfoBudgetPanel(
                 helper = stringResource(R.string.world_info_budget_cap_helper),
                 onValueChange = { MainUiIntent.ChangeWorldInfoBudgetCap(it).emit() }
             )
-            SettingSwitchRow(
-                icon = Icons.Rounded.Book,
-                title = stringResource(R.string.world_info_overflow_alert),
-                subtitle = stringResource(R.string.world_info_overflow_alert_desc),
-                checked = state.overflowAlert,
-                onCheckedChange = { MainUiIntent.ToggleWorldInfoOverflowAlert(it).emit() }
-            )
         }
+        RpSettingsDivider(startIndent = false)
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Book,
+            iconColor = Color(0xFF10B981),
+            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            title = stringResource(R.string.world_info_overflow_alert),
+            subtitle = stringResource(R.string.world_info_overflow_alert_desc),
+            checked = state.overflowAlert,
+            onCheckedChange = { MainUiIntent.ToggleWorldInfoOverflowAlert(it).emit() }
+        )
     }
 }
 
@@ -1197,50 +1209,91 @@ private fun UserIdentityPanel(
     state: MainUserIdentityState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    RpSettingsGroup {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 UserAvatarPicker(
                     state = state,
                     emit = emit
                 )
-                Spacer(modifier = Modifier.width(14.dp))
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    OutlinedTextField(
-                        value = state.userName,
-                        onValueChange = { MainUiIntent.ChangeUserName(it).emit() },
-                        label = { Text(stringResource(R.string.user_display_name)) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Text(
+                        text = state.userName.ifBlank { stringResource(R.string.user_display_name) },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    OutlinedTextField(
-                        value = state.userDescription,
-                        onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
-                        label = { Text(stringResource(R.string.user_persona_description)) },
-                        minLines = 2,
-                        maxLines = 5,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Text(
+                        text = if (state.userDescription.isNotBlank()) {
+                            state.userDescription
+                        } else {
+                            stringResource(R.string.user_persona_description)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    if (state.avatarState is MainUserAvatarState.Configured) {
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = state.userName,
+                    onValueChange = { MainUiIntent.ChangeUserName(it).emit() },
+                    label = { Text(stringResource(R.string.user_display_name)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Rounded.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.userDescription,
+                    onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
+                    label = { Text(stringResource(R.string.user_persona_description)) },
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (state.avatarState is MainUserAvatarState.Configured) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         TextButton(
-                            onClick = { MainUiIntent.ClearUserAvatar.emit() }
+                            onClick = { MainUiIntent.ClearUserAvatar.emit() },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(stringResource(R.string.clear_user_avatar))
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                stringResource(R.string.clear_user_avatar),
+                                style = MaterialTheme.typography.labelMedium
+                            )
                         }
                     }
                 }
@@ -1259,42 +1312,53 @@ private fun UserAvatarPicker(
         getMacaronColor(state.userName.ifBlank { "user" })
     }
 
-    Surface(
+    Box(
         modifier = Modifier
-            .size(72.dp)
+            .size(78.dp)
             .clickable { MainUiIntent.PickUserAvatarClick.emit() },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            val avatarState = state.avatarState
-            val avatarImage = (avatarState as? MainUserAvatarState.Configured)?.image
+        val avatarState = state.avatarState
+        val avatarImage = (avatarState as? MainUserAvatarState.Configured)?.image
+        Surface(
+            modifier = Modifier.size(70.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            shadowElevation = 2.dp
+        ) {
             if (avatarImage == null) {
                 RpAvatar(
                     text = avatarText,
                     color = avatarColor,
-                    modifier = Modifier.size(72.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(20.dp)
                 )
             } else {
                 Image(
                     bitmap = avatarImage,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(20.dp)),
                     contentScale = ContentScale.Crop
                 )
             }
-            Surface(
-                modifier = Modifier.align(Alignment.BottomEnd),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary
-            ) {
+        }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(26.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface),
+            shadowElevation = 3.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
                 Icon(
                     Icons.Rounded.ImageIcon,
                     contentDescription = stringResource(R.string.choose_user_avatar),
-                    modifier = Modifier.padding(4.dp),
+                    modifier = Modifier.size(13.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -1307,47 +1371,52 @@ private fun PromptBehaviorPanel(
     state: MainPromptBehaviorState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.prompt_behavior_section))
+            Text(
+                text = stringResource(R.string.prompt_behavior_section),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
             Text(
                 text = stringResource(R.string.prompt_post_processing_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
             )
             val postProcessingState = state.providerPostProcessingState
-            val selectedMode = (postProcessingState as? MainProviderPostProcessingState.Available)
-                ?.mode
-            PromptPostProcessingMode.entries.forEach { mode ->
-                PromptPostProcessingModeRow(
-                    mode = mode,
-                    selected = mode == selectedMode,
-                    enabled = postProcessingState is MainProviderPostProcessingState.Available,
-                    onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
-                )
+            val selectedMode = (postProcessingState as? MainProviderPostProcessingState.Available)?.mode
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PromptPostProcessingMode.entries.forEach { mode ->
+                    PromptPostProcessingModeRow(
+                        mode = mode,
+                        selected = mode == selectedMode,
+                        enabled = postProcessingState is MainProviderPostProcessingState.Available,
+                        onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.prompt_example_behavior_title),
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = stringResource(R.string.prompt_example_behavior_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
             )
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ExampleDialogueBehavior.entries.forEach { behavior ->
                     FilterChip(
@@ -1355,32 +1424,42 @@ private fun PromptBehaviorPanel(
                         onClick = {
                             MainUiIntent.SelectExampleDialogueBehavior(behavior).emit()
                         },
-                        label = { Text(stringResource(behavior.titleRes())) }
+                        label = { Text(stringResource(behavior.titleRes())) },
+                        shape = RoundedCornerShape(10.dp)
                     )
                 }
             }
-            SettingSwitchRow(
-                icon = Icons.Rounded.Compress,
-                title = stringResource(R.string.prompt_include_think_context_title),
-                subtitle = stringResource(R.string.prompt_include_think_context_desc),
-                checked = state.includeThinkInContext,
-                onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
-            )
-            SettingSwitchRow(
-                icon = Icons.Rounded.Info,
-                title = stringResource(R.string.context_trimming_alert),
-                subtitle = stringResource(R.string.context_trimming_alert_desc),
-                checked = state.contextTrimmingAlert,
-                onCheckedChange = { MainUiIntent.ToggleContextTrimmingAlert(it).emit() }
-            )
-            SettingSwitchRow(
-                Icons.Rounded.Refresh,
-                stringResource(R.string.streaming_response),
-                stringResource(R.string.streaming_response_desc),
-                state.streamEnabled,
-                onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
-            )
         }
+        RpSettingsDivider(startIndent = false)
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Psychology,
+            iconColor = Color(0xFF6366F1),
+            iconContainerColor = Color(0xFF6366F1).copy(alpha = 0.14f),
+            title = stringResource(R.string.prompt_include_think_context_title),
+            subtitle = stringResource(R.string.prompt_include_think_context_desc),
+            checked = state.includeThinkInContext,
+            onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
+        )
+        RpSettingsDivider()
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.NotificationsActive,
+            iconColor = Color(0xFFEC4899),
+            iconContainerColor = Color(0xFFEC4899).copy(alpha = 0.14f),
+            title = stringResource(R.string.context_trimming_alert),
+            subtitle = stringResource(R.string.context_trimming_alert_desc),
+            checked = state.contextTrimmingAlert,
+            onCheckedChange = { MainUiIntent.ToggleContextTrimmingAlert(it).emit() }
+        )
+        RpSettingsDivider()
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Stream,
+            iconColor = Color(0xFF0EA5E9),
+            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+            title = stringResource(R.string.streaming_response),
+            subtitle = stringResource(R.string.streaming_response_desc),
+            checked = state.streamEnabled,
+            onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
+        )
     }
 }
 
@@ -1391,41 +1470,41 @@ private fun PromptPostProcessingModeRow(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled) { onClick() },
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
-            width = if (selected) 1.dp else 0.5.dp,
+            width = if (selected) 1.5.dp else 0.5.dp,
             color = if (selected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
             }
         ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            }
-        )
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(mode.titleRes()),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = stringResource(mode.descriptionRes()),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (selected) {
@@ -1444,14 +1523,24 @@ private fun PromptPostProcessingModeRow(
 private fun EmptyProviderCard(
     onClick: () -> Unit
 ) {
-    RpInfoCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        icon = Icons.Rounded.Storage,
-        title = stringResource(R.string.no_enabled_model),
-        subtitle = stringResource(R.string.go_to_model_manager)
-    )
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Storage,
+            iconColor = Color(0xFFF59E0B),
+            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
+            title = stringResource(R.string.no_enabled_model),
+            subtitle = stringResource(R.string.go_to_model_manager),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -1464,29 +1553,48 @@ private fun ProviderCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
-            width = if (selected) 1.dp else 0.5.dp,
+            width = if (selected) 1.5.dp else 0.5.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
                 alpha = 0.22f
             )
         ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RpIconBubble(if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            RpIconBubble(
+                icon = if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage,
+                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                containerColor = if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                }
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
                     provider.name,
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     provider.model,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     provider.baseUrl,
@@ -1509,20 +1617,28 @@ private fun ProviderCard(
                 !provider.isConfigured -> stringResource(R.string.pending_config)
                 else -> stringResource(R.string.available)
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = dotColor.copy(alpha = 0.12f),
+                border = BorderStroke(0.5.dp, dotColor.copy(alpha = 0.28f))
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(dotColor, CircleShape)
-                )
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(dotColor, CircleShape)
+                    )
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = dotColor
+                    )
+                }
             }
         }
     }
@@ -1533,72 +1649,98 @@ private fun ParameterPanel(
     state: MainGenerationParametersState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    RpSettingsGroup {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            RpSectionHeader(
-                title = stringResource(R.string.generation_parameters),
-                action = stringResource(R.string.preset)
-            ) { MainUiIntent.OpenSelectedProviderEdit.emit() }
-            ParameterRow(
-                stringResource(R.string.temperature),
-                state.temperature.toString()
+            Text(
+                text = stringResource(R.string.generation_parameters),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = { MainUiIntent.OpenSelectedProviderEdit.emit() },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
             ) {
+                Text(
+                    stringResource(R.string.preset),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        RpSettingsDivider(startIndent = false)
+        RpSettingsValueTile(
+            icon = Icons.Rounded.Thermostat,
+            iconColor = Color(0xFFF59E0B),
+            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
+            title = stringResource(R.string.temperature),
+            value = state.temperature.toString(),
+            onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.Temperature)
                     .emit()
             }
-            ParameterRow(
-                stringResource(R.string.top_p),
-                state.topP.toString()
-            ) { MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit() }
-            ParameterRow(
-                stringResource(R.string.max_tokens),
-                state.maxTokens.toString()
-            ) {
+        )
+        RpSettingsDivider()
+        RpSettingsValueTile(
+            icon = Icons.Rounded.Tune,
+            iconColor = Color(0xFF3B82F6),
+            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
+            title = stringResource(R.string.top_p),
+            value = state.topP.toString(),
+            onClick = { MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit() }
+        )
+        RpSettingsDivider()
+        RpSettingsValueTile(
+            icon = Icons.Rounded.Numbers,
+            iconColor = Color(0xFF8B5CF6),
+            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            title = stringResource(R.string.max_tokens),
+            value = state.maxTokens.toString(),
+            onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.MaxTokens).emit()
             }
-            ParameterRow(
-                stringResource(R.string.context),
-                "${state.contextTokens} ${stringResource(R.string.tokens)}"
-            ) {
+        )
+        RpSettingsDivider()
+        RpSettingsValueTile(
+            icon = Icons.Rounded.Memory,
+            iconColor = Color(0xFF10B981),
+            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            title = stringResource(R.string.context),
+            value = "${state.contextTokens} ${stringResource(R.string.tokens)}",
+            onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.ContextTokens)
                     .emit()
             }
-        }
-    }
-}
-
-@Composable
-private fun ParameterRow(label: String, value: String, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            label,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium
         )
-        FilterChip(selected = true, onClick = onClick, label = { Text(value) })
     }
 }
 
 @Composable
 private fun PromptPresetEntryCard(onClick: () -> Unit) {
-    RpInfoCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        icon = Icons.Rounded.AutoAwesome,
-        title = stringResource(R.string.prompt_preset_title),
-        subtitle = stringResource(R.string.prompt_preset_entry_subtitle)
-    )
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.AutoAwesome,
+            iconColor = Color(0xFF8B5CF6),
+            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            title = stringResource(R.string.prompt_preset_title),
+            subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -1606,31 +1748,49 @@ private fun SummaryPanel(
     state: MainSummarySettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            RpSectionHeader(
-                title = stringResource(R.string.summary_memory)
+            Text(
+                text = stringResource(R.string.summary_memory),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 MainSummarySettingsTab.entries.forEach { tab ->
-                    FilterChip(
-                        selected = tab == state.selectedTab,
-                        onClick = { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
-                        label = { Text(stringResource(tab.titleRes())) }
-                    )
+                    val isSelected = tab == state.selectedTab
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(9.dp))
+                            .clickable { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
+                        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shape = RoundedCornerShape(9.dp),
+                        shadowElevation = if (isSelected) 1.dp else 0.dp
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(tab.titleRes()),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
             when (state.selectedTab) {
@@ -1665,7 +1825,7 @@ private fun ConversationSummarySettings(
     state: MainSummarySettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         SettingSwitchRow(
             Icons.Rounded.AutoAwesome,
             stringResource(R.string.auto_summarize),
@@ -1684,50 +1844,67 @@ private fun ConversationSummarySettings(
             helper = stringResource(R.string.summary_max_messages_helper),
             onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
         )
-        Text(
-            text = stringResource(R.string.summary_injection_position),
-            style = MaterialTheme.typography.titleSmall
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.summary_injection_position),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SummaryInjectionPosition.entries.forEach { position ->
-                FilterChip(
-                    selected = position == state.injectionState.position,
-                    onClick = {
-                        MainUiIntent.SelectSummaryInjectionPosition(position).emit()
-                    },
-                    label = { Text(stringResource(position.titleRes())) }
-                )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SummaryInjectionPosition.entries.forEach { position ->
+                    FilterChip(
+                        selected = position == state.injectionState.position,
+                        onClick = {
+                            MainUiIntent.SelectSummaryInjectionPosition(position).emit()
+                        },
+                        label = { Text(stringResource(position.titleRes())) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
             }
         }
         val injectionState = state.injectionState
         if (injectionState is MainSummaryInjectionState.InChat) {
-            NumberSettingRow(
-                title = stringResource(R.string.summary_injection_depth),
-                value = injectionState.depth.toString(),
-                onValueChange = {
-                    MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
-                }
-            )
-            Text(
-                text = stringResource(R.string.summary_injection_role),
-                style = MaterialTheme.typography.titleSmall
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                SummaryInjectionRole.entries.forEach { role ->
-                    FilterChip(
-                        selected = role == injectionState.role,
-                        onClick = {
-                            MainUiIntent.SelectSummaryInjectionRole(role).emit()
-                        },
-                        label = { Text(stringResource(role.titleRes())) }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        RoundedCornerShape(14.dp)
                     )
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                NumberSettingRow(
+                    title = stringResource(R.string.summary_injection_depth),
+                    value = injectionState.depth.toString(),
+                    onValueChange = {
+                        MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.summary_injection_role),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SummaryInjectionRole.entries.forEach { role ->
+                        FilterChip(
+                            selected = role == injectionState.role,
+                            onClick = {
+                                MainUiIntent.SelectSummaryInjectionRole(role).emit()
+                            },
+                            label = { Text(stringResource(role.titleRes())) },
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1762,13 +1939,14 @@ private fun NumberSettingRow(
             Text(
                 title,
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
             )
             if (!helper.isNullOrBlank()) {
                 Text(
                     helper,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
                 )
             }
         }
@@ -1779,7 +1957,8 @@ private fun NumberSettingRow(
             modifier = Modifier.width(100.dp),
             shape = RoundedCornerShape(12.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                fontWeight = FontWeight.SemiBold
             )
         )
     }
@@ -1790,36 +1969,34 @@ private fun DebugPanel(
     state: MainDebugSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RpSectionHeader(title = stringResource(R.string.debug_mode))
-            SettingSwitchRow(
-                Icons.Rounded.BugReport,
-                stringResource(R.string.debug_mode),
-                stringResource(R.string.debug_mode_desc),
-                state.enabled,
-                onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
+    RpSettingsGroup {
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.BugReport,
+            iconColor = Color(0xFFEF4444),
+            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
+            title = stringResource(R.string.debug_mode),
+            subtitle = stringResource(R.string.debug_mode_desc),
+            checked = state.enabled,
+            onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
+        )
+        if (state.enabled) {
+            RpSettingsDivider()
+            RpSettingsTile(
+                icon = Icons.Rounded.DataObject,
+                iconColor = Color(0xFF8B5CF6),
+                iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+                title = stringResource(R.string.request_logs),
+                subtitle = stringResource(R.string.request_logs_entry_subtitle),
+                onClick = { MainUiIntent.OpenRequestLogs.emit() },
+                trailing = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             )
-            if (state.enabled) {
-                RpInfoCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { MainUiIntent.OpenRequestLogs.emit() },
-                    icon = Icons.Rounded.DataObject,
-                    title = stringResource(R.string.request_logs),
-                    subtitle = stringResource(R.string.request_logs_entry_subtitle)
-                )
-            }
         }
     }
 }
@@ -1828,40 +2005,23 @@ private fun DebugPanel(
 private fun AboutEntryCard(
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RpIconBubble(Icons.Rounded.Info)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.about),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = stringResource(R.string.about_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Info,
+            iconColor = MaterialTheme.colorScheme.primary,
+            iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+            title = stringResource(R.string.about),
+            subtitle = stringResource(R.string.about_desc),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-            )
-        }
+        )
     }
 }
 
@@ -1873,19 +2033,13 @@ private fun SettingSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        RpIconBubble(icon)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+    RpSettingsSwitchTile(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        checked = checked,
+        onCheckedChange = onCheckedChange
+    )
 }
 
 private fun PromptPostProcessingMode.titleRes(): Int {

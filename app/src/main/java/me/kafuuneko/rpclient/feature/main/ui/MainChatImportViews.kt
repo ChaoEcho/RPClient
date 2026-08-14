@@ -45,8 +45,8 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
-import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 
 /** 设置页中的对话文件导入入口。 */
 @Composable
@@ -55,44 +55,34 @@ internal fun ChatDataManagementPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     val isReading = state == MainChatDataManagementState.Reading
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RpSectionHeader(title = stringResource(R.string.data_management))
-            RpInfoCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !isReading) {
-                        MainUiIntent.ImportChatClick.emit()
-                    },
-                icon = Icons.Rounded.FileDownload,
-                title = stringResource(R.string.import_chat),
-                subtitle = if (isReading) {
-                    stringResource(R.string.reading_chat_file)
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.FileDownload,
+            title = stringResource(R.string.import_chat),
+            subtitle = if (isReading) {
+                stringResource(R.string.reading_chat_file)
+            } else {
+                stringResource(R.string.import_chat_desc)
+            },
+            enabled = !isReading,
+            onClick = { MainUiIntent.ImportChatClick.emit() },
+            trailing = {
+                if (isReading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 } else {
-                    stringResource(R.string.import_chat_desc)
-                },
-                trailing = {
-                    if (isReading) {
-                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-            )
-        }
+            }
+        )
     }
 }
 

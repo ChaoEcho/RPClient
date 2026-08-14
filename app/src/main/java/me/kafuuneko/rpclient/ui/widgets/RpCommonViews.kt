@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.ui.widgets
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +20,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -291,6 +296,194 @@ fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
             content = content
         )
     }
+}
+
+/** 现代分组设置卡片容器，统一设置页卡片层次规范。 */
+@Composable
+fun RpSettingsGroup(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(20.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            content = content
+        )
+    }
+}
+
+/** 分组卡片内部的浅色内嵌分割线。 */
+@Composable
+fun RpSettingsDivider(
+    modifier: Modifier = Modifier,
+    startIndent: Boolean = true
+) {
+    HorizontalDivider(
+        modifier = modifier.padding(
+            start = if (startIndent) 58.dp else 16.dp,
+            end = 16.dp
+        ),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+    )
+}
+
+/** 现代设置页标准列表行项，支持多彩微光图标、主副标题与尾部扩展。 */
+@Composable
+fun RpSettingsTile(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    val clickableModifier = if (onClick != null && enabled) {
+        Modifier.clickable(onClick = onClick)
+    } else {
+        Modifier
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(clickableModifier)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            RpIconBubble(
+                icon = icon,
+                contentColor = if (enabled) iconColor else iconColor.copy(alpha = 0.38f),
+                containerColor = if (enabled) iconContainerColor else iconContainerColor.copy(alpha = 0.25f)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f)
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)
+                    }
+                )
+            }
+        }
+        if (trailing != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            trailing()
+        }
+    }
+}
+
+/** 现代设置页带 Switch 开关的标准行项。 */
+@Composable
+fun RpSettingsSwitchTile(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+    enabled: Boolean = true
+) {
+    RpSettingsTile(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconColor = iconColor,
+        iconContainerColor = iconContainerColor,
+        enabled = enabled,
+        modifier = modifier,
+        onClick = if (enabled) { { onCheckedChange(!checked) } } else null,
+        trailing = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
+            )
+        }
+    )
+}
+
+/** 现代设置页带数值标签与跳转箭头的标准行项。 */
+@Composable
+fun RpSettingsValueTile(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+    enabled: Boolean = true
+) {
+    RpSettingsTile(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconColor = iconColor,
+        iconContainerColor = iconContainerColor,
+        enabled = enabled,
+        modifier = modifier,
+        onClick = onClick,
+        trailing = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                ) {
+                    Text(
+                        text = value,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    )
 }
 
 /** 项目统一的小号垂直间距。 */
