@@ -27,7 +27,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -165,32 +165,19 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         CharacterListDialogState.None -> Unit
-        is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> AlertDialog(
+        is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> AppWarningDialog(
             onDismissRequest = {
                 CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()
             },
-            title = { Text(stringResource(R.string.low_world_book_budget_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.low_world_book_budget_message,
-                        dialogState.importedTokenBudget
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget.emit()
-                }) {
-                    Text(stringResource(R.string.follow_global_budget))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()
-                }) {
-                    Text(stringResource(R.string.keep_imported_budget))
-                }
+            title = stringResource(R.string.low_world_book_budget_title),
+            message = stringResource(
+                R.string.low_world_book_budget_message,
+                dialogState.importedTokenBudget
+            ),
+            confirmText = stringResource(R.string.follow_global_budget),
+            dismissText = stringResource(R.string.keep_imported_budget),
+            onConfirm = {
+                CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget.emit()
             }
         )
     }

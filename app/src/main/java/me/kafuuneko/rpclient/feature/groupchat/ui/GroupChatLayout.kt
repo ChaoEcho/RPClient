@@ -53,7 +53,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.StopCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -110,8 +109,9 @@ import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import androidx.compose.ui.res.stringResource
@@ -1503,50 +1503,24 @@ private fun DialogSwitch(
             inspection = dialogState.inspection,
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) }
         )
-        is GroupChatDialogState.DeleteMessageConfirm -> AlertDialog(
+        is GroupChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
-            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-            title = { Text(stringResource(R.string.delete_message_title)) },
-            text = { Text(stringResource(R.string.delete_message_confirm)) },
-            confirmButton = {
-                Button(onClick = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { emitIntent(GroupChatUiIntent.DismissDialog) }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_message_title),
+            message = stringResource(R.string.delete_message_confirm),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) }
         )
-        is GroupChatDialogState.DeleteSessionConfirm -> AlertDialog(
+        is GroupChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
-            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-            title = { Text(stringResource(R.string.group_chat_delete_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.group_chat_delete_message,
-                        dialogState.title
-                    )
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        emitIntent(GroupChatUiIntent.ConfirmDeleteSession)
-                    }
-                ) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { emitIntent(GroupChatUiIntent.DismissDialog) }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.group_chat_delete_title),
+            message = stringResource(
+                R.string.group_chat_delete_message,
+                dialogState.title
+            ),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteSession) }
         )
     }
 }

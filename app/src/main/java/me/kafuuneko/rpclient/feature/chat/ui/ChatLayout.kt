@@ -54,7 +54,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -116,9 +115,10 @@ import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
+import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
@@ -1517,35 +1517,21 @@ private fun DialogSwitch(
             inspection = dialogState.inspection,
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
         )
-        is ChatDialogState.DeleteSessionConfirm -> AlertDialog(
+        is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_chat_title)) },
-            text = { Text(stringResource(R.string.delete_chat_message, dialogState.sessionTitle)) },
-            confirmButton = {
-                TextButton(onClick = { ChatUiIntent.ConfirmDeleteSession.emit() }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_chat_title),
+            message = stringResource(R.string.delete_chat_message, dialogState.sessionTitle),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ChatUiIntent.ConfirmDeleteSession.emit() }
         )
-        is ChatDialogState.DeleteMessageConfirm -> AlertDialog(
+        is ChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_message_title)) },
-            text = { Text(stringResource(R.string.delete_message_confirm)) },
-            confirmButton = {
-                TextButton(onClick = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_message_title),
+            message = stringResource(R.string.delete_message_confirm),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() }
         )
     }
 }

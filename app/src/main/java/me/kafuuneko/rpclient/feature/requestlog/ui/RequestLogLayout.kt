@@ -24,7 +24,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -218,20 +218,13 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         RequestLogDialogState.None -> Unit
-        RequestLogDialogState.ClearConfirm -> AlertDialog(
+        RequestLogDialogState.ClearConfirm -> AppDangerDialog(
             onDismissRequest = { emit(RequestLogUiIntent.DismissDialog) },
-            title = { Text(stringResource(R.string.clear_logs)) },
-            text = { Text(stringResource(R.string.clear_logs_confirm)) },
-            confirmButton = {
-                TextButton(onClick = { emit(RequestLogUiIntent.ConfirmClearLogs) }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { emit(RequestLogUiIntent.DismissDialog) }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.clear_logs),
+            message = stringResource(R.string.clear_logs_confirm),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emit(RequestLogUiIntent.ConfirmClearLogs) }
         )
     }
 }

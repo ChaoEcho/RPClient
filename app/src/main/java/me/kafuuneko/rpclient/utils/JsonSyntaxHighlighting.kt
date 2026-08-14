@@ -1,5 +1,8 @@
-package me.kafuuneko.rpclient.feature.llmprovideredit.ui
+package me.kafuuneko.rpclient.utils
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -9,8 +12,8 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 
-/** JSON token categories rendered by the provider configuration editors. */
-internal enum class JsonSyntaxTokenType {
+/** JSON 语法高亮分词类别。 */
+enum class JsonSyntaxTokenType {
     Key,
     String,
     Number,
@@ -18,15 +21,15 @@ internal enum class JsonSyntaxTokenType {
     Punctuation
 }
 
-/** A half-open source range that can be styled without changing cursor offsets. */
-internal data class JsonSyntaxToken(
+/** 语法高亮 Token 区间。 */
+data class JsonSyntaxToken(
     val start: Int,
     val end: Int,
     val type: JsonSyntaxTokenType
 )
 
-/** Theme-derived colors for JSON syntax highlighting. */
-internal data class JsonSyntaxColors(
+/** 语法高亮颜色配置，默认自适应 MaterialTheme。 */
+data class JsonSyntaxColors(
     val key: Color,
     val string: Color,
     val number: Color,
@@ -35,12 +38,45 @@ internal data class JsonSyntaxColors(
 )
 
 /**
- * Styles JSON source while leaving its text and offsets unchanged.
- *
- * The lexer deliberately accepts incomplete input so highlighting remains stable while the user
- * is in the middle of typing invalid JSON.
+ * 记住并创建与当前 MaterialTheme 颜色匹配的 JSON 语法高亮转换器。
  */
-internal class JsonSyntaxVisualTransformation(
+@Composable
+fun rememberJsonSyntaxVisualTransformation(
+    colors: JsonSyntaxColors = rememberDefaultJsonSyntaxColors()
+): VisualTransformation {
+    return remember(colors) {
+        JsonSyntaxVisualTransformation(colors)
+    }
+}
+
+/**
+ * 从当前 MaterialTheme 提取 JSON 语法高亮颜色配置。
+ */
+@Composable
+fun rememberDefaultJsonSyntaxColors(): JsonSyntaxColors {
+    val colorScheme = MaterialTheme.colorScheme
+    return remember(
+        colorScheme.primary,
+        colorScheme.tertiary,
+        colorScheme.secondary,
+        colorScheme.onSurfaceVariant
+    ) {
+        JsonSyntaxColors(
+            key = colorScheme.primary,
+            string = colorScheme.tertiary,
+            number = colorScheme.secondary,
+            literal = colorScheme.primary,
+            punctuation = colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 为 JSON 源码提供实时语法高亮的 [VisualTransformation]。
+ *
+ * 词法分析器支持未闭合与正在输入的半完整 JSON，保证编辑输入时高亮平稳不闪烁。
+ */
+class JsonSyntaxVisualTransformation(
     private val colors: JsonSyntaxColors
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
@@ -64,20 +100,18 @@ private fun JsonSyntaxToken.style(colors: JsonSyntaxColors): SpanStyle {
             color = colors.key,
             fontWeight = FontWeight.SemiBold
         )
-
         JsonSyntaxTokenType.String -> SpanStyle(color = colors.string)
         JsonSyntaxTokenType.Number -> SpanStyle(color = colors.number)
         JsonSyntaxTokenType.Literal -> SpanStyle(
             color = colors.literal,
             fontWeight = FontWeight.SemiBold
         )
-
         JsonSyntaxTokenType.Punctuation -> SpanStyle(color = colors.punctuation)
     }
 }
 
-/** Single-pass lexer for valid and partially entered JSON. */
-internal fun tokenizeJsonSyntax(source: String): List<JsonSyntaxToken> {
+/** 单遍流式 JSON 词法分析器。 */
+fun tokenizeJsonSyntax(source: String): List<JsonSyntaxToken> {
     val tokens = mutableListOf<JsonSyntaxToken>()
     var index = 0
     while (index < source.length) {

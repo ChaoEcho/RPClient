@@ -25,7 +25,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -135,27 +135,16 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         WorldBookListDialogState.None -> Unit
-        is WorldBookListDialogState.LowTokenBudgetConfirm -> AlertDialog(
+        is WorldBookListDialogState.LowTokenBudgetConfirm -> AppWarningDialog(
             onDismissRequest = { WorldBookListUiIntent.ImportWithOriginalBudget.emit() },
-            title = { Text(stringResource(R.string.low_world_book_budget_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.low_world_book_budget_message,
-                        dialogState.importedTokenBudget
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { WorldBookListUiIntent.ImportWithGlobalBudget.emit() }) {
-                    Text(stringResource(R.string.follow_global_budget))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { WorldBookListUiIntent.ImportWithOriginalBudget.emit() }) {
-                    Text(stringResource(R.string.keep_imported_budget))
-                }
-            }
+            title = stringResource(R.string.low_world_book_budget_title),
+            message = stringResource(
+                R.string.low_world_book_budget_message,
+                dialogState.importedTokenBudget
+            ),
+            confirmText = stringResource(R.string.follow_global_budget),
+            dismissText = stringResource(R.string.keep_imported_budget),
+            onConfirm = { WorldBookListUiIntent.ImportWithGlobalBudget.emit() }
         )
     }
 }

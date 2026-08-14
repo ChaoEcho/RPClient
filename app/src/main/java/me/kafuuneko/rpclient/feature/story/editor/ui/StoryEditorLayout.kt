@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Group
@@ -67,7 +68,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,6 +83,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,12 +111,16 @@ import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationFa
 import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.story.editor.presentation.StorySettingsSection
 import me.kafuuneko.rpclient.feature.story.editor.model.StoryTextExportFormat
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
+import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
-import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 
 /** 连续正文编辑器及 Story 设置的 Compose 入口。 */
 @Composable
@@ -698,84 +703,63 @@ private fun StorySummaryPreviewDialog(
     state: StoryEditorDialogState.StorySummaryPreview,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    AlertDialog(
+    AppDialogScaffold(
         onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
-        title = { Text(stringResource(R.string.story_summary_preview)) },
-        text = {
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.content,
-                onValueChange = {},
-                minLines = 6,
-                maxLines = 14,
-                readOnly = true,
-                shape = RoundedCornerShape(16.dp)
-            )
-        },
-        confirmButton = {
-            Button(onClick = { StoryEditorUiIntent.ConfirmStorySummary.emit() }) {
-                Text(stringResource(R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { StoryEditorUiIntent.DismissDialog.emit() }) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun AiToolButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    OutlinedButton(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(14.dp)
+        title = stringResource(R.string.story_summary_preview),
+        badgeIcon = Icons.Rounded.Description,
+        badgeTone = DialogBadgeTone.Primary,
+        compactHeader = true,
+        confirmText = stringResource(R.string.confirm),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = { StoryEditorUiIntent.ConfirmStorySummary.emit() }
     ) {
-        Icon(icon, contentDescription = null)
-        Spacer(Modifier.width(8.dp))
-        Text(title, modifier = Modifier.weight(1f))
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = state.content,
+            onValueChange = {},
+            minLines = 5,
+            maxLines = 12,
+            readOnly = true,
+            visualTransformation = rememberPromptMacroVisualTransformation(),
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 
-
 @Composable
 private fun FileActionsDialog(emit: StoryEditorUiIntent.() -> Unit) {
-    AlertDialog(
+    AppActionListDialog(
         onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
-        icon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null) },
-        title = { Text(stringResource(R.string.story_file_actions)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AiToolButton(Icons.Rounded.FileDownload, stringResource(R.string.story_import_text), true) {
-                    StoryEditorUiIntent.ImportTextClick.emit()
-                }
-                AiToolButton(Icons.Rounded.FileDownload, stringResource(R.string.story_import_archive), true) {
-                    StoryEditorUiIntent.ImportStoryClick.emit()
-                }
-                HorizontalDivider()
-                AiToolButton(Icons.Rounded.FileUpload, stringResource(R.string.story_export_txt), true) {
-                    StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Text).emit()
-                }
-                AiToolButton(Icons.Rounded.FileUpload, stringResource(R.string.story_export_markdown), true) {
-                    StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Markdown).emit()
-                }
-                AiToolButton(Icons.Rounded.FileUpload, stringResource(R.string.story_export_archive), true) {
-                    StoryEditorUiIntent.ExportStoryClick.emit()
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { StoryEditorUiIntent.DismissDialog.emit() }) {
-                Text(stringResource(R.string.close))
-            }
-        }
+        title = stringResource(R.string.story_file_actions),
+        badgeIcon = Icons.Rounded.FolderOpen,
+        badgeTone = DialogBadgeTone.Primary,
+        actions = listOf(
+            AppActionItem(
+                icon = Icons.Rounded.FileDownload,
+                title = stringResource(R.string.story_import_text),
+                onClick = { StoryEditorUiIntent.ImportTextClick.emit() }
+            ),
+            AppActionItem(
+                icon = Icons.Rounded.FileDownload,
+                title = stringResource(R.string.story_import_archive),
+                onClick = { StoryEditorUiIntent.ImportStoryClick.emit() }
+            ),
+            AppActionItem(
+                icon = Icons.Rounded.FileUpload,
+                title = stringResource(R.string.story_export_txt),
+                onClick = { StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Text).emit() }
+            ),
+            AppActionItem(
+                icon = Icons.Rounded.FileUpload,
+                title = stringResource(R.string.story_export_markdown),
+                onClick = { StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Markdown).emit() }
+            ),
+            AppActionItem(
+                icon = Icons.Rounded.FileUpload,
+                title = stringResource(R.string.story_export_archive),
+                onClick = { StoryEditorUiIntent.ExportStoryClick.emit() }
+            )
+        )
     )
 }
 
@@ -785,51 +769,44 @@ private fun ImportPreviewDialog(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val preview = state.preview
-    AlertDialog(
-        onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
-        icon = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
-        title = { Text(stringResource(R.string.story_import_preview)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = preview.title,
-                    onValueChange = { StoryEditorUiIntent.ChangeImportTitle(it).emit() },
-                    label = { Text(stringResource(R.string.story_title)) },
-                    singleLine = true,
-                    enabled = !preview.isSaving
-                )
-                Text(
-                    text = stringResource(
-                        R.string.story_import_summary,
-                        preview.draft.content.length,
-                        preview.draft.characterHints.size,
-                        preview.draft.lorebookHints.size
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+    AppDialogScaffold(
+        onDismissRequest = {
+            if (!preview.isSaving) StoryEditorUiIntent.DismissDialog.emit()
         },
-        dismissButton = {
-            TextButton(
-                onClick = { StoryEditorUiIntent.DismissDialog.emit() },
-                enabled = !preview.isSaving
-            ) { Text(stringResource(R.string.cancel)) }
-        },
-        confirmButton = {
-            Button(
-                onClick = { StoryEditorUiIntent.ConfirmImport.emit() },
-                enabled = preview.title.isNotBlank() && !preview.isSaving
-            ) {
-                if (preview.isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(stringResource(R.string.story_import_create))
-            }
+        title = stringResource(R.string.story_import_preview),
+        badgeIcon = Icons.Rounded.FileDownload,
+        badgeTone = DialogBadgeTone.Primary,
+        confirmText = stringResource(R.string.story_import_create),
+        dismissText = stringResource(R.string.cancel),
+        confirmEnabled = preview.title.isNotBlank() && !preview.isSaving,
+        isConfirmLoading = preview.isSaving,
+        onConfirm = { StoryEditorUiIntent.ConfirmImport.emit() },
+        onDismiss = {
+            if (!preview.isSaving) StoryEditorUiIntent.DismissDialog.emit()
         }
-    )
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = preview.title,
+                onValueChange = { StoryEditorUiIntent.ChangeImportTitle(it).emit() },
+                label = { Text(stringResource(R.string.story_title)) },
+                singleLine = true,
+                enabled = !preview.isSaving,
+                shape = RoundedCornerShape(14.dp)
+            )
+            Text(
+                text = stringResource(
+                    R.string.story_import_summary,
+                    preview.draft.content.length,
+                    preview.draft.characterHints.size,
+                    preview.draft.lorebookHints.size
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable

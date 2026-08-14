@@ -27,7 +27,9 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.Image as ImageIcon
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -56,10 +58,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
@@ -512,58 +516,37 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         CharacterEditDialogState.None -> Unit
-        is CharacterEditDialogState.DeleteConfirm -> AlertDialog(
+        is CharacterEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_character_title)) },
-            text = { Text(stringResource(R.string.delete_character_message, dialogState.characterName)) },
-            confirmButton = {
-                TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacter.emit() }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { CharacterEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_character_title),
+            message = stringResource(R.string.delete_character_message, dialogState.characterName),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { CharacterEditUiIntent.ConfirmDeleteCharacter.emit() }
         )
-        is CharacterEditDialogState.DeleteWithLorebookConfirm -> AlertDialog(
+        is CharacterEditDialogState.DeleteWithLorebookConfirm -> AppDialogScaffold(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_character_with_world_book_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.delete_character_with_world_book_message,
-                        dialogState.characterName,
-                        dialogState.lorebookName
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacterWithLorebook.emit() }) {
-                    Text(stringResource(R.string.delete_character_and_world_book))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacterOnly.emit() }) {
-                    Text(stringResource(R.string.delete_character_only))
-                }
-            }
+            title = stringResource(R.string.delete_character_with_world_book_title),
+            subtitle = stringResource(
+                R.string.delete_character_with_world_book_message,
+                dialogState.characterName,
+                dialogState.lorebookName
+            ),
+            badgeIcon = Icons.Rounded.Delete,
+            badgeTone = DialogBadgeTone.Danger,
+            confirmText = stringResource(R.string.delete_character_and_world_book),
+            dismissText = stringResource(R.string.delete_character_only),
+            confirmIsDestructive = true,
+            onConfirm = { CharacterEditUiIntent.ConfirmDeleteCharacterWithLorebook.emit() },
+            onDismiss = { CharacterEditUiIntent.ConfirmDeleteCharacterOnly.emit() }
         )
-        CharacterEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+        CharacterEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.unsaved_changes_title)) },
-            text = { Text(stringResource(R.string.unsaved_changes_message)) },
-            confirmButton = {
-                TextButton(onClick = { CharacterEditUiIntent.ConfirmDiscardChanges.emit() }) {
-                    Text(stringResource(R.string.discard_changes))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { CharacterEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.unsaved_changes_title),
+            message = stringResource(R.string.unsaved_changes_message),
+            confirmText = stringResource(R.string.discard_changes),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { CharacterEditUiIntent.ConfirmDiscardChanges.emit() }
         )
     }
 }
@@ -576,6 +559,7 @@ private fun FormTextField(
     minLines: Int = 1,
     maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     leadingIcon: @Composable (() -> Unit)? = null,
+    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -588,6 +572,7 @@ private fun FormTextField(
         minLines = minLines,
         maxLines = maxLines.coerceAtLeast(minLines),
         leadingIcon = leadingIcon,
+        visualTransformation = visualTransformation,
         shape = RoundedCornerShape(12.dp)
     )
 }
@@ -599,6 +584,7 @@ private fun ListTextField(
     minLines: Int = 1,
     maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     leadingIcon: @Composable (() -> Unit)? = null,
+    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
     onValueChange: (String) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -613,6 +599,7 @@ private fun ListTextField(
             minLines = minLines,
             maxLines = maxLines.coerceAtLeast(minLines),
             leadingIcon = leadingIcon,
+            visualTransformation = visualTransformation,
             shape = RoundedCornerShape(12.dp)
         )
         IconButton(onClick = onDelete) {

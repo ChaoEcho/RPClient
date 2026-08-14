@@ -4,10 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,15 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -33,7 +27,11 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppCodeEditorDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -53,11 +51,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -716,48 +712,54 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         LLMProviderEditDialogState.None -> Unit
-        LLMProviderEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+        LLMProviderEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.unsaved_changes_title)) },
-            text = { Text(stringResource(R.string.unsaved_changes_message)) },
-            confirmButton = {
-                TextButton(onClick = { LLMProviderEditUiIntent.ConfirmDiscardChanges.emit() }) {
-                    Text(stringResource(R.string.discard_changes))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { LLMProviderEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.unsaved_changes_title),
+            message = stringResource(R.string.unsaved_changes_message),
+            confirmText = stringResource(R.string.discard_changes),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { LLMProviderEditUiIntent.ConfirmDiscardChanges.emit() }
         )
 
-        LLMProviderEditDialogState.ApiKeyEditor -> SensitiveValueEditorDialog(
-            title = stringResource(R.string.api_key_editor_title),
-            label = stringResource(R.string.api_key),
-            password = true,
-            minLines = 1,
-            onConfirm = { LLMProviderEditUiIntent.ConfirmApiKeyReplacement(it).emit() },
-            onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
-        )
+        LLMProviderEditDialogState.ApiKeyEditor -> {
+            var value by remember { mutableStateOf("") }
+            AppInputDialog(
+                onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
+                title = stringResource(R.string.api_key_editor_title),
+                subtitle = stringResource(R.string.credential_editor_privacy_note),
+                value = value,
+                onValueChange = { value = it },
+                label = stringResource(R.string.api_key),
+                password = true,
+                confirmEnabled = value.isNotBlank(),
+                onConfirm = { LLMProviderEditUiIntent.ConfirmApiKeyReplacement(value).emit() }
+            )
+        }
 
-        LLMProviderEditDialogState.CustomHeadersEditor -> SensitiveValueEditorDialog(
-            title = stringResource(R.string.custom_headers_editor_title),
-            label = stringResource(R.string.custom_headers_json),
-            password = false,
-            minLines = 4,
-            noWrap = true,
-            onConfirm = {
-                LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(it).emit()
-            },
-            onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
-        )
+        LLMProviderEditDialogState.CustomHeadersEditor -> {
+            var value by remember { mutableStateOf("") }
+            AppCodeEditorDialog(
+                onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
+                title = stringResource(R.string.custom_headers_editor_title),
+                subtitle = stringResource(R.string.credential_editor_privacy_note),
+                value = value,
+                onValueChange = { value = it },
+                confirmEnabled = value.isNotBlank(),
+                onConfirm = { LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(value).emit() }
+            )
+        }
 
-        is LLMProviderEditDialogState.RequestBodyPatchEditor -> JsonObjectEditorDialog(
-            initialValue = dialogState.initialValue,
-            onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(it).emit() },
-            onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
-        )
+        is LLMProviderEditDialogState.RequestBodyPatchEditor -> {
+            var value by remember(dialogState.initialValue) { mutableStateOf(dialogState.initialValue) }
+            AppCodeEditorDialog(
+                onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
+                title = stringResource(R.string.request_body_patch_editor_title),
+                editorNote = stringResource(R.string.request_body_patch_editor_note),
+                value = value,
+                onValueChange = { value = it },
+                onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(value).emit() }
+            )
+        }
 
         is LLMProviderEditDialogState.ModelPicker -> ModelPickerDialog(
             state = dialogState,
@@ -767,91 +769,54 @@ private fun DialogSwitch(
 }
 
 @Composable
-private fun JsonObjectEditorDialog(
-    initialValue: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var value by remember(initialValue) { mutableStateOf(initialValue) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.request_body_patch_editor_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.request_body_patch_editor_note),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                NoWrapCodeEditor(
-                    value = value,
-                    onValueChange = { value = it },
-                    label = { Text(stringResource(R.string.request_body_patch_json)) },
-                    height = 232.dp
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(value) }) {
-                Text(stringResource(R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
-}
-
-@Composable
 private fun ModelPickerDialog(
     state: LLMProviderEditDialogState.ModelPicker,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
-    AlertDialog(
+    AppDialogScaffold(
         onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
-        title = { Text(stringResource(R.string.choose_model)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = state.searchQuery,
-                    onValueChange = {
-                        LLMProviderEditUiIntent.ChangeModelSearch(it).emit()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.search_models)) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = null)
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+        title = stringResource(R.string.choose_model),
+        badgeIcon = Icons.Rounded.Search,
+        badgeTone = DialogBadgeTone.Primary,
+        confirmText = "",
+        onConfirm = null,
+        dismissText = stringResource(R.string.cancel),
+        onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = {
+                    LLMProviderEditUiIntent.ChangeModelSearch(it).emit()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.search_models)) },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Search, contentDescription = null)
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+            if (state.items.isEmpty()) {
+                Text(
+                    stringResource(R.string.no_matching_models),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (state.items.isEmpty()) {
-                    Text(
-                        stringResource(R.string.no_matching_models),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 420.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(state.items, key = { it.id }) { model ->
-                            ModelPickerItem(model, emit)
-                        }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(state.items, key = { it.id }) { model ->
+                        ModelPickerItem(model, emit)
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(
-                onClick = { LLMProviderEditUiIntent.DismissDialog.emit() }
-            ) {
-                Text(stringResource(R.string.cancel))
-            }
         }
-    )
+    }
 }
 
 @Composable
@@ -859,20 +824,29 @@ private fun ModelPickerItem(
     model: LLMAvailableModel,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
-    TextButton(
-        onClick = {
-            LLMProviderEditUiIntent.SelectAvailableModel(model.id).emit()
-        },
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                LLMProviderEditUiIntent.SelectAvailableModel(model.id).emit()
+            }
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = model.displayName,
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
             )
             if (model.displayName != model.id) {
                 Text(
@@ -904,131 +878,7 @@ private fun ModelMetadataText(model: LLMAvailableModel) {
     )
 }
 
-@Composable
-private fun SensitiveValueEditorDialog(
-    title: String,
-    label: String,
-    password: Boolean,
-    minLines: Int,
-    noWrap: Boolean = false,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var value by remember(title) { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.credential_editor_privacy_note),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                if (noWrap) {
-                    NoWrapCodeEditor(
-                        value = value,
-                        onValueChange = { value = it },
-                        label = { Text(label) },
-                        height = 176.dp
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = { value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(label) },
-                        minLines = minLines,
-                        visualTransformation = if (password) {
-                            PasswordVisualTransformation()
-                        } else {
-                            VisualTransformation.None
-                        }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = value.isNotBlank(),
-                onClick = { onConfirm(value) }
-            ) {
-                Text(stringResource(R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
-}
 
-@Composable
-private fun NoWrapCodeEditor(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: @Composable () -> Unit,
-    height: Dp
-) {
-    val horizontalScrollState = rememberScrollState()
-    val verticalScrollState = rememberScrollState()
-    val colorScheme = MaterialTheme.colorScheme
-    val jsonSyntaxVisualTransformation = remember(
-        colorScheme.primary,
-        colorScheme.tertiary,
-        colorScheme.secondary,
-        colorScheme.onSurfaceVariant
-    ) {
-        JsonSyntaxVisualTransformation(
-            JsonSyntaxColors(
-                key = colorScheme.primary,
-                string = colorScheme.tertiary,
-                number = colorScheme.secondary,
-                literal = colorScheme.primary,
-                punctuation = colorScheme.onSurfaceVariant
-            )
-        )
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        label()
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val horizontalPadding = 24.dp
-                val verticalPadding = 24.dp
-                val minimumContentWidth = (maxWidth - horizontalPadding).coerceAtLeast(0.dp)
-                val minimumContentHeight = (maxHeight - verticalPadding).coerceAtLeast(0.dp)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .horizontalScroll(horizontalScrollState)
-                        .verticalScroll(verticalScrollState)
-                        .padding(horizontal = 12.dp, vertical = 12.dp)
-                ) {
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        modifier = Modifier
-                            .widthIn(min = minimumContentWidth)
-                            .heightIn(min = minimumContentHeight),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        visualTransformation = jsonSyntaxVisualTransformation,
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun FormTextField(

@@ -21,7 +21,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Tag
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -37,10 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import me.kafuuneko.rpclient.feature.worldbookentryedit.model.WorldBookEntryEditForm
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditDialogState
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditLoadState
@@ -490,35 +492,21 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         WorldBookEntryEditDialogState.None -> Unit
-        is WorldBookEntryEditDialogState.DeleteConfirm -> AlertDialog(
+        is WorldBookEntryEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEntryEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_world_book_entry_title)) },
-            text = { Text(stringResource(R.string.delete_world_book_entry_message, dialogState.entryName)) },
-            confirmButton = {
-                TextButton(onClick = { WorldBookEntryEditUiIntent.ConfirmDeleteEntry.emit() }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { WorldBookEntryEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_world_book_entry_title),
+            message = stringResource(R.string.delete_world_book_entry_message, dialogState.entryName),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDeleteEntry.emit() }
         )
-        WorldBookEntryEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+        WorldBookEntryEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEntryEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.unsaved_changes_title)) },
-            text = { Text(stringResource(R.string.unsaved_changes_message)) },
-            confirmButton = {
-                TextButton(onClick = { WorldBookEntryEditUiIntent.ConfirmDiscardChanges.emit() }) {
-                    Text(stringResource(R.string.discard_changes))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { WorldBookEntryEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.unsaved_changes_title),
+            message = stringResource(R.string.unsaved_changes_message),
+            confirmText = stringResource(R.string.discard_changes),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDiscardChanges.emit() }
         )
     }
 }
@@ -531,6 +519,7 @@ private fun FormTextField(
     minLines: Int = 1,
     singleLine: Boolean = minLines == 1,
     keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -541,6 +530,7 @@ private fun FormTextField(
         minLines = minLines,
         singleLine = singleLine,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        visualTransformation = visualTransformation,
         shape = RoundedCornerShape(12.dp)
     )
 }
@@ -549,6 +539,7 @@ private fun FormTextField(
 private fun ListTextField(
     label: String,
     value: String,
+    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
     onValueChange: (String) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -560,6 +551,7 @@ private fun ListTextField(
             label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Rounded.Tag, contentDescription = null) },
             singleLine = true,
+            visualTransformation = visualTransformation,
             shape = RoundedCornerShape(12.dp)
         )
         IconButton(onClick = onDelete) {

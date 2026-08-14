@@ -1,7 +1,9 @@
-package me.kafuuneko.rpclient.ui.widgets
+package me.kafuuneko.rpclient.ui.dialog
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,25 +12,37 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DataObject
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,7 +57,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
 
-/** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的调试对话框。 */
+/** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的现代化调试对话框。 */
 @Composable
 fun PromptInspectorDialog(
     inspection: PromptInspection,
@@ -58,31 +72,51 @@ fun PromptInspectorDialog(
                 .fillMaxSize()
                 .systemBarsPadding()
                 .padding(12.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 10.dp,
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 InspectorHeader(onDismissRequest)
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     item { InspectionSummary(inspection) }
+
                     if (inspection.omittedItems.isNotEmpty()) {
                         item {
-                            Text(
-                                text = stringResource(
-                                    R.string.prompt_inspector_omitted_title,
-                                    inspection.omittedItems.size
-                                ),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.WarningAmber,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.prompt_inspector_omitted_title,
+                                        inspection.omittedItems.size
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                         items(inspection.omittedItems) { OmittedItemCard(it) }
                     }
+
                     if (inspection.regexExecutions.isNotEmpty()) {
                         item {
                             Text(
@@ -91,14 +125,18 @@ fun PromptInspectorDialog(
                                     inspection.regexExecutions.size
                                 ),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                         items(inspection.regexExecutions) { hit ->
                             Card(
+                                shape = RoundedCornerShape(14.dp),
                                 border = BorderStroke(
                                     1.dp,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                                 )
                             ) {
                                 Text(
@@ -112,12 +150,14 @@ fun PromptInspectorDialog(
                                             }
                                         ) + " · " +
                                         if (hit.changed) "changed" else "matched",
-                                    modifier = Modifier.padding(12.dp),
-                                    style = MaterialTheme.typography.bodySmall
+                                    modifier = Modifier.padding(14.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
                     }
+
                     if (inspection.regexErrors.isNotEmpty()) {
                         item {
                             Text(
@@ -127,7 +167,7 @@ fun PromptInspectorDialog(
                                 ),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                         items(inspection.regexErrors) { error ->
@@ -138,17 +178,19 @@ fun PromptInspectorDialog(
                             )
                         }
                     }
+
                     item {
                         Text(
                             text = stringResource(R.string.prompt_inspector_final_messages),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     }
+
                     itemsIndexed(inspection.items) { _, item ->
                         InspectionItemCard(item)
                     }
-                    item { Spacer(modifier = Modifier.height(4.dp)) }
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
             }
         }
@@ -160,9 +202,23 @@ private fun InspectorHeader(onDismissRequest: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.DataObject,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.prompt_inspector_title),
@@ -186,7 +242,15 @@ private fun InspectorHeader(onDismissRequest: () -> Unit) {
 
 @Composable
 private fun InspectionSummary(inspection: PromptInspection) {
+    val totalCapacity = (inspection.promptBudget + inspection.responseReserve).coerceAtLeast(1)
+    val usageRatio = (inspection.finalTokenCount.toFloat() / totalCapacity.toFloat()).coerceIn(0f, 1f)
+
     Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
         )
@@ -194,8 +258,8 @@ private fun InspectionSummary(inspection: PromptInspection) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = stringResource(
@@ -205,8 +269,21 @@ private fun InspectionSummary(inspection: PromptInspection) {
                     inspection.responseReserve
                 ),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
+
+            // 可视化 Token 配额进度条
+            LinearProgressIndicator(
+                progress = { usageRatio },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (usageRatio > 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+
             Text(
                 text = stringResource(
                     R.string.prompt_inspector_model,
@@ -252,21 +329,23 @@ private fun tokenizerStrategyLabel(inspection: PromptInspection): String {
 @Composable
 private fun OmittedItemCard(item: PromptOmittedItem) {
     Card(
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.28f)
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.22f)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = item.source.label(),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
             )
             Text(
                 text = stringResource(
@@ -281,7 +360,7 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
                     )
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onErrorContainer
             )
         }
     }
@@ -289,44 +368,77 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
 
 @Composable
 private fun InspectionItemCard(item: PromptInspectionItem) {
+    val clipboardManager = LocalClipboardManager.current
     val sourceLabel = promptSourcesLabel(item.sources)
+
     Card(
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "#${item.index}  ${item.role.name.uppercase()}",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.prompt_inspector_item_tokens, item.tokenCount),
-                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.prompt_inspector_item_tokens, item.tokenCount),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(item.content))
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = stringResource(R.string.copy),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
             Text(
                 text = sourceLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             SelectionContainer {
                 Text(
                     text = item.content,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace
-                    )
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

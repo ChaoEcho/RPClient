@@ -17,7 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -93,31 +94,26 @@ internal fun ImportChatCharacterDialog(
     emit: MainUiIntent.() -> Unit
 ) {
     val canDismiss = !state.isImporting
-    AlertDialog(
+    AppDialogScaffold(
         onDismissRequest = {
             if (canDismiss) MainUiIntent.DismissDialog.emit()
         },
-        title = {
-            Text(
-                text = stringResource(R.string.select_import_character_title),
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            ImportCharacterSelectionContent(state, emit)
-        },
-        confirmButton = {
-            ImportChatConfirmButton(state, emit)
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { MainUiIntent.DismissDialog.emit() },
-                enabled = canDismiss
-            ) {
-                Text(stringResource(R.string.cancel))
-            }
+        title = stringResource(R.string.select_import_character_title),
+        badgeIcon = Icons.Rounded.FileDownload,
+        badgeTone = DialogBadgeTone.Primary,
+        confirmText = stringResource(
+            if (state.isImporting) R.string.importing_chat else R.string.import_chat
+        ),
+        dismissText = stringResource(R.string.cancel),
+        confirmEnabled = state.selectedCharacterId != null && !state.isImporting,
+        isConfirmLoading = state.isImporting,
+        onConfirm = { MainUiIntent.ConfirmImportChat.emit() },
+        onDismiss = {
+            if (canDismiss) MainUiIntent.DismissDialog.emit()
         }
-    )
+    ) {
+        ImportCharacterSelectionContent(state, emit)
+    }
 }
 
 @Composable
@@ -170,31 +166,6 @@ private fun ImportCharacterSelectionContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ImportChatConfirmButton(
-    state: MainDialogState.ImportChatCharacterSelection,
-    emit: MainUiIntent.() -> Unit
-) {
-    TextButton(
-        onClick = { MainUiIntent.ConfirmImportChat.emit() },
-        enabled = state.selectedCharacterId != null && !state.isImporting
-    ) {
-        if (state.isImporting) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(18.dp),
-                strokeWidth = 2.dp
-            )
-        }
-        Text(
-            stringResource(
-                if (state.isImporting) R.string.importing_chat else R.string.import_chat
-            )
-        )
     }
 }
 

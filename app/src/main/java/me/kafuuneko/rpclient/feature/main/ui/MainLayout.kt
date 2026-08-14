@@ -128,6 +128,7 @@ import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.DeleteSelectedSessionsDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
+import me.kafuuneko.rpclient.ui.dialog.SliderConfig
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
 import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
@@ -309,8 +310,10 @@ private fun DialogSwitch(
 
         is MainDialogState.EditGenerationParameter -> NumericEditDialog(
             title = stringResource(dialogState.parameter.titleRes()),
+            subtitle = stringResource(dialogState.parameter.subtitleRes()),
             value = dialogState.draftValue,
             decimalInput = dialogState.parameter.isDecimalInput(),
+            sliderConfig = dialogState.parameter.sliderConfig(),
             quickOptions = dialogState.parameter.quickOptions(),
             onValueChange = { MainUiIntent.ChangeGenerationParameterDraft(it).emit() },
             onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
@@ -331,22 +334,55 @@ private fun MainGenerationParameter.titleRes(): Int = when (this) {
     MainGenerationParameter.ContextTokens -> R.string.context
 }
 
+private fun MainGenerationParameter.subtitleRes(): Int = when (this) {
+    MainGenerationParameter.Temperature -> R.string.parameter_temperature_desc
+    MainGenerationParameter.TopP -> R.string.parameter_top_p_desc
+    MainGenerationParameter.MaxTokens -> R.string.parameter_max_tokens_desc
+    MainGenerationParameter.ContextTokens -> R.string.parameter_context_tokens_desc
+}
+
 private fun MainGenerationParameter.isDecimalInput(): Boolean = when (this) {
     MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> true
     MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> false
 }
 
-private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption> {
-    if (this != MainGenerationParameter.MaxTokens &&
-        this != MainGenerationParameter.ContextTokens
-    ) {
-        return emptyList()
-    }
-    return TokenPreset.entries.map { preset ->
-        NumericEditQuickOption(
-            label = preset.displayName,
-            value = preset.value.toString()
-        )
+@Composable
+private fun MainGenerationParameter.sliderConfig(): SliderConfig? = when (this) {
+    MainGenerationParameter.Temperature -> SliderConfig(
+        range = 0.00f..2.00f,
+        step = 0.05f,
+        minLabel = stringResource(R.string.parameter_temp_min_label),
+        maxLabel = stringResource(R.string.parameter_temp_max_label)
+    )
+    MainGenerationParameter.TopP -> SliderConfig(
+        range = 0.00f..1.00f,
+        step = 0.05f,
+        minLabel = stringResource(R.string.parameter_topp_min_label),
+        maxLabel = stringResource(R.string.parameter_topp_max_label)
+    )
+    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> null
+}
+
+@Composable
+private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption> = when (this) {
+    MainGenerationParameter.Temperature -> listOf(
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_precise), "0.20"),
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_balanced), "0.70"),
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20")
+    )
+    MainGenerationParameter.TopP -> listOf(
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_focused), "0.50"),
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_balanced), "0.80"),
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_rich), "0.95"),
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00")
+    )
+    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> {
+        TokenPreset.entries.map { preset ->
+            NumericEditQuickOption(
+                label = preset.displayName,
+                value = preset.value.toString()
+            )
+        }
     }
 }
 

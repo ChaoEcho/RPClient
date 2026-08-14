@@ -25,7 +25,8 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -273,89 +274,33 @@ private fun StoryListDialog(
 ) {
     when (dialogState) {
         StoryListDialogState.None -> Unit
-        is StoryListDialogState.EditTitle -> AlertDialog(
+        is StoryListDialogState.EditTitle -> AppInputDialog(
             onDismissRequest = { StoryListUiIntent.DismissDialog.emit() },
-            shape = RoundedCornerShape(24.dp),
-            title = {
-                Text(
-                    text = stringResource(
-                        if (dialogState.storyId == null) {
-                            R.string.story_create_story
-                        } else {
-                            R.string.story_rename_story
-                        }
-                    ),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = dialogState.title,
-                    onValueChange = { StoryListUiIntent.ChangeTitleDraft(it).emit() },
-                    label = { Text(stringResource(R.string.story_title)) },
-                    enabled = !dialogState.isSaving,
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { StoryListUiIntent.ConfirmTitle.emit() },
-                    enabled = dialogState.title.isNotBlank() && !dialogState.isSaving
-                ) {
-                    Text(
-                        text = stringResource(R.string.confirm),
-                        fontWeight = FontWeight.SemiBold
-                    )
+            title = stringResource(
+                if (dialogState.storyId == null) {
+                    R.string.story_create_story
+                } else {
+                    R.string.story_rename_story
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { StoryListUiIntent.DismissDialog.emit() },
-                    enabled = !dialogState.isSaving
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            ),
+            value = dialogState.title,
+            onValueChange = { StoryListUiIntent.ChangeTitleDraft(it).emit() },
+            label = stringResource(R.string.story_title),
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
+            isConfirmLoading = dialogState.isSaving,
+            onConfirm = { StoryListUiIntent.ConfirmTitle.emit() }
         )
-        is StoryListDialogState.DeleteStory -> AlertDialog(
+        is StoryListDialogState.DeleteStory -> AppDangerDialog(
             onDismissRequest = { StoryListUiIntent.DismissDialog.emit() },
-            shape = RoundedCornerShape(24.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.story_delete_story),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.story_delete_story_message, dialogState.title),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { StoryListUiIntent.ConfirmDeleteStory.emit() },
-                    enabled = !dialogState.isDeleting
-                ) {
-                    Text(
-                        text = stringResource(R.string.delete),
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { StoryListUiIntent.DismissDialog.emit() },
-                    enabled = !dialogState.isDeleting
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.story_delete_story),
+            message = stringResource(R.string.story_delete_story_message, dialogState.title),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isDeleting,
+            isConfirmLoading = dialogState.isDeleting,
+            onConfirm = { StoryListUiIntent.ConfirmDeleteStory.emit() }
         )
     }
 }

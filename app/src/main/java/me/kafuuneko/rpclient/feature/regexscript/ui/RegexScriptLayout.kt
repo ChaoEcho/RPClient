@@ -44,7 +44,9 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -765,20 +767,13 @@ private fun DialogSwitch(
     when (dialogState) {
         RegexScriptDialogState.None -> Unit
         is RegexScriptDialogState.Editor -> EditorDialog(dialogState, emitIntent)
-        is RegexScriptDialogState.DeleteConfirm -> AlertDialog(
+        is RegexScriptDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(RegexScriptUiIntent.DismissDialog) },
-            title = { Text(stringResource(R.string.regex_delete_title), fontWeight = FontWeight.Bold) },
-            text = { Text(dialogState.scriptName) },
-            confirmButton = {
-                TextButton(onClick = { emitIntent(RegexScriptUiIntent.ConfirmDeleteScript) }) {
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { emitIntent(RegexScriptUiIntent.DismissDialog) }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.regex_delete_title),
+            message = dialogState.scriptName,
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emitIntent(RegexScriptUiIntent.ConfirmDeleteScript) }
         )
     }
 }
@@ -791,173 +786,152 @@ private fun EditorDialog(
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
     val draft = state.draft
-    AlertDialog(
+    AppDialogScaffold(
         onDismissRequest = { emitIntent(RegexScriptUiIntent.DismissDialog) },
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.Tune,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(stringResource(R.string.regex_editor_title), fontWeight = FontWeight.Bold)
+        title = stringResource(R.string.regex_editor_title),
+        badgeIcon = Icons.Rounded.Tune,
+        badgeTone = DialogBadgeTone.Primary,
+        confirmText = stringResource(R.string.save),
+        dismissText = stringResource(R.string.cancel),
+        confirmEnabled = state.validationError == null,
+        onConfirm = { emitIntent(RegexScriptUiIntent.SaveDraft) },
+        scrollableContent = true
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // 基本信息分组
+            DraftGroupHeader(stringResource(R.string.regex_section_basic))
+            DraftField(draft.scriptName, R.string.regex_script_name) {
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(scriptName = it)))
             }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+
+            // 规则与表达式分组
+            DraftGroupHeader(stringResource(R.string.regex_section_expressions))
+            DraftField(
+                value = draft.findRegex,
+                labelRes = R.string.regex_find_regex,
+                minLines = 2,
+                isMonospace = true
             ) {
-                // 基本信息分组
-                DraftGroupHeader(stringResource(R.string.regex_section_basic))
-                DraftField(draft.scriptName, R.string.regex_script_name) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(scriptName = it)))
-                }
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(findRegex = it)))
+            }
+            DraftField(
+                value = draft.replaceString,
+                labelRes = R.string.regex_replace_string,
+                minLines = 2,
+                isMonospace = true
+            ) {
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(replaceString = it)))
+            }
+            DraftField(
+                value = draft.trimStrings,
+                labelRes = R.string.regex_trim_strings,
+                minLines = 2,
+                isMonospace = true
+            ) {
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(trimStrings = it)))
+            }
 
-                // 规则与表达式分组
-                DraftGroupHeader(stringResource(R.string.regex_section_expressions))
-                DraftField(
-                    value = draft.findRegex,
-                    labelRes = R.string.regex_find_regex,
-                    minLines = 2,
-                    isMonospace = true
-                ) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(findRegex = it)))
-                }
-                DraftField(
-                    value = draft.replaceString,
-                    labelRes = R.string.regex_replace_string,
-                    minLines = 2,
-                    isMonospace = true
-                ) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(replaceString = it)))
-                }
-                DraftField(
-                    value = draft.trimStrings,
-                    labelRes = R.string.regex_trim_strings,
-                    minLines = 2,
-                    isMonospace = true
-                ) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(trimStrings = it)))
-                }
-
-                // 作用位置分组
-                DraftGroupHeader(stringResource(R.string.regex_placements))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RegexPlacement.entries.forEach { placement ->
-                        val selected = placement.value in draft.placements
-                        AppFilterChip(
-                            selected = selected,
-                            onClick = {
-                                val placements = draft.placements.toMutableSet()
-                                if (!placements.add(placement.value)) placements.remove(placement.value)
-                                emitIntent(
-                                    RegexScriptUiIntent.UpdateDraft(
-                                        draft.copy(placements = placements)
-                                    )
+            // 作用位置分组
+            DraftGroupHeader(stringResource(R.string.regex_placements))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                RegexPlacement.entries.forEach { placement ->
+                    val selected = placement.value in draft.placements
+                    AppFilterChip(
+                        selected = selected,
+                        onClick = {
+                            val placements = draft.placements.toMutableSet()
+                            if (!placements.add(placement.value)) placements.remove(placement.value)
+                            emitIntent(
+                                RegexScriptUiIntent.UpdateDraft(
+                                    draft.copy(placements = placements)
                                 )
-                            },
-                            label = placement.label()
-                        )
-                    }
-                }
-
-                // 功能开关分组
-                DraftGroupHeader(stringResource(R.string.regex_section_switches))
-                BooleanRow(stringResource(R.string.regex_enabled), !draft.disabled) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(disabled = !it)))
-                }
-                BooleanRow(stringResource(R.string.regex_markdown_only), draft.markdownOnly) {
-                    emitIntent(
-                        RegexScriptUiIntent.UpdateDraft(
-                            draft.copy(
-                                markdownOnly = it,
-                                promptOnly = if (it) false else draft.promptOnly
                             )
-                        )
+                        },
+                        label = placement.label()
                     )
                 }
-                BooleanRow(stringResource(R.string.regex_prompt_only), draft.promptOnly) {
-                    emitIntent(
-                        RegexScriptUiIntent.UpdateDraft(
-                            draft.copy(
-                                promptOnly = it,
-                                markdownOnly = if (it) false else draft.markdownOnly
-                            )
+            }
+
+            // 功能开关分组
+            DraftGroupHeader(stringResource(R.string.regex_section_switches))
+            BooleanRow(stringResource(R.string.regex_enabled), !draft.disabled) {
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(disabled = !it)))
+            }
+            BooleanRow(stringResource(R.string.regex_markdown_only), draft.markdownOnly) {
+                emitIntent(
+                    RegexScriptUiIntent.UpdateDraft(
+                        draft.copy(
+                            markdownOnly = it,
+                            promptOnly = if (it) false else draft.promptOnly
                         )
                     )
-                }
-                BooleanRow(stringResource(R.string.regex_run_on_edit), draft.runOnEdit) {
-                    emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(runOnEdit = it)))
-                }
-
-                // 高阶功能分组
-                DraftGroupHeader(stringResource(R.string.regex_section_advanced))
-                Text(
-                    stringResource(R.string.regex_find_macro_mode),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RegexFindMacroMode.entries.forEach { mode ->
-                        AppFilterChip(
-                            selected = draft.substituteRegex == mode.value,
-                            onClick = {
-                                emitIntent(
-                                    RegexScriptUiIntent.UpdateDraft(
-                                        draft.copy(substituteRegex = mode.value)
-                                    )
-                                )
-                            },
-                            label = mode.name
+            }
+            BooleanRow(stringResource(R.string.regex_prompt_only), draft.promptOnly) {
+                emitIntent(
+                    RegexScriptUiIntent.UpdateDraft(
+                        draft.copy(
+                            promptOnly = it,
+                            markdownOnly = if (it) false else draft.markdownOnly
                         )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft.minDepth,
-                        onValueChange = {
-                            emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(minDepth = it)))
-                        },
-                        label = { Text(stringResource(R.string.regex_min_depth)) },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
                     )
-                    OutlinedTextField(
-                        value = draft.maxDepth,
-                        onValueChange = {
-                            emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(maxDepth = it)))
+                )
+            }
+            BooleanRow(stringResource(R.string.regex_run_on_edit), draft.runOnEdit) {
+                emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(runOnEdit = it)))
+            }
+
+            // 高阶功能分组
+            DraftGroupHeader(stringResource(R.string.regex_section_advanced))
+            Text(
+                stringResource(R.string.regex_find_macro_mode),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                RegexFindMacroMode.entries.forEach { mode ->
+                    AppFilterChip(
+                        selected = draft.substituteRegex == mode.value,
+                        onClick = {
+                            emitIntent(
+                                RegexScriptUiIntent.UpdateDraft(
+                                    draft.copy(substituteRegex = mode.value)
+                                )
+                            )
                         },
-                        label = { Text(stringResource(R.string.regex_max_depth)) },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        label = mode.name
                     )
                 }
-                state.validationError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-                Spacer(Modifier.height(2.dp))
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { emitIntent(RegexScriptUiIntent.SaveDraft) },
-                enabled = state.validationError == null
-            ) {
-                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = draft.minDepth,
+                    onValueChange = {
+                        emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(minDepth = it)))
+                    },
+                    label = { Text(stringResource(R.string.regex_min_depth)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = draft.maxDepth,
+                    onValueChange = {
+                        emitIntent(RegexScriptUiIntent.UpdateDraft(draft.copy(maxDepth = it)))
+                    },
+                    label = { Text(stringResource(R.string.regex_max_depth)) },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = { emitIntent(RegexScriptUiIntent.DismissDialog) }) {
-                Text(stringResource(R.string.cancel))
+            state.validationError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
+            Spacer(Modifier.height(2.dp))
         }
-    )
+    }
 }
 
 @Composable

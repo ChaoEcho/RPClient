@@ -56,6 +56,9 @@ import me.kafuuneko.rpclient.feature.promptpreset.model.PromptType
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiIntent
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiState
+import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
@@ -378,136 +381,64 @@ private fun EditPromptDialog(
     onChange: (String) -> Unit,
     onSave: () -> Unit
 ) {
-    val titleRes = dialogState.type.titleRes()
-    val descRes = dialogState.type.descriptionRes()
-
-    Dialog(
+    AppPromptEditorDialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = true,
-            decorFitsSystemWindows = true
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 头部标题与图标
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = dialogState.type.icon(),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = stringResource(titleRes),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+        title = stringResource(dialogState.type.titleRes()),
+        subtitle = stringResource(dialogState.type.descriptionRes()),
+        badgeIcon = dialogState.type.icon(),
+        badgeTone = DialogBadgeTone.Primary,
+        value = dialogState.draftText,
+        onValueChange = onChange,
+        defaultValue = dialogState.type.defaultValue(),
+        availableMacros = dialogState.type.availableMacros(),
+        onConfirm = onSave
+    )
+}
 
-                // 描述文本
-                Text(
-                    text = stringResource(descRes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+private fun PromptType.defaultValue(): String = when (this) {
+    PromptType.Main -> AppModel.DEFAULT_MAIN_PROMPT
+    PromptType.Auxiliary -> AppModel.DEFAULT_AUXILIARY_PROMPT
+    PromptType.PostHistory -> AppModel.DEFAULT_POST_HISTORY_INSTRUCTIONS
+    PromptType.Summarize -> AppModel.DEFAULT_SUMMARIZE_PROMPT
+    PromptType.SummaryInjection -> AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE
+    PromptType.Impersonation -> AppModel.DEFAULT_IMPERSONATION_PROMPT
+    PromptType.NewChat -> AppModel.DEFAULT_NEW_CHAT_PROMPT
+    PromptType.NewExampleChat -> AppModel.DEFAULT_NEW_EXAMPLE_CHAT_PROMPT
+    PromptType.ContinueNudge -> AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT
+    PromptType.ReplaceEmptyMessage -> AppModel.DEFAULT_REPLACE_EMPTY_MESSAGE_PROMPT
+    PromptType.WorldInfoFormat -> AppModel.DEFAULT_WORLD_INFO_FORMAT
+    PromptType.ScenarioFormat -> AppModel.DEFAULT_SCENARIO_FORMAT
+    PromptType.PersonalityFormat -> AppModel.DEFAULT_PERSONALITY_FORMAT
+    PromptType.GroupNudge -> AppModel.DEFAULT_GROUP_NUDGE_PROMPT
+    PromptType.NewGroupChat -> AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT
+    PromptType.GroupSummarize -> AppModel.DEFAULT_GROUP_SUMMARIZE_PROMPT
+    PromptType.StoryMain -> AppModel.DEFAULT_STORY_MAIN_PROMPT
+    PromptType.StoryMemory -> AppModel.DEFAULT_STORY_MEMORY_TEMPLATE
+    PromptType.StorySummary -> AppModel.DEFAULT_STORY_SUMMARY_TEMPLATE
+    PromptType.StorySummarize -> AppModel.DEFAULT_STORY_SUMMARIZE_PROMPT
+    PromptType.StoryContinuationGuidance -> AppModel.DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT
+    PromptType.StoryContinue -> AppModel.DEFAULT_STORY_CONTINUE_PROMPT
+}
 
-                // 编辑区
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.prompt_editor_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 160.dp, max = 280.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            .padding(14.dp)
-                    ) {
-                        if (dialogState.draftText.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.prompt_editor_placeholder),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                            )
-                        }
-                        BasicTextField(
-                            value = dialogState.draftText,
-                            onValueChange = onChange,
-                            modifier = Modifier.fillMaxSize(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                        )
-                    }
-                }
-
-                // 底部操作按钮
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(40.dp)
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = onSave,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.save))
-                    }
-                }
-            }
-        }
-    }
+private fun PromptType.availableMacros(): List<String> = when (this) {
+    PromptType.Main,
+    PromptType.Auxiliary,
+    PromptType.PostHistory,
+    PromptType.Impersonation,
+    PromptType.ContinueNudge -> listOf("{{char}}", "{{user}}")
+    PromptType.GroupNudge -> listOf("{{char}}", "{{user}}", "{{group}}")
+    PromptType.NewGroupChat -> listOf("{{group}}", "{{char}}", "{{user}}")
+    PromptType.Summarize,
+    PromptType.GroupSummarize,
+    PromptType.StorySummarize -> listOf("{{words}}", "{{char}}", "{{user}}")
+    PromptType.SummaryInjection,
+    PromptType.StorySummary -> listOf("{{summary}}")
+    PromptType.StoryMemory -> listOf("{{memory}}")
+    PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
+    PromptType.WorldInfoFormat -> listOf("{0}")
+    PromptType.ScenarioFormat -> listOf("{{scenario}}")
+    PromptType.PersonalityFormat -> listOf("{{personality}}")
+    else -> listOf("{{char}}", "{{user}}")
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

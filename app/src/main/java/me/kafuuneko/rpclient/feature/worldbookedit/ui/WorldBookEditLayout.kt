@@ -25,7 +25,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material3.AlertDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -394,35 +394,21 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         WorldBookEditDialogState.None -> Unit
-        is WorldBookEditDialogState.DeleteConfirm -> AlertDialog(
+        is WorldBookEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.delete_world_book_title)) },
-            text = { Text(stringResource(R.string.delete_world_book_message, dialogState.worldBookName)) },
-            confirmButton = {
-                TextButton(onClick = { WorldBookEditUiIntent.ConfirmDeleteWorldBook.emit() }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { WorldBookEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.delete_world_book_title),
+            message = stringResource(R.string.delete_world_book_message, dialogState.worldBookName),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { WorldBookEditUiIntent.ConfirmDeleteWorldBook.emit() }
         )
-        WorldBookEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+        WorldBookEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.unsaved_changes_title)) },
-            text = { Text(stringResource(R.string.unsaved_changes_message)) },
-            confirmButton = {
-                TextButton(onClick = { WorldBookEditUiIntent.ConfirmDiscardChanges.emit() }) {
-                    Text(stringResource(R.string.discard_changes))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { WorldBookEditUiIntent.DismissDialog.emit() }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            title = stringResource(R.string.unsaved_changes_title),
+            message = stringResource(R.string.unsaved_changes_message),
+            confirmText = stringResource(R.string.discard_changes),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { WorldBookEditUiIntent.ConfirmDiscardChanges.emit() }
         )
     }
 }

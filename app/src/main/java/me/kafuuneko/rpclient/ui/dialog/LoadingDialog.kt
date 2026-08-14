@@ -1,17 +1,19 @@
 package me.kafuuneko.rpclient.ui.dialog
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -23,10 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.theme.AppTheme
+
+import androidx.compose.material3.FilledTonalButton
 
 /** 长任务使用的统一加载对话框，可选提供显式取消操作。 */
 @Composable
@@ -43,75 +49,99 @@ fun LoadingDialog(
         )
     ) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            tonalElevation = 8.dp,
+            shape = RoundedCornerShape(28.dp),
+            tonalElevation = 6.dp,
             shadowElevation = 12.dp,
-            modifier = Modifier.width(300.dp),
+            modifier = Modifier.width(310.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            )
         ) {
             Column(
-                modifier = Modifier.padding(vertical = 28.dp, horizontal = 24.dp),
+                modifier = Modifier.padding(vertical = 32.dp, horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                // 加载环外层双层柔光光斑容器
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier
+                        .size(76.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            shape = CircleShape
+                        )
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(52.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 4.dp,
-                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = CircleShape
+                            )
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.5.dp,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        )
+                    }
                 }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
 
                 if (onCancel != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.height(2.dp))
+                    FilledTonalButton(
                         onClick = onCancel,
-                        shape = RoundedCornerShape(100.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)
+                            .height(48.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.cancel),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Preview(name = "LoadingDialog - Light", showBackground = true)
+@Composable
+private fun LoadingDialogPreview() {
+    AppTheme(dynamicColor = false) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LoadingDialog(
+                title = "正在导出聊天记录",
+                description = "正在格式化消息并在后台打包为 JSON 文件...",
+                onCancel = {}
+            )
         }
     }
 }
