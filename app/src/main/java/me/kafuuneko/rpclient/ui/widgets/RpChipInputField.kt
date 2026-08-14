@@ -57,7 +57,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 /**
  * 现代流式标签/关键词胶囊输入组件。
  *
- * 支持快速添加、逗号/空格/换行自动切分批量添加、点选修改以及一键移除标签。
+ * 支持快速添加、逗号/换行批量添加、点选修改以及一键移除标签。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -74,26 +74,14 @@ fun RpChipInputField(
     enabled: Boolean = true,
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    // 过滤掉空字符串后的实际显示列表
     val cleanChips = remember(chips) { chips.filter { it.isNotBlank() } }
     var isInputting by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
-    val focusRequester = remember { FocusRequester() }
-
-    // 正在编辑中的单条标签下标（null 表示无弹窗）
     var editingChipIndex by remember { mutableStateOf<Int?>(null) }
 
     fun commitCurrentInput() {
-        val raw = inputText.trim()
-        if (raw.isNotBlank()) {
-            val additions = raw.split(Regex("[,，\\n]+"))
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-            if (additions.isNotEmpty()) {
-                val newChips = (cleanChips + additions).distinct()
-                onChipsChanged(newChips)
-            }
-        }
+        val merged = mergeChips(cleanChips, inputText)
+        if (merged != cleanChips) onChipsChanged(merged)
         inputText = ""
         isInputting = false
     }
@@ -105,234 +93,274 @@ fun RpChipInputField(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 头部标题与统计
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (icon != null) {
-                    RpIconBubble(
-                        icon = icon,
-                        containerColor = accentColor.copy(alpha = 0.12f),
-                        contentColor = accentColor
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = accentColor.copy(alpha = 0.10f),
-                    border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.20f))
-                ) {
-                    Text(
-                        text = stringResource(R.string.chip_count, cleanChips.size),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = accentColor
-                    )
-                }
-            }
-
-            // 流式胶囊展示区
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                cleanChips.forEachIndexed { index, chipText ->
-                    InputChip(
-                        selected = false,
-                        onClick = {
-                            if (enabled) {
-                                editingChipIndex = index
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = chipText,
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        trailingIcon = if (enabled) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.delete),
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable {
-                                            val updated = cleanChips.toMutableList()
-                                            if (index in updated.indices) {
-                                                updated.removeAt(index)
-                                                onChipsChanged(updated)
-                                            }
-                                        }
-                                )
-                            }
-                        } else null,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = InputChipDefaults.inputChipColors(
-                            containerColor = accentColor.copy(alpha = 0.08f),
-                            labelColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = InputChipDefaults.inputChipBorder(
-                            enabled = enabled,
-                            selected = false,
-                            borderColor = accentColor.copy(alpha = 0.22f),
-                            borderWidth = 0.5.dp
-                        )
-                    )
-                }
-
-                // 添加按钮胶囊
-                if (enabled && !isInputting) {
-                    AssistChip(
-                        onClick = { isInputting = true },
-                        label = {
-                            Text(
-                                text = addLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = addLabel,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        border = AssistChipDefaults.assistChipBorder(
-                            enabled = true,
-                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                            borderWidth = 0.5.dp
-                        )
-                    )
-                }
-            }
-
-            // 内联输入展开框
-            AnimatedVisibility(
+            ChipInputHeader(title, subtitle, icon, cleanChips.size, accentColor)
+            ChipFlow(
+                chips = cleanChips,
+                enabled = enabled,
+                inputVisible = isInputting,
+                addLabel = addLabel,
+                accentColor = accentColor,
+                onEdit = { editingChipIndex = it },
+                onRemove = { index -> onChipsChanged(cleanChips.filterIndexed { i, _ -> i != index }) },
+                onAdd = { isInputting = true }
+            )
+            InlineChipInput(
                 visible = isInputting,
-                enter = fadeIn() + scaleIn(initialScale = 0.95f),
-                exit = fadeOut() + scaleOut(targetScale = 0.95f)
-            ) {
-                LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
-                }
+                value = inputText,
+                placeholder = placeholder,
+                accentColor = accentColor,
+                onValueChange = { value ->
+                    if (value.endsWith(",") || value.endsWith("，") || value.endsWith("\n")) {
+                        onChipsChanged(mergeChips(cleanChips, value))
+                        inputText = ""
+                    } else {
+                        inputText = value
+                    }
+                },
+                onDone = ::commitCurrentInput
+            )
+        }
+    }
+    ChipEditDialog(
+        index = editingChipIndex,
+        chips = cleanChips,
+        title = editDialogTitle,
+        onDismiss = { editingChipIndex = null },
+        onChipsChanged = onChipsChanged
+    )
+}
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { value ->
-                            if (value.endsWith(",") || value.endsWith("，") || value.endsWith("\n")) {
-                                val splitCandidates = value.split(Regex("[,，\\n]+"))
-                                    .map { it.trim() }
-                                    .filter { it.isNotBlank() }
-                                if (splitCandidates.isNotEmpty()) {
-                                    val newChips = (cleanChips + splitCandidates).distinct()
-                                    onChipsChanged(newChips)
-                                }
-                                inputText = ""
-                            } else {
-                                inputText = value
-                            }
-                        },
-                        placeholder = {
-                            Text(
-                                text = placeholder,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        singleLine = true,
-                        modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester),
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { commitCurrentInput() }),
-                        trailingIcon = {
-                            if (inputText.isNotBlank()) {
-                                IconButton(onClick = { commitCurrentInput() }) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = stringResource(R.string.confirm),
-                                        tint = accentColor
-                                    )
-                                }
-                            }
-                        }
+@Composable
+private fun ChipInputHeader(
+    title: String,
+    subtitle: String?,
+    icon: ImageVector?,
+    count: Int,
+    accentColor: Color
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            RpIconBubble(
+                icon = icon,
+                containerColor = accentColor.copy(alpha = 0.12f),
+                contentColor = accentColor
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+            }
+        }
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = accentColor.copy(alpha = 0.10f),
+            border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.20f))
+        ) {
+            Text(
+                text = stringResource(R.string.chip_count, count),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = accentColor
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipFlow(
+    chips: List<String>,
+    enabled: Boolean,
+    inputVisible: Boolean,
+    addLabel: String,
+    accentColor: Color,
+    onEdit: (Int) -> Unit,
+    onRemove: (Int) -> Unit,
+    onAdd: () -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        chips.forEachIndexed { index, chipText ->
+            EditableInputChip(
+                text = chipText,
+                enabled = enabled,
+                accentColor = accentColor,
+                onEdit = { onEdit(index) },
+                onRemove = { onRemove(index) }
+            )
+        }
+        if (enabled && !inputVisible) {
+            AddInputChip(addLabel, onAdd)
+        }
+    }
+}
+
+@Composable
+private fun EditableInputChip(
+    text: String,
+    enabled: Boolean,
+    accentColor: Color,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit
+) {
+    InputChip(
+        selected = false,
+        onClick = { if (enabled) onEdit() },
+        label = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        trailingIcon = if (enabled) {
+            {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.delete),
+                    modifier = Modifier.size(16.dp).clickable(onClick = onRemove)
+                )
+            }
+        } else null,
+        shape = RoundedCornerShape(10.dp),
+        colors = InputChipDefaults.inputChipColors(
+            containerColor = accentColor.copy(alpha = 0.08f),
+            labelColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = InputChipDefaults.inputChipBorder(
+            enabled = enabled,
+            selected = false,
+            borderColor = accentColor.copy(alpha = 0.22f),
+            borderWidth = 0.5.dp
+        )
+    )
+}
+
+@Composable
+private fun AddInputChip(label: String, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = {
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+        },
+        leadingIcon = {
+            Icon(Icons.Rounded.Add, label, Modifier.size(16.dp))
+        },
+        shape = RoundedCornerShape(10.dp),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        border = AssistChipDefaults.assistChipBorder(
+            enabled = true,
+            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+            borderWidth = 0.5.dp
+        )
+    )
+}
+
+@Composable
+private fun InlineChipInput(
+    visible: Boolean,
+    value: String,
+    placeholder: String,
+    accentColor: Color,
+    onValueChange: (String) -> Unit,
+    onDone: () -> Unit
+) {
+    val focusRequester = remember { FocusRequester() }
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(initialScale = 0.95f),
+        exit = fadeOut() + scaleOut(targetScale = 0.95f)
+    ) {
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    IconButton(
-                        onClick = {
-                            commitCurrentInput()
+                },
+                singleLine = true,
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onDone() }),
+                trailingIcon = {
+                    if (value.isNotBlank()) {
+                        IconButton(onClick = onDone) {
+                            Icon(Icons.Rounded.Check, stringResource(R.string.confirm), tint = accentColor)
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.cancel),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
                     }
                 }
+            )
+            IconButton(onClick = onDone) {
+                Icon(
+                    Icons.Rounded.Close,
+                    stringResource(R.string.cancel),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
             }
         }
     }
+}
 
-    // 单条修改弹窗
-    val targetIndex = editingChipIndex
-    var editingDraft by remember(targetIndex) {
-        mutableStateOf(targetIndex?.let { cleanChips.getOrNull(it) }.orEmpty())
-    }
+@Composable
+private fun ChipEditDialog(
+    index: Int?,
+    chips: List<String>,
+    title: String,
+    onDismiss: () -> Unit,
+    onChipsChanged: (List<String>) -> Unit
+) {
+    var draft by remember(index) { mutableStateOf(index?.let { chips.getOrNull(it) }.orEmpty()) }
+    if (index == null || index !in chips.indices) return
+    AppInputDialog(
+        onDismissRequest = onDismiss,
+        title = title,
+        value = draft,
+        onValueChange = { draft = it },
+        singleLine = true,
+        confirmText = stringResource(R.string.save),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            val updated = chips.toMutableList()
+            if (draft.isBlank()) updated.removeAt(index) else updated[index] = draft.trim()
+            onChipsChanged(updated)
+            onDismiss()
+        }
+    )
+}
 
-    if (targetIndex != null && targetIndex in cleanChips.indices) {
-        AppInputDialog(
-            onDismissRequest = { editingChipIndex = null },
-            title = editDialogTitle,
-            value = editingDraft,
-            onValueChange = { editingDraft = it },
-            singleLine = true,
-            confirmText = stringResource(R.string.save),
-            dismissText = stringResource(R.string.cancel),
-            onConfirm = {
-                val trimmed = editingDraft.trim()
-                val list = cleanChips.toMutableList()
-                if (trimmed.isBlank()) {
-                    list.removeAt(targetIndex)
-                } else {
-                    list[targetIndex] = trimmed
-                }
-                onChipsChanged(list)
-                editingChipIndex = null
-            }
-        )
-    }
+private fun mergeChips(existing: List<String>, input: String): List<String> {
+    val additions = input.split(Regex("[,，\\n]+"))
+        .map(String::trim)
+        .filter(String::isNotBlank)
+    return (existing + additions).distinct()
 }

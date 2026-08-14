@@ -27,6 +27,8 @@ sealed class PromptPresetDialogState {
 
     data class EditPrompt(
         val type: PromptType,
-        val draftText: String
+        val draftText: String,
+        val defaultText: String,
+        val availableMacros: List<String>
     ) : PromptPresetDialogState()
 }

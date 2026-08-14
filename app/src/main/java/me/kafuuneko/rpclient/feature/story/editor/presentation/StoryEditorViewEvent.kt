@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 sealed class StoryEditorViewEvent : IViewEvent {
     data class CopyDraft(val content: String) : StoryEditorViewEvent()
     data class CopyGeneratedText(val content: String) : StoryEditorViewEvent()
+    data class CopyPromptText(val content: String) : StoryEditorViewEvent()
     data object OpenTextImporter : StoryEditorViewEvent()
     data object OpenStoryImporter : StoryEditorViewEvent()
     data class OpenTextExporter(val fileName: String, val markdown: Boolean) : StoryEditorViewEvent()

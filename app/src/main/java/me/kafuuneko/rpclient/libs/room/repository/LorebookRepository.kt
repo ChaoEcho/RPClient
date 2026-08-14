@@ -152,6 +152,15 @@ class LorebookRepository(
     }
 
     /**
+     * 修改条目的全局禁用状态。
+     *
+     * @return 条目存在且成功更新时为 true。
+     */
+    suspend fun updateEntryDisabled(id: Long, disabled: Boolean): Boolean {
+        return mLorebookEntryDao.updateEntryDisabled(id, disabled) > 0
+    }
+
+    /**
      * 删除指定世界书条目。
      *
      * @param id 世界书条目 id。

@@ -10,6 +10,8 @@ sealed class GroupChatUiIntent {
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
     data object OpenPromptInspector : GroupChatUiIntent()
+
+    data class CopyPromptItem(val text: String) : GroupChatUiIntent()
     data object CloseSettings : GroupChatUiIntent()
     data class ChangeInputDraft(val value: String) : GroupChatUiIntent()
     data class SelectSpeaker(val characterId: Long) : GroupChatUiIntent()

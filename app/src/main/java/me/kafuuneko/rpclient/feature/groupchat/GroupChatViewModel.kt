@@ -167,6 +167,12 @@ class GroupChatViewModel :
         ).setup()
     }
 
+    @UiIntentObserver(GroupChatUiIntent.CopyPromptItem::class)
+    private fun onCopyPromptItem(intent: GroupChatUiIntent.CopyPromptItem) {
+        if (!isStateOf<GroupChatUiState.Normal>()) return
+        GroupChatViewEvent.CopyText(intent.text).tryEmit()
+    }
+
     @UiIntentObserver(GroupChatUiIntent.CloseSettings::class)
     private suspend fun onCloseSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return

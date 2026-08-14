@@ -375,6 +375,7 @@
     <string name="world_book_deleted">世界书已删除</string>
     <string name="world_book_entry_created">条目已创建</string>
     <string name="world_book_entry_saved">条目已保存</string>
+    <string name="world_book_entry_update_failed">更新条目失败</string>
     <string name="world_book_entry_deleted">条目已删除</string>
 
     <!-- Chip Input & Enums -->

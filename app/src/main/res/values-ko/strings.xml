@@ -376,6 +376,7 @@
     <string name="world_book_deleted">월드북이 삭제되었습니다</string>
     <string name="world_book_entry_created">항목이 생성되었습니다</string>
     <string name="world_book_entry_saved">항목이 저장되었습니다</string>
+    <string name="world_book_entry_update_failed">항목을 업데이트하지 못했습니다</string>
     <string name="world_book_entry_deleted">항목이 삭제되었습니다</string>
 
     <!-- LLM Provider List Layout -->

@@ -16,6 +16,10 @@ sealed class WorldBookEditUiIntent {
 
     data class ChangeTokenBudgetTokens(val value: String) : WorldBookEditUiIntent()
 
+    data class ChangeEntrySearchQuery(val value: String) : WorldBookEditUiIntent()
+
+    data class SelectEntryFilter(val filter: WorldBookEntryFilter) : WorldBookEditUiIntent()
+
     data object AddEntry : WorldBookEditUiIntent()
 
     data class EditEntry(val entryId: Long) : WorldBookEditUiIntent()

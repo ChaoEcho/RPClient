@@ -26,9 +26,9 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,8 +48,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-
-import androidx.compose.material3.FilledTonalButton
 
 /** Dialog 顶部状态徽标的色彩风格。 */
 enum class DialogBadgeTone {
@@ -86,8 +84,6 @@ fun AppDialogScaffold(
     scrollableContent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
-    val haptic = LocalHapticFeedback.current
-
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = properties
@@ -112,255 +108,262 @@ fun AppDialogScaffold(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (compactHeader) {
-                    // 紧凑横向头部排版（适用于输入、参数微调与长表单）
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        if (badgeIcon != null) {
-                            val (badgeContainerColor, badgeContentColor) = resolveBadgeColors(badgeTone)
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .background(badgeContainerColor, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = badgeIcon,
-                                    contentDescription = null,
-                                    tint = badgeContentColor,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            if (!subtitle.isNullOrBlank()) {
-                                Text(
-                                    text = subtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // 居中 Hero 状态徽标与标题（带双层扩散微光环）
-                    if (badgeIcon != null) {
-                        val (badgeContainerColor, badgeContentColor) = resolveBadgeColors(badgeTone)
-                        Box(
-                            modifier = Modifier
-                                .size(58.dp)
-                                .background(badgeContainerColor.copy(alpha = 0.35f), CircleShape)
-                                .padding(5.dp)
-                                .background(badgeContainerColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = badgeIcon,
-                                contentDescription = null,
-                                tint = badgeContentColor,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
-                        )
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                text = subtitle,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                // 主体内容插槽
-                val contentModifier = if (scrollableContent) {
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 380.dp)
-                        .verticalScroll(rememberScrollState())
-                } else {
-                    Modifier.fillMaxWidth()
-                }
-
-                Column(
-                    modifier = contentModifier,
-                    content = content
+                AppDialogHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    badgeIcon = badgeIcon,
+                    badgeTone = badgeTone,
+                    compact = compactHeader
                 )
-
-                // 底部操作按钮区域 (48.dp 标准人体工学触控高度，支持多语言长文本自适应纵向堆叠)
+                AppDialogContent(scrollableContent, content)
                 if (onConfirm != null || onDismiss != null) {
-                    val isStacked = stackButtons ?: shouldStackActionButtons(confirmText, dismissText)
-
-                    val confirmColors = if (confirmIsDestructive) {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        )
-                    } else {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-
-                    if (isStacked) {
-                        // 纵向全宽堆叠排版（适用于多语言/长文本，确保文字完全单行舒展不被截断）
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            if (onConfirm != null) {
-                                Button(
-                                    onClick = {
-                                        if (confirmIsDestructive) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        onConfirm()
-                                    },
-                                    enabled = confirmEnabled && !isConfirmLoading,
-                                    colors = confirmColors,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    if (isConfirmLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.5.dp,
-                                            color = if (confirmIsDestructive) {
-                                                MaterialTheme.colorScheme.onError
-                                            } else {
-                                                MaterialTheme.colorScheme.onPrimary
-                                            }
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    Text(
-                                        text = confirmText,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            if (dismissText != null && onDismiss != null) {
-                                FilledTonalButton(
-                                    onClick = onDismiss,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    Text(
-                                        text = dismissText,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // 横向左右并排（适用于极短文案，如 确定/取消，Save/Cancel）
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (dismissText != null && onDismiss != null) {
-                                FilledTonalButton(
-                                    onClick = onDismiss,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    Text(
-                                        text = dismissText,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            if (onConfirm != null) {
-                                Button(
-                                    onClick = {
-                                        if (confirmIsDestructive) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        onConfirm()
-                                    },
-                                    enabled = confirmEnabled && !isConfirmLoading,
-                                    colors = confirmColors,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    if (isConfirmLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.5.dp,
-                                            color = if (confirmIsDestructive) {
-                                                MaterialTheme.colorScheme.onError
-                                            } else {
-                                                MaterialTheme.colorScheme.onPrimary
-                                            }
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    Text(
-                                        text = confirmText,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    AppDialogActions(
+                        confirmText = confirmText,
+                        dismissText = dismissText,
+                        confirmEnabled = confirmEnabled,
+                        isConfirmLoading = isConfirmLoading,
+                        confirmIsDestructive = confirmIsDestructive,
+                        stacked = stackButtons ?: shouldStackActionButtons(confirmText, dismissText),
+                        onConfirm = onConfirm,
+                        onDismiss = onDismiss
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AppDialogHeader(
+    title: String,
+    subtitle: String?,
+    badgeIcon: ImageVector?,
+    badgeTone: DialogBadgeTone,
+    compact: Boolean
+) {
+    if (compact) {
+        CompactDialogHeader(title, subtitle, badgeIcon, badgeTone)
+    } else {
+        HeroDialogHeader(title, subtitle, badgeIcon, badgeTone)
+    }
+}
+
+@Composable
+private fun CompactDialogHeader(
+    title: String,
+    subtitle: String?,
+    badgeIcon: ImageVector?,
+    badgeTone: DialogBadgeTone
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        if (badgeIcon != null) {
+            val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
+            Box(
+                modifier = Modifier.size(42.dp).background(containerColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(badgeIcon, null, Modifier.size(22.dp), contentColor)
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroDialogHeader(
+    title: String,
+    subtitle: String?,
+    badgeIcon: ImageVector?,
+    badgeTone: DialogBadgeTone
+) {
+    if (badgeIcon != null) {
+        val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .background(containerColor.copy(alpha = 0.35f), CircleShape)
+                .padding(5.dp)
+                .background(containerColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(badgeIcon, null, Modifier.size(26.dp), contentColor)
+        }
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppDialogContent(
+    scrollable: Boolean,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val modifier = if (scrollable) {
+        Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState())
+    } else {
+        Modifier.fillMaxWidth()
+    }
+    Column(modifier = modifier, content = content)
+}
+
+@Composable
+private fun AppDialogActions(
+    confirmText: String,
+    dismissText: String?,
+    confirmEnabled: Boolean,
+    isConfirmLoading: Boolean,
+    confirmIsDestructive: Boolean,
+    stacked: Boolean,
+    onConfirm: (() -> Unit)?,
+    onDismiss: (() -> Unit)?
+) {
+    val haptic = LocalHapticFeedback.current
+    val confirmAction = onConfirm?.let {
+        {
+            if (confirmIsDestructive) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            it()
+        }
+    }
+    if (stacked) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            confirmAction?.let {
+                DialogConfirmButton(
+                    text = confirmText,
+                    enabled = confirmEnabled,
+                    loading = isConfirmLoading,
+                    destructive = confirmIsDestructive,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = it
+                )
+            }
+            if (dismissText != null && onDismiss != null) {
+                DialogDismissButton(dismissText, Modifier.fillMaxWidth(), onDismiss)
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (dismissText != null && onDismiss != null) {
+                DialogDismissButton(dismissText, Modifier.weight(1f), onDismiss)
+            }
+            confirmAction?.let {
+                DialogConfirmButton(
+                    text = confirmText,
+                    enabled = confirmEnabled,
+                    loading = isConfirmLoading,
+                    destructive = confirmIsDestructive,
+                    modifier = Modifier.weight(1f),
+                    onClick = it
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogConfirmButton(
+    text: String,
+    enabled: Boolean,
+    loading: Boolean,
+    destructive: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val colors = if (destructive) {
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError
+        )
+    } else {
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        )
+    }
+    Button(
+        onClick = onClick,
+        enabled = enabled && !loading,
+        colors = colors,
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.5.dp,
+                color = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun DialogDismissButton(text: String, modifier: Modifier, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -383,7 +386,6 @@ private fun shouldStackActionButtons(
     if (confirmText == null || dismissText == null) return false
     val confirmWidth = confirmText.estimatedVisualWidth()
     val dismissWidth = dismissText.estimatedVisualWidth()
-    // 当任意一个文案较长（>4个中文或>9个西文字符），或者总宽度过大时，切换为纵向堆叠
     return confirmWidth > 9.0f || dismissWidth > 9.0f || (confirmWidth + dismissWidth) > 17.0f
 }
 

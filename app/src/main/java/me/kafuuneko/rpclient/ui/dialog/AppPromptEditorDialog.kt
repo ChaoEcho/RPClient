@@ -41,10 +41,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,7 +59,7 @@ import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 /**
  * 通用提示词 / 结构化文本编辑器对话框。
  *
- * 支持实时字数与 Token 估算、宏占位符语法高亮、一键清空、复制到剪贴板、恢复默认预设、以及宏变量快速插入。
+ * 支持实时字数与 Token 估算、宏语法高亮、清空、请求复制、恢复默认预设及快速插入。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -72,6 +70,7 @@ fun AppPromptEditorDialog(
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
+    onCopyRequest: ((String) -> Unit)? = null,
     subtitle: String? = null,
     badgeIcon: ImageVector = Icons.Rounded.AutoAwesome,
     badgeTone: DialogBadgeTone = DialogBadgeTone.Primary,
@@ -86,10 +85,6 @@ fun AppPromptEditorDialog(
     confirmEnabled: Boolean = true,
     isConfirmLoading: Boolean = false
 ) {
-    val haptic = LocalHapticFeedback.current
-    val clipboardManager = LocalClipboardManager.current
-    val scrollState = rememberScrollState()
-
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
     }
@@ -128,206 +123,245 @@ fun AppPromptEditorDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 顶部元数据胶囊与快捷操作栏
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            PromptEditorToolbar(
+                value = value,
+                charCount = charCount,
+                estimatedTokens = estimatedTokens,
+                defaultValue = defaultValue,
+                onClear = {
+                    textFieldValue = TextFieldValue("")
+                    onValueChange("")
+                },
+                onCopyRequest = onCopyRequest,
+                onRestoreDefault = { restored ->
+                    textFieldValue = TextFieldValue(restored, TextRange(restored.length))
+                    onValueChange(restored)
+                }
+            )
+            PromptEditorViewport(
+                value = value,
+                textFieldValue = textFieldValue,
+                onTextFieldValueChange = { newValue ->
+                    textFieldValue = newValue
+                    if (newValue.text != value) onValueChange(newValue.text)
+                },
+                placeholder = placeholder,
+                visualTransformation = visualTransformation,
+                editorHeightMin = editorHeightMin,
+                editorHeightMax = editorHeightMax
+            )
+            PromptMacroChips(availableMacros) { macro ->
+                textFieldValue = textFieldValue.insertMacro(macro)
+                onValueChange(textFieldValue.text)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromptEditorToolbar(
+    value: String,
+    charCount: Int,
+    estimatedTokens: Int,
+    defaultValue: String?,
+    onClear: () -> Unit,
+    onCopyRequest: ((String) -> Unit)?,
+    onRestoreDefault: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        ) {
+            Text(
+                text = stringResource(R.string.prompt_editor_char_count, charCount, estimatedTokens),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+        PromptEditorActions(value, defaultValue, onClear, onCopyRequest, onRestoreDefault)
+    }
+}
+
+@Composable
+private fun PromptEditorActions(
+    value: String,
+    defaultValue: String?,
+    onClear: () -> Unit,
+    onCopyRequest: ((String) -> Unit)?,
+    onRestoreDefault: (String) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (value.isNotEmpty()) {
+            IconButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClear()
+                },
+                modifier = Modifier.size(30.dp)
             ) {
-                // 字符数与 Token 统计
+                Icon(
+                    Icons.Rounded.DeleteOutline,
+                    contentDescription = stringResource(R.string.prompt_editor_clear),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            if (onCopyRequest != null) {
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onCopyRequest(value)
+                    },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.ContentCopy,
+                        contentDescription = stringResource(R.string.copy),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        if (!defaultValue.isNullOrBlank() && value != defaultValue) {
+            RestoreDefaultAction {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onRestoreDefault(defaultValue)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreDefaultAction(onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(14.dp))
+            Text(
+                text = stringResource(R.string.prompt_editor_restore_default),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun PromptEditorViewport(
+    value: String,
+    textFieldValue: TextFieldValue,
+    onTextFieldValueChange: (TextFieldValue) -> Unit,
+    placeholder: String,
+    visualTransformation: VisualTransformation,
+    editorHeightMin: Dp,
+    editorHeightMax: Dp
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = editorHeightMin, max = editorHeightMax)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(14.dp)
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+            )
+        }
+        BasicTextField(
+            value = textFieldValue,
+            onValueChange = onTextFieldValueChange,
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 22.sp
+            ),
+            visualTransformation = visualTransformation,
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PromptMacroChips(
+    macros: List<String>,
+    onInsert: (String) -> Unit
+) {
+    if (macros.isEmpty()) return
+    val haptic = LocalHapticFeedback.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.prompt_editor_macro_title),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            macros.forEach { macro ->
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onInsert(macro)
+                    }
                 ) {
                     Text(
-                        text = stringResource(R.string.prompt_editor_char_count, charCount, estimatedTokens),
-                        style = MaterialTheme.typography.labelSmall,
+                        text = macro,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-
-                // 快捷操作动作组：清空、复制、恢复默认
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (value.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                textFieldValue = TextFieldValue("")
-                                onValueChange("")
-                            },
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DeleteOutline,
-                                contentDescription = stringResource(R.string.prompt_editor_clear),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                clipboardManager.setText(AnnotatedString(value))
-                            },
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ContentCopy,
-                                contentDescription = stringResource(R.string.copy),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    if (!defaultValue.isNullOrBlank() && value != defaultValue) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    val def = defaultValue.orEmpty()
-                                    textFieldValue = TextFieldValue(def, selection = TextRange(def.length))
-                                    onValueChange(def)
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.RestartAlt,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.prompt_editor_restore_default),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 编辑器视口容器 (沉浸式卡片 + 细微高光描边)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = editorHeightMin, max = editorHeightMax)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .padding(14.dp)
-            ) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                ) {
-                    BasicTextField(
-                        value = textFieldValue,
-                        onValueChange = { newValue ->
-                            textFieldValue = newValue
-                            if (newValue.text != value) {
-                                onValueChange(newValue.text)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 22.sp
-                        ),
-                        visualTransformation = visualTransformation,
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                    )
-                }
-            }
-
-            // 底部宏占位符快速插入栏
-            if (availableMacros.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.prompt_editor_macro_title),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        availableMacros.forEach { macro ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                border = BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                ),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        val currentText = textFieldValue.text
-                                        val selection = textFieldValue.selection
-                                        val start = selection.min.coerceIn(0, currentText.length)
-                                        val end = selection.max.coerceIn(0, currentText.length)
-                                        val before = currentText.substring(0, start)
-                                        val after = currentText.substring(end)
-                                        val insertContent = if (macro == "<START>") {
-                                            if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
-                                        } else {
-                                            macro
-                                        }
-                                        val newText = before + insertContent + after
-                                        val newCursorPos = start + insertContent.length
-                                        textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursorPos))
-                                        onValueChange(newText)
-                                    }
-                            ) {
-                                Text(
-                                    text = macro,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = FontFamily.Monospace
-                                    ),
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }
+}
+
+private fun TextFieldValue.insertMacro(macro: String): TextFieldValue {
+    val start = selection.min.coerceIn(0, text.length)
+    val end = selection.max.coerceIn(0, text.length)
+    val before = text.substring(0, start)
+    val insertion = if (macro == "<START>" && before.isNotEmpty() && !before.endsWith("\n")) {
+        "\n<START>\n"
+    } else if (macro == "<START>") {
+        "<START>\n"
+    } else {
+        macro
+    }
+    val updated = before + insertion + text.substring(end)
+    return TextFieldValue(updated, TextRange(start + insertion.length))
 }
 
 @Preview(name = "AppPromptEditorDialog Preview", showBackground = true)

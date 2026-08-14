@@ -99,4 +99,3 @@ fun getMacaronColor(name: String): Color {
     val hue = kotlin.math.abs(name.hashCode() % 360).toFloat()
     return Color.hsl(hue, saturation = 0.60f, lightness = 0.80f)
 }
-

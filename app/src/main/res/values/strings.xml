@@ -376,6 +376,7 @@
     <string name="world_book_deleted">World book deleted</string>
     <string name="world_book_entry_created">Entry created</string>
     <string name="world_book_entry_saved">Entry saved</string>
+    <string name="world_book_entry_update_failed">Failed to update entry</string>
     <string name="world_book_entry_deleted">Entry deleted</string>
 
     <!-- Chip Input & Enums -->

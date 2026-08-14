@@ -528,6 +528,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
+    @UiIntentObserver(ChatUiIntent.CopyPromptItem::class)
+    private fun onCopyPromptItem(intent: ChatUiIntent.CopyPromptItem) {
+        if (!isStateOf<ChatUiState.Normal>()) return
+        ChatViewEvent.CopyText(intent.text).tryEmit()
+    }
+
     @UiIntentObserver(ChatUiIntent.ConfirmDeleteSession::class)
     private suspend fun onConfirmDeleteSession() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return

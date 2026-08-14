@@ -81,6 +81,7 @@ import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -107,13 +108,6 @@ private enum class CharacterEditTab {
     Advanced
 }
 
-private data class PromptEditorTarget(
-    val title: String,
-    val initialValue: String,
-    val availableMacros: List<String> = DEFAULT_PROMPT_MACROS,
-    val onSave: (String) -> Unit
-)
-
 /** 角色创建与编辑页 Compose 入口，仅渲染状态并发送编辑意图。 */
 @Composable
 fun CharacterEditLayout(
@@ -137,7 +131,6 @@ private fun CharacterEditNormal(
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(CharacterEditTab.Profile) }
-    var activePromptEditor by remember { mutableStateOf<PromptEditorTarget?>(null) }
 
     Column(
         modifier = Modifier
@@ -202,27 +195,18 @@ private fun CharacterEditNormal(
                         item {
                             DialogueDefinitionPanel(
                                 form = state.form,
-                                onOpenFullscreen = { title, initVal, onSave ->
-                                    activePromptEditor = PromptEditorTarget(title = title, initialValue = initVal, onSave = onSave)
-                                },
                                 emit = emit
                             )
                         }
                         item {
                             FirstMessagesPanel(
                                 firstMessages = state.form.firstMessages,
-                                onOpenFullscreen = { title, initVal, onSave ->
-                                    activePromptEditor = PromptEditorTarget(title = title, initialValue = initVal, onSave = onSave)
-                                },
                                 emit = emit
                             )
                         }
                         item {
                             DialogueExamplesPanel(
                                 form = state.form,
-                                onOpenFullscreen = { title, initVal, macros, onSave ->
-                                    activePromptEditor = PromptEditorTarget(title, initVal, macros, onSave)
-                                },
                                 emit = emit
                             )
                         }
@@ -232,9 +216,6 @@ private fun CharacterEditNormal(
                             AdvancedPanel(
                                 form = state.form,
                                 availableLorebooks = state.availableLorebooks,
-                                onOpenFullscreen = { title, initVal, onSave ->
-                                    activePromptEditor = PromptEditorTarget(title, initVal, DEFAULT_PROMPT_MACROS, onSave)
-                                },
                                 emit = emit
                             )
                         }
@@ -246,21 +227,6 @@ private fun CharacterEditNormal(
         }
     }
 
-    // 全屏专注文本编辑器
-    activePromptEditor?.let { target ->
-        var editingText by remember(target) { mutableStateOf(target.initialValue) }
-        AppPromptEditorDialog(
-            onDismissRequest = { activePromptEditor = null },
-            title = target.title,
-            value = editingText,
-            availableMacros = target.availableMacros,
-            onValueChange = { editingText = it },
-            onConfirm = {
-                target.onSave(editingText)
-                activePromptEditor = null
-            }
-        )
-    }
 }
 
 @Composable
@@ -523,7 +489,6 @@ private fun TagsPanel(
 @Composable
 private fun DialogueDefinitionPanel(
     form: CharacterEditForm,
-    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     val personalityLabel = stringResource(R.string.character_personality)
@@ -537,9 +502,7 @@ private fun DialogueDefinitionPanel(
             minLines = 4,
             showMacroBar = true,
             onExpandFullscreen = {
-                onOpenFullscreen(personalityLabel, form.personality) {
-                    CharacterEditUiIntent.ChangePersonality(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.Personality).emit()
             },
             onChange = { CharacterEditUiIntent.ChangePersonality(it).emit() }
         )
@@ -549,9 +512,7 @@ private fun DialogueDefinitionPanel(
             minLines = 4,
             showMacroBar = true,
             onExpandFullscreen = {
-                onOpenFullscreen(scenarioLabel, form.scenario) {
-                    CharacterEditUiIntent.ChangeScenario(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.Scenario).emit()
             },
             onChange = { CharacterEditUiIntent.ChangeScenario(it).emit() }
         )
@@ -561,7 +522,6 @@ private fun DialogueDefinitionPanel(
 @Composable
 private fun FirstMessagesPanel(
     firstMessages: List<String>,
-    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     Panel {
@@ -579,9 +539,9 @@ private fun FirstMessagesPanel(
                 leadingIcon = { Icon(Icons.Rounded.ChatBubble, contentDescription = null) },
                 showMacroBar = true,
                 onExpandFullscreen = {
-                    onOpenFullscreen(label, message) {
-                        CharacterEditUiIntent.ChangeFirstMessage(index, it).emit()
-                    }
+                    CharacterEditUiIntent.ShowPromptEditor(
+                        CharacterPromptField.FirstMessage(index)
+                    ).emit()
                 },
                 onValueChange = { CharacterEditUiIntent.ChangeFirstMessage(index, it).emit() },
                 onDelete = { CharacterEditUiIntent.DeleteFirstMessage(index).emit() }
@@ -593,7 +553,6 @@ private fun FirstMessagesPanel(
 @Composable
 private fun DialogueExamplesPanel(
     form: CharacterEditForm,
-    onOpenFullscreen: (String, String, List<String>, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     val dialogueLabel = stringResource(R.string.character_examples_of_dialogue)
@@ -607,9 +566,7 @@ private fun DialogueExamplesPanel(
             showMacroBar = true,
             macros = DIALOGUE_EXAMPLE_MACROS,
             onExpandFullscreen = {
-                onOpenFullscreen(dialogueLabel, form.examplesOfDialogue, DIALOGUE_EXAMPLE_MACROS) {
-                    CharacterEditUiIntent.ChangeExamplesOfDialogue(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.DialogueExamples).emit()
             },
             onChange = { CharacterEditUiIntent.ChangeExamplesOfDialogue(it).emit() }
         )
@@ -620,7 +577,6 @@ private fun DialogueExamplesPanel(
 private fun AdvancedPanel(
     form: CharacterEditForm,
     availableLorebooks: List<CharacterLorebookItem>,
-    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     var isExtensionsExpanded by rememberSaveable(form.id) { mutableStateOf(false) }
@@ -644,9 +600,7 @@ private fun AdvancedPanel(
             maxLines = 8,
             showMacroBar = true,
             onExpandFullscreen = {
-                onOpenFullscreen(systemPromptLabel, form.systemPrompt) {
-                    CharacterEditUiIntent.ChangeSystemPrompt(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.SystemPrompt).emit()
             },
             onChange = { CharacterEditUiIntent.ChangeSystemPrompt(it).emit() }
         )
@@ -657,9 +611,9 @@ private fun AdvancedPanel(
             maxLines = 8,
             showMacroBar = true,
             onExpandFullscreen = {
-                onOpenFullscreen(postHistoryLabel, form.postHistoryInstructions) {
-                    CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(
+                    CharacterPromptField.PostHistoryInstructions
+                ).emit()
             },
             onChange = { CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit() }
         )
@@ -670,9 +624,7 @@ private fun AdvancedPanel(
             maxLines = 8,
             showMacroBar = true,
             onExpandFullscreen = {
-                onOpenFullscreen(noteLabel, form.depthPromptPrompt) {
-                    CharacterEditUiIntent.ChangeDepthPromptPrompt(it).emit()
-                }
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.DepthPrompt).emit()
             },
             onChange = { CharacterEditUiIntent.ChangeDepthPromptPrompt(it).emit() }
         )
@@ -707,9 +659,9 @@ private fun AdvancedPanel(
                 maxLines = 6,
                 showMacroBar = true,
                 onExpandFullscreen = {
-                    onOpenFullscreen(label, greeting) {
-                        CharacterEditUiIntent.ChangeAlternateGreeting(index, it).emit()
-                    }
+                    CharacterEditUiIntent.ShowPromptEditor(
+                        CharacterPromptField.AlternateGreeting(index)
+                    ).emit()
                 },
                 onValueChange = { CharacterEditUiIntent.ChangeAlternateGreeting(index, it).emit() },
                 onDelete = { CharacterEditUiIntent.DeleteAlternateGreeting(index).emit() }
@@ -862,6 +814,15 @@ private fun DialogSwitch(
             onConfirm = { CharacterEditUiIntent.ConfirmDeleteCharacterWithLorebook.emit() },
             onDismiss = { CharacterEditUiIntent.ConfirmDeleteCharacterOnly.emit() }
         )
+        is CharacterEditDialogState.PromptEditor -> AppPromptEditorDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = dialogState.field.editorTitle(),
+            value = dialogState.draftText,
+            availableMacros = dialogState.field.availableMacros(),
+            onValueChange = { CharacterEditUiIntent.ChangePromptEditorDraft(it).emit() },
+            onCopyRequest = { CharacterEditUiIntent.CopyPromptEditorText.emit() },
+            onConfirm = { CharacterEditUiIntent.ConfirmPromptEditor.emit() }
+        )
         CharacterEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.unsaved_changes_title),
@@ -870,6 +831,36 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             onConfirm = { CharacterEditUiIntent.ConfirmDiscardChanges.emit() }
         )
+    }
+}
+
+@Composable
+private fun CharacterPromptField.editorTitle(): String {
+    return when (this) {
+        CharacterPromptField.Personality -> stringResource(R.string.character_personality)
+        CharacterPromptField.Scenario -> stringResource(R.string.character_scenario)
+        is CharacterPromptField.FirstMessage -> stringResource(
+            R.string.character_first_message_index,
+            index + 1
+        )
+        CharacterPromptField.DialogueExamples -> stringResource(R.string.character_examples_of_dialogue)
+        CharacterPromptField.SystemPrompt -> stringResource(R.string.character_main_prompt_override)
+        CharacterPromptField.PostHistoryInstructions -> stringResource(
+            R.string.character_post_history_instructions
+        )
+        CharacterPromptField.DepthPrompt -> stringResource(R.string.character_note)
+        is CharacterPromptField.AlternateGreeting -> stringResource(
+            R.string.character_alternate_greeting_index,
+            index + 1
+        )
+    }
+}
+
+private fun CharacterPromptField.availableMacros(): List<String> {
+    return if (this == CharacterPromptField.DialogueExamples) {
+        DIALOGUE_EXAMPLE_MACROS
+    } else {
+        DEFAULT_PROMPT_MACROS
     }
 }
 

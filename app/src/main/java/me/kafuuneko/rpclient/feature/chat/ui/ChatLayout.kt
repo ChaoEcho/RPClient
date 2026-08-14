@@ -1515,7 +1515,8 @@ private fun DialogSwitch(
         )
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
-            onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() }
         )
         is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },

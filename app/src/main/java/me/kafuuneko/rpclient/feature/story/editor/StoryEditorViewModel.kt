@@ -637,6 +637,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         uiState.copy(dialogState = StoryEditorDialogState.PromptInspector(inspection)).setup()
     }
 
+    @UiIntentObserver(StoryEditorUiIntent.CopyPromptItem::class)
+    private fun onCopyPromptItem(intent: StoryEditorUiIntent.CopyPromptItem) {
+        if (!isStateOf<StoryEditorUiState.Normal>()) return
+        StoryEditorViewEvent.CopyPromptText(intent.text).tryEmit()
+    }
+
     @UiIntentObserver(StoryEditorUiIntent.OpenFileActions::class)
     private fun onOpenFileActions() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return

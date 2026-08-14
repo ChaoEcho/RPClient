@@ -12,6 +12,8 @@ sealed class PromptPresetUiIntent {
 
     data class ChangePromptDraft(val value: String) : PromptPresetUiIntent()
 
+    data object CopyPromptDraft : PromptPresetUiIntent()
+
     data object SavePrompt : PromptPresetUiIntent()
 
     data object DismissPromptDialog : PromptPresetUiIntent()

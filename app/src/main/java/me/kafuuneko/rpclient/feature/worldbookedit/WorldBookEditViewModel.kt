@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditLoa
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditMode
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiState
+import me.kafuuneko.rpclient.feature.worldbookedit.presentation.withPersistedEntryDisabled
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -88,6 +89,26 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         updateForm { copy(tokenBudgetInput = intent.value.filter { it in '0'..'9' }) }
     }
 
+    @UiIntentObserver(WorldBookEditUiIntent.ChangeEntrySearchQuery::class)
+    private fun onChangeEntrySearchQuery(intent: WorldBookEditUiIntent.ChangeEntrySearchQuery) {
+        val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        uiState.copy(
+            entryListState = uiState.entryListState
+                .copy(query = intent.value)
+                .rebuild(uiState.form.entries)
+        ).setup()
+    }
+
+    @UiIntentObserver(WorldBookEditUiIntent.SelectEntryFilter::class)
+    private fun onSelectEntryFilter(intent: WorldBookEditUiIntent.SelectEntryFilter) {
+        val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        uiState.copy(
+            entryListState = uiState.entryListState
+                .copy(filter = intent.filter)
+                .rebuild(uiState.form.entries)
+        ).setup()
+    }
+
     @UiIntentObserver(WorldBookEditUiIntent.AddEntry::class)
     private suspend fun onAddEntry() {
         val lorebookId = saveWorldBookForEntryNavigation() ?: return
@@ -114,16 +135,21 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
     @UiIntentObserver(WorldBookEditUiIntent.ToggleEntryDisabled::class)
     private suspend fun onToggleEntryDisabled(intent: WorldBookEditUiIntent.ToggleEntryDisabled) {
         val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
-        val updatedEntries = uiState.form.entries.map {
-            if (it.id == intent.entryId) it.copy(disabled = intent.disabled) else it
-        }
-        uiState.copy(form = uiState.form.copy(entries = updatedEntries)).setup()
-        withContext(Dispatchers.IO) {
-            val entry = mLorebookRepository.getEntryById(intent.entryId)
-            if (entry != null) {
-                mLorebookRepository.updateEntry(entry.copy(disabled = intent.disabled))
+        val entry = uiState.form.entries.firstOrNull { it.id == intent.entryId } ?: return
+        if (entry.disabled == intent.disabled) return
+
+        val persisted = runCatching {
+            withContext(Dispatchers.IO) {
+                mLorebookRepository.updateEntryDisabled(intent.entryId, intent.disabled)
             }
+        }.getOrDefault(false)
+        if (!persisted) {
+            AppViewEvent.PopupToastMessageByResId(R.string.world_book_entry_update_failed).tryEmit()
+            return
         }
+
+        val latestState = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        latestState.withPersistedEntryDisabled(intent.entryId, intent.disabled).setup()
     }
 
     @UiIntentObserver(WorldBookEditUiIntent.SaveWorldBook::class)
@@ -225,7 +251,11 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
             val entries = mLorebookRepository.getEntriesByLorebookId(uiState.form.id)
             WorldBookEditForm.from(lorebook, entries)
         } ?: return
-        getOrNull<WorldBookEditUiState.Normal>()?.copy(form = form, initialForm = form)?.setup()
+        getOrNull<WorldBookEditUiState.Normal>()?.copy(
+            form = form,
+            initialForm = form,
+            entryListState = uiState.entryListState.rebuild(form.entries)
+        )?.setup()
     }
 
 }

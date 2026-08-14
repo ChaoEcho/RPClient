@@ -377,6 +377,7 @@
     <string name="world_book_deleted">Weltbuch gelöscht</string>
     <string name="world_book_entry_created">Eintrag erstellt</string>
     <string name="world_book_entry_saved">Eintrag gespeichert</string>
+    <string name="world_book_entry_update_failed">Eintrag konnte nicht aktualisiert werden</string>
     <string name="world_book_entry_deleted">Eintrag gelöscht</string>
 
     <!-- LLM Provider List Layout -->

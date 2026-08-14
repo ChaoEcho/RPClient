@@ -71,7 +71,6 @@ class PromptMacroVisualTransformation(
         val highlighted = buildAnnotatedString {
             append(raw)
 
-            // 1. 系统/边界标签高亮（如 [Start a new Chat]）
             mTagRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(
@@ -84,7 +83,6 @@ class PromptMacroVisualTransformation(
                 )
             }
 
-            // 2. 章节分界线高亮（如 --- BEGIN CONTINUATION GUIDANCE ---）
             mSectionRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(
@@ -96,7 +94,6 @@ class PromptMacroVisualTransformation(
                 )
             }
 
-            // 3. 宏占位符高亮（如 {{char}}, {{user}}, {{summary}}, {0} 等）- 最高优先级
             mMacroRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(

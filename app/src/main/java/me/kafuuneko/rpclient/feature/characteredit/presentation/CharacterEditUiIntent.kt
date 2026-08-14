@@ -66,6 +66,14 @@ sealed class CharacterEditUiIntent {
 
     data class ChangeExtensionsJson(val value: String) : CharacterEditUiIntent()
 
+    data class ShowPromptEditor(val field: CharacterPromptField) : CharacterEditUiIntent()
+
+    data class ChangePromptEditorDraft(val value: String) : CharacterEditUiIntent()
+
+    data object CopyPromptEditorText : CharacterEditUiIntent()
+
+    data object ConfirmPromptEditor : CharacterEditUiIntent()
+
     data object SaveCharacter : CharacterEditUiIntent()
 
     data object DeleteCharacterClick : CharacterEditUiIntent()

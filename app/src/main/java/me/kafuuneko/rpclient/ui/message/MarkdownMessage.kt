@@ -524,4 +524,3 @@ private fun AnnotatedString.Builder.appendDelimitedMarkdown(
         end + delimiter.length
     }
 }
-

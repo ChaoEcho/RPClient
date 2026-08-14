@@ -42,6 +42,8 @@ sealed class ChatUiIntent {
 
     data object OpenPromptInspector : ChatUiIntent()
 
+    data class CopyPromptItem(val text: String) : ChatUiIntent()
+
     data object CloseChatSettings : ChatUiIntent()
 
     data object ExportChatClick : ChatUiIntent()

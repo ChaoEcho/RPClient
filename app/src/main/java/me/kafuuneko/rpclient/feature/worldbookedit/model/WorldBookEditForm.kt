@@ -103,6 +103,17 @@ data class WorldBookEntryListItem(
     }
 }
 
+/** 返回更新指定条目禁用状态后的不可变表单；找不到条目时保持原值。 */
+fun WorldBookEditForm.withEntryDisabled(entryId: Long, disabled: Boolean): WorldBookEditForm {
+    val index = entries.indexOfFirst { it.id == entryId }
+    if (index < 0 || entries[index].disabled == disabled) return this
+    return copy(
+        entries = entries.toMutableList().apply {
+            this[index] = this[index].copy(disabled = disabled)
+        }
+    )
+}
+
 /** 生成用于脏数据比较的规范化表单。 */
 fun WorldBookEditForm.toComparableForm(): WorldBookEditForm {
     return copy(

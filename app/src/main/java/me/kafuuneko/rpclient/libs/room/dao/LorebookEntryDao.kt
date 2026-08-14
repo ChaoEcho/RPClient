@@ -36,6 +36,14 @@ interface LorebookEntryDao : MutableDao<LorebookEntry> {
     suspend fun updateEntryContent(id: Long, content: String)
 
     /**
+     * 只修改条目的全局禁用状态，避免读出整行后回写时覆盖并发更新的其他字段。
+     *
+     * @return 实际更新的行数。
+     */
+    @Query("UPDATE lorebook_entries SET disabled = :disabled WHERE id = :id")
+    suspend fun updateEntryDisabled(id: Long, disabled: Boolean): Int
+
+    /**
      * 根据条目 id 删除世界书条目。
      *
      * @param id 世界书条目 id。

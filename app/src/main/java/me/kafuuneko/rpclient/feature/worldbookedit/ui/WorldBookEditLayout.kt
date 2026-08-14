@@ -43,10 +43,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +56,7 @@ import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookBudgetMode
 import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEditForm
 import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEntryListItem
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditDialogState
+import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEntryFilter
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditLoadState
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditMode
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiIntent
@@ -72,13 +69,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
-
-private enum class EntryFilterMode {
-    All,
-    Constant,
-    Enabled,
-    Disabled
-}
 
 /** 世界书元数据与条目列表编辑页 Compose 入口。 */
 @Composable
@@ -102,28 +92,6 @@ private fun WorldBookEditNormal(
     state: WorldBookEditUiState.Normal,
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var filterMode by remember { mutableStateOf(EntryFilterMode.All) }
-
-    val filteredEntries = remember(state.form.entries, searchQuery, filterMode) {
-        state.form.entries.filter { entry ->
-            val matchesSearch = searchQuery.isBlank() ||
-                entry.name.contains(searchQuery, ignoreCase = true) ||
-                entry.keywords.any { it.contains(searchQuery, ignoreCase = true) }
-            val matchesFilter = when (filterMode) {
-                EntryFilterMode.All -> true
-                EntryFilterMode.Constant -> entry.constant
-                EntryFilterMode.Enabled -> !entry.disabled
-                EntryFilterMode.Disabled -> entry.disabled
-            }
-            matchesSearch && matchesFilter
-        }
-    }
-
-    val activeCount = remember(state.form.entries) {
-        state.form.entries.count { !it.disabled }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -152,22 +120,22 @@ private fun WorldBookEditNormal(
             if (state.loadState == WorldBookEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
-                item { BasicPanel(state.form, activeCount, state.loadState, emit) }
-                item { EntryHeader(state.form.entries.size, emit) }
-                if (state.form.entries.isNotEmpty()) {
+                item { BasicPanel(state.form, state.entryListState.activeCount, state.loadState, emit) }
+                item { EntryHeader(state.entryListState.totalCount, emit) }
+                if (state.entryListState.totalCount > 0) {
                     item {
                         EntrySearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            filterMode = filterMode,
-                            onFilterChange = { filterMode = it }
+                            query = state.entryListState.query,
+                            onQueryChange = { WorldBookEditUiIntent.ChangeEntrySearchQuery(it).emit() },
+                            filterMode = state.entryListState.filter,
+                            onFilterChange = { WorldBookEditUiIntent.SelectEntryFilter(it).emit() }
                         )
                     }
                 }
-                if (filteredEntries.isEmpty()) {
-                    item { EmptyEntriesPanel(hasEntries = state.form.entries.isNotEmpty()) }
+                if (state.entryListState.visibleEntries.isEmpty()) {
+                    item { EmptyEntriesPanel(hasEntries = state.entryListState.totalCount > 0) }
                 }
-                filteredEntries.forEach { entry ->
+                state.entryListState.visibleEntries.forEach { entry ->
                     item(key = entry.id) {
                         EntryCard(
                             entry = entry,
@@ -317,8 +285,8 @@ private fun EntryHeader(
 private fun EntrySearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    filterMode: EntryFilterMode,
-    onFilterChange: (EntryFilterMode) -> Unit
+    filterMode: WorldBookEntryFilter,
+    onFilterChange: (WorldBookEntryFilter) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -343,23 +311,23 @@ private fun EntrySearchBar(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             FilterChip(
-                selected = filterMode == EntryFilterMode.All,
-                onClick = { onFilterChange(EntryFilterMode.All) },
+                selected = filterMode == WorldBookEntryFilter.All,
+                onClick = { onFilterChange(WorldBookEntryFilter.All) },
                 label = { Text(stringResource(R.string.filter_all)) }
             )
             FilterChip(
-                selected = filterMode == EntryFilterMode.Constant,
-                onClick = { onFilterChange(EntryFilterMode.Constant) },
+                selected = filterMode == WorldBookEntryFilter.Constant,
+                onClick = { onFilterChange(WorldBookEntryFilter.Constant) },
                 label = { Text(stringResource(R.string.filter_constant)) }
             )
             FilterChip(
-                selected = filterMode == EntryFilterMode.Enabled,
-                onClick = { onFilterChange(EntryFilterMode.Enabled) },
+                selected = filterMode == WorldBookEntryFilter.Enabled,
+                onClick = { onFilterChange(WorldBookEntryFilter.Enabled) },
                 label = { Text(stringResource(R.string.filter_enabled)) }
             )
             FilterChip(
-                selected = filterMode == EntryFilterMode.Disabled,
-                onClick = { onFilterChange(EntryFilterMode.Disabled) },
+                selected = filterMode == WorldBookEntryFilter.Disabled,
+                onClick = { onFilterChange(WorldBookEntryFilter.Disabled) },
                 label = { Text(stringResource(R.string.filter_disabled)) }
             )
         }

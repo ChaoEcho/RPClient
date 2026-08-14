@@ -377,6 +377,7 @@
     <string name="world_book_deleted">ワールドブックを削除しました</string>
     <string name="world_book_entry_created">エントリを作成しました</string>
     <string name="world_book_entry_saved">エントリを保存しました</string>
+    <string name="world_book_entry_update_failed">エントリの更新に失敗しました</string>
     <string name="world_book_entry_deleted">エントリを削除しました</string>
 
     <!-- LLM Provider List Layout -->

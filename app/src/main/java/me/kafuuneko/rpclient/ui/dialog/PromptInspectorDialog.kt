@@ -40,9 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,7 +59,8 @@ import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
 @Composable
 fun PromptInspectorDialog(
     inspection: PromptInspection,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onCopyRequest: (String) -> Unit
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -188,7 +187,7 @@ fun PromptInspectorDialog(
                     }
 
                     itemsIndexed(inspection.items) { _, item ->
-                        InspectionItemCard(item)
+                        InspectionItemCard(item, onCopyRequest)
                     }
                     item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
@@ -367,8 +366,10 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
 }
 
 @Composable
-private fun InspectionItemCard(item: PromptInspectionItem) {
-    val clipboardManager = LocalClipboardManager.current
+private fun InspectionItemCard(
+    item: PromptInspectionItem,
+    onCopyRequest: (String) -> Unit
+) {
     val sourceLabel = promptSourcesLabel(item.sources)
 
     Card(
@@ -412,9 +413,7 @@ private fun InspectionItemCard(item: PromptInspectionItem) {
                         )
                     }
                     IconButton(
-                        onClick = {
-                            clipboardManager.setText(AnnotatedString(item.content))
-                        },
+                        onClick = { onCopyRequest(item.content) },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(

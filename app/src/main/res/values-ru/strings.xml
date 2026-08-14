@@ -376,6 +376,7 @@
     <string name="world_book_deleted">Книга мира удалена</string>
     <string name="world_book_entry_created">Запись создана</string>
     <string name="world_book_entry_saved">Запись сохранена</string>
+    <string name="world_book_entry_update_failed">Не удалось обновить запись</string>
     <string name="world_book_entry_deleted">Запись удалена</string>
 
     <!-- LLM Provider List Layout -->

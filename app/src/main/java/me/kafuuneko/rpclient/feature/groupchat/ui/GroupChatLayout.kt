@@ -1501,7 +1501,8 @@ private fun DialogSwitch(
         GroupChatDialogState.None -> Unit
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
-            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) }
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) }
         )
         is GroupChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },

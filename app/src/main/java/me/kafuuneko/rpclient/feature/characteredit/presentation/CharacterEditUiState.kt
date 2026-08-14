@@ -48,7 +48,7 @@ sealed class CharacterEditLoadState {
     data object Deleting : CharacterEditLoadState()
 }
 
-/** 角色删除及未保存变更的确认对话框。 */
+/** 角色编辑页当前显示的业务对话框。 */
 sealed class CharacterEditDialogState {
     data object None : CharacterEditDialogState()
 
@@ -62,5 +62,22 @@ sealed class CharacterEditDialogState {
         val lorebookName: String
     ) : CharacterEditDialogState()
 
+    data class PromptEditor(
+        val field: CharacterPromptField,
+        val draftText: String
+    ) : CharacterEditDialogState()
+
     data object UnsavedChangesConfirm : CharacterEditDialogState()
+}
+
+/** 可通过全屏 Prompt 编辑器修改的角色字段。 */
+sealed class CharacterPromptField {
+    data object Personality : CharacterPromptField()
+    data object Scenario : CharacterPromptField()
+    data class FirstMessage(val index: Int) : CharacterPromptField()
+    data object DialogueExamples : CharacterPromptField()
+    data object SystemPrompt : CharacterPromptField()
+    data object PostHistoryInstructions : CharacterPromptField()
+    data object DepthPrompt : CharacterPromptField()
+    data class AlternateGreeting(val index: Int) : CharacterPromptField()
 }

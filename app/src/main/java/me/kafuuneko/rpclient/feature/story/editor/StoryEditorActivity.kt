@@ -89,6 +89,15 @@ class StoryEditorActivity : CoreActivityWithEvent() {
                     )
                 )
             }
+            is StoryEditorViewEvent.CopyPromptText -> {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        getString(R.string.prompt_inspector_title),
+                        viewEvent.content
+                    )
+                )
+            }
             StoryEditorViewEvent.OpenTextImporter -> mTextImporter.launch(
                 arrayOf("text/plain", "text/markdown", "text/x-markdown")
             )

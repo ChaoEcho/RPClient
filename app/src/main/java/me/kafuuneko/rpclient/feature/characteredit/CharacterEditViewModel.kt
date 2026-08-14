@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
@@ -239,6 +240,39 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onChangeExtensionsJson(intent: CharacterEditUiIntent.ChangeExtensionsJson) =
         updateForm { copy(extensionsJson = intent.value) }
 
+    @UiIntentObserver(CharacterEditUiIntent.ShowPromptEditor::class)
+    private fun onShowPromptEditor(intent: CharacterEditUiIntent.ShowPromptEditor) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val draftText = uiState.form.promptText(intent.field) ?: return
+        uiState.copy(
+            dialogState = CharacterEditDialogState.PromptEditor(intent.field, draftText)
+        ).setup()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangePromptEditorDraft::class)
+    private fun onChangePromptEditorDraft(intent: CharacterEditUiIntent.ChangePromptEditorDraft) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterEditDialogState.PromptEditor ?: return
+        uiState.copy(dialogState = dialogState.copy(draftText = intent.value)).setup()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.CopyPromptEditorText::class)
+    private fun onCopyPromptEditorText() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterEditDialogState.PromptEditor ?: return
+        CharacterEditViewEvent.CopyText(dialogState.draftText).tryEmit()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmPromptEditor::class)
+    private fun onConfirmPromptEditor() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterEditDialogState.PromptEditor ?: return
+        uiState.copy(
+            form = uiState.form.withPromptText(dialogState.field, dialogState.draftText),
+            dialogState = CharacterEditDialogState.None
+        ).setup()
+    }
+
     /** 先提交角色对新头像的引用，再清理不再使用的原头像文件。 */
     @UiIntentObserver(CharacterEditUiIntent.SaveCharacter::class)
     private suspend fun onSaveCharacter() {
@@ -401,6 +435,39 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     ): CharacterEditForm {
         if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
         return copy(characterLorebookId = 0L)
+    }
+
+    private fun CharacterEditForm.promptText(field: CharacterPromptField): String? {
+        return when (field) {
+            CharacterPromptField.Personality -> personality
+            CharacterPromptField.Scenario -> scenario
+            is CharacterPromptField.FirstMessage -> firstMessages.getOrNull(field.index)
+            CharacterPromptField.DialogueExamples -> examplesOfDialogue
+            CharacterPromptField.SystemPrompt -> systemPrompt
+            CharacterPromptField.PostHistoryInstructions -> postHistoryInstructions
+            CharacterPromptField.DepthPrompt -> depthPromptPrompt
+            is CharacterPromptField.AlternateGreeting -> alternateGreetings.getOrNull(field.index)
+        }
+    }
+
+    private fun CharacterEditForm.withPromptText(
+        field: CharacterPromptField,
+        text: String
+    ): CharacterEditForm {
+        return when (field) {
+            CharacterPromptField.Personality -> copy(personality = text)
+            CharacterPromptField.Scenario -> copy(scenario = text)
+            is CharacterPromptField.FirstMessage -> copy(
+                firstMessages = firstMessages.updateAt(field.index, text)
+            )
+            CharacterPromptField.DialogueExamples -> copy(examplesOfDialogue = text)
+            CharacterPromptField.SystemPrompt -> copy(systemPrompt = text)
+            CharacterPromptField.PostHistoryInstructions -> copy(postHistoryInstructions = text)
+            CharacterPromptField.DepthPrompt -> copy(depthPromptPrompt = text)
+            is CharacterPromptField.AlternateGreeting -> copy(
+                alternateGreetings = alternateGreetings.updateAt(field.index, text)
+            )
+        }
     }
 
 }

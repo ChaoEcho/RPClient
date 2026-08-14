@@ -375,6 +375,7 @@
     <string name="world_book_deleted">世界書已刪除</string>
     <string name="world_book_entry_created">條目已建立</string>
     <string name="world_book_entry_saved">條目已儲存</string>
+    <string name="world_book_entry_update_failed">更新條目失敗</string>
     <string name="world_book_entry_deleted">條目已刪除</string>
 
     <!-- LLM Provider List Layout -->

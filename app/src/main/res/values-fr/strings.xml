@@ -376,6 +376,7 @@
     <string name="world_book_deleted">Livre d\'univers supprimé</string>
     <string name="world_book_entry_created">Entrée créée</string>
     <string name="world_book_entry_saved">Entrée enregistrée</string>
+    <string name="world_book_entry_update_failed">Impossible de mettre à jour l’entrée</string>
     <string name="world_book_entry_deleted">Entrée supprimée</string>
 
     <!-- LLM Provider List Layout -->

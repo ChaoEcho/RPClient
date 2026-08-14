@@ -682,7 +682,8 @@ private fun EditorDialogSwitch(
         StoryEditorDialogState.None -> Unit
         is StoryEditorDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
-            onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() }
+            onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
+            onCopyRequest = { StoryEditorUiIntent.CopyPromptItem(it).emit() }
         )
         StoryEditorDialogState.FileActions -> FileActionsDialog(emit)
         is StoryEditorDialogState.ImportPreview -> ImportPreviewDialog(dialogState, emit)

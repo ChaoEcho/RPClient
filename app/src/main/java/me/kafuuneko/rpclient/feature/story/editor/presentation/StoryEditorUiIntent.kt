@@ -45,6 +45,7 @@ sealed class StoryEditorUiIntent {
     data object UndoLastEdit : StoryEditorUiIntent()
     data object RedoLastEdit : StoryEditorUiIntent()
     data object OpenPromptInspector : StoryEditorUiIntent()
+    data class CopyPromptItem(val text: String) : StoryEditorUiIntent()
     data object OpenFileActions : StoryEditorUiIntent()
     data object ImportTextClick : StoryEditorUiIntent()
     data class ImportTextResult(val uri: Uri) : StoryEditorUiIntent()
