@@ -111,6 +111,21 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         ).tryEmit()
     }
 
+    @UiIntentObserver(WorldBookEditUiIntent.ToggleEntryDisabled::class)
+    private suspend fun onToggleEntryDisabled(intent: WorldBookEditUiIntent.ToggleEntryDisabled) {
+        val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        val updatedEntries = uiState.form.entries.map {
+            if (it.id == intent.entryId) it.copy(disabled = intent.disabled) else it
+        }
+        uiState.copy(form = uiState.form.copy(entries = updatedEntries)).setup()
+        withContext(Dispatchers.IO) {
+            val entry = mLorebookRepository.getEntryById(intent.entryId)
+            if (entry != null) {
+                mLorebookRepository.updateEntry(entry.copy(disabled = intent.disabled))
+            }
+        }
+    }
+
     @UiIntentObserver(WorldBookEditUiIntent.SaveWorldBook::class)
     private suspend fun onSaveWorldBook() {
         val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return

@@ -84,6 +84,7 @@ data class WorldBookEntryListItem(
     val name: String,
     val keywords: List<String>,
     val constant: Boolean,
+    val disabled: Boolean = false,
     val order: Int,
     val depth: Int
 ) {
@@ -94,6 +95,7 @@ data class WorldBookEntryListItem(
                 name = entry.name,
                 keywords = entry.getKeywordList(),
                 constant = entry.constant,
+                disabled = entry.disabled,
                 order = entry.order,
                 depth = entry.depth
             )

@@ -30,6 +30,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,15 +45,17 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import androidx.compose.ui.text.input.VisualTransformation
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 
 /**
@@ -82,6 +89,22 @@ fun AppPromptEditorDialog(
     val haptic = LocalHapticFeedback.current
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
+
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    }
+
+    LaunchedEffect(value) {
+        if (value != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(
+                text = value,
+                selection = TextRange(
+                    textFieldValue.selection.start.coerceIn(0, value.length),
+                    textFieldValue.selection.end.coerceIn(0, value.length)
+                )
+            )
+        }
+    }
 
     val charCount = value.length
     val estimatedTokens = (charCount / 3.5).toInt().coerceAtLeast(0)
@@ -134,6 +157,7 @@ fun AppPromptEditorDialog(
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                textFieldValue = TextFieldValue("")
                                 onValueChange("")
                             },
                             modifier = Modifier.size(30.dp)
@@ -169,7 +193,9 @@ fun AppPromptEditorDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onValueChange(defaultValue)
+                                    val def = defaultValue.orEmpty()
+                                    textFieldValue = TextFieldValue(def, selection = TextRange(def.length))
+                                    onValueChange(def)
                                 }
                         ) {
                             Row(
@@ -222,8 +248,13 @@ fun AppPromptEditorDialog(
                         .verticalScroll(scrollState)
                 ) {
                     BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
+                        value = textFieldValue,
+                        onValueChange = { newValue ->
+                            textFieldValue = newValue
+                            if (newValue.text != value) {
+                                onValueChange(newValue.text)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             color = MaterialTheme.colorScheme.onSurface,
@@ -264,13 +295,20 @@ fun AppPromptEditorDialog(
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        val newText = if (value.isEmpty()) {
-                                            macro
-                                        } else if (value.endsWith(" ")) {
-                                            value + macro
+                                        val currentText = textFieldValue.text
+                                        val selection = textFieldValue.selection
+                                        val start = selection.min.coerceIn(0, currentText.length)
+                                        val end = selection.max.coerceIn(0, currentText.length)
+                                        val before = currentText.substring(0, start)
+                                        val after = currentText.substring(end)
+                                        val insertContent = if (macro == "<START>") {
+                                            if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
                                         } else {
-                                            "$value $macro"
+                                            macro
                                         }
+                                        val newText = before + insertContent + after
+                                        val newCursorPos = start + insertContent.length
+                                        textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursorPos))
                                         onValueChange(newText)
                                     }
                             ) {

@@ -378,6 +378,54 @@
     <string name="world_book_entry_saved">Entry saved</string>
     <string name="world_book_entry_deleted">Entry deleted</string>
 
+    <!-- Chip Input & Enums -->
+    <string name="add_tag">Add Tag</string>
+    <string name="add_keyword">Add Keyword</string>
+    <string name="add_category">Add Category</string>
+    <string name="tag_input_placeholder">Type tag (comma/enter to split)…</string>
+    <string name="keyword_input_placeholder">Type keyword (comma/enter to split)…</string>
+    <string name="category_input_placeholder">Type category (comma/enter to split)…</string>
+    <string name="edit_tag_title">Edit Tag</string>
+    <string name="edit_keyword_title">Edit Keyword</string>
+    <string name="edit_category_title">Edit Category</string>
+    <string name="chip_count">%d items</string>
+    <string name="role_system">System</string>
+    <string name="role_user">User</string>
+    <string name="role_assistant">Assistant</string>
+    <string name="position_at_depth">At depth (Default)</string>
+    <string name="position_before_char">Before character definition</string>
+    <string name="position_after_char">After character definition</string>
+    <string name="position_an_top">Author\'s Note top</string>
+    <string name="position_an_bottom">Author\'s Note bottom</string>
+    <string name="position_example_top">Dialogue examples top</string>
+    <string name="position_example_bottom">Dialogue examples bottom</string>
+    <string name="position_outlet">Custom outlet (Outlet)</string>
+    <string name="logic_and_any">AND (Any)</string>
+    <string name="logic_and_all">AND (All)</string>
+    <string name="logic_not_any">NOT (Any)</string>
+    <string name="logic_not_all">NOT (All)</string>
+    <string name="logic_and_any_helper">Primary keyword matches, and at least one secondary keyword matches.</string>
+    <string name="logic_and_all_helper">Primary keyword matches, and all secondary keywords must match.</string>
+    <string name="logic_not_any_helper">Primary keyword matches, but excluded if any secondary keyword matches.</string>
+    <string name="logic_not_all_helper">Primary keyword matches, but excluded if all secondary keywords match.</string>
+    <string name="entry_probability_helper">Probability of activation once keywords match (0–100%%)</string>
+    <string name="entry_matching_scope">Matching Scope</string>
+    <string name="entry_matching_scope_desc">Choose which prompt sections trigger this entry</string>
+    <string name="entry_timing_recursion">Timing &amp; Recursion</string>
+    <string name="tab_character_profile">Profile</string>
+    <string name="tab_character_dialogue">Dialogue</string>
+    <string name="tab_character_advanced">Advanced</string>
+    <string name="search_entries_placeholder">Search entries or keywords…</string>
+    <string name="filter_all">All</string>
+    <string name="filter_constant">Constant</string>
+    <string name="filter_enabled">Enabled</string>
+    <string name="filter_disabled">Disabled</string>
+    <string name="bound_to_lorebook">Bound: %1$s</string>
+    <string name="unbound_lorebook">No World Book</string>
+    <string name="fullscreen_editor">Fullscreen</string>
+    <string name="active_entries_count">%1$d active</string>
+    <string name="change_avatar">Change Avatar</string>
+
     <!-- LLM Provider List Layout -->
     <string name="model_provider_title">Model Provider</string>
     <string name="create_model">Create model</string>

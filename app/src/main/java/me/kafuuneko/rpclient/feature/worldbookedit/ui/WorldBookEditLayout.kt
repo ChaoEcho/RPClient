@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,8 +13,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,10 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,11 +38,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +64,7 @@ import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditLoa
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditMode
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiState
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -62,6 +72,13 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+
+private enum class EntryFilterMode {
+    All,
+    Constant,
+    Enabled,
+    Disabled
+}
 
 /** 世界书元数据与条目列表编辑页 Compose 入口。 */
 @Composable
@@ -85,6 +102,28 @@ private fun WorldBookEditNormal(
     state: WorldBookEditUiState.Normal,
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    var filterMode by remember { mutableStateOf(EntryFilterMode.All) }
+
+    val filteredEntries = remember(state.form.entries, searchQuery, filterMode) {
+        state.form.entries.filter { entry ->
+            val matchesSearch = searchQuery.isBlank() ||
+                entry.name.contains(searchQuery, ignoreCase = true) ||
+                entry.keywords.any { it.contains(searchQuery, ignoreCase = true) }
+            val matchesFilter = when (filterMode) {
+                EntryFilterMode.All -> true
+                EntryFilterMode.Constant -> entry.constant
+                EntryFilterMode.Enabled -> !entry.disabled
+                EntryFilterMode.Disabled -> entry.disabled
+            }
+            matchesSearch && matchesFilter
+        }
+    }
+
+    val activeCount = remember(state.form.entries) {
+        state.form.entries.count { !it.disabled }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -113,16 +152,27 @@ private fun WorldBookEditNormal(
             if (state.loadState == WorldBookEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
-                item { BasicPanel(state.form, state.loadState, emit) }
-                item { EntryHeader(emit) }
-                if (state.form.entries.isEmpty()) {
-                    item { EmptyEntriesPanel() }
-                }
-                state.form.entries.forEach { entry ->
+                item { BasicPanel(state.form, activeCount, state.loadState, emit) }
+                item { EntryHeader(state.form.entries.size, emit) }
+                if (state.form.entries.isNotEmpty()) {
                     item {
+                        EntrySearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            filterMode = filterMode,
+                            onFilterChange = { filterMode = it }
+                        )
+                    }
+                }
+                if (filteredEntries.isEmpty()) {
+                    item { EmptyEntriesPanel(hasEntries = state.form.entries.isNotEmpty()) }
+                }
+                filteredEntries.forEach { entry ->
+                    item(key = entry.id) {
                         EntryCard(
                             entry = entry,
-                            onClick = { WorldBookEditUiIntent.EditEntry(entry.id).emit() }
+                            onClick = { WorldBookEditUiIntent.EditEntry(entry.id).emit() },
+                            onToggleDisabled = { WorldBookEditUiIntent.ToggleEntryDisabled(entry.id, it).emit() }
                         )
                     }
                 }
@@ -149,6 +199,7 @@ private fun LoadingPanel() {
 @Composable
 private fun BasicPanel(
     form: WorldBookEditForm,
+    activeCount: Int,
     loadState: WorldBookEditLoadState,
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
@@ -165,7 +216,7 @@ private fun BasicPanel(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = stringResource(R.string.entry_count, form.entries.size),
+                    text = stringResource(R.string.entry_count, form.entries.size) + " • " + stringResource(R.string.active_entries_count, activeCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
@@ -251,27 +302,83 @@ private fun WorldBookBudgetMode.titleRes(): Int {
 }
 
 @Composable
-private fun EntryHeader(emit: WorldBookEditUiIntent.() -> Unit) {
+private fun EntryHeader(
+    totalCount: Int,
+    emit: WorldBookEditUiIntent.() -> Unit
+) {
     RpSectionHeader(
-        title = stringResource(R.string.entries),
+        title = stringResource(R.string.entries) + " ($totalCount)",
         action = stringResource(R.string.add),
         onAction = { WorldBookEditUiIntent.AddEntry.emit() }
     )
 }
 
 @Composable
-private fun EmptyEntriesPanel() {
+private fun EntrySearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    filterMode: EntryFilterMode,
+    onFilterChange: (EntryFilterMode) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.search_entries_placeholder)) },
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            trailingIcon = if (query.isNotEmpty()) {
+                {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Rounded.Clear, contentDescription = null)
+                    }
+                }
+            } else null,
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            FilterChip(
+                selected = filterMode == EntryFilterMode.All,
+                onClick = { onFilterChange(EntryFilterMode.All) },
+                label = { Text(stringResource(R.string.filter_all)) }
+            )
+            FilterChip(
+                selected = filterMode == EntryFilterMode.Constant,
+                onClick = { onFilterChange(EntryFilterMode.Constant) },
+                label = { Text(stringResource(R.string.filter_constant)) }
+            )
+            FilterChip(
+                selected = filterMode == EntryFilterMode.Enabled,
+                onClick = { onFilterChange(EntryFilterMode.Enabled) },
+                label = { Text(stringResource(R.string.filter_enabled)) }
+            )
+            FilterChip(
+                selected = filterMode == EntryFilterMode.Disabled,
+                onClick = { onFilterChange(EntryFilterMode.Disabled) },
+                label = { Text(stringResource(R.string.filter_disabled)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RpIconBubble(Icons.Rounded.Description)
             Spacer(modifier = Modifier.width(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = stringResource(R.string.no_world_book_entries),
+                    text = if (hasEntries) stringResource(R.string.search_entries_placeholder) else stringResource(R.string.no_world_book_entries),
                     style = MaterialTheme.typography.titleSmall
                 )
                 Text(
-                    text = stringResource(R.string.no_world_book_entries_desc),
+                    text = if (hasEntries) "未找到符合搜索或过滤条件的条目" else stringResource(R.string.no_world_book_entries_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
@@ -283,34 +390,78 @@ private fun EmptyEntriesPanel() {
 @Composable
 private fun EntryCard(
     entry: WorldBookEntryListItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleDisabled: (Boolean) -> Unit
 ) {
+    val alpha = if (entry.disabled) 0.55f else 1f
+    val borderColor = when {
+        entry.disabled -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+        entry.constant -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(
+            containerColor = if (entry.disabled)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RpIconBubble(Icons.Rounded.Description)
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        when {
+                            entry.disabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                            entry.constant -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                    )
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (entry.constant) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.entry_constant),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
                 RpTagRow(
-                    tags = entry.displayTags(stringResource(R.string.entry_constant), stringResource(R.string.no_keywords)),
+                    tags = entry.displayTags(stringResource(R.string.no_keywords)),
                     maxCount = 3
                 )
                 Text(
@@ -319,17 +470,19 @@ private fun EntryCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.edit))
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = !entry.disabled,
+                onCheckedChange = { onToggleDisabled(!it) }
+            )
         }
     }
 }
 
 private fun WorldBookEntryListItem.displayTags(
-    constantLabel: String,
     noKeywordsLabel: String
 ): List<String> {
     return buildList {
-        if (constant) add(constantLabel)
         addAll(keywords)
         if (isEmpty()) add(noKeywordsLabel)
     }
@@ -429,6 +582,7 @@ private fun WorldBookEditLayoutPreview() {
                             name = "Old District",
                             keywords = listOf("district", "railway"),
                             constant = false,
+                            disabled = false,
                             order = 100,
                             depth = 0
                         )

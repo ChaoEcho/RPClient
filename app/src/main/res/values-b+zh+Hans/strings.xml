@@ -377,6 +377,54 @@
     <string name="world_book_entry_saved">条目已保存</string>
     <string name="world_book_entry_deleted">条目已删除</string>
 
+    <!-- Chip Input & Enums -->
+    <string name="add_tag">添加标签</string>
+    <string name="add_keyword">添加关键词</string>
+    <string name="add_category">添加分类</string>
+    <string name="tag_input_placeholder">输入标签（用逗号或 Enter 分隔）…</string>
+    <string name="keyword_input_placeholder">输入关键词（用逗号或 Enter 分隔）…</string>
+    <string name="category_input_placeholder">输入分类（用逗号或 Enter 分隔）…</string>
+    <string name="edit_tag_title">编辑标签</string>
+    <string name="edit_keyword_title">编辑关键词</string>
+    <string name="edit_category_title">编辑分类</string>
+    <string name="chip_count">%d 项</string>
+    <string name="role_system">系统</string>
+    <string name="role_user">用户</string>
+    <string name="role_assistant">助手</string>
+    <string name="position_at_depth">按深度插入（默认）</string>
+    <string name="position_before_char">角色定义之前</string>
+    <string name="position_after_char">角色定义之后</string>
+    <string name="position_an_top">作者注释顶部</string>
+    <string name="position_an_bottom">作者注释底部</string>
+    <string name="position_example_top">示例对话顶部</string>
+    <string name="position_example_bottom">示例对话底部</string>
+    <string name="position_outlet">自定义出口（Outlet）</string>
+    <string name="logic_and_any">命中任一（AND ANY）</string>
+    <string name="logic_and_all">命中全部（AND ALL）</string>
+    <string name="logic_not_any">排除任一（NOT ANY）</string>
+    <string name="logic_not_all">排除全部（NOT ALL）</string>
+    <string name="logic_and_any_helper">主关键词命中后，只要包含任一次要关键词即激活。</string>
+    <string name="logic_and_all_helper">主关键词命中后，必须包含全部次要关键词才激活。</string>
+    <string name="logic_not_any_helper">主关键词命中后，若包含任一次要关键词则排除（不激活）。</string>
+    <string name="logic_not_all_helper">主关键词命中后，若包含全部次要关键词则排除（不激活）。</string>
+    <string name="entry_probability_helper">关键词匹配后的激活概率（0–100%%）</string>
+    <string name="entry_matching_scope">扫描匹配范围</string>
+    <string name="entry_matching_scope_desc">选择参与关键词扫描的提示词上下文来源</string>
+    <string name="entry_timing_recursion">时序与递归控制</string>
+    <string name="tab_character_profile">设定</string>
+    <string name="tab_character_dialogue">人设与台词</string>
+    <string name="tab_character_advanced">高级注入</string>
+    <string name="search_entries_placeholder">搜索条目或关键词…</string>
+    <string name="filter_all">全部</string>
+    <string name="filter_constant">仅常驻</string>
+    <string name="filter_enabled">仅启用</string>
+    <string name="filter_disabled">仅禁用</string>
+    <string name="bound_to_lorebook">已绑定：%1$s</string>
+    <string name="unbound_lorebook">未绑定世界书</string>
+    <string name="fullscreen_editor">全屏专注</string>
+    <string name="active_entries_count">已激活 %1$d 个</string>
+    <string name="change_avatar">更换头像</string>
+
     <!-- LLM Provider List Layout -->
     <string name="model_provider_title">模型提供商</string>
     <string name="create_model">创建模型</string>

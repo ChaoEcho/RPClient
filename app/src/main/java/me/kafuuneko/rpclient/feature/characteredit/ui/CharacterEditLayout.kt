@@ -1,37 +1,48 @@
 package me.kafuuneko.rpclient.feature.characteredit.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.Image as ImageIcon
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
-import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
-import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,30 +51,31 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
@@ -71,14 +83,36 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoa
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
+import me.kafuuneko.rpclient.ui.widgets.DIALOGUE_EXAMPLE_MACROS
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
+import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
+import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
-import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+
+private enum class CharacterEditTab {
+    Profile,
+    Dialogue,
+    Advanced
+}
+
+private data class PromptEditorTarget(
+    val title: String,
+    val initialValue: String,
+    val availableMacros: List<String> = DEFAULT_PROMPT_MACROS,
+    val onSave: (String) -> Unit
+)
 
 /** 角色创建与编辑页 Compose 入口，仅渲染状态并发送编辑意图。 */
 @Composable
@@ -102,6 +136,9 @@ private fun CharacterEditNormal(
     state: CharacterEditUiState.Normal,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
+    var selectedTab by rememberSaveable { mutableStateOf(CharacterEditTab.Profile) }
+    var activePromptEditor by remember { mutableStateOf<PromptEditorTarget?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -140,16 +177,89 @@ private fun CharacterEditNormal(
             if (state.loadState == CharacterEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
-                item { HeaderPanel(state.form, state.avatarImage, state.loadState, emit) }
-                item { BasicPanel(state.form, emit) }
-                item { TagsPanel(state.form.tags, emit) }
-                item { DefinitionPanel(state.form, emit) }
-                item { FirstMessagesPanel(state.form.firstMessages, emit) }
-                item { DialoguePanel(state.form, emit) }
-                item { AdvancedPanel(state.form, state.availableLorebooks, emit) }
+                item {
+                    HeroHeaderPanel(
+                        form = state.form,
+                        avatarImage = state.avatarImage,
+                        availableLorebooks = state.availableLorebooks,
+                        loadState = state.loadState,
+                        emit = emit
+                    )
+                }
+                item {
+                    CharacterEditTabBar(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it }
+                    )
+                }
+
+                when (selectedTab) {
+                    CharacterEditTab.Profile -> {
+                        item { ProfileBasicPanel(state.form, emit) }
+                        item { TagsPanel(state.form.tags, emit) }
+                    }
+                    CharacterEditTab.Dialogue -> {
+                        item {
+                            DialogueDefinitionPanel(
+                                form = state.form,
+                                onOpenFullscreen = { title, initVal, onSave ->
+                                    activePromptEditor = PromptEditorTarget(title = title, initialValue = initVal, onSave = onSave)
+                                },
+                                emit = emit
+                            )
+                        }
+                        item {
+                            FirstMessagesPanel(
+                                firstMessages = state.form.firstMessages,
+                                onOpenFullscreen = { title, initVal, onSave ->
+                                    activePromptEditor = PromptEditorTarget(title = title, initialValue = initVal, onSave = onSave)
+                                },
+                                emit = emit
+                            )
+                        }
+                        item {
+                            DialogueExamplesPanel(
+                                form = state.form,
+                                onOpenFullscreen = { title, initVal, macros, onSave ->
+                                    activePromptEditor = PromptEditorTarget(title, initVal, macros, onSave)
+                                },
+                                emit = emit
+                            )
+                        }
+                    }
+                    CharacterEditTab.Advanced -> {
+                        item {
+                            AdvancedPanel(
+                                form = state.form,
+                                availableLorebooks = state.availableLorebooks,
+                                onOpenFullscreen = { title, initVal, onSave ->
+                                    activePromptEditor = PromptEditorTarget(title, initVal, DEFAULT_PROMPT_MACROS, onSave)
+                                },
+                                emit = emit
+                            )
+                        }
+                    }
+                }
+
                 item { ActionPanel(state.mode, state.loadState, emit) }
             }
         }
+    }
+
+    // 全屏专注文本编辑器
+    activePromptEditor?.let { target ->
+        var editingText by remember(target) { mutableStateOf(target.initialValue) }
+        AppPromptEditorDialog(
+            onDismissRequest = { activePromptEditor = null },
+            title = target.title,
+            value = editingText,
+            availableMacros = target.availableMacros,
+            onValueChange = { editingText = it },
+            onConfirm = {
+                target.onSave(editingText)
+                activePromptEditor = null
+            }
+        )
     }
 }
 
@@ -168,43 +278,195 @@ private fun LoadingPanel() {
 }
 
 @Composable
-private fun HeaderPanel(
+private fun HeroHeaderPanel(
     form: CharacterEditForm,
     avatarImage: ImageBitmap?,
+    availableLorebooks: List<CharacterLorebookItem>,
     loadState: CharacterEditLoadState,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
-    Panel {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarPicker(form, avatarImage, emit)
-            Column(
+    val boundLorebookName = remember(form.characterLorebookId, availableLorebooks) {
+        availableLorebooks.firstOrNull { it.id == form.characterLorebookId }?.name
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = form.name.ifBlank { stringResource(R.string.character) },
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    text = stringResource(R.string.tap_avatar_to_choose),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
-                )
-            }
+                    .fillMaxWidth()
+                    .height(84.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
             IconButton(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
                 enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
                 onClick = { CharacterEditUiIntent.DeleteCharacterClick.emit() }
             ) {
-                Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.delete))
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 18.dp, bottom = 18.dp, start = 16.dp, end = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(92.dp)
+                        .clickable { CharacterEditUiIntent.PickAvatarClick.emit() }
+                ) {
+                    AvatarPreview(
+                        avatarText = form.avatarText(),
+                        avatarColor = form.avatarColor(),
+                        image = avatarImage,
+                        size = 92
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(28.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        shadowElevation = 3.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = stringResource(R.string.change_avatar),
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = form.name.ifBlank { stringResource(R.string.character) },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (form.characterVersion.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        ) {
+                            Text(
+                                text = "v${form.characterVersion}",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (boundLorebookName != null)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ) {
+                        Text(
+                            text = if (boundLorebookName != null)
+                                stringResource(R.string.bound_to_lorebook, boundLorebookName)
+                            else
+                                stringResource(R.string.unbound_lorebook),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (boundLorebookName != null)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun BasicPanel(
+private fun CharacterEditTabBar(
+    selectedTab: CharacterEditTab,
+    onTabSelected: (CharacterEditTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val tabs = listOf(
+                CharacterEditTab.Profile to stringResource(R.string.tab_character_profile),
+                CharacterEditTab.Dialogue to stringResource(R.string.tab_character_dialogue),
+                CharacterEditTab.Advanced to stringResource(R.string.tab_character_advanced)
+            )
+            tabs.forEach { (tab, title) ->
+                val selected = selectedTab == tab
+                Surface(
+                    onClick = { onTabSelected(tab) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    shadowElevation = if (selected) 2.dp else 0.dp
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileBasicPanel(
     form: CharacterEditForm,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
@@ -213,19 +475,6 @@ private fun BasicPanel(
         FormTextField(stringResource(R.string.name), form.name) {
             CharacterEditUiIntent.ChangeName(it).emit()
         }
-        FormTextField(
-            label = stringResource(R.string.character_description),
-            value = form.description,
-            minLines = 3,
-            leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
-            onChange = { CharacterEditUiIntent.ChangeDescription(it).emit() }
-        )
-        FormTextField(
-            label = stringResource(R.string.character_creator_notes),
-            value = form.creatorNotes,
-            minLines = 3,
-            onChange = { CharacterEditUiIntent.ChangeCreatorNotes(it).emit() }
-        )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.character_creator),
@@ -240,6 +489,19 @@ private fun BasicPanel(
                 onChange = { CharacterEditUiIntent.ChangeCharacterVersion(it).emit() }
             )
         }
+        FormTextField(
+            label = stringResource(R.string.character_description),
+            value = form.description,
+            minLines = 3,
+            leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
+            onChange = { CharacterEditUiIntent.ChangeDescription(it).emit() }
+        )
+        FormTextField(
+            label = stringResource(R.string.character_creator_notes),
+            value = form.creatorNotes,
+            minLines = 3,
+            onChange = { CharacterEditUiIntent.ChangeCreatorNotes(it).emit() }
+        )
     }
 }
 
@@ -248,40 +510,49 @@ private fun TagsPanel(
     tags: List<String>,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
-    Panel {
-        RpSectionHeader(
-            title = stringResource(R.string.character_tags),
-            action = stringResource(R.string.add),
-            onAction = { CharacterEditUiIntent.AddTag.emit() }
-        )
-        tags.forEachIndexed { index, tag ->
-            ListTextField(
-                label = stringResource(R.string.character_tag_index, index + 1),
-                value = tag,
-                onValueChange = { CharacterEditUiIntent.ChangeTag(index, it).emit() },
-                onDelete = { CharacterEditUiIntent.DeleteTag(index).emit() }
-            )
-        }
-    }
+    RpChipInputField(
+        title = stringResource(R.string.character_tags),
+        chips = tags,
+        onChipsChanged = { CharacterEditUiIntent.SetTags(it).emit() },
+        addLabel = stringResource(R.string.add_tag),
+        placeholder = stringResource(R.string.tag_input_placeholder),
+        editDialogTitle = stringResource(R.string.edit_tag_title)
+    )
 }
 
 @Composable
-private fun DefinitionPanel(
+private fun DialogueDefinitionPanel(
     form: CharacterEditForm,
+    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
+    val personalityLabel = stringResource(R.string.character_personality)
+    val scenarioLabel = stringResource(R.string.character_scenario)
+
     Panel {
         RpSectionHeader(title = stringResource(R.string.character_definition))
         FormTextField(
-            label = stringResource(R.string.character_personality),
+            label = personalityLabel,
             value = form.personality,
             minLines = 4,
+            showMacroBar = true,
+            onExpandFullscreen = {
+                onOpenFullscreen(personalityLabel, form.personality) {
+                    CharacterEditUiIntent.ChangePersonality(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangePersonality(it).emit() }
         )
         FormTextField(
-            label = stringResource(R.string.character_scenario),
+            label = scenarioLabel,
             value = form.scenario,
             minLines = 4,
+            showMacroBar = true,
+            onExpandFullscreen = {
+                onOpenFullscreen(scenarioLabel, form.scenario) {
+                    CharacterEditUiIntent.ChangeScenario(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangeScenario(it).emit() }
         )
     }
@@ -290,6 +561,7 @@ private fun DefinitionPanel(
 @Composable
 private fun FirstMessagesPanel(
     firstMessages: List<String>,
+    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     Panel {
@@ -299,11 +571,18 @@ private fun FirstMessagesPanel(
             onAction = { CharacterEditUiIntent.AddFirstMessage.emit() }
         )
         firstMessages.forEachIndexed { index, message ->
+            val label = stringResource(R.string.character_first_message_index, index + 1)
             ListTextField(
-                label = stringResource(R.string.character_first_message_index, index + 1),
+                label = label,
                 value = message,
                 minLines = 3,
                 leadingIcon = { Icon(Icons.Rounded.ChatBubble, contentDescription = null) },
+                showMacroBar = true,
+                onExpandFullscreen = {
+                    onOpenFullscreen(label, message) {
+                        CharacterEditUiIntent.ChangeFirstMessage(index, it).emit()
+                    }
+                },
                 onValueChange = { CharacterEditUiIntent.ChangeFirstMessage(index, it).emit() },
                 onDelete = { CharacterEditUiIntent.DeleteFirstMessage(index).emit() }
             )
@@ -312,16 +591,26 @@ private fun FirstMessagesPanel(
 }
 
 @Composable
-private fun DialoguePanel(
+private fun DialogueExamplesPanel(
     form: CharacterEditForm,
+    onOpenFullscreen: (String, String, List<String>, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
+    val dialogueLabel = stringResource(R.string.character_examples_of_dialogue)
+
     Panel {
         RpSectionHeader(title = stringResource(R.string.character_dialogue))
         FormTextField(
-            label = stringResource(R.string.character_examples_of_dialogue),
+            label = dialogueLabel,
             value = form.examplesOfDialogue,
             minLines = 5,
+            showMacroBar = true,
+            macros = DIALOGUE_EXAMPLE_MACROS,
+            onExpandFullscreen = {
+                onOpenFullscreen(dialogueLabel, form.examplesOfDialogue, DIALOGUE_EXAMPLE_MACROS) {
+                    CharacterEditUiIntent.ChangeExamplesOfDialogue(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangeExamplesOfDialogue(it).emit() }
         )
     }
@@ -331,9 +620,15 @@ private fun DialoguePanel(
 private fun AdvancedPanel(
     form: CharacterEditForm,
     availableLorebooks: List<CharacterLorebookItem>,
+    onOpenFullscreen: (String, String, (String) -> Unit) -> Unit,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     var isExtensionsExpanded by rememberSaveable(form.id) { mutableStateOf(false) }
+
+    val systemPromptLabel = stringResource(R.string.character_main_prompt_override)
+    val postHistoryLabel = stringResource(R.string.character_post_history_instructions)
+    val noteLabel = stringResource(R.string.character_note)
+
     Panel {
         RpSectionHeader(title = stringResource(R.string.advanced_definition))
         LorebookSelector(
@@ -343,38 +638,59 @@ private fun AdvancedPanel(
             onManage = { CharacterEditUiIntent.OpenWorldBookManager.emit() }
         )
         FormTextField(
-            label = stringResource(R.string.character_main_prompt_override),
+            label = systemPromptLabel,
             value = form.systemPrompt,
             minLines = 4,
             maxLines = 8,
+            showMacroBar = true,
+            onExpandFullscreen = {
+                onOpenFullscreen(systemPromptLabel, form.systemPrompt) {
+                    CharacterEditUiIntent.ChangeSystemPrompt(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangeSystemPrompt(it).emit() }
         )
         FormTextField(
-            label = stringResource(R.string.character_post_history_instructions),
+            label = postHistoryLabel,
             value = form.postHistoryInstructions,
             minLines = 4,
             maxLines = 8,
+            showMacroBar = true,
+            onExpandFullscreen = {
+                onOpenFullscreen(postHistoryLabel, form.postHistoryInstructions) {
+                    CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit() }
         )
         FormTextField(
-            label = stringResource(R.string.character_note),
+            label = noteLabel,
             value = form.depthPromptPrompt,
             minLines = 4,
             maxLines = 8,
+            showMacroBar = true,
+            onExpandFullscreen = {
+                onOpenFullscreen(noteLabel, form.depthPromptPrompt) {
+                    CharacterEditUiIntent.ChangeDepthPromptPrompt(it).emit()
+                }
+            },
             onChange = { CharacterEditUiIntent.ChangeDepthPromptPrompt(it).emit() }
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FormTextField(
-                label = stringResource(R.string.character_note_depth),
-                value = form.depthPromptDepth,
-                modifier = Modifier.weight(1f),
-                onChange = { CharacterEditUiIntent.ChangeDepthPromptDepth(it).emit() }
+        FormTextField(
+            label = stringResource(R.string.character_note_depth),
+            value = form.depthPromptDepth,
+            keyboardType = KeyboardType.Number,
+            onChange = { CharacterEditUiIntent.ChangeDepthPromptDepth(it).emit() }
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = stringResource(R.string.entry_role),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
             )
-            FormTextField(
-                label = stringResource(R.string.character_note_role),
-                value = form.depthPromptRole,
-                modifier = Modifier.weight(1f),
-                onChange = { CharacterEditUiIntent.ChangeDepthPromptRole(it).emit() }
+            CharacterNoteRoleSelector(
+                selectedRole = form.depthPromptRole,
+                onRoleSelected = { CharacterEditUiIntent.ChangeDepthPromptRole(it).emit() }
             )
         }
         RpSectionHeader(
@@ -383,11 +699,18 @@ private fun AdvancedPanel(
             onAction = { CharacterEditUiIntent.AddAlternateGreeting.emit() }
         )
         form.alternateGreetings.forEachIndexed { index, greeting ->
+            val label = stringResource(R.string.character_alternate_greeting_index, index + 1)
             ListTextField(
-                label = stringResource(R.string.character_alternate_greeting_index, index + 1),
+                label = label,
                 value = greeting,
                 minLines = 3,
                 maxLines = 6,
+                showMacroBar = true,
+                onExpandFullscreen = {
+                    onOpenFullscreen(label, greeting) {
+                        CharacterEditUiIntent.ChangeAlternateGreeting(index, it).emit()
+                    }
+                },
                 onValueChange = { CharacterEditUiIntent.ChangeAlternateGreeting(index, it).emit() },
                 onDelete = { CharacterEditUiIntent.DeleteAlternateGreeting(index).emit() }
             )
@@ -435,17 +758,16 @@ private fun RawExtensionsPanel(
                 }
             }
             if (expanded) {
-                FormTextField(
-                    label = stringResource(R.string.extensions_json),
+                RpJsonCodeEditorField(
                     value = value,
-                    minLines = 4,
-                    maxLines = 8,
-                    onChange = onChange
+                    onValueChange = onChange,
+                    minHeight = 130.dp,
+                    maxHeight = 240.dp
                 )
             } else {
                 Text(
                     text = value.ifBlank { "{}" }.compactPreview(),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
@@ -558,23 +880,77 @@ private fun FormTextField(
     modifier: Modifier = Modifier,
     minLines: Int = 1,
     maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
+    keyboardType: KeyboardType = KeyboardType.Text,
     leadingIcon: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
+    showMacroBar: Boolean = false,
+    macros: List<String> = DEFAULT_PROMPT_MACROS,
+    onExpandFullscreen: (() -> Unit)? = null,
     onChange: (String) -> Unit
 ) {
-    OutlinedTextField(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        minLines = minLines,
-        maxLines = maxLines.coerceAtLeast(minLines),
-        leadingIcon = leadingIcon,
-        visualTransformation = visualTransformation,
-        shape = RoundedCornerShape(12.dp)
-    )
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    }
+
+    LaunchedEffect(value) {
+        if (value != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(
+                text = value,
+                selection = TextRange(
+                    textFieldValue.selection.start.coerceIn(0, value.length),
+                    textFieldValue.selection.end.coerceIn(0, value.length)
+                )
+            )
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        OutlinedTextField(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
+            value = textFieldValue,
+            onValueChange = { newValue ->
+                textFieldValue = newValue
+                if (newValue.text != value) {
+                    onChange(newValue.text)
+                }
+            },
+            label = { Text(label) },
+            minLines = minLines,
+            maxLines = maxLines.coerceAtLeast(minLines),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            leadingIcon = leadingIcon,
+            visualTransformation = visualTransformation,
+            shape = RoundedCornerShape(12.dp)
+        )
+        if (showMacroBar) {
+            RpMacroActionBar(
+                macros = macros,
+                onInsertMacro = { macro ->
+                    val currentText = textFieldValue.text
+                    val selection = textFieldValue.selection
+                    val start = selection.min.coerceIn(0, currentText.length)
+                    val end = selection.max.coerceIn(0, currentText.length)
+                    val before = currentText.substring(0, start)
+                    val after = currentText.substring(end)
+                    val insertContent = if (macro == "<START>") {
+                        if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
+                    } else {
+                        macro
+                    }
+                    val newText = before + insertContent + after
+                    val newCursorPos = start + insertContent.length
+                    textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursorPos))
+                    onChange(newText)
+                },
+                onFullscreenClick = onExpandFullscreen
+            )
+        }
+    }
 }
 
 @Composable
@@ -582,64 +958,83 @@ private fun ListTextField(
     label: String,
     value: String,
     minLines: Int = 1,
-    maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
+    maxLines: Int = minLines.coerceAtLeast(4),
     leadingIcon: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
+    showMacroBar: Boolean = false,
+    macros: List<String> = DEFAULT_PROMPT_MACROS,
+    onExpandFullscreen: (() -> Unit)? = null,
     onValueChange: (String) -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            modifier = Modifier
-                .weight(1f)
-                .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label) },
-            minLines = minLines,
-            maxLines = maxLines.coerceAtLeast(minLines),
-            leadingIcon = leadingIcon,
-            visualTransformation = visualTransformation,
-            shape = RoundedCornerShape(12.dp)
-        )
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.delete))
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    }
+
+    LaunchedEffect(value) {
+        if (value != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(
+                text = value,
+                selection = TextRange(
+                    textFieldValue.selection.start.coerceIn(0, value.length),
+                    textFieldValue.selection.end.coerceIn(0, value.length)
+                )
+            )
         }
     }
-}
 
-@Composable
-private fun AvatarPicker(
-    form: CharacterEditForm,
-    avatarImage: ImageBitmap?,
-    emit: CharacterEditUiIntent.() -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .size(72.dp)
-            .clickable { CharacterEditUiIntent.PickAvatarClick.emit() },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            AvatarPreview(
-                avatarText = form.avatarText(),
-                avatarColor = form.avatarColor(),
-                image = avatarImage,
-                size = 72
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    textFieldValue = newValue
+                    if (newValue.text != value) {
+                        onValueChange(newValue.text)
+                    }
+                },
+                label = { Text(label) },
+                minLines = minLines,
+                maxLines = maxLines.coerceAtLeast(minLines),
+                leadingIcon = leadingIcon,
+                visualTransformation = visualTransformation,
+                shape = RoundedCornerShape(12.dp)
             )
-            Surface(
-                modifier = Modifier.align(Alignment.BottomEnd),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    Icons.Rounded.ImageIcon,
-                    contentDescription = stringResource(R.string.choose_character_avatar),
-                    modifier = Modifier.padding(4.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.delete))
             }
+        }
+        if (showMacroBar) {
+            RpMacroActionBar(
+                macros = macros,
+                onInsertMacro = { macro ->
+                    val currentText = textFieldValue.text
+                    val selection = textFieldValue.selection
+                    val start = selection.min.coerceIn(0, currentText.length)
+                    val end = selection.max.coerceIn(0, currentText.length)
+                    val before = currentText.substring(0, start)
+                    val after = currentText.substring(end)
+                    val insertContent = if (macro == "<START>") {
+                        if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
+                    } else {
+                        macro
+                    }
+                    val newText = before + insertContent + after
+                    val newCursorPos = start + insertContent.length
+                    textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursorPos))
+                    onValueChange(newText)
+                },
+                onFullscreenClick = onExpandFullscreen
+            )
         }
     }
 }
@@ -710,6 +1105,48 @@ private fun LorebookSelector(
 }
 
 @Composable
+private fun CharacterNoteRoleSelector(
+    selectedRole: String,
+    onRoleSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentRole = selectedRole.trim().toIntOrNull() ?: 0
+    val roles = listOf(
+        0 to stringResource(R.string.role_system),
+        1 to stringResource(R.string.role_user),
+        2 to stringResource(R.string.role_assistant)
+    )
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        roles.forEach { (roleValue, label) ->
+            FilterChip(
+                selected = currentRole == roleValue,
+                onClick = { onRoleSelected(roleValue.toString()) },
+                shape = RoundedCornerShape(10.dp),
+                leadingIcon = if (currentRole == roleValue) {
+                    {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    }
+                } else null,
+                label = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
 private fun AvatarPreview(
     avatarText: String,
     avatarColor: Color,
@@ -721,7 +1158,7 @@ private fun AvatarPreview(
             text = avatarText,
             color = avatarColor,
             modifier = Modifier.size(size.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(20.dp)
         )
     } else {
         Image(
@@ -729,7 +1166,7 @@ private fun AvatarPreview(
             contentDescription = null,
             modifier = Modifier
                 .size(size.dp)
-                .clip(RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(20.dp)),
             contentScale = ContentScale.Crop
         )
     }

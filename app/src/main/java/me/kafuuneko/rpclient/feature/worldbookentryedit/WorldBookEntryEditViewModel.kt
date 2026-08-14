@@ -65,6 +65,10 @@ class WorldBookEntryEditViewModel :
     private fun onAddKeyword() =
         updateForm { copy(keywords = keywords + "") }
 
+    @UiIntentObserver(WorldBookEntryEditUiIntent.SetKeywords::class)
+    private fun onSetKeywords(intent: WorldBookEntryEditUiIntent.SetKeywords) =
+        updateForm { copy(keywords = intent.keywords.orSingleBlank()) }
+
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeKeyword::class)
     private fun onChangeKeyword(intent: WorldBookEntryEditUiIntent.ChangeKeyword) =
         updateForm { copy(keywords = keywords.updateAt(intent.index, intent.value)) }
@@ -76,6 +80,10 @@ class WorldBookEntryEditViewModel :
     @UiIntentObserver(WorldBookEntryEditUiIntent.AddSecondaryKeyword::class)
     private fun onAddSecondaryKeyword() =
         updateForm { copy(secondaryKeywords = secondaryKeywords + "") }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.SetSecondaryKeywords::class)
+    private fun onSetSecondaryKeywords(intent: WorldBookEntryEditUiIntent.SetSecondaryKeywords) =
+        updateForm { copy(secondaryKeywords = intent.secondaryKeywords.orSingleBlank()) }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeSecondaryKeyword::class)
     private fun onChangeSecondaryKeyword(intent: WorldBookEntryEditUiIntent.ChangeSecondaryKeyword) =
@@ -96,6 +104,10 @@ class WorldBookEntryEditViewModel :
     @UiIntentObserver(WorldBookEntryEditUiIntent.AddCategory::class)
     private fun onAddCategory() =
         updateForm { copy(category = category + "") }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.SetCategories::class)
+    private fun onSetCategories(intent: WorldBookEntryEditUiIntent.SetCategories) =
+        updateForm { copy(category = intent.categories.orSingleBlank()) }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeCategory::class)
     private fun onChangeCategory(intent: WorldBookEntryEditUiIntent.ChangeCategory) =

@@ -4,57 +4,79 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Tag
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import me.kafuuneko.rpclient.feature.worldbookentryedit.model.WorldBookEntryEditForm
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditDialogState
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditLoadState
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditMode
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiState
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
+import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
+import me.kafuuneko.rpclient.utils.rememberJsonSyntaxVisualTransformation
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 
 /** 世界书条目完整兼容字段编辑页 Compose 入口。 */
 @Composable
@@ -159,43 +181,31 @@ private fun BasicPanel(
                 Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.delete))
             }
         }
+
         FormTextField(
             label = stringResource(R.string.entry_name),
             value = form.name,
             onChange = { WorldBookEntryEditUiIntent.ChangeName(it).emit() }
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.entry_constant),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = stringResource(R.string.entry_constant_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
-                )
-            }
-            Switch(
+
+        RpSettingsGroup {
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_constant),
+                subtitle = stringResource(R.string.entry_constant_desc),
                 checked = form.constant,
                 enabled = loadState == WorldBookEntryEditLoadState.None,
                 onCheckedChange = { WorldBookEntryEditUiIntent.ChangeConstant(it).emit() }
             )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_disabled),
+                subtitle = stringResource(R.string.entry_disabled_desc),
+                checked = form.disabled,
+                enabled = loadState == WorldBookEntryEditLoadState.None,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDisabled(it).emit() }
+            )
         }
-        ToggleRow(
-            title = stringResource(R.string.entry_disabled),
-            description = stringResource(R.string.entry_disabled_desc),
-            checked = form.disabled,
-            enabled = loadState == WorldBookEntryEditLoadState.None,
-            onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDisabled(it).emit() }
-        )
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.entry_order),
@@ -236,27 +246,37 @@ private fun KeywordsPanel(
     form: WorldBookEntryEditForm,
     emit: WorldBookEntryEditUiIntent.() -> Unit
 ) {
-    Panel {
-        StringListPanel(
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        RpChipInputField(
             title = stringResource(R.string.primary_keywords),
-            values = form.keywords,
-            onAdd = { WorldBookEntryEditUiIntent.AddKeyword.emit() },
-            onChange = { index, value -> WorldBookEntryEditUiIntent.ChangeKeyword(index, value).emit() },
-            onDelete = { WorldBookEntryEditUiIntent.DeleteKeyword(it).emit() }
+            chips = form.keywords,
+            icon = Icons.Rounded.Tag,
+            onChipsChanged = { WorldBookEntryEditUiIntent.SetKeywords(it).emit() },
+            addLabel = stringResource(R.string.add_keyword),
+            placeholder = stringResource(R.string.keyword_input_placeholder),
+            editDialogTitle = stringResource(R.string.edit_keyword_title)
         )
-        StringListPanel(
+
+        RpChipInputField(
             title = stringResource(R.string.secondary_keywords),
-            values = form.secondaryKeywords,
-            onAdd = { WorldBookEntryEditUiIntent.AddSecondaryKeyword.emit() },
-            onChange = { index, value -> WorldBookEntryEditUiIntent.ChangeSecondaryKeyword(index, value).emit() },
-            onDelete = { WorldBookEntryEditUiIntent.DeleteSecondaryKeyword(it).emit() }
+            chips = form.secondaryKeywords,
+            icon = Icons.Rounded.FilterList,
+            onChipsChanged = { WorldBookEntryEditUiIntent.SetSecondaryKeywords(it).emit() },
+            addLabel = stringResource(R.string.add_keyword),
+            placeholder = stringResource(R.string.keyword_input_placeholder),
+            editDialogTitle = stringResource(R.string.edit_keyword_title),
+            accentColor = MaterialTheme.colorScheme.secondary
         )
-        StringListPanel(
+
+        RpChipInputField(
             title = stringResource(R.string.categories),
-            values = form.category,
-            onAdd = { WorldBookEntryEditUiIntent.AddCategory.emit() },
-            onChange = { index, value -> WorldBookEntryEditUiIntent.ChangeCategory(index, value).emit() },
-            onDelete = { WorldBookEntryEditUiIntent.DeleteCategory(it).emit() }
+            chips = form.category,
+            icon = Icons.AutoMirrored.Rounded.Label,
+            onChipsChanged = { WorldBookEntryEditUiIntent.SetCategories(it).emit() },
+            addLabel = stringResource(R.string.add_category),
+            placeholder = stringResource(R.string.category_input_placeholder),
+            editDialogTitle = stringResource(R.string.edit_category_title),
+            accentColor = MaterialTheme.colorScheme.tertiary
         )
     }
 }
@@ -267,40 +287,64 @@ private fun AdvancedPanel(
     loadState: WorldBookEntryEditLoadState,
     emit: WorldBookEntryEditUiIntent.() -> Unit
 ) {
+    val enabled = loadState == WorldBookEntryEditLoadState.None
+
     Panel {
         RpSectionHeader(title = stringResource(R.string.advanced_definition))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+
+        // 插入位置与自定义出口
+        PositionSelector(
+            positionValue = form.position,
+            enabled = enabled,
+            onPositionSelected = { WorldBookEntryEditUiIntent.ChangePosition(it).emit() }
+        )
+
+        if (form.position.trim() == LorebookEntry.POSITION_OUTLET.toString()) {
             FormTextField(
-                label = stringResource(R.string.entry_position),
-                value = form.position,
-                modifier = Modifier.weight(1f),
-                keyboardType = KeyboardType.Number,
-                onChange = { WorldBookEntryEditUiIntent.ChangePosition(it).emit() }
-            )
-            FormTextField(
-                label = stringResource(R.string.entry_role),
-                value = form.role,
-                modifier = Modifier.weight(1f),
-                keyboardType = KeyboardType.Number,
-                onChange = { WorldBookEntryEditUiIntent.ChangeRole(it).emit() }
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FormTextField(
-                label = stringResource(R.string.entry_probability),
-                value = form.probability,
-                modifier = Modifier.weight(1f),
-                keyboardType = KeyboardType.Number,
-                onChange = { WorldBookEntryEditUiIntent.ChangeProbability(it).emit() }
-            )
-            FormTextField(
-                label = stringResource(R.string.entry_logic),
-                value = form.selectiveLogic,
-                modifier = Modifier.weight(1f),
-                keyboardType = KeyboardType.Number,
-                onChange = { WorldBookEntryEditUiIntent.ChangeSelectiveLogic(it).emit() }
+                label = stringResource(R.string.entry_outlet),
+                value = form.outletName,
+                onChange = { WorldBookEntryEditUiIntent.ChangeOutletName(it).emit() }
             )
         }
+
+        // 注入消息角色
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = stringResource(R.string.entry_role),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            RoleSelector(
+                roleValue = form.role,
+                enabled = enabled,
+                onRoleSelected = { WorldBookEntryEditUiIntent.ChangeRole(it).emit() }
+            )
+        }
+
+        // 次要关键词判定逻辑
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = stringResource(R.string.entry_logic),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            SelectiveLogicSelector(
+                logicValue = form.selectiveLogic,
+                enabled = enabled,
+                onLogicSelected = { WorldBookEntryEditUiIntent.ChangeSelectiveLogic(it).emit() }
+            )
+        }
+
+        // 触发概率滑块
+        RpPercentageSlider(
+            title = stringResource(R.string.entry_probability),
+            value = form.probability.toIntOrNull() ?: 100,
+            helper = stringResource(R.string.entry_probability_helper),
+            enabled = enabled,
+            onValueChange = { WorldBookEntryEditUiIntent.ChangeProbability(it.toString()).emit() }
+        )
+
+        // 扫描深度与粘滞/冷却/延迟
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.entry_scan_depth),
@@ -310,20 +354,15 @@ private fun AdvancedPanel(
                 onChange = { WorldBookEntryEditUiIntent.ChangeScanDepth(it).emit() }
             )
             FormTextField(
-                label = stringResource(R.string.entry_outlet),
-                value = form.outletName,
-                modifier = Modifier.weight(1f),
-                onChange = { WorldBookEntryEditUiIntent.ChangeOutletName(it).emit() }
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FormTextField(
                 label = stringResource(R.string.entry_sticky),
                 value = form.sticky,
                 modifier = Modifier.weight(1f),
                 keyboardType = KeyboardType.Number,
                 onChange = { WorldBookEntryEditUiIntent.ChangeSticky(it).emit() }
             )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.entry_cooldown),
                 value = form.cooldown,
@@ -339,97 +378,253 @@ private fun AdvancedPanel(
                 onChange = { WorldBookEntryEditUiIntent.ChangeDelay(it).emit() }
             )
         }
-        ToggleRow(stringResource(R.string.entry_ignore_budget), "", form.ignoreBudget, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeIgnoreBudget(it).emit()
+
+        // 扫描匹配源范围
+        RpSectionHeader(title = stringResource(R.string.entry_matching_scope))
+        RpSettingsGroup {
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_description),
+                checked = form.matchCharacterDescription,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_personality),
+                checked = form.matchCharacterPersonality,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_character_note),
+                checked = form.matchCharacterDepthPrompt,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_scenario),
+                checked = form.matchScenario,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchScenario(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_persona_description),
+                checked = form.matchPersonaDescription,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit() }
+            )
         }
-        ToggleRow(stringResource(R.string.entry_whole_words), "", form.matchWholeWords == true, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchWholeWords(it).emit()
+
+        // 时序与递归控制
+        RpSectionHeader(title = stringResource(R.string.entry_timing_recursion))
+        RpSettingsGroup {
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_whole_words),
+                checked = form.matchWholeWords == true,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchWholeWords(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_case_sensitive),
+                checked = form.caseSensitive == true,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeCaseSensitive(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_ignore_budget),
+                checked = form.ignoreBudget,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeIgnoreBudget(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_prevent_recursion),
+                checked = form.preventRecursion,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangePreventRecursion(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_delay_until_recursion),
+                checked = form.delayUntilRecursion,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(it).emit() }
+            )
         }
-        ToggleRow(stringResource(R.string.entry_case_sensitive), "", form.caseSensitive == true, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeCaseSensitive(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_prevent_recursion), "", form.preventRecursion, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangePreventRecursion(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_delay_until_recursion), "", form.delayUntilRecursion, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_match_persona_description), "", form.matchPersonaDescription, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_match_description), "", form.matchCharacterDescription, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_match_personality), "", form.matchCharacterPersonality, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_match_character_note), "", form.matchCharacterDepthPrompt, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(it).emit()
-        }
-        ToggleRow(stringResource(R.string.entry_match_scenario), "", form.matchScenario, loadState == WorldBookEntryEditLoadState.None) {
-            WorldBookEntryEditUiIntent.ChangeMatchScenario(it).emit()
-        }
-        FormTextField(
+
+        RpJsonCodeEditorField(
             label = stringResource(R.string.extensions_json),
             value = form.extensionsJson,
-            minLines = 4,
-            onChange = { WorldBookEntryEditUiIntent.ChangeExtensionsJson(it).emit() }
+            enabled = enabled,
+            minHeight = 120.dp,
+            maxHeight = 220.dp,
+            onValueChange = { WorldBookEntryEditUiIntent.ChangeExtensionsJson(it).emit() }
         )
     }
 }
 
 @Composable
-private fun StringListPanel(
-    title: String,
-    values: List<String>,
-    onAdd: () -> Unit,
-    onChange: (Int, String) -> Unit,
-    onDelete: (Int) -> Unit
+private fun RoleSelector(
+    roleValue: String,
+    enabled: Boolean,
+    onRoleSelected: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RpSectionHeader(title = title, action = stringResource(R.string.add), onAction = onAdd)
-        values.forEachIndexed { index, value ->
-            ListTextField(
-                label = stringResource(R.string.indexed_label, title, index + 1),
-                value = value,
-                onValueChange = { onChange(index, it) },
-                onDelete = { onDelete(index) }
+    val currentRole = roleValue.trim().toIntOrNull() ?: LorebookEntry.ROLE_SYSTEM
+    val roles = listOf(
+        LorebookEntry.ROLE_SYSTEM to stringResource(R.string.role_system),
+        LorebookEntry.ROLE_USER to stringResource(R.string.role_user),
+        LorebookEntry.ROLE_ASSISTANT to stringResource(R.string.role_assistant)
+    )
+
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        roles.forEach { (roleId, label) ->
+            FilterChip(
+                selected = currentRole == roleId,
+                onClick = { if (enabled) onRoleSelected(roleId.toString()) },
+                enabled = enabled,
+                shape = RoundedCornerShape(10.dp),
+                leadingIcon = if (currentRole == roleId) {
+                    {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    }
+                } else null,
+                label = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             )
         }
     }
 }
 
 @Composable
-private fun ToggleRow(
-    title: String,
-    description: String,
-    checked: Boolean,
+private fun SelectiveLogicSelector(
+    logicValue: String,
     enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onLogicSelected: (String) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+    val currentLogic = logicValue.trim().toIntOrNull() ?: LorebookEntry.LOGIC_AND_ANY
+    val logicOptions = listOf(
+        LorebookEntry.LOGIC_AND_ANY to stringResource(R.string.logic_and_any),
+        LorebookEntry.LOGIC_AND_ALL to stringResource(R.string.logic_and_all),
+        LorebookEntry.LOGIC_NOT_ANY to stringResource(R.string.logic_not_any),
+        LorebookEntry.LOGIC_NOT_ALL to stringResource(R.string.logic_not_all)
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            if (description.isNotBlank()) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+            logicOptions.forEach { (logicId, label) ->
+                FilterChip(
+                    selected = currentLogic == logicId,
+                    onClick = { if (enabled) onLogicSelected(logicId.toString()) },
+                    enabled = enabled,
+                    shape = RoundedCornerShape(10.dp),
+                    leadingIcon = if (currentLogic == logicId) {
+                        {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    } else null,
+                    label = {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 )
             }
         }
-        Switch(
-            checked = checked,
-            enabled = enabled,
-            onCheckedChange = onCheckedChange
+
+        Text(
+            text = when (currentLogic) {
+                LorebookEntry.LOGIC_AND_ALL -> stringResource(R.string.logic_and_all_helper)
+                LorebookEntry.LOGIC_NOT_ANY -> stringResource(R.string.logic_not_any_helper)
+                LorebookEntry.LOGIC_NOT_ALL -> stringResource(R.string.logic_not_all_helper)
+                else -> stringResource(R.string.logic_and_any_helper)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PositionSelector(
+    positionValue: String,
+    enabled: Boolean,
+    onPositionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentPosition = positionValue.trim().toIntOrNull() ?: LorebookEntry.POSITION_AT_DEPTH
+
+    val positions = listOf(
+        LorebookEntry.POSITION_AT_DEPTH to stringResource(R.string.position_at_depth),
+        LorebookEntry.POSITION_BEFORE to stringResource(R.string.position_before_char),
+        LorebookEntry.POSITION_AFTER to stringResource(R.string.position_after_char),
+        LorebookEntry.POSITION_AN_TOP to stringResource(R.string.position_an_top),
+        LorebookEntry.POSITION_AN_BOTTOM to stringResource(R.string.position_an_bottom),
+        LorebookEntry.POSITION_EXAMPLE_TOP to stringResource(R.string.position_example_top),
+        LorebookEntry.POSITION_EXAMPLE_BOTTOM to stringResource(R.string.position_example_bottom),
+        LorebookEntry.POSITION_OUTLET to stringResource(R.string.position_outlet)
+    )
+
+    val currentLabel = positions.firstOrNull { it.first == currentPosition }?.second
+        ?: stringResource(R.string.position_at_depth)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = currentLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.entry_position)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            enabled = enabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            shape = RoundedCornerShape(12.dp)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            positions.forEach { (posId, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onPositionSelected(posId.toString())
+                        expanded = false
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -533,31 +728,6 @@ private fun FormTextField(
         visualTransformation = visualTransformation,
         shape = RoundedCornerShape(12.dp)
     )
-}
-
-@Composable
-private fun ListTextField(
-    label: String,
-    value: String,
-    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
-    onValueChange: (String) -> Unit,
-    onDelete: () -> Unit
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            modifier = Modifier.weight(1f),
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            leadingIcon = { Icon(Icons.Rounded.Tag, contentDescription = null) },
-            singleLine = true,
-            visualTransformation = visualTransformation,
-            shape = RoundedCornerShape(12.dp)
-        )
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.delete))
-        }
-    }
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

@@ -151,6 +151,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onAddTag() =
         updateForm { copy(tags = tags + "") }
 
+    @UiIntentObserver(CharacterEditUiIntent.SetTags::class)
+    private fun onSetTags(intent: CharacterEditUiIntent.SetTags) =
+        updateForm { copy(tags = intent.tags.orSingleBlank()) }
+
     @UiIntentObserver(CharacterEditUiIntent.ChangeTag::class)
     private fun onChangeTag(intent: CharacterEditUiIntent.ChangeTag) =
         updateForm { copy(tags = tags.updateAt(intent.index, intent.value)) }

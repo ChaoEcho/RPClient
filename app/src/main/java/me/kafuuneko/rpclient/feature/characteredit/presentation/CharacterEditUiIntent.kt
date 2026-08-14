@@ -22,6 +22,8 @@ sealed class CharacterEditUiIntent {
 
     data object AddTag : CharacterEditUiIntent()
 
+    data class SetTags(val tags: List<String>) : CharacterEditUiIntent()
+
     data class ChangeTag(val index: Int, val value: String) : CharacterEditUiIntent()
 
     data class DeleteTag(val index: Int) : CharacterEditUiIntent()
