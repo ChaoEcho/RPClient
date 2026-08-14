@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.ui.message
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,12 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * 渲染聊天消息支持的轻量 Markdown 子集。
  *
- * 解析器刻意不执行 HTML，也不加载链接或远程资源；用户消息与模型消息只在配色上不同，
- * 以免展示层改变持久化正文或向外部地址泄露会话内容。
+ * 解析器刻意不执行 HTML，也不加载链接或远程资源；支持角色动作/心理描写（斜体弱化）、
+ * 对白（高亮）与纯净粗体排版。
  */
 @Composable
 fun MarkdownMessageText(
@@ -49,23 +51,25 @@ fun MarkdownMessageText(
     val blocks = remember(content) { content.parseMarkdownBlocks() }
     val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val linkColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-    val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-    val subtleColor = textColor.copy(alpha = if (isUser) 0.72f else 0.58f)
+    val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val subtleColor = textColor.copy(alpha = if (isUser) 0.78f else 0.65f)
+    val narrationColor = textColor.copy(alpha = if (isUser) 0.85f else 0.75f)
     val blockColor = if (isUser) {
         textColor.copy(alpha = 0.12f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         blocks.forEach { block ->
             when (block) {
                 is MarkdownBlock.Paragraph -> MarkdownInlineText(
                     content = block.content,
                     color = textColor,
+                    narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
                     style = MaterialTheme.typography.bodyMedium
@@ -74,6 +78,7 @@ fun MarkdownMessageText(
                 is MarkdownBlock.Heading -> MarkdownInlineText(
                     content = block.content,
                     color = textColor,
+                    narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
                     style = block.headingStyle()
@@ -89,6 +94,7 @@ fun MarkdownMessageText(
                 is MarkdownBlock.Quote -> MarkdownQuoteBlock(
                     content = block.content,
                     color = textColor,
+                    narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
                     backgroundColor = blockColor
@@ -97,6 +103,7 @@ fun MarkdownMessageText(
                 is MarkdownBlock.ListBlock -> MarkdownListBlock(
                     block = block,
                     color = textColor,
+                    narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
                     markerColor = subtleColor
@@ -106,7 +113,7 @@ fun MarkdownMessageText(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(subtleColor.copy(alpha = 0.35f))
+                        .background(subtleColor.copy(alpha = 0.25f))
                 )
             }
         }
@@ -116,7 +123,7 @@ fun MarkdownMessageText(
 @Composable
 private fun MarkdownBlock.Heading.headingStyle(): TextStyle {
     return when (level) {
-        1 -> MaterialTheme.typography.titleSmall
+        1 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         2 -> MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
         else -> MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
     }
@@ -126,16 +133,18 @@ private fun MarkdownBlock.Heading.headingStyle(): TextStyle {
 private fun MarkdownInlineText(
     content: String,
     color: Color,
+    narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
     style: TextStyle,
     modifier: Modifier = Modifier
 ) {
-    val text = remember(content, color, linkColor, strongColor) {
+    val text = remember(content, color, narrationColor, linkColor, strongColor) {
         buildAnnotatedString {
             appendMarkdownInline(
                 source = content,
                 textColor = color,
+                narrationColor = narrationColor,
                 linkColor = linkColor,
                 strongColor = strongColor
             )
@@ -159,23 +168,28 @@ private fun MarkdownCodeBlock(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = backgroundColor
+        color = backgroundColor,
+        border = BorderStroke(0.5.dp, color.copy(alpha = 0.12f))
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (!language.isNullOrBlank()) {
                 Text(
                     text = language,
                     style = MaterialTheme.typography.labelSmall,
-                    color = color.copy(alpha = 0.68f)
+                    fontWeight = FontWeight.SemiBold,
+                    color = color.copy(alpha = 0.70f)
                 )
             }
             Text(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 text = content.ifBlank { " " },
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 18.sp
+                ),
                 color = color
             )
         }
@@ -186,6 +200,7 @@ private fun MarkdownCodeBlock(
 private fun MarkdownQuoteBlock(
     content: String,
     color: Color,
+    narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
     backgroundColor: Color
@@ -193,23 +208,25 @@ private fun MarkdownQuoteBlock(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = backgroundColor
+        color = backgroundColor,
+        border = BorderStroke(0.5.dp, color.copy(alpha = 0.08f))
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Top
         ) {
             Box(
                 modifier = Modifier
-                    .width(3.dp)
+                    .width(3.5.dp)
                     .heightIn(min = 22.dp)
-                    .background(color.copy(alpha = 0.62f), CircleShape)
+                    .background(color.copy(alpha = 0.55f), CircleShape)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             MarkdownInlineText(
                 modifier = Modifier.weight(1f),
                 content = content,
                 color = color,
+                narrationColor = narrationColor,
                 linkColor = linkColor,
                 strongColor = strongColor,
                 style = MaterialTheme.typography.bodyMedium
@@ -222,6 +239,7 @@ private fun MarkdownQuoteBlock(
 private fun MarkdownListBlock(
     block: MarkdownBlock.ListBlock,
     color: Color,
+    narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
     markerColor: Color
@@ -239,6 +257,7 @@ private fun MarkdownListBlock(
                     modifier = Modifier.weight(1f),
                     content = item.content,
                     color = color,
+                    narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
                     style = MaterialTheme.typography.bodyMedium
@@ -371,12 +390,13 @@ private fun String.isListLine(): Boolean {
 /**
  * 从左到右解析受支持的行内标记并直接写入 AnnotatedString。
  *
- * 链接只渲染标签而不注册点击或访问目标地址；缺少闭合符的标记按普通字符输出，
+ * 动作描写（*...* 或 _..._）采用弱化斜体；粗体（**...**）加粗而不加底色；
  * 保证流式文本追加闭合符之前不会吞掉后续内容。
  */
 private fun AnnotatedString.Builder.appendMarkdownInline(
     source: String,
     textColor: Color,
+    narrationColor: Color,
     linkColor: Color,
     strongColor: Color
 ) {
@@ -392,7 +412,7 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
                     withStyle(
                         SpanStyle(
                             fontFamily = FontFamily.Monospace,
-                            background = textColor.copy(alpha = 0.14f)
+                            background = textColor.copy(alpha = 0.10f)
                         )
                     ) {
                         append(source.substring(index + 1, end))
@@ -402,40 +422,44 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
             }
 
             source.startsWith("**", index) -> {
-                index = appendDelimitedMarkdown(source, index, "**", textColor, linkColor, strongColor) {
+                index = appendDelimitedMarkdown(source, index, "**", textColor, narrationColor, linkColor, strongColor) {
                     SpanStyle(
                         color = strongColor,
-                        fontWeight = FontWeight.Black,
-                        background = strongColor.copy(alpha = 0.12f)
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
 
             source.startsWith("__", index) -> {
-                index = appendDelimitedMarkdown(source, index, "__", textColor, linkColor, strongColor) {
+                index = appendDelimitedMarkdown(source, index, "__", textColor, narrationColor, linkColor, strongColor) {
                     SpanStyle(
                         color = strongColor,
-                        fontWeight = FontWeight.Black,
-                        background = strongColor.copy(alpha = 0.12f)
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
 
             source.startsWith("~~", index) -> {
-                index = appendDelimitedMarkdown(source, index, "~~", textColor, linkColor, strongColor) {
+                index = appendDelimitedMarkdown(source, index, "~~", textColor, narrationColor, linkColor, strongColor) {
                     SpanStyle(textDecoration = TextDecoration.LineThrough)
                 }
             }
 
             source[index] == '*' -> {
-                index = appendDelimitedMarkdown(source, index, "*", textColor, linkColor, strongColor) {
-                    SpanStyle(fontStyle = FontStyle.Italic)
+                index = appendDelimitedMarkdown(source, index, "*", textColor, narrationColor, linkColor, strongColor) {
+                    SpanStyle(
+                        fontStyle = FontStyle.Italic,
+                        color = narrationColor
+                    )
                 }
             }
 
             source[index] == '_' -> {
-                index = appendDelimitedMarkdown(source, index, "_", textColor, linkColor, strongColor) {
-                    SpanStyle(fontStyle = FontStyle.Italic)
+                index = appendDelimitedMarkdown(source, index, "_", textColor, narrationColor, linkColor, strongColor) {
+                    SpanStyle(
+                        fontStyle = FontStyle.Italic,
+                        color = narrationColor
+                    )
                 }
             }
 
@@ -449,6 +473,7 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
                             appendMarkdownInline(
                                 source = source.substring(index + 1, labelEnd),
                                 textColor = textColor,
+                                narrationColor = narrationColor,
                                 linkColor = linkColor,
                                 strongColor = strongColor
                             )
@@ -482,6 +507,7 @@ private fun AnnotatedString.Builder.appendDelimitedMarkdown(
     start: Int,
     delimiter: String,
     textColor: Color,
+    narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
     style: () -> SpanStyle
@@ -493,8 +519,9 @@ private fun AnnotatedString.Builder.appendDelimitedMarkdown(
         start + 1
     } else {
         withStyle(style()) {
-            appendMarkdownInline(source.substring(contentStart, end), textColor, linkColor, strongColor)
+            appendMarkdownInline(source.substring(contentStart, end), textColor, narrationColor, linkColor, strongColor)
         }
         end + delimiter.length
     }
 }
+

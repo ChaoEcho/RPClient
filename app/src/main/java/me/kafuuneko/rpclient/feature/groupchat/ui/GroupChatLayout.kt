@@ -2,8 +2,11 @@ package me.kafuuneko.rpclient.feature.groupchat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,8 +47,11 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -78,10 +84,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
@@ -774,24 +783,31 @@ private fun MemberChip(
     onSelect: () -> Unit,
     onToggleMuted: () -> Unit
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     val accent = getMacaronColor(member.name)
     Card(
         modifier = Modifier
             .width(138.dp)
             .alpha(if (member.muted) 0.55f else 1f)
-            .clickable(enabled = enabled, onClick = onSelect),
-        shape = RoundedCornerShape(18.dp),
+            .clickable(
+                enabled = enabled,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSelect()
+                }
+            ),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
+            if (selected) 1.5.dp else 1.dp,
             if (selected) {
                 MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
             }
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
@@ -816,7 +832,10 @@ private fun MemberChip(
                 overflow = TextOverflow.Ellipsis
             )
             IconButton(
-                onClick = onToggleMuted,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onToggleMuted()
+                },
                 enabled = enabled,
                 modifier = Modifier.size(28.dp)
             ) {
@@ -920,18 +939,19 @@ private fun EmptyConversation(modifier: Modifier) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
-                modifier = Modifier.size(70.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer
+                modifier = Modifier.size(64.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Rounded.Groups,
                         contentDescription = null,
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(32.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -1015,23 +1035,21 @@ private fun MessageBubble(
                         showActions = !showActions
                     },
                 shape = when {
-                    isUser -> RoundedCornerShape(20.dp, 5.dp, 20.dp, 20.dp)
+                    isUser -> RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
                     isSystem -> RoundedCornerShape(14.dp)
-                    else -> RoundedCornerShape(5.dp, 20.dp, 20.dp, 20.dp)
+                    else -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
                 },
                 color = when {
                     isUser -> MaterialTheme.colorScheme.primary
                     isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
                     else -> MaterialTheme.colorScheme.surface
                 },
-                border = if (!isUser && !isSystem) {
-                    BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                    )
-                } else {
-                    null
-                }
+                border = when {
+                    isUser -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                    isSystem -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
+                    else -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
+                },
+                shadowElevation = if (isUser) 1.5.dp else 0.5.dp
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
@@ -1054,14 +1072,23 @@ private fun MessageBubble(
                     }
                     AnimatedVisibility(
                         visible = showActions && !editing && !message.isStreaming,
-                        enter = fadeIn(),
-                        exit = fadeOut()
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
                     ) {
-                        GroupMessageActions(
-                            message = message,
-                            isUser = isUser,
-                            emitIntent = emitIntent
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
+                                GroupMessageActions(
+                                    message = message,
+                                    isUser = isUser,
+                                    emitIntent = emitIntent
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1146,17 +1173,27 @@ private fun GroupThinkBlock(
             .fillMaxWidth()
             .clickable(onClick = onToggle),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = if (isThinking) indicatorColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
                 if (isThinking) {
                     GroupStreamingStatus(
                         text = stringResource(R.string.thinking),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         indicatorColor = indicatorColor,
                         modifier = Modifier.weight(1f)
                     )
@@ -1164,21 +1201,28 @@ private fun GroupThinkBlock(
                     Text(
                         text = stringResource(R.string.thought_process),
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = stringResource(if (expanded) R.string.hide else R.string.show),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            if (expanded) {
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Text(
                     text = part.content,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
@@ -1198,7 +1242,7 @@ private fun GroupMessageEditContent(
                 emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(it))
             },
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
+            minLines = 1,
             maxLines = 8,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -1229,22 +1273,31 @@ private fun GroupMessageEditContent(
                 }
             )
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { emitIntent(GroupChatUiIntent.SaveEditingMessage) }) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = { emitIntent(GroupChatUiIntent.CancelEditingMessage) },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
                 Text(
-                    text = stringResource(R.string.save),
+                    text = stringResource(R.string.cancel),
                     color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimary
+                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
                 )
             }
+            Spacer(modifier = Modifier.width(4.dp))
             TextButton(
-                onClick = { emitIntent(GroupChatUiIntent.CancelEditingMessage) }
+                onClick = { emitIntent(GroupChatUiIntent.SaveEditingMessage) },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.cancel),
+                    text = stringResource(R.string.save),
+                    fontWeight = FontWeight.Bold,
                     color = if (isUser) {
                         MaterialTheme.colorScheme.onPrimary
                     } else {
@@ -1338,6 +1391,12 @@ private fun Composer(
     onSummarize: () -> Unit
 ) {
     var quickActionsExpanded by remember { mutableStateOf(false) }
+    val hapticFeedback = LocalHapticFeedback.current
+    val sendButtonColor by animateColorAsState(
+        targetValue = if (generating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        label = "sendButtonColor"
+    )
+
     Surface(
         tonalElevation = 5.dp,
         shadowElevation = 8.dp,
@@ -1402,20 +1461,32 @@ private fun Composer(
                 }
             )
             Spacer(modifier = Modifier.width(8.dp))
-            FilledIconButton(
-                onClick = if (generating) onStop else onSend,
-                modifier = Modifier.size(52.dp)
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = sendButtonColor,
+                tonalElevation = 2.dp,
+                shadowElevation = 2.dp,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (generating) onStop()
+                    else onSend()
+                }
             ) {
-                Icon(
-                    imageVector = if (generating) {
-                        Icons.Rounded.StopCircle
-                    } else {
-                        Icons.AutoMirrored.Rounded.Send
-                    },
-                    contentDescription = stringResource(
-                        if (generating) R.string.stop else R.string.send
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (generating) {
+                            Icons.Rounded.Stop
+                        } else {
+                            Icons.AutoMirrored.Rounded.Send
+                        },
+                        contentDescription = stringResource(
+                            if (generating) R.string.stop else R.string.send
+                        ),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp)
                     )
-                )
+                }
             }
         }
     }

@@ -2,12 +2,16 @@ package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,10 +48,12 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -76,7 +83,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -84,6 +93,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
@@ -275,20 +285,24 @@ private fun CustomChatTopBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 1.dp
+        tonalElevation = 1.dp,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(38.dp)
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_back),
                     contentDescription = stringResource(R.string.back),
+                    modifier = Modifier.size(22.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -300,7 +314,7 @@ private fun CustomChatTopBar(
                 size = 36
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -328,11 +342,13 @@ private fun CustomChatTopBar(
 
             IconButton(
                 onClick = { ChatUiIntent.OpenPromptInspector.emit() },
-                enabled = hasPromptInspection
+                enabled = hasPromptInspection,
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Rounded.Info,
                     contentDescription = stringResource(R.string.prompt_inspector_title),
+                    modifier = Modifier.size(20.dp),
                     tint = if (hasPromptInspection) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                     } else {
@@ -340,18 +356,26 @@ private fun CustomChatTopBar(
                     }
                 )
             }
-            IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
+            IconButton(
+                onClick = { ChatUiIntent.OpenSessionLore.emit() },
+                modifier = Modifier.size(36.dp)
+            ) {
                 Icon(
                     Icons.Rounded.Book,
                     contentDescription = stringResource(R.string.session_world_book),
+                    modifier = Modifier.size(20.dp),
                     tint = if (lorebookState.isExpanded) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                 )
             }
-            IconButton(onClick = { ChatUiIntent.OpenChatSettings.emit() }) {
+            IconButton(
+                onClick = { ChatUiIntent.OpenChatSettings.emit() },
+                modifier = Modifier.size(36.dp)
+            ) {
                 Icon(
                     Icons.Rounded.Tune,
                     contentDescription = stringResource(R.string.generation_params),
+                    modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                 )
             }
@@ -373,15 +397,16 @@ private fun ConversationStartHeader(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp, horizontal = 4.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -389,7 +414,7 @@ private fun ConversationStartHeader(
                 avatarText = character.avatarText,
                 avatarColor = character.accentColor,
                 image = character.avatarImage,
-                size = 64
+                size = 68
             )
 
             Text(
@@ -402,7 +427,7 @@ private fun ConversationStartHeader(
                 Text(
                     text = character.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
@@ -410,7 +435,7 @@ private fun ConversationStartHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -425,9 +450,10 @@ private fun ConversationStartHeader(
             }
             OutlinedButton(
                 onClick = { ChatUiIntent.OpenCharacterEditor.emit() },
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
             ) {
-                Icon(Icons.Rounded.Edit, contentDescription = null)
+                Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.edit_character_title))
             }
@@ -642,104 +668,110 @@ private fun MessageBubble(
     ) {
         if (!isUser) {
             AvatarPreview(
-                avatarText = if (message.speaker == character.name) character.avatarText else message.speaker.take(
-                    1
-                ).uppercase(),
+                avatarText = if (message.speaker == character.name) character.avatarText else message.speaker.take(1).uppercase(),
                 avatarColor = if (message.speaker == character.name) character.accentColor else NarratorAvatarColor,
                 image = if (message.speaker == character.name) character.avatarImage else null,
-                size = 32,
-                modifier = Modifier.padding(end = 8.dp, top = 4.dp)
+                size = 34,
+                modifier = Modifier.padding(end = 8.dp, top = 2.dp)
             )
         }
 
-        Surface(
-            modifier = Modifier
-                .widthIn(max = if (isUser) 300.dp else 268.dp)
-                .clickable {
-                    if (!editing) {
-                        showActions = !showActions
-                    }
-                },
-            shape = when (message.role) {
-                MessageRole.User -> RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = 16.dp,
-                    bottomEnd = 4.dp
-                )
-
-                MessageRole.Assistant -> RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = 4.dp,
-                    bottomEnd = 16.dp
-                )
-
-                MessageRole.Narrator -> RoundedCornerShape(12.dp)
-            },
-            color = when (message.role) {
-                MessageRole.User -> MaterialTheme.colorScheme.primary
-                MessageRole.Assistant -> MaterialTheme.colorScheme.surface
-                MessageRole.Narrator -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
-            },
-            border = if (message.role == MessageRole.Assistant) {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-            } else null
+        Column(
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = if (isUser) 310.dp else 295.dp)
+                    .clickable {
+                        if (!editing) {
+                            showActions = !showActions
+                        }
+                    },
+                shape = when (message.role) {
+                    MessageRole.User -> RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 18.dp,
+                        bottomStart = 18.dp,
+                        bottomEnd = 4.dp
+                    )
+                    MessageRole.Assistant -> RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 18.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 18.dp
+                    )
+                    MessageRole.Narrator -> RoundedCornerShape(14.dp)
+                },
+                color = when (message.role) {
+                    MessageRole.User -> MaterialTheme.colorScheme.primary
+                    MessageRole.Assistant -> MaterialTheme.colorScheme.surface
+                    MessageRole.Narrator -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                },
+                border = when (message.role) {
+                    MessageRole.User -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                    MessageRole.Assistant -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
+                    MessageRole.Narrator -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
+                },
+                shadowElevation = if (isUser) 1.5.dp else 0.5.dp
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    Text(
-                        text = message.speaker,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = message.time,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f)
-                    )
-                }
-                if (editing) {
-                    MessageEditContent(
-                        draft = editingDraft,
-                        isUser = isUser,
-                        emit = emit
-                    )
-                } else {
-                    MessageContent(
-                        message = message,
-                        expandedThinkBlockIds = expandedThinkBlockIds,
-                        isUser = isUser,
-                        emit = emit
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = showActions && !editing,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isUser) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            MessageActions(message, isFirstMessage, emit)
-                        }
+                        Text(
+                            text = message.speaker,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = message.time,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                        )
+                    }
+                    if (editing) {
+                        MessageEditContent(
+                            draft = editingDraft,
+                            isUser = isUser,
+                            emit = emit
+                        )
+                    } else {
+                        MessageContent(
+                            message = message,
+                            expandedThinkBlockIds = expandedThinkBlockIds,
+                            isUser = isUser,
+                            emit = emit
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showActions && !editing,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        MessageActions(message, isFirstMessage, emit)
                     }
                 }
             }
@@ -818,7 +850,7 @@ private fun MessageEditContent(
             modifier = Modifier.fillMaxWidth(),
             value = draft,
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
-            minLines = 3,
+            minLines = 1,
             maxLines = 8,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -829,16 +861,27 @@ private fun MessageEditContent(
                 unfocusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
             )
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { ChatUiIntent.SaveEditingMessage.emit() }) {
-                Text(
-                    stringResource(R.string.save),
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-                )
-            }
-            TextButton(onClick = { ChatUiIntent.CancelEditingMessage.emit() }) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = { ChatUiIntent.CancelEditingMessage.emit() },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
                 Text(
                     stringResource(R.string.cancel),
+                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(
+                onClick = { ChatUiIntent.SaveEditingMessage.emit() },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    stringResource(R.string.save),
+                    fontWeight = FontWeight.Bold,
                     color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                 )
             }
@@ -857,41 +900,114 @@ private fun ThinkBlock(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { ChatUiIntent.ToggleThinkBlock(part.id).emit() },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isThinking) 0.55f else 0.38f),
+        border = BorderStroke(
+            0.8.dp,
+            if (isThinking) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = if (isThinking) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
                 if (isThinking) {
                     StreamingStatus(
                         text = stringResource(R.string.thinking),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
                 } else {
                     Text(
                         stringResource(R.string.thought_process),
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            if (expanded) {
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Text(
                     part.content,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionPill(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (enabled) {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        },
+        border = BorderStroke(
+            0.5.dp,
+            if (enabled) {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.10f)
+            }
+        ),
+        modifier = Modifier.clickable(
+            enabled = enabled,
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            )
         }
     }
 }
@@ -902,55 +1018,67 @@ private fun MessageActions(
     isFirstMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        val isUser = message.role == MessageRole.User
-        val iconColor = if (isUser) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-        } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-        val actionModifier = @Composable { onClick: () -> Unit ->
-            Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onClick)
-                .padding(6.dp)
-        }
-
-        Icon(
-            Icons.Rounded.ContentCopy,
-            contentDescription = stringResource(R.string.copy),
-            modifier = actionModifier { ChatUiIntent.CopyMessage(message.id).emit() },
-            tint = iconColor
-        )
-        Icon(
-            Icons.Rounded.Edit,
-            contentDescription = stringResource(R.string.edit),
-            modifier = actionModifier { ChatUiIntent.StartEditMessage(message.id).emit() },
-            tint = iconColor
-        )
-        if (!isFirstMessage) {
+        IconButton(
+            onClick = { ChatUiIntent.CopyMessage(message.id).emit() },
+            modifier = Modifier.size(30.dp)
+        ) {
             Icon(
-                Icons.Rounded.Tune,
-                contentDescription = stringResource(R.string.branch_from_message),
-                modifier = actionModifier { ChatUiIntent.BranchFromMessage(message.id).emit() },
+                Icons.Rounded.ContentCopy,
+                contentDescription = stringResource(R.string.copy),
+                modifier = Modifier.size(17.dp),
                 tint = iconColor
             )
-            if (message.role == MessageRole.Assistant) {
+        }
+        IconButton(
+            onClick = { ChatUiIntent.StartEditMessage(message.id).emit() },
+            modifier = Modifier.size(30.dp)
+        ) {
+            Icon(
+                Icons.Rounded.Edit,
+                contentDescription = stringResource(R.string.edit),
+                modifier = Modifier.size(17.dp),
+                tint = iconColor
+            )
+        }
+        if (!isFirstMessage) {
+            IconButton(
+                onClick = { ChatUiIntent.BranchFromMessage(message.id).emit() },
+                modifier = Modifier.size(30.dp)
+            ) {
                 Icon(
-                    Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.regenerate),
-                    modifier = actionModifier { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                    Icons.Rounded.Tune,
+                    contentDescription = stringResource(R.string.branch_from_message),
+                    modifier = Modifier.size(17.dp),
                     tint = iconColor
                 )
             }
-            Icon(
-                Icons.Rounded.Delete,
-                contentDescription = stringResource(R.string.delete),
-                modifier = actionModifier { ChatUiIntent.DeleteMessageClick(message.id).emit() },
-                tint = iconColor
-            )
+            if (message.role == MessageRole.Assistant) {
+                IconButton(
+                    onClick = { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.regenerate),
+                        modifier = Modifier.size(17.dp),
+                        tint = iconColor
+                    )
+                }
+            }
+            IconButton(
+                onClick = { ChatUiIntent.DeleteMessageClick(message.id).emit() },
+                modifier = Modifier.size(30.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                    modifier = Modifier.size(17.dp),
+                    tint = iconColor
+                )
+            }
         }
     }
 }
@@ -963,22 +1091,64 @@ private fun ChatInputBar(
     emit: ChatUiIntent.() -> Unit
 ) {
     var quickActionsExpanded by remember { mutableStateOf(false) }
+    val hapticFeedback = LocalHapticFeedback.current
+    val sendButtonColor by animateColorAsState(
+        targetValue = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        label = "sendButtonColor"
+    )
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp
+        tonalElevation = 2.dp,
+        shadowElevation = 3.dp
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    .height(0.8.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+                    .height(0.5.dp)
             )
+
+            // 快捷操作胶囊条 (Quick Action Pills Row)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                QuickActionPill(
+                    icon = Icons.Rounded.AutoAwesome,
+                    label = stringResource(R.string.continue_latest_reply),
+                    enabled = hasAssistantMessage && !isGenerating,
+                    onClick = { ChatUiIntent.ContinueLast.emit() }
+                )
+                QuickActionPill(
+                    icon = Icons.Rounded.Edit,
+                    label = stringResource(R.string.impersonate_user),
+                    enabled = !isGenerating,
+                    onClick = { ChatUiIntent.ImpersonateUser.emit() }
+                )
+                QuickActionPill(
+                    icon = Icons.Rounded.Refresh,
+                    label = stringResource(R.string.regenerate_latest_reply),
+                    enabled = hasAssistantMessage && !isGenerating,
+                    onClick = { ChatUiIntent.RegenerateLast.emit() }
+                )
+                QuickActionPill(
+                    icon = Icons.Rounded.AutoAwesome,
+                    label = stringResource(R.string.summarize_now),
+                    enabled = hasAssistantMessage && !isGenerating,
+                    onClick = { ChatUiIntent.SummarizeNow.emit() }
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 OutlinedTextField(
@@ -1012,6 +1182,7 @@ private fun ChatInputBar(
                                     enabled = hasAssistantMessage,
                                     onClick = {
                                         quickActionsExpanded = false
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         ChatUiIntent.RegenerateLast.emit()
                                     }
                                 )
@@ -1023,6 +1194,7 @@ private fun ChatInputBar(
                                     enabled = hasAssistantMessage,
                                     onClick = {
                                         quickActionsExpanded = false
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         ChatUiIntent.ContinueLast.emit()
                                     }
                                 )
@@ -1033,6 +1205,7 @@ private fun ChatInputBar(
                                     },
                                     onClick = {
                                         quickActionsExpanded = false
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         ChatUiIntent.ImpersonateUser.emit()
                                     }
                                 )
@@ -1043,6 +1216,7 @@ private fun ChatInputBar(
                                     },
                                     onClick = {
                                         quickActionsExpanded = false
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         ChatUiIntent.SummarizeNow.emit()
                                     }
                                 )
@@ -1060,13 +1234,11 @@ private fun ChatInputBar(
                         )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                            alpha = 0.15f
-                        )
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
@@ -1074,10 +1246,11 @@ private fun ChatInputBar(
                 Surface(
                     modifier = Modifier.size(48.dp),
                     shape = CircleShape,
-                    color = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = sendButtonColor,
                     tonalElevation = 2.dp,
                     shadowElevation = 2.dp,
                     onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         if (isGenerating) ChatUiIntent.StopGeneration.emit()
                         else ChatUiIntent.SendMessage.emit()
                     }
@@ -1581,20 +1754,29 @@ private fun AvatarPreview(
     size: Int,
     modifier: Modifier = Modifier
 ) {
-    if (image == null) {
-        RpAvatar(
-            text = avatarText,
-            color = avatarColor,
-            modifier = modifier.size(size.dp)
-        )
-    } else {
-        Image(
-            bitmap = image,
-            contentDescription = null,
-            modifier = modifier
-                .size(size.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+    val cornerRadius = remember(size) { (size * 0.28).coerceAtLeast(8.0).dp }
+    Surface(
+        modifier = modifier.size(size.dp),
+        shape = RoundedCornerShape(cornerRadius),
+        color = avatarColor.copy(alpha = 0.14f),
+        border = BorderStroke(0.5.dp, avatarColor.copy(alpha = 0.30f))
+    ) {
+        if (image == null) {
+            RpAvatar(
+                text = avatarText,
+                color = avatarColor,
+                modifier = Modifier.size(size.dp),
+                shape = RoundedCornerShape(cornerRadius)
+            )
+        } else {
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(size.dp)
+                    .clip(RoundedCornerShape(cornerRadius)),
+                contentScale = ContentScale.Crop
+            )
+        }
     }
 }

@@ -17,6 +17,9 @@
     <string name="character_cards_count">%d cartes de personnage</string>
     <string name="lorebook_count">%d lorebooks</string>
     <string name="recent_chats">Discussions récentes</string>
+    <string name="home_session_filter_all">Tous</string>
+    <string name="home_session_filter_single">Solo</string>
+    <string name="home_session_filter_group">Groupe</string>
     <string name="manage_characters">Gérer</string>
     <string name="message_count">%d messages</string>
     <string name="session_group_count">%d sessions</string>
@@ -24,6 +27,8 @@
     <string name="collapse_session_group">Réduire les sessions</string>
     <string name="setting_page_title">Paramètres</string>
     <string name="setting_subtitle">Fournisseur, paramètres de génération et comportement du prompt</string>
+    <string name="prompt_and_memory_section">Prompt et mémoire de contexte</string>
+    <string name="system_and_data_section">Données et système</string>
     <string name="model_provider">Fournisseur de modèle</string>
     <string name="manage">Gérer</string>
     <string name="no_enabled_model">Aucun modèle activé</string>

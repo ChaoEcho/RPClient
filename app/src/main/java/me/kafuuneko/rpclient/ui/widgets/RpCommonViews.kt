@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.ui.widgets
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,81 +37,113 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** 页面主标题，可选显示辅助说明。 */
+/** 页面主标题，带辅助说明，统一页面顶部视觉规范。 */
 @Composable
 fun RpPageTitle(
     title: String,
-    subtitle: String
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         Text(
-            title,
-            style = MaterialTheme.typography.displayLarge,
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Black
+            fontWeight = FontWeight.Bold
         )
         Text(
-            subtitle,
+            text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.62f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
         )
     }
 }
 
-/** 内容区段标题，可选在右侧放置操作按钮。 */
+/** 内容区段标题，右侧支持快捷操作入口。 */
 @Composable
 fun RpSectionHeader(
     title: String,
     action: String? = null,
     onAction: () -> Unit = {}
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             text = title,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onBackground
         )
         if (action != null) {
-            TextButton(onClick = onAction) {
-                Text(action)
+            TextButton(
+                onClick = onAction,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    action,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
 }
 
-/** 项目统一的文字占位头像。 */
+/** 项目统一的文字占位头像，采用现代化柔和 Squircle 圆角与微弱高光边框。 */
 @Composable
 fun RpAvatar(
     text: String,
     color: Color,
     modifier: Modifier = Modifier,
-    shape: Shape = CircleShape
+    shape: Shape = RoundedCornerShape(16.dp)
 ) {
-    Box(
-        modifier = modifier
-            .size(46.dp)
-            .clip(shape)
-            .background(color.copy(alpha = 0.16f)),
-        contentAlignment = Alignment.Center
+    Surface(
+        modifier = modifier.size(46.dp),
+        shape = shape,
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(0.5.dp, color.copy(alpha = 0.28f))
     ) {
-        Text(text, color = color, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                color = color,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
-/** 用于列表项或卡片的圆形图标背景。 */
+/** 用于列表项或卡片的微光圆角图标背景。 */
 @Composable
 fun RpIconBubble(
     icon: ImageVector,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+    contentColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Surface(
         modifier = modifier.size(38.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        shape = RoundedCornerShape(13.dp),
+        color = containerColor,
+        border = BorderStroke(0.5.dp, contentColor.copy(alpha = 0.15f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -133,19 +167,21 @@ fun RpTagRow(
     }
 }
 
-/** 单个强调标签。 */
+/** 单个强调标签，采用胶囊结构与轻量填充，去除粗糙黑边。 */
 @Composable
 fun RpTagPill(text: String) {
     Surface(
         modifier = Modifier.widthIn(max = 240.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shape = RoundedCornerShape(9.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis
@@ -172,12 +208,13 @@ fun RpMetaRow(items: List<String>) {
 fun RpMetaPill(text: String) {
     Surface(
         modifier = Modifier.widthIn(max = 240.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shape = RoundedCornerShape(9.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -187,7 +224,7 @@ fun RpMetaPill(text: String) {
     }
 }
 
-/** 带图标、标题和可选操作区的统一信息卡片。 */
+/** 带图标、标题和可选操作区的现代化信息卡片。 */
 @Composable
 fun RpInfoCard(
     modifier: Modifier = Modifier,
@@ -198,14 +235,18 @@ fun RpInfoCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RpIconBubble(icon)
@@ -216,13 +257,14 @@ fun RpInfoCard(
             ) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
                 )
             }
             trailing?.invoke()
@@ -234,14 +276,18 @@ fun RpInfoCard(
 @Composable
 fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content
         )
     }
@@ -252,3 +298,4 @@ fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
 fun RpSpacerSmall() {
     Spacer(modifier = Modifier.height(8.dp))
 }
+

@@ -25,11 +25,11 @@ private val DarkColorScheme = darkColorScheme(
     error = ErrorDarkColor,
     onError = OnErrorColor,
     primaryContainer = PrimaryContainerDarkColor,
-    onPrimaryContainer = PrimaryDarkColor,
+    onPrimaryContainer = OnPrimaryContainerDarkColor,
     secondaryContainer = SecondaryContainerDarkColor,
-    onSecondaryContainer = PrimaryDarkColor,
+    onSecondaryContainer = OnSecondaryContainerDarkColor,
     outline = OutlineDarkColor,
-    outlineVariant = SurfaceVariantDarkColor
+    outlineVariant = OutlineVariantDarkColor
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -45,12 +45,12 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = OnSecondaryColor,
     error = ErrorColor,
     onError = OnErrorColor,
-    primaryContainer = PrimaryColor.copy(alpha = 0.15f),
-    onPrimaryContainer = PrimaryColor,
-    secondaryContainer = PrimaryColor.copy(alpha = 0.12f),
-    onSecondaryContainer = PrimaryColor,
+    primaryContainer = PrimaryContainerColor,
+    onPrimaryContainer = OnPrimaryContainerColor,
+    secondaryContainer = SecondaryContainerColor,
+    onSecondaryContainer = OnSecondaryContainerColor,
     outline = OutlineColor,
-    outlineVariant = SurfaceVariantColor
+    outlineVariant = OutlineVariantColor
 )
 
 /** 应用 Material 3 配色与字体；动态配色仅在调用方显式启用且系统支持时生效。 */

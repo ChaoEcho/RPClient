@@ -16,6 +16,9 @@
     <string name="character_cards_count">%d 张角色卡</string>
     <string name="lorebook_count">%d 本世界书</string>
     <string name="recent_chats">最近聊天</string>
+    <string name="home_session_filter_all">全部</string>
+    <string name="home_session_filter_single">单人</string>
+    <string name="home_session_filter_group">群聊</string>
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 条消息</string>
     <string name="session_group_count">%d 个会话</string>
@@ -23,6 +26,8 @@
     <string name="collapse_session_group">折叠会话</string>
     <string name="setting_page_title">设置</string>
     <string name="setting_subtitle">提供商、生成参数和提示词行为</string>
+    <string name="prompt_and_memory_section">提示词与上下文记忆</string>
+    <string name="system_and_data_section">数据与系统</string>
     <string name="model_provider">模型提供商</string>
     <string name="manage">管理</string>
     <string name="no_enabled_model">没有已启用的模型</string>

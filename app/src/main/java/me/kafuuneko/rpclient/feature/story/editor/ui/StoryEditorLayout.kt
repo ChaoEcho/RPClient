@@ -79,6 +79,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -437,9 +439,10 @@ private fun SaveProblemBanner(
         }
         StorySaveState.Conflict -> Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
             ),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
@@ -480,9 +483,10 @@ private fun GenerationProblemBanner(
     val failure = generationState as? StoryGenerationState.Failed ?: return
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
         ),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
@@ -558,9 +562,11 @@ private fun EditorBottomBar(
     onContinue: (() -> Unit)?,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     Surface(
         tonalElevation = 3.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
     ) {
         Column(
             modifier = Modifier
@@ -586,31 +592,24 @@ private fun EditorBottomBar(
                     .padding(horizontal = 16.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(
                         text = stringResource(R.string.story_character_count, characterCount),
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = stringResource(
-                            R.string.story_character_references_count,
-                            referenceState.characterCount
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.story_lorebook_entries_count,
-                            referenceState.lorebookEntryCount
-                        ),
+                        text = "${stringResource(R.string.story_character_references_count, referenceState.characterCount)} · ${stringResource(R.string.story_lorebook_entries_count, referenceState.lorebookEntryCount)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 when (generationState) {
                     is StoryGenerationState.Streaming -> Button(
-                        onClick = { StoryEditorUiIntent.StopGeneration.emit() }
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            StoryEditorUiIntent.StopGeneration.emit()
+                        }
                     ) {
                         Icon(Icons.Rounded.Stop, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -625,7 +624,10 @@ private fun EditorBottomBar(
                         val historyEnabled = contentState.editable &&
                             generationState is StoryGenerationState.Idle
                         IconButton(
-                            onClick = { StoryEditorUiIntent.UndoLastEdit.emit() },
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                StoryEditorUiIntent.UndoLastEdit.emit()
+                            },
                             enabled = historyEnabled && canUndoEdit
                         ) {
                             Icon(
@@ -634,7 +636,10 @@ private fun EditorBottomBar(
                             )
                         }
                         IconButton(
-                            onClick = { StoryEditorUiIntent.RedoLastEdit.emit() },
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                StoryEditorUiIntent.RedoLastEdit.emit()
+                            },
                             enabled = historyEnabled && canRedoEdit
                         ) {
                             Icon(
@@ -644,7 +649,10 @@ private fun EditorBottomBar(
                         }
                         Spacer(Modifier.width(4.dp))
                         Button(
-                            onClick = { onContinue?.invoke() },
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onContinue?.invoke()
+                            },
                             enabled = contentState.editable &&
                                 generationState is StoryGenerationState.Idle &&
                                 onContinue != null

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -71,6 +72,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -94,6 +96,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSessionTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
@@ -203,13 +206,13 @@ private fun MainBottomBar(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
         ),
-        shadowElevation = 8.dp
+        shadowElevation = 6.dp
     ) {
         Row(
             modifier = Modifier
@@ -244,13 +247,13 @@ private fun MultiSelectBottomBar(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
         ),
-        shadowElevation = 8.dp
+        shadowElevation = 6.dp
     ) {
         Row(
             modifier = Modifier
@@ -344,22 +347,29 @@ private fun MainBottomBarItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    val contentColor = when {
+    val hapticFeedback = LocalHapticFeedback.current
+    val targetContentColor = when {
         !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
         selected -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+    val targetContainerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
     } else {
         Color.Transparent
     }
 
+    val contentColor by animateColorAsState(targetValue = targetContentColor, label = "bottomBarContentColor")
+    val containerColor by animateColorAsState(targetValue = targetContainerColor, label = "bottomBarContainerColor")
+
     Box(
         modifier = modifier
             .clickable(
-                onClick = onClick,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                },
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -394,24 +404,26 @@ private fun HeroEntryCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
+            0.5.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary
+                shape = RoundedCornerShape(15.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 2.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -422,10 +434,10 @@ private fun HeroEntryCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Text(
                     text = title,
@@ -436,14 +448,168 @@ private fun HeroEntryCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                modifier = Modifier.size(24.dp)
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 顶部快捷行动双栏卡片（群聊与故事创作）。 */
+@Composable
+private fun HomeQuickActionCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RpIconBubble(icon = icon, modifier = Modifier.size(36.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** 首页资产快捷管理金刚区（角色卡、世界书、Regex 脚本）。 */
+@Composable
+private fun HomeAssetDock(
+    resourceState: MainHomeResourceState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        HomeAssetCapsule(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Rounded.Person,
+            title = stringResource(R.string.character),
+            count = resourceState.totalCharacters,
+            onClick = { MainUiIntent.OpenCharacterManager.emit() }
+        )
+        HomeAssetCapsule(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Rounded.Book,
+            title = stringResource(R.string.world_book),
+            count = resourceState.totalWorldBooks,
+            onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+        )
+        HomeAssetCapsule(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Rounded.DataObject,
+            title = stringResource(R.string.regex_script_title),
+            count = null,
+            onClick = { MainUiIntent.OpenRegexScripts.emit() }
+        )
+    }
+}
+
+/** 单个紧凑资产管理胶囊卡片，带数量 Badge。 */
+@Composable
+private fun HomeAssetCapsule(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    count: Int? = null,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 11.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                if (count != null) {
+                    Surface(
+                        modifier = Modifier.offset(x = 6.dp, y = (-4).dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        shadowElevation = 1.dp
+                    ) {
+                        Text(
+                            text = if (count > 99) "99+" else count.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -481,12 +647,11 @@ private fun HomePage(
         } else {
             homeEntryItems(state.resourceState, emit)
         }
-        recentChatItems(state.recentChatsState, multiSelectMode, selectedSessions, emit)
-        recentGroupChatItems(
-            state.recentGroupChatsState,
-            multiSelectMode,
-            selectedSessions,
-            emit
+        homeSessionSection(
+            state = state,
+            multiSelectMode = multiSelectMode,
+            selectedSessions = selectedSessions,
+            emit = emit
         )
     }
 }
@@ -503,85 +668,160 @@ private fun LazyListScope.homeEntryItems(
         )
     }
     item {
-        HomeEntryCard(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            icon = Icons.Rounded.Groups,
-            title = stringResource(R.string.group_chat),
-            subtitle = stringResource(R.string.group_chat_home_desc),
-            onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
-        )
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            HomeQuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Rounded.Groups,
+                title = stringResource(R.string.group_chat),
+                onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
+            )
+            HomeQuickActionCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Rounded.AutoStories,
+                title = stringResource(R.string.story_library),
+                onClick = { MainUiIntent.OpenStoryLibrary.emit() }
+            )
+        }
     }
     item {
-        HomeEntryCard(
-            modifier = Modifier.fillMaxWidth(),
-            icon = Icons.Rounded.AutoStories,
-            title = stringResource(R.string.story_library),
-            subtitle = stringResource(R.string.story_home_desc),
-            onClick = { MainUiIntent.OpenStoryLibrary.emit() }
-        )
-    }
-    item {
-        HomeEntryCard(
-            modifier = Modifier.fillMaxWidth(),
-            icon = Icons.Rounded.Person,
-            title = stringResource(R.string.character),
-            subtitle = stringResource(
-                R.string.character_cards_count,
-                resourceState.totalCharacters
-            ),
-            onClick = { MainUiIntent.OpenCharacterManager.emit() }
-        )
-    }
-    item {
-        HomeEntryCard(
-            modifier = Modifier.fillMaxWidth(),
-            icon = Icons.Rounded.Book,
-            title = stringResource(R.string.world_book),
-            subtitle = stringResource(R.string.lorebook_count, resourceState.totalWorldBooks),
-            onClick = { MainUiIntent.OpenWorldBookManager.emit() }
-        )
-    }
-    item {
-        HomeEntryCard(
-            modifier = Modifier.fillMaxWidth(),
-            icon = Icons.Rounded.DataObject,
-            title = stringResource(R.string.regex_script_title),
-            subtitle = stringResource(R.string.regex_script_entry_subtitle),
-            onClick = { MainUiIntent.OpenRegexScripts.emit() }
-        )
+        HomeAssetDock(resourceState, emit)
     }
 }
 
-private fun LazyListScope.recentChatItems(
-    state: MainRecentChatsState,
+private fun LazyListScope.homeSessionSection(
+    state: MainHomeState,
     multiSelectMode: Boolean,
     selectedSessions: Set<MainSessionSelection>,
     emit: MainUiIntent.() -> Unit
 ) {
     item {
-        RpSectionHeader(
-            title = stringResource(R.string.recent_chats),
-            action = if (multiSelectMode) "" else stringResource(R.string.new_session)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!multiSelectMode) MainUiIntent.OpenCreateChat.emit()
+            Text(
+                text = stringResource(R.string.recent_chats),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f)
+            )
+            if (!multiSelectMode) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = state.selectedSessionTab == MainHomeSessionTab.All,
+                        onClick = {
+                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.All).emit()
+                        },
+                        label = { Text(stringResource(R.string.home_session_filter_all)) }
+                    )
+                    FilterChip(
+                        selected = state.selectedSessionTab == MainHomeSessionTab.Single,
+                        onClick = {
+                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.Single).emit()
+                        },
+                        label = { Text(stringResource(R.string.home_session_filter_single)) }
+                    )
+                    FilterChip(
+                        selected = state.selectedSessionTab == MainHomeSessionTab.Group,
+                        onClick = {
+                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.Group).emit()
+                        },
+                        label = { Text(stringResource(R.string.home_session_filter_group)) }
+                    )
+                }
+            }
         }
     }
-    when (state) {
-        MainRecentChatsState.Empty -> item {
-            RpInfoCard(
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Rounded.ChatBubble,
-                title = stringResource(R.string.no_recent_chats),
-                subtitle = stringResource(R.string.no_recent_chats_desc)
-            )
+
+    when (state.selectedSessionTab) {
+        MainHomeSessionTab.All -> {
+            val singleEmpty = state.recentChatsState is MainRecentChatsState.Empty
+            val groupEmpty = state.recentGroupChatsState is MainRecentGroupChatsState.Empty
+
+            if (singleEmpty && groupEmpty) {
+                item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.ChatBubble,
+                        title = stringResource(R.string.no_recent_chats),
+                        subtitle = stringResource(R.string.no_recent_chats_desc)
+                    )
+                }
+            } else {
+                if (state.recentChatsState is MainRecentChatsState.Content) {
+                    recentChatSessionItems(
+                        state = state.recentChatsState,
+                        multiSelectMode = multiSelectMode,
+                        selectedSessions = selectedSessions,
+                        emit = emit
+                    )
+                }
+                if (state.recentGroupChatsState is MainRecentGroupChatsState.Content) {
+                    if (!singleEmpty) {
+                        item {
+                            RpSectionHeader(
+                                title = stringResource(R.string.recent_group_chats),
+                                action = if (multiSelectMode) "" else stringResource(R.string.new_group_chat)
+                            ) {
+                                if (!multiSelectMode) MainUiIntent.OpenCreateGroupChat.emit()
+                            }
+                        }
+                    }
+                    recentGroupChatSessionItems(
+                        state = state.recentGroupChatsState,
+                        multiSelectMode = multiSelectMode,
+                        selectedSessions = selectedSessions,
+                        emit = emit
+                    )
+                }
+            }
         }
 
-        is MainRecentChatsState.Content -> recentChatSessionItems(
-            state = state,
-            multiSelectMode = multiSelectMode,
-            selectedSessions = selectedSessions,
-            emit = emit
-        )
+        MainHomeSessionTab.Single -> {
+            when (state.recentChatsState) {
+                MainRecentChatsState.Empty -> item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.ChatBubble,
+                        title = stringResource(R.string.no_recent_chats),
+                        subtitle = stringResource(R.string.no_recent_chats_desc)
+                    )
+                }
+
+                is MainRecentChatsState.Content -> recentChatSessionItems(
+                    state = state.recentChatsState,
+                    multiSelectMode = multiSelectMode,
+                    selectedSessions = selectedSessions,
+                    emit = emit
+                )
+            }
+        }
+
+        MainHomeSessionTab.Group -> {
+            when (state.recentGroupChatsState) {
+                MainRecentGroupChatsState.Empty -> item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.Groups,
+                        title = stringResource(R.string.no_group_chats),
+                        subtitle = stringResource(R.string.no_group_chats_desc)
+                    )
+                }
+
+                is MainRecentGroupChatsState.Content -> recentGroupChatSessionItems(
+                    state = state.recentGroupChatsState,
+                    multiSelectMode = multiSelectMode,
+                    selectedSessions = selectedSessions,
+                    emit = emit
+                )
+            }
+        }
     }
 }
 
@@ -637,60 +877,41 @@ private fun LazyListScope.recentChatSessionItems(
     }
 }
 
-private fun LazyListScope.recentGroupChatItems(
-    state: MainRecentGroupChatsState,
+private fun LazyListScope.recentGroupChatSessionItems(
+    state: MainRecentGroupChatsState.Content,
     multiSelectMode: Boolean,
     selectedSessions: Set<MainSessionSelection>,
     emit: MainUiIntent.() -> Unit
 ) {
-    item {
-        RpSectionHeader(
-            title = stringResource(R.string.recent_group_chats),
-            action = if (multiSelectMode) "" else stringResource(R.string.new_group_chat)
-        ) {
-            if (!multiSelectMode) MainUiIntent.OpenCreateGroupChat.emit()
-        }
-    }
-    when (state) {
-        MainRecentGroupChatsState.Empty -> item {
-            RpInfoCard(
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Rounded.Groups,
-                title = stringResource(R.string.no_group_chats),
-                subtitle = stringResource(R.string.no_group_chats_desc)
-            )
-        }
-
-        is MainRecentGroupChatsState.Content -> items(
-            items = state.sessions,
-            key = { "group-session-${it.id}" }
-        ) { session ->
-            val selection = MainSessionSelection(MainSessionType.GroupChat, session.id)
-            HomeSessionCard(
-                modifier = Modifier.animateItem(),
-                accentKey = session.title,
-                icon = Icons.Rounded.Groups,
-                title = session.title,
-                preview = session.preview,
-                metadata = listOf(
-                    session.memberNames,
-                    stringResource(R.string.message_count, session.messageCount),
-                    session.updatedAt
-                ),
-                multiSelectMode = multiSelectMode,
-                selected = selection in selectedSessions,
-                onClick = {
-                    if (multiSelectMode) {
-                        MainUiIntent.ToggleSessionSelection(selection).emit()
-                    } else {
-                        MainUiIntent.OpenGroupChat(session.id).emit()
-                    }
-                },
-                onLongClick = {
-                    if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+    items(
+        items = state.sessions,
+        key = { "group-session-${it.id}" }
+    ) { session ->
+        val selection = MainSessionSelection(MainSessionType.GroupChat, session.id)
+        HomeSessionCard(
+            modifier = Modifier.animateItem(),
+            accentKey = session.title,
+            icon = Icons.Rounded.Groups,
+            title = session.title,
+            preview = session.preview,
+            metadata = listOf(
+                session.memberNames,
+                stringResource(R.string.message_count, session.messageCount),
+                session.updatedAt
+            ),
+            multiSelectMode = multiSelectMode,
+            selected = selection in selectedSessions,
+            onClick = {
+                if (multiSelectMode) {
+                    MainUiIntent.ToggleSessionSelection(selection).emit()
+                } else {
+                    MainUiIntent.OpenGroupChat(session.id).emit()
                 }
-            )
-        }
+            },
+            onLongClick = {
+                if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+            }
+        )
     }
 }
 
@@ -711,15 +932,15 @@ private fun HomeSessionCard(
     val hapticFeedback = LocalHapticFeedback.current
     val borderColor by animateColorAsState(
         targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            MaterialTheme.colorScheme.primary
         } else {
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         },
         label = "homeSessionCardBorder"
     )
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
         } else {
             MaterialTheme.colorScheme.surface
         },
@@ -730,27 +951,41 @@ private fun HomeSessionCard(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                },
                 onLongClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick()
                 }
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
+            if (selected) 1.dp else 0.5.dp,
             borderColor
         )
     ) {
+        val accentColor = remember(accentKey) { getMacaronColor(accentKey) }
+        val ambientBrush = remember(accentColor) {
+            Brush.horizontalGradient(
+                listOf(
+                    accentColor.copy(alpha = 0.08f),
+                    accentColor.copy(alpha = 0.02f),
+                    Color.Transparent
+                )
+            )
+        }
         Row(
-            modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+            modifier = Modifier
+                .height(androidx.compose.foundation.layout.IntrinsicSize.Min)
+                .background(ambientBrush),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val accentColor = remember(accentKey) { getMacaronColor(accentKey) }
             Box(
                 modifier = Modifier
-                    .padding(start = 14.dp, top = 14.dp, bottom = 14.dp)
+                    .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
                     .width(4.dp)
                     .fillMaxHeight()
                     .background(accentColor, RoundedCornerShape(2.dp))
@@ -758,23 +993,28 @@ private fun HomeSessionCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(14.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    RpIconBubble(icon)
+                    RpIconBubble(
+                        icon = icon,
+                        containerColor = accentColor.copy(alpha = 0.14f),
+                        contentColor = accentColor,
+                        modifier = Modifier.size(38.dp)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = preview,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -793,21 +1033,7 @@ private fun HomeSessionCard(
     }
 }
 
-@Composable
-private fun HomeEntryCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    RpInfoCard(
-        modifier = modifier.clickable { onClick() },
-        icon = icon,
-        title = title,
-        subtitle = subtitle
-    )
-}
+
 
 @Composable
 private fun SessionCharacterHeader(
@@ -870,7 +1096,14 @@ private fun SettingsPage(
                 subtitle = stringResource(R.string.setting_subtitle)
             )
         }
+
+        // ================= 1. 用户身份与人设 =================
+        item {
+            RpSectionHeader(title = stringResource(R.string.user_identity))
+        }
         item { UserIdentityPanel(state.identityState, emit) }
+
+        // ================= 2. 模型与推理服务 =================
         item {
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
@@ -893,10 +1126,20 @@ private fun SettingsPage(
                 item { ParameterPanel(providerState.generationParametersState, emit) }
             }
         }
+
+        // ================= 3. 提示词与上下文记忆 =================
+        item {
+            RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
+        }
+        item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
-        item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { SummaryPanel(state.summaryState, emit) }
+
+        // ================= 4. 数据与系统 =================
+        item {
+            RpSectionHeader(title = stringResource(R.string.system_and_data_section))
+        }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
@@ -909,10 +1152,10 @@ private fun WorldInfoBudgetPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -955,10 +1198,10 @@ private fun UserIdentityPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -966,13 +1209,12 @@ private fun UserIdentityPanel(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.user_identity))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 UserAvatarPicker(
                     state = state,
                     emit = emit
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -982,14 +1224,16 @@ private fun UserIdentityPanel(
                         onValueChange = { MainUiIntent.ChangeUserName(it).emit() },
                         label = { Text(stringResource(R.string.user_display_name)) },
                         singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = state.userDescription,
                         onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
                         label = { Text(stringResource(R.string.user_persona_description)) },
-                        minLines = 3,
-                        maxLines = 6,
+                        minLines = 2,
+                        maxLines = 5,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (state.avatarState is MainUserAvatarState.Configured) {
@@ -1064,10 +1308,10 @@ private fun PromptBehaviorPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1151,13 +1395,13 @@ private fun PromptPostProcessingModeRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
-            width = 1.dp,
+            width = if (selected) 1.dp else 0.5.dp,
             color = if (selected) {
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
             } else {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
             }
         ),
         colors = CardDefaults.cardColors(
@@ -1220,11 +1464,11 @@ private fun ProviderCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
+            width = if (selected) 1.dp else 0.5.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
-                alpha = 0.4f
+                alpha = 0.22f
             )
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -1290,10 +1534,10 @@ private fun ParameterPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1363,10 +1607,10 @@ private fun SummaryPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1547,10 +1791,10 @@ private fun DebugPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1588,10 +1832,10 @@ private fun AboutEntryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1765,6 +2009,78 @@ private fun MainLayoutPreview() {
                         injectionState = MainSummaryInjectionState.AfterMain
                     ),
                     debugState = MainDebugSettingsState(enabled = false)
+                )
+            ),
+            emit = {}
+        )
+    }
+}
+
+@Preview(widthDp = 390, heightDp = 844, showBackground = true)
+@Composable
+private fun MainSettingsLayoutPreview() {
+    AppTheme(dynamicColor = false) {
+        MainLayout(
+            uiState = MainUiState.Normal(
+                selectedPage = MainPage.Settings,
+                homeState = MainHomeState(
+                    resourceState = MainHomeResourceState(
+                        totalCharacters = 24,
+                        totalWorldBooks = 7
+                    ),
+                    recentChatsState = MainRecentChatsState.Empty,
+                    recentGroupChatsState = MainRecentGroupChatsState.Empty
+                ),
+                settingsState = MainSettingsState(
+                    identityState = MainUserIdentityState(
+                        userName = "KafuuNeko",
+                        userDescription = "A traveler exploring AI worlds.",
+                        avatarState = MainUserAvatarState.None
+                    ),
+                    providerState = MainProviderSettingsState.Available(
+                        selectedProviderId = 1L,
+                        providers = listOf(
+                            MainProviderItem(
+                                id = 1L,
+                                name = "DeepSeek V3",
+                                model = "deepseek-chat",
+                                baseUrl = "https://api.deepseek.com/v1",
+                                isEnabled = true
+                            )
+                        ),
+                        generationParametersState = MainGenerationParametersState(
+                            temperature = 0.8f,
+                            topP = 0.95f,
+                            maxTokens = 4096,
+                            contextTokens = 32768
+                        )
+                    ),
+                    promptBehaviorState = MainPromptBehaviorState(
+                        providerPostProcessingState = MainProviderPostProcessingState.Available(
+                            mode = PromptPostProcessingMode.Strict
+                        ),
+                        exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
+                        includeThinkInContext = true,
+                        contextTrimmingAlert = true,
+                        streamEnabled = true
+                    ),
+                    worldInfoBudgetState = MainWorldInfoBudgetState(
+                        budgetPercent = 25,
+                        budgetCap = 2048,
+                        overflowAlert = true
+                    ),
+                    summaryState = MainSummarySettingsState(
+                        autoSummaryEnabled = true,
+                        triggerMessageCount = 20,
+                        wordsLimit = 500,
+                        maxMessagesPerRequest = 0,
+                        responseTokens = 800,
+                        injectionState = MainSummaryInjectionState.InChat(
+                            depth = 4,
+                            role = SummaryInjectionRole.System
+                        )
+                    ),
+                    debugState = MainDebugSettingsState(enabled = true)
                 )
             ),
             emit = {}

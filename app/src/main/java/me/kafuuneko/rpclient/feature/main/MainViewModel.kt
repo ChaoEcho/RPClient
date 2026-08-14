@@ -410,6 +410,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(selectedPage = intent.page).setup()
     }
 
+    @UiIntentObserver(MainUiIntent.SelectHomeSessionTab::class)
+    private fun onSelectHomeSessionTab(intent: MainUiIntent.SelectHomeSessionTab) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.homeState.selectedSessionTab == intent.tab) return
+        uiState.copy(
+            homeState = uiState.homeState.copy(selectedSessionTab = intent.tab)
+        ).setup()
+    }
+
     @UiIntentObserver(MainUiIntent.OpenChat::class)
     private fun onOpenChat(intent: MainUiIntent.OpenChat) {
         if (!isStateOf<MainUiState.Normal>()) return

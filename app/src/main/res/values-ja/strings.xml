@@ -18,6 +18,9 @@
     <string name="character_cards_count">%d 個のキャラクターカード</string>
     <string name="lorebook_count">%d 個のロアブック</string>
     <string name="recent_chats">最近のチャット</string>
+    <string name="home_session_filter_all">すべて</string>
+    <string name="home_session_filter_single">個人</string>
+    <string name="home_session_filter_group">グループ</string>
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 件のメッセージ</string>
     <string name="session_group_count">%d 件のセッション</string>
@@ -25,6 +28,8 @@
     <string name="collapse_session_group">セッションを折りたたむ</string>
     <string name="setting_page_title">設定</string>
     <string name="setting_subtitle">プロバイダー、生成パラメータ、プロンプト動作</string>
+    <string name="prompt_and_memory_section">プロンプトとコンテキストメモリ</string>
+    <string name="system_and_data_section">データとシステム</string>
     <string name="model_provider">モデルプロバイダー</string>
     <string name="manage">管理</string>
     <string name="no_enabled_model">有効なモデルがありません</string>

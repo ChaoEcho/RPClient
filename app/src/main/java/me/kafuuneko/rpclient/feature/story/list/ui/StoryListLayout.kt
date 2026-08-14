@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,7 +59,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpPanel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
@@ -102,15 +103,9 @@ private fun StoryListNormal(
         )
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.story_library_title),
-                    subtitle = stringResource(R.string.story_library_subtitle)
-                )
-            }
             item {
                 RpSectionHeader(
                     title = stringResource(R.string.story_my_stories),
@@ -135,12 +130,8 @@ private fun StoryListNormal(
                     StoryCard(
                         story = story,
                         onOpen = { StoryListUiIntent.OpenStory(story.id).emit() },
-                        onRename = {
-                            StoryListUiIntent.ShowRenameStoryDialog(story.id).emit()
-                        },
-                        onDelete = {
-                            StoryListUiIntent.ShowDeleteStoryDialog(story.id).emit()
-                        }
+                        onRename = { StoryListUiIntent.ShowRenameStoryDialog(story.id).emit() },
+                        onDelete = { StoryListUiIntent.ShowDeleteStoryDialog(story.id).emit() }
                     )
                 }
             }
@@ -151,13 +142,15 @@ private fun StoryListNormal(
 
 @Composable
 private fun LoadingPanel() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 36.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
+    RpPanel {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator()
+            Text(stringResource(R.string.loading))
+        }
     }
 }
 
@@ -172,10 +165,10 @@ private fun StoryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpen),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
         ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -282,15 +275,18 @@ private fun StoryListDialog(
         StoryListDialogState.None -> Unit
         is StoryListDialogState.EditTitle -> AlertDialog(
             onDismissRequest = { StoryListUiIntent.DismissDialog.emit() },
+            shape = RoundedCornerShape(24.dp),
             title = {
                 Text(
-                    stringResource(
+                    text = stringResource(
                         if (dialogState.storyId == null) {
                             R.string.story_create_story
                         } else {
                             R.string.story_rename_story
                         }
-                    )
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
             },
             text = {
@@ -309,7 +305,10 @@ private fun StoryListDialog(
                     onClick = { StoryListUiIntent.ConfirmTitle.emit() },
                     enabled = dialogState.title.isNotBlank() && !dialogState.isSaving
                 ) {
-                    Text(stringResource(R.string.confirm))
+                    Text(
+                        text = stringResource(R.string.confirm),
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             },
             dismissButton = {
@@ -323,16 +322,30 @@ private fun StoryListDialog(
         )
         is StoryListDialogState.DeleteStory -> AlertDialog(
             onDismissRequest = { StoryListUiIntent.DismissDialog.emit() },
-            title = { Text(stringResource(R.string.story_delete_story)) },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = stringResource(R.string.story_delete_story),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Text(stringResource(R.string.story_delete_story_message, dialogState.title))
+                Text(
+                    text = stringResource(R.string.story_delete_story_message, dialogState.title),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = { StoryListUiIntent.ConfirmDeleteStory.emit() },
                     enabled = !dialogState.isDeleting
                 ) {
-                    Text(stringResource(R.string.delete))
+                    Text(
+                        text = stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             },
             dismissButton = {

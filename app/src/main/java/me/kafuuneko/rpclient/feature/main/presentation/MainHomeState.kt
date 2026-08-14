@@ -4,11 +4,19 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 
-/** 首页状态树，组合资源统计、两类最近会话和多选交互状态。 */
+/** 首页会话流的筛选分类。 */
+enum class MainHomeSessionTab {
+    All,
+    Single,
+    Group
+}
+
+/** 首页状态树，组合资源统计、两类最近会话、会话筛选 Tab 和多选交互状态。 */
 data class MainHomeState(
     val resourceState: MainHomeResourceState,
     val recentChatsState: MainRecentChatsState,
     val recentGroupChatsState: MainRecentGroupChatsState,
+    val selectedSessionTab: MainHomeSessionTab = MainHomeSessionTab.All,
     val selectionState: MainHomeSelectionState = MainHomeSelectionState.None
 )
 
@@ -66,10 +74,11 @@ internal fun MainHomeSelectionState.Selecting.toggleSession(
 internal fun MainHomeState.preserveCollapsedGroupsFrom(
     previous: MainHomeState
 ): MainHomeState {
-    val refreshed = recentChatsState as? MainRecentChatsState.Content ?: return this
-    val previousContent = previous.recentChatsState as? MainRecentChatsState.Content ?: return this
+    val tabPreserved = copy(selectedSessionTab = previous.selectedSessionTab)
+    val refreshed = tabPreserved.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
+    val previousContent = previous.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
     val availableCharacterIds = refreshed.sessionGroups.mapTo(mutableSetOf()) { it.characterId }
-    return copy(
+    return tabPreserved.copy(
         recentChatsState = refreshed.copy(
             collapsedCharacterIds = previousContent.collapsedCharacterIds
                 .intersect(availableCharacterIds)

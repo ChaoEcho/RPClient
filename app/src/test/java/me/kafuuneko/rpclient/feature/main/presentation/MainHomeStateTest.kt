@@ -49,8 +49,25 @@ class MainHomeStateTest {
         assertSame(MainRecentChatsState.Empty, merged.recentChatsState)
     }
 
+    @Test
+    fun refreshPreservesSelectedSessionTab() {
+        val previous = home(
+            recentChatsState = MainRecentChatsState.Empty,
+            selectedSessionTab = MainHomeSessionTab.Group
+        )
+        val refreshed = home(
+            recentChatsState = MainRecentChatsState.Empty,
+            selectedSessionTab = MainHomeSessionTab.All
+        )
+
+        val merged = refreshed.preserveCollapsedGroupsFrom(previous)
+
+        assertEquals(MainHomeSessionTab.Group, merged.selectedSessionTab)
+    }
+
     private fun home(
         recentChatsState: MainRecentChatsState,
+        selectedSessionTab: MainHomeSessionTab = MainHomeSessionTab.All,
         selectionState: MainHomeSelectionState = MainHomeSelectionState.None
     ) = MainHomeState(
         resourceState = MainHomeResourceState(
@@ -59,6 +76,7 @@ class MainHomeStateTest {
         ),
         recentChatsState = recentChatsState,
         recentGroupChatsState = MainRecentGroupChatsState.Empty,
+        selectedSessionTab = selectedSessionTab,
         selectionState = selectionState
     )
 

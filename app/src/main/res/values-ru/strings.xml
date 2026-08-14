@@ -17,6 +17,9 @@
     <string name="character_cards_count">%d карточек персонажей</string>
     <string name="lorebook_count">%d лорбуков</string>
     <string name="recent_chats">Недавние чаты</string>
+    <string name="home_session_filter_all">Все</string>
+    <string name="home_session_filter_single">Одиночные</string>
+    <string name="home_session_filter_group">Групповые</string>
     <string name="manage_characters">Управление</string>
     <string name="message_count">%d сообщений</string>
     <string name="session_group_count">%d сессий</string>
@@ -24,6 +27,8 @@
     <string name="collapse_session_group">Свернуть сессии</string>
     <string name="setting_page_title">Настройки</string>
     <string name="setting_subtitle">Провайдер, параметры генерации и поведение промпта</string>
+    <string name="prompt_and_memory_section">Промпты и память контекста</string>
+    <string name="system_and_data_section">Данные и система</string>
     <string name="model_provider">Провайдер моделей</string>
     <string name="manage">Управление</string>
     <string name="no_enabled_model">Нет включенных моделей</string>

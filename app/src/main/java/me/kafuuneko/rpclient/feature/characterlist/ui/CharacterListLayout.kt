@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
@@ -35,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -124,15 +127,9 @@ private fun CharacterListNormal(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.character_cards_title),
-                    subtitle = stringResource(R.string.character_cards_subtitle)
-                )
-            }
             item { SearchField(state.searchText, emit) }
             item {
                 RpSectionHeader(
@@ -176,26 +173,22 @@ private fun DialogSwitch(
             text = {
                 Text(
                     stringResource(
-                        R.string.low_embedded_world_book_budget_message,
+                        R.string.low_world_book_budget_message,
                         dialogState.importedTokenBudget
                     )
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget.emit()
-                    }
-                ) {
+                TextButton(onClick = {
+                    CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget.emit()
+                }) {
                     Text(stringResource(R.string.follow_global_budget))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()
-                    }
-                ) {
+                TextButton(onClick = {
+                    CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()
+                }) {
                     Text(stringResource(R.string.keep_imported_budget))
                 }
             }
@@ -205,17 +198,27 @@ private fun DialogSwitch(
 
 @Composable
 private fun SearchField(
-    value: String,
+    searchText: String,
     emit: CharacterListUiIntent.() -> Unit
 ) {
     OutlinedTextField(
         modifier = Modifier.fillMaxWidth(),
-        value = value,
+        value = searchText,
         onValueChange = { CharacterListUiIntent.ChangeSearchText(it).emit() },
         label = { Text(stringResource(R.string.search_placeholder)) },
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        trailingIcon = {
+            if (searchText.isNotEmpty()) {
+                IconButton(onClick = { CharacterListUiIntent.ChangeSearchText("").emit() }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.clear_search)
+                    )
+                }
+            }
+        },
         singleLine = true,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(14.dp)
     )
 }
 
@@ -230,15 +233,16 @@ private fun LoadingRow() {
 }
 
 @Composable
-private fun EmptyCharacterCard(
-    emit: CharacterListUiIntent.() -> Unit
-) {
+private fun EmptyCharacterCard(emit: CharacterListUiIntent.() -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RpIconBubble(Icons.Rounded.Person)
@@ -248,15 +252,23 @@ private fun EmptyCharacterCard(
                     .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(stringResource(R.string.no_character_cards), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(R.string.no_character_cards),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Text(
                     stringResource(R.string.no_character_cards_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
             }
-            Button(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
-                Icon(Icons.Rounded.Add, contentDescription = null)
+            Button(
+                onClick = { CharacterListUiIntent.CreateCharacter.emit() },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(stringResource(R.string.create))
             }
         }
@@ -274,12 +286,14 @@ private fun CharacterListCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            width = if (selected) 1.dp else 0.5.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -289,37 +303,52 @@ private fun CharacterListCard(
                 avatarText = character.avatarText,
                 avatarColor = character.avatarColor,
                 image = character.avatarImage,
-                size = 54
+                size = 58
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = character.name,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Icon(
-                        Icons.Rounded.Edit,
-                        contentDescription = stringResource(R.string.edit),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    IconButton(onClick = onExport) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Icon(
-                            Icons.Rounded.FileUpload,
-                            contentDescription = stringResource(R.string.export_character)
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = stringResource(R.string.edit),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
+                        IconButton(
+                            onClick = onExport,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.FileUpload,
+                                contentDescription = stringResource(R.string.export_character),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
                 Text(
                     character.description.ifBlank { stringResource(R.string.no_description) },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -336,22 +365,29 @@ private fun AvatarPreview(
     image: ImageBitmap?,
     size: Int
 ) {
-    if (image == null) {
-        RpAvatar(
-            text = avatarText,
-            color = avatarColor,
-            modifier = Modifier.size(size.dp),
-            shape = RoundedCornerShape(12.dp)
-        )
-    } else {
-        Image(
-            bitmap = image,
-            contentDescription = null,
-            modifier = Modifier
-                .size(size.dp)
-                .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
-        )
+    Surface(
+        modifier = Modifier.size(size.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = avatarColor.copy(alpha = 0.14f),
+        border = BorderStroke(0.5.dp, avatarColor.copy(alpha = 0.30f))
+    ) {
+        if (image == null) {
+            RpAvatar(
+                text = avatarText,
+                color = avatarColor,
+                modifier = Modifier.size(size.dp),
+                shape = RoundedCornerShape(16.dp)
+            )
+        } else {
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(size.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
     }
 }
 

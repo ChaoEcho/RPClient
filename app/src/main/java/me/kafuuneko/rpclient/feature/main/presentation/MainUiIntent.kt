@@ -18,6 +18,8 @@ sealed class MainUiIntent {
 
     data class SelectPage(val page: MainPage) : MainUiIntent()
 
+    data class SelectHomeSessionTab(val tab: MainHomeSessionTab) : MainUiIntent()
+
     data class OpenChat(val sessionId: String) : MainUiIntent()
 
     data object OpenCreateChat : MainUiIntent()
