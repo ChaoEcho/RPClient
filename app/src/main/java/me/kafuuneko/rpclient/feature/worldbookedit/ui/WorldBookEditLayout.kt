@@ -293,7 +293,13 @@ private fun EntrySearchBar(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.search_entries_placeholder)) },
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.search_entries_placeholder),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
             leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
             trailingIcon = if (query.isNotEmpty()) {
                 {

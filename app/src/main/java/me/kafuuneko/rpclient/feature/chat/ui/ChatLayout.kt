@@ -631,7 +631,14 @@ private fun LorebookSearchField(
         modifier = Modifier.fillMaxWidth(),
         value = query,
         onValueChange = onQueryChange,
-        label = { Text(stringResource(R.string.search_world_books)) },
+        placeholder = {
+            Text(
+                text = stringResource(R.string.search_world_books),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {

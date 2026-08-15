@@ -171,7 +171,11 @@ private fun GroupChatCreateNormalView(
                         Icon(Icons.Rounded.Search, contentDescription = null)
                     },
                     placeholder = {
-                        Text(stringResource(R.string.group_chat_search_characters))
+                        Text(
+                            text = stringResource(R.string.group_chat_search_characters),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp)

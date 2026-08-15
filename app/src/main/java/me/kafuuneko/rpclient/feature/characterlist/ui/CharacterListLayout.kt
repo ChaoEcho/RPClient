@@ -192,7 +192,14 @@ private fun SearchField(
         modifier = Modifier.fillMaxWidth(),
         value = searchText,
         onValueChange = { CharacterListUiIntent.ChangeSearchText(it).emit() },
-        label = { Text(stringResource(R.string.search_placeholder)) },
+        placeholder = {
+            Text(
+                text = stringResource(R.string.search_placeholder),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
         trailingIcon = {
             if (searchText.isNotEmpty()) {

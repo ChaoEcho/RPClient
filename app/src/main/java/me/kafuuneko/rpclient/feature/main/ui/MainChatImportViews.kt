@@ -136,7 +136,14 @@ private fun ImportCharacterSelectionContent(
             onValueChange = { MainUiIntent.ChangeImportCharacterQuery(it).emit() },
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isImporting,
-            label = { Text(stringResource(R.string.search_characters)) },
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.search_characters),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
             leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
             singleLine = true,
             shape = RoundedCornerShape(12.dp)

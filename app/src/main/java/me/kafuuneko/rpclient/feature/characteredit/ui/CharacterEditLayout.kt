@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Check
@@ -335,9 +337,10 @@ private fun HeroHeaderPanel(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                 ) {
                     if (form.characterVersion.isNotBlank()) {
                         Surface(
@@ -346,10 +349,14 @@ private fun HeroHeaderPanel(
                         ) {
                             Text(
                                 text = "v${form.characterVersion}",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    .widthIn(max = 140.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -361,18 +368,34 @@ private fun HeroHeaderPanel(
                         else
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                     ) {
-                        Text(
-                            text = if (boundLorebookName != null)
-                                stringResource(R.string.bound_to_lorebook, boundLorebookName)
-                            else
-                                stringResource(R.string.unbound_lorebook),
+                        Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (boundLorebookName != null)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.MenuBook,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = if (boundLorebookName != null)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = if (boundLorebookName != null)
+                                    stringResource(R.string.bound_to_lorebook, boundLorebookName)
+                                else
+                                    stringResource(R.string.unbound_lorebook),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (boundLorebookName != null)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
