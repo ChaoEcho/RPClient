@@ -931,4 +931,19 @@
     <string name="fullscreen_editor">全画面</string>
     <string name="active_entries_count">有効：%1$d 件</string>
     <string name="change_avatar">アバターを変更</string>
+    <string name="generation_error_character_provider_unavailable">このキャラクターに割り当てられたモデル設定は無効か、存在しません。</string>
+    <string name="generation_error_summary_provider_unavailable">選択した要約モデル設定は無効か、存在しません。</string>
+    <string name="follow_global_model">グローバルモデルに従う</string>
+    <string name="character_model_config">キャラクターのモデル設定</string>
+    <string name="character_model_config_helper">このキャラクターの返信に使用します。無効化後も変更するまで割り当ては保持されます。</string>
+    <string name="summary_model_config">要約モデル設定</string>
+    <string name="summary_model_config_helper">個別チャット、グループチャット、ストーリーの要約に使用します。</string>
+    <string name="unnamed_model_config">名前のないモデル設定</string>
+    <string name="disabled_model_config_format">%1$s（無効）</string>
+    <string name="delete_model_config">モデル設定を削除</string>
+    <string name="delete_model_config_message">「%1$s」を削除しますか？この操作は元に戻せません。</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="other">「%1$s」を削除しますか？関連する%2$d人のキャラクターはグローバルモデルに戻ります。この操作は元に戻せません。</item>
+    </plurals>
+    <string name="model_config_deleted">モデル設定を削除しました</string>
 </resources>

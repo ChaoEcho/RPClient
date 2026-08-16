@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
+import me.kafuuneko.rpclient.libs.room.dao.CharacterLLMProviderAssociationDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatMessageDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatSessionDao
 import me.kafuuneko.rpclient.libs.room.dao.FileDao
@@ -19,6 +20,7 @@ import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
@@ -40,6 +42,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
 @Database(
     entities = [
         Character::class,
+        CharacterLLMProviderAssociation::class,
         Lorebook::class,
         LorebookEntry::class,
         ChatSession::class,
@@ -65,6 +68,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun getCharacterDao(): CharacterDao
+    abstract fun getCharacterLLMProviderAssociationDao(): CharacterLLMProviderAssociationDao
     abstract fun getLorebookDao(): LorebookDao
     abstract fun getLorebookEntryDao(): LorebookEntryDao
     abstract fun getChatSessionDao(): ChatSessionDao

@@ -934,4 +934,21 @@
     <string name="fullscreen_editor">Plein écran</string>
     <string name="active_entries_count">%1$d actives</string>
     <string name="change_avatar">Changer l’avatar</string>
+    <string name="generation_error_character_provider_unavailable">La configuration de modèle liée à ce personnage est désactivée ou n’existe plus.</string>
+    <string name="generation_error_summary_provider_unavailable">La configuration de modèle sélectionnée pour les résumés est désactivée ou n’existe plus.</string>
+    <string name="follow_global_model">Suivre le modèle global</string>
+    <string name="character_model_config">Configuration du modèle du personnage</string>
+    <string name="character_model_config_helper">Utilisée pour les réponses de ce personnage. Une configuration désactivée reste liée jusqu’à modification.</string>
+    <string name="summary_model_config">Configuration du modèle de résumé</string>
+    <string name="summary_model_config_helper">Utilisée pour les résumés de discussions individuelles, de groupe et d’histoires.</string>
+    <string name="unnamed_model_config">Configuration de modèle sans nom</string>
+    <string name="disabled_model_config_format">%1$s (désactivée)</string>
+    <string name="delete_model_config">Supprimer la configuration du modèle</string>
+    <string name="delete_model_config_message">Supprimer « %1$s » ? Cette action est irréversible.</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="one">Supprimer « %1$s » ? %2$d personnage lié utilisera de nouveau le modèle global. Cette action est irréversible.</item>
+        <item quantity="many">Supprimer « %1$s » ? %2$d personnages liés utiliseront de nouveau le modèle global. Cette action est irréversible.</item>
+        <item quantity="other">Supprimer « %1$s » ? %2$d personnages liés utiliseront de nouveau le modèle global. Cette action est irréversible.</item>
+    </plurals>
+    <string name="model_config_deleted">Configuration du modèle supprimée</string>
 </resources>

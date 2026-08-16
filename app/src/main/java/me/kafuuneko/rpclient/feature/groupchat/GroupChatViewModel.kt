@@ -43,6 +43,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatMessageSource
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
@@ -54,6 +55,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
@@ -79,6 +81,7 @@ class GroupChatViewModel :
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+    private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mPromptBuilder by inject<GroupChatPromptBuilder>()
     private val mSpeakerSelector by inject<GroupChatSpeakerSelector>()
     private val mSummaryPromptBuilder by inject<GroupChatSummaryPromptBuilder>()
@@ -891,8 +894,8 @@ class GroupChatViewModel :
             mGroupChatRepository.getGroupChatData(sessionId)
         } ?: error(mContext.getString(R.string.group_chat_not_found))
         val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getSelectedProvider()
-        } ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
+            mProviderSelectionResolver.requireCharacterProvider(speaker.character)
+        }
         val lorebookContext = withContext(Dispatchers.IO) {
             loadLorebookContext(data, speaker)
         }
@@ -941,11 +944,12 @@ class GroupChatViewModel :
             )
         )
         if (AppModel.streamEnabled) {
-            collectStreamingResponse(sessionId, request)
+            collectStreamingResponse(sessionId, provider, request)
         } else {
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(
-                    request,
+                mLLMRepository.generateWithProvider(
+                    provider = provider,
+                    request = request,
                     routingSessionKey = "group-chat:$sessionId"
                 )
             }
@@ -988,10 +992,12 @@ class GroupChatViewModel :
     /** 收集流式增量并实时更新当前消息的 UI 状态。 */
     private suspend fun collectStreamingResponse(
         sessionId: Long,
+        provider: LLMProvider,
         request: me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
     ) {
-        mLLMRepository.streamGenerateWithSelectedProvider(
-            request,
+        mLLMRepository.streamGenerateWithProvider(
+            provider = provider,
+            request = request,
             routingSessionKey = "group-chat:$sessionId"
         ).collect { event ->
             currentCoroutineContext().ensureActive()
@@ -1074,8 +1080,8 @@ class GroupChatViewModel :
                 mGroupChatRepository.getGroupChatData(sessionId)
             } ?: return
             val provider = withContext(Dispatchers.IO) {
-                mLLMRepository.getSelectedProvider()
-            } ?: return
+                mProviderSelectionResolver.requireSummaryProvider()
+            }
             val unsummarized = data.messages.filter {
                 it.id > (data.summary?.coveredMessageId ?: 0L)
             }
@@ -1088,8 +1094,9 @@ class GroupChatViewModel :
             )
             if (built.selectedMessages.isEmpty()) return
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(
-                    built.request,
+                mLLMRepository.generateWithProvider(
+                    provider = provider,
+                    request = built.request,
                     routingSessionKey = "group-chat:$sessionId"
                 )
             }

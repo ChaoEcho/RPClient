@@ -145,6 +145,12 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 当前选中的模型供应商 ID。
     var currentLLMProvider by longPref()
 
+    // 摘要专用模型配置 ID；0 表示跟随当前全局模型配置。
+    var summaryLLMProvider by longPref()
+
+    // 默认模型配置模板是否已完成首次初始化，防止用户删除全部配置后被自动重建。
+    var llmDefaultProvidersInitialized by booleanPref(default = false)
+
     // OpenRouter 会话粘性使用的匿名安装 ID；不会发送原值，只发送按会话哈希后的 ID。
     var llmRoutingInstallationId by stringPref(default = "")
 

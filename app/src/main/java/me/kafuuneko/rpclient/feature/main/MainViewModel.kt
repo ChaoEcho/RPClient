@@ -108,23 +108,25 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
-        val providers = mLLMRepository.getEnabledProviders()
+        val allProviders = mLLMRepository.getAllProviders()
+        val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = buildHomeState(),
-            settingsState = buildSettingsState(providers, selectedProvider)
+            settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providers = mLLMRepository.getEnabledProviders()
+        val allProviders = mLLMRepository.getAllProviders()
+        val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         val homeState = buildHomeState()
-        val settingsState = buildSettingsState(providers, selectedProvider)
+        val settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.mergeResumeRefresh(
             homeState = homeState,
@@ -725,6 +727,26 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    @UiIntentObserver(MainUiIntent.SelectSummaryProvider::class)
+    private fun onSelectSummaryProvider(intent: MainUiIntent.SelectSummaryProvider) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val summaryState = uiState.settingsState.summaryState
+        if (intent.providerId != 0L && summaryState.providers.none { it.id == intent.providerId }) {
+            return
+        }
+        AppModel.summaryLLMProvider = intent.providerId
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = summaryState.copy(
+                    selectedProviderId = intent.providerId,
+                    providers = summaryState.providers.filter {
+                        it.isEnabled || it.id == intent.providerId
+                    }
+                )
+            )
+        ).setup()
+    }
+
     @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
     private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
         updateSettingsInt(intent.value, minimum = 1) {
@@ -1009,7 +1031,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     private suspend fun buildSettingsState(
         providers: List<LLMProvider>,
-        selectedProvider: LLMProvider?
+        selectedProvider: LLMProvider?,
+        allProviders: List<LLMProvider>
     ): MainSettingsState {
         return MainSettingsState(
             identityState = MainUserIdentityState(
@@ -1037,6 +1060,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 overflowAlert = AppModel.worldInfoOverflowAlert
             ),
             summaryState = MainSummarySettingsState(
+                selectedProviderId = AppModel.summaryLLMProvider,
+                providers = allProviders
+                    .filter { it.isEnabled || it.id == AppModel.summaryLLMProvider }
+                    .map { it.toMainProviderItem() },
                 autoSummaryEnabled = AppModel.autoSummaryEnabled,
                 triggerMessageCount = AppModel.summaryTriggerMessageCount,
                 wordsLimit = AppModel.summaryWordsLimit,

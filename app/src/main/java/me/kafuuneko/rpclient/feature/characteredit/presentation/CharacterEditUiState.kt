@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.characteredit.presentation
 
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
+import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
 import androidx.compose.ui.graphics.ImageBitmap
 
 /** 角色创建/编辑页面状态树。 */
@@ -11,8 +12,8 @@ sealed class CharacterEditUiState {
     /**
      * 角色表单稳定状态。
      *
-     * [initialForm] 用于离开页面时判断未保存变更；[availableLorebooks] 只提供绑定选择，
-     * 世界书内容仍由独立管理页面维护。
+     * [initialForm] 用于离开页面时判断未保存变更；世界书和模型配置列表只提供绑定选择，
+     * 具体配置内容仍由各自的独立管理页面维护。
      */
     data class Normal(
         val mode: CharacterEditMode,
@@ -21,7 +22,8 @@ sealed class CharacterEditUiState {
         val loadState: CharacterEditLoadState = CharacterEditLoadState.None,
         val dialogState: CharacterEditDialogState = CharacterEditDialogState.None,
         val avatarImage: ImageBitmap? = null,
-        val availableLorebooks: List<CharacterLorebookItem> = emptyList()
+        val availableLorebooks: List<CharacterLorebookItem> = emptyList(),
+        val availableProviders: List<CharacterProviderItem> = emptyList()
     ) : CharacterEditUiState()
 
     data class Finished(val previous: CharacterEditUiState) : CharacterEditUiState()

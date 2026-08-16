@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Storage
@@ -34,16 +35,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
+import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListDialogState
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiIntent
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiState
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -61,7 +65,10 @@ fun LLMProviderListLayout(
     when (uiState) {
         LLMProviderListUiState.None -> Unit
         is LLMProviderListUiState.Finished -> LLMProviderListLayout(uiState.previous) {}
-        is LLMProviderListUiState.Normal -> LLMProviderListNormal(uiState, emit)
+        is LLMProviderListUiState.Normal -> {
+            LLMProviderListNormal(uiState, emit)
+            LLMProviderListDialog(uiState.dialogState, emit)
+        }
     }
 }
 
@@ -119,6 +126,10 @@ private fun LLMProviderListNormal(
                     onCheckedChange = {
                         LLMProviderListUiIntent.ToggleProviderEnabled(provider.id.toString(), it)
                             .emit()
+                    },
+                    onDelete = {
+                        LLMProviderListUiIntent.ShowDeleteProviderDialog(provider.id.toString())
+                            .emit()
                     }
                 )
             }
@@ -140,7 +151,8 @@ private fun LoadingRow() {
 private fun ProviderListCard(
     provider: LLMProviderListItem,
     onClick: () -> Unit,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -176,6 +188,13 @@ private fun ProviderListCard(
                         contentDescription = stringResource(R.string.edit),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            contentDescription = stringResource(R.string.delete),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
                 Text(provider.model, style = MaterialTheme.typography.bodySmall)
                 Text(
@@ -194,6 +213,35 @@ private fun ProviderListCard(
             Spacer(modifier = Modifier.width(10.dp))
             Switch(checked = provider.isEnabled, onCheckedChange = onCheckedChange)
         }
+    }
+}
+
+@Composable
+private fun LLMProviderListDialog(
+    dialogState: LLMProviderListDialogState,
+    emit: LLMProviderListUiIntent.() -> Unit
+) {
+    when (dialogState) {
+        LLMProviderListDialogState.None -> Unit
+        is LLMProviderListDialogState.DeleteProvider -> AppDangerDialog(
+            onDismissRequest = { LLMProviderListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_model_config),
+            message = if (dialogState.associatedCharacterCount == 0) {
+                stringResource(R.string.delete_model_config_message, dialogState.providerName)
+            } else {
+                pluralStringResource(
+                    R.plurals.delete_model_config_with_characters_message,
+                    dialogState.associatedCharacterCount,
+                    dialogState.providerName,
+                    dialogState.associatedCharacterCount
+                )
+            },
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isDeleting,
+            isConfirmLoading = dialogState.isDeleting,
+            onConfirm = { LLMProviderListUiIntent.ConfirmDeleteProvider.emit() }
+        )
     }
 }
 

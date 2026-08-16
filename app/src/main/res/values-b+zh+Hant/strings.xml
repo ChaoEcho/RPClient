@@ -929,4 +929,19 @@
     <string name="fullscreen_editor">全螢幕</string>
     <string name="active_entries_count">已啟用 %1$d 個</string>
     <string name="change_avatar">更換頭像</string>
+    <string name="generation_error_character_provider_unavailable">綁定到此角色的模型設定已停用或不存在。</string>
+    <string name="generation_error_summary_provider_unavailable">所選摘要模型設定已停用或不存在。</string>
+    <string name="follow_global_model">跟隨全域模型</string>
+    <string name="character_model_config">角色模型設定</string>
+    <string name="character_model_config_helper">用於此角色的回覆；停用後仍保留綁定，直到手動變更。</string>
+    <string name="summary_model_config">摘要模型設定</string>
+    <string name="summary_model_config_helper">用於單人聊天、群組聊天和故事摘要。</string>
+    <string name="unnamed_model_config">未命名模型設定</string>
+    <string name="disabled_model_config_format">%1$s（已停用）</string>
+    <string name="delete_model_config">刪除模型設定</string>
+    <string name="delete_model_config_message">確定要刪除「%1$s」嗎？此操作無法復原。</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="other">確定要刪除「%1$s」嗎？%2$d 個關聯角色將恢復跟隨全域模型。此操作無法復原。</item>
+    </plurals>
+    <string name="model_config_deleted">模型設定已刪除</string>
 </resources>

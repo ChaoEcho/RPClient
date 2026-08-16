@@ -16,6 +16,24 @@ class GenerationFailureClassifierTest {
             classifyGenerationFailure(NoEnabledLLMProviderException())
         )
         assertEquals(
+            GenerationFailure.CharacterProviderUnavailable,
+            classifyGenerationFailure(
+                UnavailableLLMProviderSelectionException(
+                    LLMProviderSelectionScope.Character,
+                    providerId = 7L
+                )
+            )
+        )
+        assertEquals(
+            GenerationFailure.SummaryProviderUnavailable,
+            classifyGenerationFailure(
+                UnavailableLLMProviderSelectionException(
+                    LLMProviderSelectionScope.Summary,
+                    providerId = 8L
+                )
+            )
+        )
+        assertEquals(
             GenerationFailure.PromptBudget(requiredTokens = 12, promptBudget = 8),
             classifyGenerationFailure(PromptBudgetExceededException(12, 8))
         )

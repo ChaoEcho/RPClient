@@ -64,6 +64,11 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +80,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1843,6 +1850,11 @@ private fun GeneralSummarySettings(
     emit: MainUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SummaryProviderSelector(
+            selectedProviderId = state.selectedProviderId,
+            providers = state.providers,
+            onSelect = { MainUiIntent.SelectSummaryProvider(it).emit() }
+        )
         NumberSettingRow(
             title = stringResource(R.string.summary_target_words),
             value = state.wordsLimit.toString(),
@@ -1853,6 +1865,72 @@ private fun GeneralSummarySettings(
             value = state.responseTokens.toString(),
             onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SummaryProviderSelector(
+    selectedProviderId: Long,
+    providers: List<MainProviderItem>,
+    onSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
+    val selectedName = selectedProvider?.summaryDisplayName()
+        ?: stringResource(R.string.follow_global_model)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selectedName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.summary_model_config)) },
+            supportingText = { Text(stringResource(R.string.summary_model_config_helper)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            shape = RoundedCornerShape(12.dp)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.follow_global_model)) },
+                onClick = {
+                    onSelect(0L)
+                    expanded = false
+                }
+            )
+            providers.forEach { provider ->
+                DropdownMenuItem(
+                    text = { Text(provider.summaryDisplayName()) },
+                    onClick = {
+                        onSelect(provider.id)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainProviderItem.summaryDisplayName(): String {
+    val nameAndModel = listOf(name, model)
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
+        .ifBlank { stringResource(R.string.unnamed_model_config) }
+    return if (isEnabled) {
+        nameAndModel
+    } else {
+        stringResource(R.string.disabled_model_config_format, nameAndModel)
     }
 }
 

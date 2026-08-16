@@ -935,4 +935,20 @@
     <string name="prompt_story_summarize_title">Story summary prompt</string>
     <string name="prompt_story_summarize_desc">Controls how the story summary is updated</string>
     <string name="prompt_source_story_summary">Story summary</string>
+    <string name="generation_error_character_provider_unavailable">The model configuration bound to this character is disabled or no longer exists.</string>
+    <string name="generation_error_summary_provider_unavailable">The selected summary model configuration is disabled or no longer exists.</string>
+    <string name="follow_global_model">Follow global model</string>
+    <string name="character_model_config">Character model configuration</string>
+    <string name="character_model_config_helper">Used for this character’s replies. Disabled configurations remain bound until changed.</string>
+    <string name="summary_model_config">Summary model configuration</string>
+    <string name="summary_model_config_helper">Used for single chat, group chat, and story summaries.</string>
+    <string name="unnamed_model_config">Unnamed model configuration</string>
+    <string name="disabled_model_config_format">%1$s (disabled)</string>
+    <string name="delete_model_config">Delete model configuration</string>
+    <string name="delete_model_config_message">Delete “%1$s”? This cannot be undone.</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="one">Delete “%1$s”? %2$d linked character will return to the global model. This cannot be undone.</item>
+        <item quantity="other">Delete “%1$s”? %2$d linked characters will return to the global model. This cannot be undone.</item>
+    </plurals>
+    <string name="model_config_deleted">Model configuration deleted</string>
 </resources>

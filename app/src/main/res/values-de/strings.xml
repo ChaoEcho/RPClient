@@ -934,4 +934,20 @@
     <string name="fullscreen_editor">Vollbild</string>
     <string name="active_entries_count">%1$d aktiv</string>
     <string name="change_avatar">Avatar ändern</string>
+    <string name="generation_error_character_provider_unavailable">Die an diesen Charakter gebundene Modellkonfiguration ist deaktiviert oder nicht mehr vorhanden.</string>
+    <string name="generation_error_summary_provider_unavailable">Die ausgewählte Modellkonfiguration für Zusammenfassungen ist deaktiviert oder nicht mehr vorhanden.</string>
+    <string name="follow_global_model">Globalem Modell folgen</string>
+    <string name="character_model_config">Modellkonfiguration des Charakters</string>
+    <string name="character_model_config_helper">Wird für Antworten dieses Charakters verwendet. Deaktivierte Konfigurationen bleiben bis zur Änderung gebunden.</string>
+    <string name="summary_model_config">Modellkonfiguration für Zusammenfassungen</string>
+    <string name="summary_model_config_helper">Wird für Einzelchat-, Gruppenchat- und Story-Zusammenfassungen verwendet.</string>
+    <string name="unnamed_model_config">Unbenannte Modellkonfiguration</string>
+    <string name="disabled_model_config_format">%1$s (deaktiviert)</string>
+    <string name="delete_model_config">Modellkonfiguration löschen</string>
+    <string name="delete_model_config_message">„%1$s“ löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="one">„%1$s“ löschen? %2$d verknüpfter Charakter verwendet danach wieder das globale Modell. Dies kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">„%1$s“ löschen? %2$d verknüpfte Charaktere verwenden danach wieder das globale Modell. Dies kann nicht rückgängig gemacht werden.</item>
+    </plurals>
+    <string name="model_config_deleted">Modellkonfiguration gelöscht</string>
 </resources>

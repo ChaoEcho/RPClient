@@ -42,6 +42,8 @@ class LLMRepository(
 ) {
     /** 供应商表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
+    private val mCharacterLLMProviderAssociationDao =
+        mAppDatabase.getCharacterLLMProviderAssociationDao()
 
     /**
      * 获取所有模型供应商配置。首次访问时会初始化常见在线模型默认配置。
@@ -115,11 +117,26 @@ class LLMRepository(
         syncCurrentProvider(preferredProviderId = id.takeIf { isEnabled })
     }
 
+    /** 获取绑定到指定模型配置的角色数量，用于删除前说明影响范围。 */
+    suspend fun getCharacterAssociationCount(id: Long): Int {
+        return mCharacterLLMProviderAssociationDao.countByLLMProviderId(id)
+    }
+
     /**
-     * 删除供应商配置。
+     * 删除供应商配置，并让所有绑定角色及摘要设置恢复跟随全局模型。
+     *
+     * 角色关联和 Provider 记录必须在同一 Room 事务内删除，避免留下悬空引用；
+     * 摘要模型保存在 Kotpref 中，只能在数据库事务成功后单独清理。
      */
     suspend fun deleteProvider(id: Long) {
-        mLLMProviderDao.deleteProviderById(id)
+        mAppDatabase.withTransaction {
+            mCharacterLLMProviderAssociationDao.deleteByLLMProviderId(id)
+            mLLMProviderDao.deleteProviderById(id)
+        }
+        AppModel.llmDefaultProvidersInitialized = true
+        if (AppModel.summaryLLMProvider == id) {
+            AppModel.summaryLLMProvider = 0L
+        }
         syncCurrentProvider()
     }
 
@@ -215,9 +232,13 @@ class LLMRepository(
     /**
      * 使用临时供应商配置进行流式生成，适合编辑页保存前测试。
      */
-    fun streamGenerateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
+    fun streamGenerateWithProvider(
+        provider: LLMProvider,
+        request: LLMGenerationRequest,
+        routingSessionKey: String? = null
+    ): Flow<LLMStreamEvent> {
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider)
+            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
         ).requireNonEmptyContent()
     }
 
@@ -247,11 +268,16 @@ class LLMRepository(
      * 首次启动时写入常用在线模型供应商模板。
      */
     private suspend fun ensureDefaultProviders() {
-        if (mLLMProviderDao.getAllProviders().isNotEmpty()) return
+        if (AppModel.llmDefaultProvidersInitialized) return
+        if (mLLMProviderDao.getAllProviders().isNotEmpty()) {
+            AppModel.llmDefaultProvidersInitialized = true
+            return
+        }
         mAppDatabase.withTransaction {
             if (mLLMProviderDao.getAllProviders().isNotEmpty()) return@withTransaction
             mLLMProviderDao.insertOrReplaceAll(createDefaultLLMProviders())
         }
+        AppModel.llmDefaultProvidersInitialized = true
     }
 }
 

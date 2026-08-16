@@ -931,4 +931,19 @@
     <string name="openrouter_provider_slug">供应商标识（例如 deepinfra）</string>
     <string name="openrouter_allow_fallbacks">允许供应商回退</string>
     <string name="openrouter_session_affinity_note">自动模式下，RPClient 会为每个对话发送稳定的匿名会话 ID 以启用粘性路由；启用首选供应商后，其顺序设置优先。</string>
+    <string name="generation_error_character_provider_unavailable">绑定到此角色的模型配置已停用或不存在。</string>
+    <string name="generation_error_summary_provider_unavailable">所选摘要模型配置已停用或不存在。</string>
+    <string name="follow_global_model">跟随全局模型</string>
+    <string name="character_model_config">角色模型配置</string>
+    <string name="character_model_config_helper">用于此角色的回复；停用后仍保留绑定，直至手动更改。</string>
+    <string name="summary_model_config">摘要模型配置</string>
+    <string name="summary_model_config_helper">用于单聊、群聊和故事摘要。</string>
+    <string name="unnamed_model_config">未命名模型配置</string>
+    <string name="disabled_model_config_format">%1$s（已停用）</string>
+    <string name="delete_model_config">删除模型配置</string>
+    <string name="delete_model_config_message">确定删除“%1$s”吗？此操作无法撤销。</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="other">确定删除“%1$s”吗？%2$d 个关联角色将恢复跟随全局模型。此操作无法撤销。</item>
+    </plurals>
+    <string name="model_config_deleted">模型配置已删除</string>
 </resources>

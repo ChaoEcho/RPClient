@@ -15,13 +15,13 @@ import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
-import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.utils.toggle
@@ -37,7 +37,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
-    private val mLLMRepository by inject<LLMRepository>()
+    private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mMacroResolver by inject<PromptMacroResolver>()
     private var mCharactersById: Map<Long, Character> = emptyMap()
 
@@ -225,7 +225,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 messages = emptyList(),
                 currentUserMessage = null,
                 candidateLorebookEntries = emptyList(),
-                provider = mLLMRepository.getSelectedProvider(),
+                provider = mProviderSelectionResolver.getCharacterProviderOrNull(character),
                 maxContextTokens = 0,
                 maxResponseTokens = 0
             )

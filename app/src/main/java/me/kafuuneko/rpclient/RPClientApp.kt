@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
@@ -95,6 +96,7 @@ internal val appModules = module {
     single { Gson() }
 
     singleOf(::LLMClientFactory)
+    singleOf(::LLMProviderSelectionResolver)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
     singleOf(::FormattedHistoryBuilder)

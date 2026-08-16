@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
+import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
@@ -218,6 +219,7 @@ private fun CharacterEditNormal(
                             AdvancedPanel(
                                 form = state.form,
                                 availableLorebooks = state.availableLorebooks,
+                                availableProviders = state.availableProviders,
                                 emit = emit
                             )
                         }
@@ -600,6 +602,7 @@ private fun DialogueExamplesPanel(
 private fun AdvancedPanel(
     form: CharacterEditForm,
     availableLorebooks: List<CharacterLorebookItem>,
+    availableProviders: List<CharacterProviderItem>,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     var isExtensionsExpanded by rememberSaveable(form.id) { mutableStateOf(false) }
@@ -610,6 +613,11 @@ private fun AdvancedPanel(
 
     Panel {
         RpSectionHeader(title = stringResource(R.string.advanced_definition))
+        CharacterProviderSelector(
+            selectedId = form.llmProviderId,
+            availableProviders = availableProviders,
+            onSelect = { CharacterEditUiIntent.SelectLLMProvider(it).emit() }
+        )
         LorebookSelector(
             selectedId = form.characterLorebookId,
             availableLorebooks = availableLorebooks,
@@ -1050,6 +1058,72 @@ private fun ListTextField(
                 onFullscreenClick = onExpandFullscreen
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CharacterProviderSelector(
+    selectedId: Long,
+    availableProviders: List<CharacterProviderItem>,
+    onSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedProvider = availableProviders.firstOrNull { it.id == selectedId }
+    val selectedName = selectedProvider?.displayName()
+        ?: stringResource(R.string.follow_global_model)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selectedName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.character_model_config)) },
+            supportingText = { Text(stringResource(R.string.character_model_config_helper)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            shape = RoundedCornerShape(12.dp)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.follow_global_model)) },
+                onClick = {
+                    onSelect(0L)
+                    expanded = false
+                }
+            )
+            availableProviders.forEach { provider ->
+                DropdownMenuItem(
+                    text = { Text(provider.displayName()) },
+                    onClick = {
+                        onSelect(provider.id)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterProviderItem.displayName(): String {
+    val nameAndModel = listOf(name, model)
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
+        .ifBlank { stringResource(R.string.unnamed_model_config) }
+    return if (isEnabled) {
+        nameAndModel
+    } else {
+        stringResource(R.string.disabled_model_config_format, nameAndModel)
     }
 }
 

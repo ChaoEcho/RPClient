@@ -90,6 +90,8 @@ sealed class MainUiIntent {
 
     data class ToggleAutoSummaryEnabled(val enabled: Boolean) : MainUiIntent()
 
+    data class SelectSummaryProvider(val providerId: Long) : MainUiIntent()
+
     data class ChangeSummaryTriggerMessageCount(val value: String) : MainUiIntent()
 
     data class ChangeSummaryWordsLimit(val value: String) : MainUiIntent()

@@ -16,6 +16,8 @@ sealed class CharacterEditUiIntent {
 
     data class UpdateCharacterLorebook(val lorebookId: Long) : CharacterEditUiIntent()
 
+    data class SelectLLMProvider(val providerId: Long) : CharacterEditUiIntent()
+
     data object OpenWorldBookManager : CharacterEditUiIntent()
 
     data class ChangeName(val value: String) : CharacterEditUiIntent()

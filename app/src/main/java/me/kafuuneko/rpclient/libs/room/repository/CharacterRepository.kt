@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.regex.normalizeRegexScriptIds
 import me.kafuuneko.rpclient.libs.regex.toEntity
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
@@ -17,6 +18,8 @@ class CharacterRepository(
     private val mRegexCodec: RegexScriptCodec
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
+    private val mCharacterLLMProviderAssociationDao =
+        mAppDatabase.getCharacterLLMProviderAssociationDao()
     private val mRegexDao = mAppDatabase.getRegexScriptDao()
 
     /**
@@ -53,6 +56,46 @@ class CharacterRepository(
     }
 
     /**
+     * 保存角色及其回复模型配置绑定。
+     *
+     * [llmProviderId] 为 0 时删除关联记录，使角色跟随全局模型配置；角色数据和关联关系在
+     * 同一事务内提交，避免只保存其中一部分。
+     *
+     * @param character 要保存的角色。
+     * @param llmProviderId 显式绑定的模型配置 ID；0 表示跟随全局设置。
+     * @return 保存后的角色 ID。
+     */
+    suspend fun saveCharacterWithLLMProvider(
+        character: Character,
+        llmProviderId: Long
+    ): Long {
+        return mAppDatabase.withTransaction {
+            val characterId = saveCharacterInTransaction(character)
+            if (llmProviderId == 0L) {
+                mCharacterLLMProviderAssociationDao.deleteByCharacterId(characterId)
+            } else {
+                mCharacterLLMProviderAssociationDao.insertOrReplace(
+                    CharacterLLMProviderAssociation(
+                        characterId = characterId,
+                        llmProviderId = llmProviderId
+                    )
+                )
+            }
+            characterId
+        }
+    }
+
+    /**
+     * 获取角色显式绑定的回复模型配置 ID。
+     *
+     * @param characterId 角色 ID。
+     * @return 模型配置 ID；没有关联记录时返回 0，表示跟随全局设置。
+     */
+    suspend fun getLLMProviderId(characterId: Long): Long {
+        return mCharacterLLMProviderAssociationDao.getLLMProviderId(characterId) ?: 0L
+    }
+
+    /**
      * 更新已有角色。
      *
      * @param character 要更新的角色。
@@ -84,7 +127,10 @@ class CharacterRepository(
      * @param id 角色 id。
      */
     suspend fun deleteCharacter(id: Long) {
-        mCharacterDao.deleteCharacterById(id)
+        mAppDatabase.withTransaction {
+            mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
+            mCharacterDao.deleteCharacterById(id)
+        }
     }
 
     /**

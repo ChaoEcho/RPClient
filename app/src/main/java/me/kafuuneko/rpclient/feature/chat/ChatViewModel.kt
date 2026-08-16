@@ -41,6 +41,7 @@ import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
@@ -84,6 +85,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+    private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mFileRepository by inject<FileRepository>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
@@ -228,6 +230,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.Char),
                         built.worldInfoStateJson
@@ -235,6 +238,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 } else {
                     generateOnce(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.Char),
                         built.worldInfoStateJson
@@ -818,6 +822,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Update(latestAssistantMessage.id),
                         built.worldInfoStateJson
@@ -825,6 +830,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 } else {
                     generateOnce(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Update(latestAssistantMessage.id),
                         built.worldInfoStateJson
@@ -883,6 +889,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.Char),
                         built.worldInfoStateJson
@@ -890,6 +897,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 } else {
                     generateOnce(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.Char),
                         built.worldInfoStateJson
@@ -936,6 +944,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.User),
                         built.worldInfoStateJson
@@ -943,6 +952,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 } else {
                     generateOnce(
                         sessionId,
+                        built.provider,
                         built.request,
                         GenerationOutput.Create(ChatMessage.Source.User),
                         built.worldInfoStateJson
@@ -966,13 +976,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 非流式结果完成 Source Regex 后，与世界书时序状态一起原子提交。 */
     private suspend fun generateOnce(
         sessionId: Long,
+        provider: LLMProvider,
         request: LLMGenerationRequest,
         output: GenerationOutput,
         worldInfoStateJson: String
     ) {
         val response = withContext(Dispatchers.IO) {
-            mLLMRepository.generateWithSelectedProvider(
-                request,
+            mLLMRepository.generateWithProvider(
+                provider = provider,
+                request = request,
                 routingSessionKey = "chat:$sessionId"
             )
         }
@@ -1005,6 +1017,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun generateStreaming(
         sessionId: Long,
+        provider: LLMProvider,
         request: LLMGenerationRequest,
         output: GenerationOutput,
         worldInfoStateJson: String
@@ -1057,8 +1070,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 generationState = ChatGenerationState.Streaming(active.messageId, active.content)
             )
-            mLLMRepository.streamGenerateWithSelectedProvider(
-                request,
+            mLLMRepository.streamGenerateWithProvider(
+                provider = provider,
+                request = request,
                 routingSessionKey = "chat:$sessionId"
             ).collect { event ->
                 currentCoroutineContext().ensureActive()
@@ -1169,7 +1183,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     allowRefreshLatest = showToast
                 )
-                val provider = mLLMRepository.getSelectedProvider()
+                val provider = mProviderSelectionResolver.requireSummaryProvider()
                 AutoSummaryData(
                     session = session,
                     character = character,
@@ -1202,8 +1216,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             currentCoroutineContext().ensureActive()
 
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(
-                    built.request,
+                mLLMRepository.generateWithProvider(
+                    provider = data.provider,
+                    request = built.request,
                     routingSessionKey = "chat:$sessionId"
                 )
             }
@@ -1280,7 +1295,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .filter { it.recursiveScanning }
             .map { it.id }
             .toSet()
-        val provider = mLLMRepository.getSelectedProvider() ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
+        val provider = mProviderSelectionResolver.requireCharacterProvider(character)
         val buildResult = mChatPromptBuilder.buildWithMetadata(
             PromptBuildContext(
                 userName = session.userName,
@@ -1302,6 +1317,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         )
         return BuiltGenerationRequest(
+            provider = provider,
             request = buildResult.request,
             inspection = buildResult.inspection,
             worldInfoStateJson = buildResult.worldInfoStateJson
@@ -1484,6 +1500,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     private data class BuiltGenerationRequest(
+        val provider: LLMProvider,
         val request: LLMGenerationRequest,
         val inspection: PromptInspection,
         val worldInfoStateJson: String
@@ -1646,7 +1663,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val summary: String,
         val messages: List<ChatMessage>,
         val summaryIdToUpdate: Long?,
-        val provider: LLMProvider?
+        val provider: LLMProvider
     )
 
     private data class GenerationHistory(

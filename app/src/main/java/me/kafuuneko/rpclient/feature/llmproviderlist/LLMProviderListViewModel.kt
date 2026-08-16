@@ -1,9 +1,11 @@
 package me.kafuuneko.rpclient.feature.llmproviderlist
 
 import android.os.Bundle
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
+import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListDialogState
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiIntent
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -63,6 +65,46 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
         val providerId = intent.providerId.toLongOrNull() ?: return
         mLLMRepository.updateProviderEnabled(providerId, intent.isEnabled)
         refreshProviders()
+    }
+
+    @UiIntentObserver(LLMProviderListUiIntent.ShowDeleteProviderDialog::class)
+    private suspend fun onShowDeleteProviderDialog(
+        intent: LLMProviderListUiIntent.ShowDeleteProviderDialog
+    ) {
+        val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
+        val providerId = intent.providerId.toLongOrNull() ?: return
+        val provider = uiState.providers.firstOrNull { it.id == providerId } ?: return
+        val associationCount = mLLMRepository.getCharacterAssociationCount(providerId)
+        uiState.copy(
+            dialogState = LLMProviderListDialogState.DeleteProvider(
+                providerId = providerId,
+                providerName = provider.name,
+                associatedCharacterCount = associationCount
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(LLMProviderListUiIntent.ConfirmDeleteProvider::class)
+    private suspend fun onConfirmDeleteProvider() {
+        val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? LLMProviderListDialogState.DeleteProvider
+            ?: return
+        if (dialogState.isDeleting) return
+        uiState.copy(dialogState = dialogState.copy(isDeleting = true)).setup()
+        mLLMRepository.deleteProvider(dialogState.providerId)
+        val current = getOrNull<LLMProviderListUiState.Normal>() ?: return
+        current.copy(dialogState = LLMProviderListDialogState.None).setup()
+        refreshProviders()
+        AppViewEvent.PopupToastMessageByResId(R.string.model_config_deleted).tryEmit()
+    }
+
+    @UiIntentObserver(LLMProviderListUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? LLMProviderListDialogState.DeleteProvider
+            ?: return
+        if (dialogState.isDeleting) return
+        uiState.copy(dialogState = LLMProviderListDialogState.None).setup()
     }
 
     /**

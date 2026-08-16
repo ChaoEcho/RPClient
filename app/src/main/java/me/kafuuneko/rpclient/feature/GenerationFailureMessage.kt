@@ -13,6 +13,12 @@ internal fun Throwable.toGenerationFailureMessage(
 ): String? = when (val failure = classifyGenerationFailure(this)) {
     null -> null
     GenerationFailure.NoProvider -> context.getString(R.string.generation_error_no_provider)
+    GenerationFailure.CharacterProviderUnavailable -> context.getString(
+        R.string.generation_error_character_provider_unavailable
+    )
+    GenerationFailure.SummaryProviderUnavailable -> context.getString(
+        R.string.generation_error_summary_provider_unavailable
+    )
     is GenerationFailure.PromptBudget -> context.getString(
         R.string.generation_error_prompt_budget,
         failure.requiredTokens,

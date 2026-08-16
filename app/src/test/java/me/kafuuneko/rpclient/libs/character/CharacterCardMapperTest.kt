@@ -11,6 +11,24 @@ class CharacterCardMapperTest {
     private val mapper = CharacterCardMapper(gson)
 
     @Test
+    fun localProviderAssociationIsNotExportedOrImported() {
+        val imported = mapper.parseCharacter(
+            """
+            {
+              "spec": "chara_card_v2",
+              "data": {"name": "Iris", "llmProviderId": 99}
+            }
+            """.trimIndent()
+        ).character
+        val exported = JsonParser.parseString(
+            mapper.toV2Json(imported)
+        ).asJsonObject.getAsJsonObject("data")
+
+        assertEquals("Iris", imported.name)
+        assertEquals(false, exported.has("llmProviderId"))
+    }
+
+    @Test
     fun characterBookWithoutBudgetFollowsGlobal() {
         val parsed = mapper.parseCharacter(
             """

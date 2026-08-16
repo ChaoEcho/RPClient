@@ -32,15 +32,19 @@ data class CharacterEditForm(
     val depthPromptPrompt: String = "",
     val depthPromptDepth: String = "4",
     val depthPromptRole: String = "0",
-    val characterLorebookId: Long = 0L
+    val characterLorebookId: Long = 0L,
+    val llmProviderId: Long = 0L
 ) {
     /** ID 为 0 表示尚未写入数据库的新角色。 */
     val isNew: Boolean
         get() = id == 0L
 
     companion object {
-        /** 从 Room 角色实体恢复可编辑表单。 */
-        fun from(character: Character) = CharacterEditForm(
+        /** 从 Room 角色实体及独立的模型关联恢复可编辑表单。 */
+        fun from(
+            character: Character,
+            llmProviderId: Long = 0L
+        ) = CharacterEditForm(
             id = character.id,
             name = character.name,
             avatar = character.avatar,
@@ -61,7 +65,8 @@ data class CharacterEditForm(
             depthPromptPrompt = character.depthPromptPrompt,
             depthPromptDepth = character.depthPromptDepth.toString(),
             depthPromptRole = character.depthPromptRole.toString(),
-            characterLorebookId = character.characterLorebookId
+            characterLorebookId = character.characterLorebookId,
+            llmProviderId = llmProviderId
         )
     }
 

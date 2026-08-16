@@ -21,10 +21,11 @@ class AppDatabaseAutoMigration1To2Spec : AutoMigrationSpec {
 }
 
 /**
- * 主业务数据库 v2→v3 新增高级请求 JSON 后的一次性默认值迁移。
+ * 主业务数据库 v2→v3 完成 Regex、故事、角色模型关联表和高级请求 JSON 结构升级后的默认值迁移。
  *
- * 只有升级当下仍为空的 OpenRouter 配置会获得可见模板；迁移结束后不再自动补写，
- * 因此用户可以从高级 JSON 删除 session_id 并持续保持关闭状态。
+ * 表和字段由 Room 按当前尚未发布的 v3 schema 自动创建；这里仅补写升级当下仍为空的
+ * OpenRouter 模板。迁移结束后不再自动补写，因此用户可以从高级 JSON 删除 session_id
+ * 并持续保持关闭状态。
  */
 class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {

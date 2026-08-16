@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
+import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
 import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
@@ -22,6 +23,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.utils.orSingleBlank
 import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
 import me.kafuuneko.rpclient.libs.utils.updateAt
@@ -39,22 +41,38 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
+    private val mLLMRepository by inject<LLMRepository>()
 
     @UiIntentObserver(CharacterEditUiIntent.Init::class)
     private suspend fun onInit(intent: CharacterEditUiIntent.Init) {
         if (!isStateOf<CharacterEditUiState.None>()) return
-        val lorebooks = withContext(Dispatchers.IO) {
-            mLorebookRepository.getAllLorebooks()
+        val (lorebooks, providers) = withContext(Dispatchers.IO) {
+            mLorebookRepository.getAllLorebooks() to mLLMRepository.getAllProviders()
         }
         val character = intent.characterId?.let {
             withContext(Dispatchers.IO) { mCharacterRepository.getCharacterById(it) }
         }
-        val form = character?.let { CharacterEditForm.from(it) } ?: CharacterEditForm()
+        val llmProviderId = character?.let {
+            withContext(Dispatchers.IO) { mCharacterRepository.getLLMProviderId(it.id) }
+        } ?: 0L
+        val form = character?.let {
+            CharacterEditForm.from(it, llmProviderId)
+        } ?: CharacterEditForm()
         CharacterEditUiState.Normal(
             mode = if (character == null) CharacterEditMode.Create else CharacterEditMode.Edit,
             form = form.ensureListInputs(),
             avatarImage = form.resolveAvatarImage(),
             availableLorebooks = lorebooks.map { CharacterLorebookItem(it.id, it.name) },
+            availableProviders = providers
+                .filter { it.isEnabled || it.id == form.llmProviderId }
+                .map { provider ->
+                    CharacterProviderItem(
+                        id = provider.id,
+                        name = provider.name,
+                        model = provider.model,
+                        isEnabled = provider.isEnabled
+                    )
+                },
             loadState = CharacterEditLoadState.None
         ).setup()
     }
@@ -67,17 +85,43 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         ).setup()
     }
 
+    @UiIntentObserver(CharacterEditUiIntent.SelectLLMProvider::class)
+    private fun onSelectLLMProvider(intent: CharacterEditUiIntent.SelectLLMProvider) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        uiState.copy(
+            form = uiState.form.copy(llmProviderId = intent.providerId),
+            availableProviders = uiState.availableProviders.filter {
+                it.isEnabled || it.id == intent.providerId
+            }
+        ).setup()
+    }
+
     @UiIntentObserver(CharacterEditUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        val lorebooks = withContext(Dispatchers.IO) {
-            mLorebookRepository.getAllLorebooks()
+        val (lorebooks, providers) = withContext(Dispatchers.IO) {
+            mLorebookRepository.getAllLorebooks() to mLLMRepository.getAllProviders()
         }
-        val availableIds = lorebooks.mapTo(mutableSetOf()) { it.id }
+        val availableLorebookIds = lorebooks.mapTo(mutableSetOf()) { it.id }
+        val availableProviderIds = providers.mapTo(mutableSetOf()) { it.id }
         uiState.copy(
-            form = uiState.form.withValidLorebookAssociation(availableIds),
-            initialForm = uiState.initialForm.withValidLorebookAssociation(availableIds),
-            availableLorebooks = lorebooks.map { CharacterLorebookItem(it.id, it.name) }
+            form = uiState.form
+                .withValidLorebookAssociation(availableLorebookIds)
+                .withValidProviderAssociation(availableProviderIds),
+            initialForm = uiState.initialForm
+                .withValidLorebookAssociation(availableLorebookIds)
+                .withValidProviderAssociation(availableProviderIds),
+            availableLorebooks = lorebooks.map { CharacterLorebookItem(it.id, it.name) },
+            availableProviders = providers
+                .filter { it.isEnabled || it.id == uiState.form.llmProviderId }
+                .map { provider ->
+                    CharacterProviderItem(
+                        id = provider.id,
+                        name = provider.name,
+                        model = provider.model,
+                        isEnabled = provider.isEnabled
+                    )
+                }
         ).setup()
     }
 
@@ -280,7 +324,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         val character = uiState.form.toCharacterOrNullWithToast() ?: return
         uiState.copy(loadState = CharacterEditLoadState.Saving).setup()
         withContext(Dispatchers.IO) {
-            mCharacterRepository.saveCharacter(character)
+            mCharacterRepository.saveCharacterWithLLMProvider(
+                character = character,
+                llmProviderId = uiState.form.llmProviderId
+            )
             if (uiState.form.originalAvatar.isNotBlank() && uiState.form.originalAvatar != character.avatar) {
                 mFileRepository.deleteFile(uiState.form.originalAvatar)
             }
@@ -435,6 +482,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     ): CharacterEditForm {
         if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
         return copy(characterLorebookId = 0L)
+    }
+
+    private fun CharacterEditForm.withValidProviderAssociation(
+        availableProviderIds: Set<Long>
+    ): CharacterEditForm {
+        if (llmProviderId == 0L || llmProviderId in availableProviderIds) return this
+        return copy(llmProviderId = 0L)
     }
 
     private fun CharacterEditForm.promptText(field: CharacterPromptField): String? {

@@ -930,4 +930,19 @@
     <string name="fullscreen_editor">전체 화면</string>
     <string name="active_entries_count">%1$d개 활성화</string>
     <string name="change_avatar">아바타 변경</string>
+    <string name="generation_error_character_provider_unavailable">이 캐릭터에 연결된 모델 설정이 비활성화되었거나 더 이상 존재하지 않습니다.</string>
+    <string name="generation_error_summary_provider_unavailable">선택한 요약 모델 설정이 비활성화되었거나 더 이상 존재하지 않습니다.</string>
+    <string name="follow_global_model">전역 모델 따르기</string>
+    <string name="character_model_config">캐릭터 모델 설정</string>
+    <string name="character_model_config_helper">이 캐릭터의 답변에 사용합니다. 비활성화된 설정도 변경할 때까지 연결이 유지됩니다.</string>
+    <string name="summary_model_config">요약 모델 설정</string>
+    <string name="summary_model_config_helper">일대일 채팅, 그룹 채팅 및 스토리 요약에 사용합니다.</string>
+    <string name="unnamed_model_config">이름 없는 모델 설정</string>
+    <string name="disabled_model_config_format">%1$s(비활성화됨)</string>
+    <string name="delete_model_config">모델 설정 삭제</string>
+    <string name="delete_model_config_message">“%1$s”을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다.</string>
+    <plurals name="delete_model_config_with_characters_message">
+        <item quantity="other">“%1$s”을(를) 삭제할까요? 연결된 캐릭터 %2$d명이 전역 모델을 다시 따릅니다. 이 작업은 되돌릴 수 없습니다.</item>
+    </plurals>
+    <string name="model_config_deleted">모델 설정을 삭제했습니다</string>
 </resources>

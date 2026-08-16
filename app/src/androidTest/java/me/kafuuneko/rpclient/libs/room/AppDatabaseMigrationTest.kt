@@ -113,7 +113,7 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate2To3_addsRegexAndStoryStorageAndKeepsCharacters() {
+    fun migrate2To3_addsCurrentStorageAndKeepsCharacters() {
         migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
             execSQL(
                 """
@@ -163,6 +163,7 @@ class AppDatabaseMigrationTest {
             """
             SELECT name FROM sqlite_master
             WHERE type = 'table' AND name IN (
+                'character_llm_provider_associations',
                 'regex_scripts',
                 'regex_character_authorizations',
                 'stories',
@@ -176,6 +177,7 @@ class AppDatabaseMigrationTest {
             }
             assertEquals(
                 listOf(
+                    "character_llm_provider_associations",
                     "regex_character_authorizations",
                     "regex_scripts",
                     "stories",
@@ -187,6 +189,10 @@ class AppDatabaseMigrationTest {
         migrated.query("SELECT extensionsJson FROM character WHERE id = 101").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(true, cursor.getString(0).contains("regex_scripts"))
+        }
+        migrated.query("SELECT COUNT(*) FROM character_llm_provider_associations").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(0L, cursor.getLong(0))
         }
         migrated.query(
             "SELECT id, requestBodyPatchJson FROM llm_providers WHERE id IN (404, 405) ORDER BY id"

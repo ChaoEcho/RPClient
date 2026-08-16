@@ -8,7 +8,8 @@ sealed class LLMProviderListUiState {
 
     data class Normal(
         val providers: List<LLMProviderListItem>,
-        val loadState: LLMProviderListLoadState = LLMProviderListLoadState.None
+        val loadState: LLMProviderListLoadState = LLMProviderListLoadState.None,
+        val dialogState: LLMProviderListDialogState = LLMProviderListDialogState.None
     ) : LLMProviderListUiState()
 
     data class Finished(val previous: LLMProviderListUiState) : LLMProviderListUiState()
@@ -19,6 +20,18 @@ sealed class LLMProviderListUiState {
             return Finished(previous)
         }
     }
+}
+
+/** 模型配置列表页当前显示的业务对话框。 */
+sealed class LLMProviderListDialogState {
+    data object None : LLMProviderListDialogState()
+
+    data class DeleteProvider(
+        val providerId: Long,
+        val providerName: String,
+        val associatedCharacterCount: Int,
+        val isDeleting: Boolean = false
+    ) : LLMProviderListDialogState()
 }
 
 /** 供应商配置加载或启停更新状态。 */

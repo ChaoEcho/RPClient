@@ -29,6 +29,8 @@ class LLMHttpStatusException(
 /** 不依赖 Android 资源且只包含安全字段的生成失败分类。 */
 sealed class GenerationFailure {
     data object NoProvider : GenerationFailure()
+    data object CharacterProviderUnavailable : GenerationFailure()
+    data object SummaryProviderUnavailable : GenerationFailure()
     data class PromptBudget(val requiredTokens: Int, val promptBudget: Int) : GenerationFailure()
     data object Unauthorized : GenerationFailure()
     data object Forbidden : GenerationFailure()
@@ -46,6 +48,10 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
     if (throwable is CancellationException) return null
     return when (throwable) {
         is NoEnabledLLMProviderException -> GenerationFailure.NoProvider
+        is UnavailableLLMProviderSelectionException -> when (throwable.scope) {
+            LLMProviderSelectionScope.Character -> GenerationFailure.CharacterProviderUnavailable
+            LLMProviderSelectionScope.Summary -> GenerationFailure.SummaryProviderUnavailable
+        }
         is PromptBudgetExceededException -> GenerationFailure.PromptBudget(
             requiredTokens = throwable.requiredTokens.coerceIn(0, MaxReportedTokenCount),
             promptBudget = throwable.promptBudget.coerceIn(0, MaxReportedTokenCount)

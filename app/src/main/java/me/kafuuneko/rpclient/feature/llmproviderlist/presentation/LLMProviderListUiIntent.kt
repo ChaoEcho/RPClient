@@ -16,4 +16,10 @@ sealed class LLMProviderListUiIntent {
         val providerId: String,
         val isEnabled: Boolean
     ) : LLMProviderListUiIntent()
+
+    data class ShowDeleteProviderDialog(val providerId: String) : LLMProviderListUiIntent()
+
+    data object ConfirmDeleteProvider : LLMProviderListUiIntent()
+
+    data object DismissDialog : LLMProviderListUiIntent()
 }

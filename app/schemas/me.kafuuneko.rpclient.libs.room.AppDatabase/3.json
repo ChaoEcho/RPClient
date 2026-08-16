@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "b3629f1f2ddaf69bef9d83b0f2a6a466",
+    "identityHash": "c40c5a0100cbfcafaf53504a6f814941",
     "entities": [
       {
         "tableName": "character",
@@ -145,6 +145,65 @@
             "id"
           ]
         }
+      },
+      {
+        "tableName": "character_llm_provider_associations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`characterId` INTEGER NOT NULL, `llmProviderId` INTEGER NOT NULL, PRIMARY KEY(`characterId`), FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`llmProviderId`) REFERENCES `llm_providers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmProviderId",
+            "columnName": "llmProviderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "characterId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_character_llm_provider_associations_llmProviderId",
+            "unique": false,
+            "columnNames": [
+              "llmProviderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_character_llm_provider_associations_llmProviderId` ON `${TABLE_NAME}` (`llmProviderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "llm_providers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "llmProviderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "lorebooks",
@@ -1559,7 +1618,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b3629f1f2ddaf69bef9d83b0f2a6a466')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c40c5a0100cbfcafaf53504a6f814941')"
     ]
   }
 }

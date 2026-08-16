@@ -85,6 +85,8 @@ enum class MainSummarySettingsTab {
 
 /** 通用摘要参数与对话摘要行为面板状态。 */
 data class MainSummarySettingsState(
+    val selectedProviderId: Long = 0L,
+    val providers: List<MainProviderItem> = emptyList(),
     val autoSummaryEnabled: Boolean,
     val triggerMessageCount: Int,
     val wordsLimit: Int,

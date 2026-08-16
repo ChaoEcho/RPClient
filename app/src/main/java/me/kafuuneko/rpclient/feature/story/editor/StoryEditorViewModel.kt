@@ -64,6 +64,9 @@ import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.story.prepareStoryContinuationText
 import me.kafuuneko.rpclient.libs.story.storyTextHash
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
+import me.kafuuneko.rpclient.libs.llm.UnavailableLLMProviderSelectionException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -86,6 +89,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+    private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mStoryPromptBuilder by inject<StoryPromptBuilder>()
     private val mStorySummaryPromptBuilder by inject<StorySummaryPromptBuilder>()
     private val mStoryOutputSanitizer by inject<StoryOutputSanitizer>()
@@ -343,9 +347,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return
         }
         if (!saveDraft()) return
-        val provider = withContext(Dispatchers.IO) { mLLMRepository.getSelectedProvider() }
-        if (provider == null) {
-            AppViewEvent.PopupToastMessageByResId(R.string.story_summary_failed).tryEmit()
+        val provider = try {
+            withContext(Dispatchers.IO) { mProviderSelectionResolver.requireSummaryProvider() }
+        } catch (_: UnavailableLLMProviderSelectionException) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.generation_error_summary_provider_unavailable
+            ).tryEmit()
+            return
+        } catch (_: NoEnabledLLMProviderException) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_error_no_provider).tryEmit()
             return
         }
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -862,14 +872,20 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return
         }
         val buildResult = try {
+            val provider = withContext(Dispatchers.IO) {
+                mProviderSelectionResolver.requireDefaultProvider()
+            }
             val promptContext = withContext(Dispatchers.IO) {
                 buildPromptContext(
                     story = story,
                     target = target,
-                    continuationGuidance = continuationGuidance
+                    continuationGuidance = continuationGuidance,
+                    provider = provider
                 )
             }
-            withContext(Dispatchers.Default) { mStoryPromptBuilder.build(promptContext) }
+            provider to withContext(Dispatchers.Default) {
+                mStoryPromptBuilder.build(promptContext)
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: StoryPromptBudgetException) {
@@ -893,16 +909,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             ).setup()
             return
         }
-        recordPromptInspection(buildResult.inspection)
+        val (provider, promptBuildResult) = buildResult
+        recordPromptInspection(promptBuildResult.inspection)
         val active = ActiveStoryGeneration(
             token = Any(),
+            provider = provider,
             target = target,
             baseRevision = mRevision,
             sourceContent = mDraftContent,
             previousEditedRange = mDocumentFlow.value?.latestEditedRange,
             previousWorldInfoStateJson = story.worldInfoStateJson,
             previousWorldInfoGenerationStep = story.worldInfoGenerationStep,
-            nextWorldInfoStateJson = buildResult.nextWorldInfoStateJson
+            nextWorldInfoStateJson = promptBuildResult.nextWorldInfoStateJson
         )
         mRecoverableGeneration = null
         mActiveGeneration = active
@@ -912,7 +930,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             dialogState = StoryEditorDialogState.None
         ).setup()
         mGenerationJob = viewModelScope.launch {
-            runGeneration(active, buildResult.request)
+            runGeneration(active, promptBuildResult.request)
         }
     }
 
@@ -933,8 +951,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         var applyingResult = false
         try {
             if (AppModel.streamEnabled) {
-                mLLMRepository.streamGenerateWithSelectedProvider(
-                    request,
+                mLLMRepository.streamGenerateWithProvider(
+                    provider = active.provider,
+                    request = request,
                     routingSessionKey = mStory?.id?.let { "story:$it" }
                 ).collect { event ->
                     if (event is LLMStreamEvent.Delta) {
@@ -944,8 +963,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     }
                 }
             } else {
-                val response = mLLMRepository.generateWithSelectedProvider(
-                    request,
+                val response = mLLMRepository.generateWithProvider(
+                    provider = active.provider,
+                    request = request,
                     routingSessionKey = mStory?.id?.let { "story:$it" }
                 )
                 active = active.copy(partialText = response.content)
@@ -1223,9 +1243,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private suspend fun buildPromptContext(
         story: Story,
         target: StoryEditTarget,
-        continuationGuidance: String
+        continuationGuidance: String,
+        provider: LLMProvider
     ): StoryPromptContext {
-        val provider = mLLMRepository.getSelectedProvider() ?: error("No enabled provider")
         val characterCandidates = mStoryRepository.getStoryCharacterCandidates(story.id)
         val explicitEntryIds = mStoryRepository.getLorebookEntryIds(story).toSet()
         val lorebooks = mLorebookRepository.getAllLorebooks()
@@ -1463,6 +1483,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
 
 private data class ActiveStoryGeneration(
     val token: Any,
+    val provider: LLMProvider,
     val target: StoryEditTarget,
     val baseRevision: Long,
     val sourceContent: String,
