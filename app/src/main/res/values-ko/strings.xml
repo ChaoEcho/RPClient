@@ -945,4 +945,5 @@
         <item quantity="other">“%1$s”을(를) 삭제할까요? 연결된 캐릭터 %2$d명이 전역 모델을 다시 따릅니다. 이 작업은 되돌릴 수 없습니다.</item>
     </plurals>
     <string name="model_config_deleted">모델 설정을 삭제했습니다</string>
+    <string name="model_config_delete_failed">모델 설정을 삭제할 수 없습니다</string>
 </resources>

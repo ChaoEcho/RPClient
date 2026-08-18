@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.llmproviderlist
 
 import android.os.Bundle
+import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
@@ -91,11 +92,21 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
             ?: return
         if (dialogState.isDeleting) return
         uiState.copy(dialogState = dialogState.copy(isDeleting = true)).setup()
-        mLLMRepository.deleteProvider(dialogState.providerId)
-        val current = getOrNull<LLMProviderListUiState.Normal>() ?: return
-        current.copy(dialogState = LLMProviderListDialogState.None).setup()
-        refreshProviders()
-        AppViewEvent.PopupToastMessageByResId(R.string.model_config_deleted).tryEmit()
+        try {
+            mLLMRepository.deleteProvider(dialogState.providerId)
+            val current = getOrNull<LLMProviderListUiState.Normal>() ?: return
+            current.copy(dialogState = LLMProviderListDialogState.None).setup()
+            refreshProviders()
+            AppViewEvent.PopupToastMessageByResId(R.string.model_config_deleted).tryEmit()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.model_config_delete_failed).tryEmit()
+            val current = getOrNull<LLMProviderListUiState.Normal>() ?: return
+            val currentDialog = current.dialogState as? LLMProviderListDialogState.DeleteProvider
+                ?: return
+            current.copy(dialogState = currentDialog.copy(isDeleting = false)).setup()
+        }
     }
 
     @UiIntentObserver(LLMProviderListUiIntent.DismissDialog::class)

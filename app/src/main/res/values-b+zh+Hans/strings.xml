@@ -946,4 +946,5 @@
         <item quantity="other">确定删除“%1$s”吗？%2$d 个关联角色将恢复跟随全局模型。此操作无法撤销。</item>
     </plurals>
     <string name="model_config_deleted">模型配置已删除</string>
+    <string name="model_config_delete_failed">无法删除模型配置</string>
 </resources>

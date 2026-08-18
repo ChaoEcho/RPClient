@@ -951,4 +951,5 @@
         <item quantity="other">Delete “%1$s”? %2$d linked characters will return to the global model. This cannot be undone.</item>
     </plurals>
     <string name="model_config_deleted">Model configuration deleted</string>
+    <string name="model_config_delete_failed">Could not delete the model configuration</string>
 </resources>

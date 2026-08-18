@@ -955,4 +955,5 @@
         <item quantity="other">Удалить «%1$s»? %2$d связанных персонажа снова будут использовать глобальную модель. Это действие нельзя отменить.</item>
     </plurals>
     <string name="model_config_deleted">Конфигурация модели удалена</string>
+    <string name="model_config_delete_failed">Не удалось удалить конфигурацию модели</string>
 </resources>

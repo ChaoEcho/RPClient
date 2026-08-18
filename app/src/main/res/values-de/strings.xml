@@ -950,4 +950,5 @@
         <item quantity="other">„%1$s“ löschen? %2$d verknüpfte Charaktere verwenden danach wieder das globale Modell. Dies kann nicht rückgängig gemacht werden.</item>
     </plurals>
     <string name="model_config_deleted">Modellkonfiguration gelöscht</string>
+    <string name="model_config_delete_failed">Modellkonfiguration konnte nicht gelöscht werden</string>
 </resources>
