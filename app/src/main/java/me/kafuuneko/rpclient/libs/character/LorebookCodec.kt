@@ -14,7 +14,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
  * 覆盖当前已支持字段，从而尽量保留未知的第三方扩展。
  */
 class LorebookCodec(
-    private val gson: Gson
+    private val mGson: Gson
 ) {
     /** 解析独立世界书，返回尚未写入数据库的书籍与条目集合。 */
     fun parseLorebook(json: String): CharacterBookImport {
@@ -27,7 +27,7 @@ class LorebookCodec(
             scanDepth = root.optInt("scanDepth", 2),
             tokenBudget = root.optInt("tokenBudget", 0),
             recursiveScanning = root.optBoolean("recursiveScanning", false),
-            extensionsJson = gson.toJson(root.optJsonObject("extensions") ?: JsonObject())
+            extensionsJson = mGson.toJson(root.optJsonObject("extensions") ?: JsonObject())
         )
         
         val entriesObj = root.optJsonObject("entries")
@@ -56,7 +56,7 @@ class LorebookCodec(
             entriesObj.add(index.toString(), entry.toStWorldBookEntry(index))
         }
         book.add("entries", entriesObj)
-        return gson.toJson(book)
+        return mGson.toJson(book)
     }
 
     private fun JsonObject.toLorebookEntry(): LorebookEntry {
@@ -64,8 +64,8 @@ class LorebookCodec(
         return LorebookEntry(
             lorebookId = 0L,
             name = optString("comment"),
-            keywords = gson.toJson(getAsJsonArray("key")?.toStringList().orEmpty()),
-            secondaryKeywords = gson.toJson(getAsJsonArray("keysecondary")?.toStringList().orEmpty()),
+            keywords = mGson.toJson(getAsJsonArray("key")?.toStringList().orEmpty()),
+            secondaryKeywords = mGson.toJson(getAsJsonArray("keysecondary")?.toStringList().orEmpty()),
             constant = optBoolean("constant", false),
             order = optInt("order", 100),
             depth = optInt("depth", 4),
@@ -93,7 +93,7 @@ class LorebookCodec(
             cooldown = optNullableInt("cooldown"),
             delay = optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
-            triggers = gson.toJson(
+            triggers = mGson.toJson(
                 (getAsJsonArray("triggers") ?: extensions.getAsJsonArray("triggers"))
                     ?.toStringList()
                     .orEmpty()
@@ -104,8 +104,8 @@ class LorebookCodec(
             matchCharacterDepthPrompt = extensions.optBoolean("match_character_depth_prompt", false),
             matchScenario = extensions.optBoolean("match_scenario", false),
             matchCreatorNotes = extensions.optBoolean("match_creator_notes", false),
-            extensionsJson = gson.toJson(extensions),
-            rawJson = gson.toJson(this)
+            extensionsJson = mGson.toJson(extensions),
+            rawJson = mGson.toJson(this)
         )
     }
 

@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
  */
 abstract class CoreActivityWithEvent : CoreActivity() {
     /** 当前事件收集任务，重新注册时会先取消旧任务。 */
-    private var _uiEffectCollectJob: Job? = null
+    private var mUiEffectCollectJob: Job? = null
 
     /** 子类提供其 ViewModel 暴露的一次性事件流。 */
     protected abstract fun getViewEventFlow(): Flow<ViewEventWrapper>
@@ -40,8 +40,8 @@ abstract class CoreActivityWithEvent : CoreActivity() {
      * @see onReceivedViewEvent
      */
     private fun registerViewEventFlow() {
-        if (_uiEffectCollectJob?.isActive == true) _uiEffectCollectJob?.cancel()
-        _uiEffectCollectJob = lifecycleScope.launch {
+        if (mUiEffectCollectJob?.isActive == true) mUiEffectCollectJob?.cancel()
+        mUiEffectCollectJob = lifecycleScope.launch {
             getViewEventFlow()
                 .flowWithLifecycle(lifecycle, Lifecycle.State.CREATED)
                 .collect { wrapper ->

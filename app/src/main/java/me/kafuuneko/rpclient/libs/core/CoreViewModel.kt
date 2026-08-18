@@ -168,7 +168,7 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
             // @formatter:off
             when (val size = func.parameters.size) {
                 1 -> if (func.isSuspend) func.callSuspend(this) else func.call(this)
-                2 -> if (func.isSuspend) func.callSuspend(this, uiIntent) else func.callSuspend(this, uiIntent)
+                2 -> if (func.isSuspend) func.callSuspend(this, uiIntent) else func.call(this, uiIntent)
                 else -> throw IllegalArgumentException("Unsupported number of parameters: $size")
             }
             // @formatter:on

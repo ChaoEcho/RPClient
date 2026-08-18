@@ -18,8 +18,8 @@ import me.kafuuneko.rpclient.utils.toJsonString
  * 会尽可能保留，避免一次导入导出破坏本项目尚未支持的配置。
  */
 class CharacterCardMapper(
-    private val gson: Gson,
-    private val regexCodec: RegexScriptCodec = RegexScriptCodec(gson)
+    private val mGson: Gson,
+    private val mRegexCodec: RegexScriptCodec = RegexScriptCodec(mGson)
 ) {
     /**
      * 解析 Tavern 生态角色卡 JSON。
@@ -32,7 +32,7 @@ class CharacterCardMapper(
         val data = root.optJsonObject("data")
         return if (data != null) {
             val character = data.toCharacter(avatar, characterLorebookId)
-            val regexExtraction = regexCodec.extractFromCharacterExtensions(
+            val regexExtraction = mRegexCodec.extractFromCharacterExtensions(
                 character.extensionsJson
             )
             CharacterCardImport(
@@ -73,7 +73,7 @@ class CharacterCardMapper(
         data.add("tags", parseArrayOrEmpty(character.characterTags))
         data.addProperty("creator", character.creator)
         data.addProperty("character_version", character.characterVersion)
-        val extensionsWithRegex = regexCodec.injectIntoCharacterExtensions(
+        val extensionsWithRegex = mRegexCodec.injectIntoCharacterExtensions(
             character.extensionsJson,
             regexScripts
         )
@@ -89,7 +89,7 @@ class CharacterCardMapper(
         root.addProperty("spec", "chara_card_v2")
         root.addProperty("spec_version", "2.0")
         root.add("data", data)
-        return gson.toJson(root)
+        return mGson.toJson(root)
     }
 
     private fun JsonObject.toCharacter(
@@ -103,7 +103,7 @@ class CharacterCardMapper(
         return Character(
             name = optString("name"),
             avatar = avatar,
-            characterTags = gson.toJsonString(getAsJsonArray("tags")?.toStringList().orEmpty()),
+            characterTags = mGson.toJsonString(getAsJsonArray("tags")?.toStringList().orEmpty()),
             description = optString("description"),
             creatorNotes = optString("creator_notes"),
             personality = optString("personality"),
@@ -114,8 +114,8 @@ class CharacterCardMapper(
             systemPrompt = optString("system_prompt"),
             creator = optString("creator"),
             characterVersion = optString("character_version"),
-            alternateGreetings = gson.toJsonString(alternates),
-            extensionsJson = gson.toJson(extensions),
+            alternateGreetings = mGson.toJsonString(alternates),
+            extensionsJson = mGson.toJson(extensions),
             depthPromptPrompt = depthPrompt.optString("prompt"),
             depthPromptDepth = depthPrompt.optInt("depth", 4),
             depthPromptRole = depthPrompt.optRole("role"),
@@ -130,7 +130,7 @@ class CharacterCardMapper(
         return Character(
             name = optString("name").ifBlank { optString("char_name") },
             avatar = avatar,
-            characterTags = gson.toJsonString(getAsJsonArray("tags")?.toStringList().orEmpty()),
+            characterTags = mGson.toJsonString(getAsJsonArray("tags")?.toStringList().orEmpty()),
             description = optString("description").ifBlank { optString("char_persona") },
             creatorNotes = optString("creatorcomment").ifBlank { optString("creator_notes") },
             personality = optString("personality"),
@@ -151,7 +151,7 @@ class CharacterCardMapper(
             scanDepth = optInt("scan_depth", 2),
             tokenBudget = optInt("token_budget", 0),
             recursiveScanning = optBoolean("recursive_scanning", false),
-            extensionsJson = gson.toJson(optJsonObject("extensions") ?: JsonObject())
+            extensionsJson = mGson.toJson(optJsonObject("extensions") ?: JsonObject())
         )
         val entries = getAsJsonArray("entries")?.mapIndexed { index, element ->
             val entry = element.asJsonObject
@@ -166,8 +166,8 @@ class CharacterCardMapper(
         return LorebookEntry(
             lorebookId = 0L,
             name = optString("name").ifBlank { optString("comment") },
-            keywords = gson.toJsonString(getAsJsonArray("keys")?.toStringList().orEmpty()),
-            secondaryKeywords = gson.toJsonString(getAsJsonArray("secondary_keys")?.toStringList().orEmpty()),
+            keywords = mGson.toJsonString(getAsJsonArray("keys")?.toStringList().orEmpty()),
+            secondaryKeywords = mGson.toJsonString(getAsJsonArray("secondary_keys")?.toStringList().orEmpty()),
             constant = optBoolean("constant", false),
             order = optInt("insertion_order", optInt("priority", index)),
             depth = extensions.optInt("depth", 4),
@@ -192,15 +192,15 @@ class CharacterCardMapper(
             cooldown = extensions.optNullableInt("cooldown"),
             delay = extensions.optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
-            triggers = gson.toJsonString(extensions.getAsJsonArray("triggers")?.toStringList().orEmpty()),
+            triggers = mGson.toJsonString(extensions.getAsJsonArray("triggers")?.toStringList().orEmpty()),
             matchPersonaDescription = extensions.optBoolean("match_persona_description", false),
             matchCharacterDescription = extensions.optBoolean("match_character_description", false),
             matchCharacterPersonality = extensions.optBoolean("match_character_personality", false),
             matchCharacterDepthPrompt = extensions.optBoolean("match_character_depth_prompt", false),
             matchScenario = extensions.optBoolean("match_scenario", false),
             matchCreatorNotes = extensions.optBoolean("match_creator_notes", false),
-            extensionsJson = gson.toJson(extensions),
-            rawJson = gson.toJson(this)
+            extensionsJson = mGson.toJson(extensions),
+            rawJson = mGson.toJson(this)
         )
     }
 

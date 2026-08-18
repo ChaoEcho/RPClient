@@ -106,7 +106,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
 
     private fun estimatedCl100k(reservePercent: Int): PromptTokenizer {
         return EstimatedBpePromptTokenizer(
-            encoding = mEncodingRegistry.getEncoding(EncodingType.CL100K_BASE),
+            mEncoding = mEncodingRegistry.getEncoding(EncodingType.CL100K_BASE),
             label = "CL100K proxy",
             reservePercent = reservePercent
         )
@@ -114,7 +114,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
 
     private fun estimatedO200k(reservePercent: Int): PromptTokenizer {
         return EstimatedBpePromptTokenizer(
-            encoding = mEncodingRegistry.getEncoding(EncodingType.O200K_BASE),
+            mEncoding = mEncodingRegistry.getEncoding(EncodingType.O200K_BASE),
             label = "O200K proxy",
             reservePercent = reservePercent
         )
@@ -129,20 +129,20 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
 }
 
 private class JTokkitPromptTokenizer(
-    private val encoding: Encoding
+    private val mEncoding: Encoding
 ) : PromptTokenizer {
-    override val name: String = "JTokkit ${encoding.name}"
+    override val name: String = "JTokkit ${mEncoding.name}"
     override val strategy: PromptTokenizerStrategy = PromptTokenizerStrategy.ModelAware
 
     override fun countText(text: String): Int {
         if (text.isEmpty()) return 0
-        return encoding.countTokensOrdinary(text)
+        return mEncoding.countTokensOrdinary(text)
     }
 }
 
 /** 用可离线运行的 BPE 作为模型族代理，并按真实预算比例加入估算预留。 */
 private class EstimatedBpePromptTokenizer(
-    private val encoding: Encoding,
+    private val mEncoding: Encoding,
     label: String,
     override val reservePercent: Int
 ) : PromptTokenizer {
@@ -151,7 +151,7 @@ private class EstimatedBpePromptTokenizer(
 
     override fun countText(text: String): Int {
         if (text.isEmpty()) return 0
-        val baseTokens = encoding.countTokensOrdinary(text)
+        val baseTokens = mEncoding.countTokensOrdinary(text)
         return ceil(baseTokens * 100.0 / (100 - reservePercent)).toInt().coerceAtLeast(1)
     }
 }

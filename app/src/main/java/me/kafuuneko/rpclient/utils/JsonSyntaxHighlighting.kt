@@ -77,14 +77,14 @@ fun rememberDefaultJsonSyntaxColors(): JsonSyntaxColors {
  * 词法分析器支持未闭合与正在输入的半完整 JSON，保证编辑输入时高亮平稳不闪烁。
  */
 class JsonSyntaxVisualTransformation(
-    private val colors: JsonSyntaxColors
+    private val mColors: JsonSyntaxColors
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val highlighted = buildAnnotatedString {
             append(text.text)
             tokenizeJsonSyntax(text.text).forEach { token ->
                 addStyle(
-                    style = token.style(colors),
+                    style = token.style(mColors),
                     start = token.start,
                     end = token.end
                 )

@@ -46,7 +46,7 @@ abstract class CoreViewModelWithEvent<I, S>(initStatus: S) : CoreViewModel<I, S>
 }
 
 /** 带并发消费保护和消费完成信号的一次性事件包装器。 */
-class ViewEventWrapper(private val content: IViewEvent) {
+class ViewEventWrapper(private val mContent: IViewEvent) {
     private val mMutex = Mutex()
     private val mHasHandled = MutableStateFlow(false)
 
@@ -58,7 +58,7 @@ class ViewEventWrapper(private val content: IViewEvent) {
      */
     suspend fun consumeIfNotHandled(handle: suspend (IViewEvent) -> Unit) = mMutex.withLock {
         if (mHasHandled.value) return@withLock false
-        handle(content)
+        handle(mContent)
         mHasHandled.value = true
         return@withLock true
     }

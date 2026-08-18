@@ -20,10 +20,10 @@ class CharacterListActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterListViewModel>()
 
     /** 记录系统导出选择器对应的角色；结果交付或取消后立即清空，避免串到下一次导出。 */
-    private var pendingExportCharacterId: Long? = null
+    private var mPendingExportCharacterId: Long? = null
 
     /** 把一次性读取的角色卡 URI 交给 ViewModel 执行解析和事务导入。 */
-    private val importCharacterCardLauncher = registerForActivityResult(
+    private val mImportCharacterCardLauncher = registerForActivityResult(
         GetContentWithMimeTypes()
     ) { uri ->
         uri ?: return@registerForActivityResult
@@ -31,11 +31,11 @@ class CharacterListActivity : CoreActivityWithEvent() {
     }
 
     /** 将 JSON 导出目的 URI 与发起选择时的角色 ID 配对。 */
-    private val exportCharacterJsonLauncher = registerForActivityResult(
+    private val mExportCharacterJsonLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        val characterId = pendingExportCharacterId ?: return@registerForActivityResult
-        pendingExportCharacterId = null
+        val characterId = mPendingExportCharacterId ?: return@registerForActivityResult
+        mPendingExportCharacterId = null
         uri ?: return@registerForActivityResult
         mViewModel.emit(CharacterListUiIntent.ExportCharacterJson(characterId, uri))
     }
@@ -69,14 +69,14 @@ class CharacterListActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             CharacterListViewEvent.OpenCharacterCardImporter -> {
-                importCharacterCardLauncher.launch(
+                mImportCharacterCardLauncher.launch(
                     arrayOf("application/json", "text/*", "image/png", "image/*")
                 )
             }
 
             is CharacterListViewEvent.OpenCharacterCardJsonExporter -> {
-                pendingExportCharacterId = viewEvent.characterId
-                exportCharacterJsonLauncher.launch(viewEvent.fileName)
+                mPendingExportCharacterId = viewEvent.characterId
+                mExportCharacterJsonLauncher.launch(viewEvent.fileName)
             }
 
             else -> super.onReceivedViewEvent(viewEvent)

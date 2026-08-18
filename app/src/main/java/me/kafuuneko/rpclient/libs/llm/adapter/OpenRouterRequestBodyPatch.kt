@@ -9,9 +9,9 @@ import com.google.gson.JsonParser
 internal data class OpenRouterRoutingPreferences(
     val preferredProvider: String = "",
     val allowFallbacks: Boolean = true,
-    private val hasProviderOrder: Boolean = false
+    private val mHasProviderOrder: Boolean = false
 ) {
-    val usesPreferredProvider: Boolean get() = hasProviderOrder
+    val usesPreferredProvider: Boolean get() = mHasProviderOrder
 }
 
 /** 从通用请求体 Patch 提取 OpenRouter 页面需要展示的路由字段。 */
@@ -37,7 +37,7 @@ internal fun String.readOpenRouterRoutingPreferences(): OpenRouterRoutingPrefere
     return OpenRouterRoutingPreferences(
         preferredProvider = preferred,
         allowFallbacks = allowFallbacks,
-        hasProviderOrder = order?.isJsonArray == true
+        mHasProviderOrder = order?.isJsonArray == true
     )
 }
 

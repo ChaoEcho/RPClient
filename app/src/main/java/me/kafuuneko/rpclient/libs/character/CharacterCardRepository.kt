@@ -33,7 +33,7 @@ class CharacterCardRepository(
     private val mRegexRepository: RegexScriptRepository
 ) {
     /** 无状态格式映射器，在 Repository 生命周期内复用。 */
-    private val mapper = CharacterCardMapper(mGson, mRegexCodec)
+    private val mMapper = CharacterCardMapper(mGson, mRegexCodec)
 
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft = withContext(Dispatchers.IO) {
@@ -46,7 +46,7 @@ class CharacterCardRepository(
             else -> bytes.toString(Charsets.UTF_8)
         }
         CharacterCardImportDraft(
-            card = mapper.parseCharacter(json),
+            card = mMapper.parseCharacter(json),
             avatarSourceUri = uri.takeIf { isPng || mime.startsWith("image/") },
             avatarMimeType = mime.ifBlank { "image/png" }
         )
@@ -111,7 +111,7 @@ class CharacterCardRepository(
         val regexScripts = mRegexRepository.getScripts(
             RegexScriptTarget(RegexScriptScope.Character, characterId)
         )
-        mapper.toV2Json(
+        mMapper.toV2Json(
             character = character,
             lorebook = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getLorebookById(it) },
             entries = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getEntriesByLorebookId(it) }.orEmpty(),

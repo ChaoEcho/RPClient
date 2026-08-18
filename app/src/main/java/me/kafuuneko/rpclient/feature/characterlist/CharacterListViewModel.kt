@@ -445,35 +445,35 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val image: ImageBitmap
     )
 
-    private class AvatarBitmapCache(private val maxBytes: Long) {
-        private val entries = LinkedHashMap<AvatarCacheKey, Bitmap>(16, 0.75f, true)
-        private var sizeBytes: Long = 0L
+    private class AvatarBitmapCache(private val mMaxBytes: Long) {
+        private val mEntries = LinkedHashMap<AvatarCacheKey, Bitmap>(16, 0.75f, true)
+        private var mSizeBytes: Long = 0L
 
-        fun get(key: AvatarCacheKey): Bitmap? = entries[key]
+        fun get(key: AvatarCacheKey): Bitmap? = mEntries[key]
 
         fun put(key: AvatarCacheKey, bitmap: Bitmap) {
-            entries.put(key, bitmap)?.let { sizeBytes -= it.byteCount.toLong() }
-            sizeBytes += bitmap.byteCount.toLong()
+            mEntries.put(key, bitmap)?.let { mSizeBytes -= it.byteCount.toLong() }
+            mSizeBytes += bitmap.byteCount.toLong()
             trimToBudget()
         }
 
         fun removeAvatar(avatarUuid: String) {
-            val matchingKeys = entries.keys.filter { it.avatarUuid == avatarUuid }
+            val matchingKeys = mEntries.keys.filter { it.avatarUuid == avatarUuid }
             matchingKeys.forEach { key ->
-                entries.remove(key)?.let { sizeBytes -= it.byteCount.toLong() }
+                mEntries.remove(key)?.let { mSizeBytes -= it.byteCount.toLong() }
             }
         }
 
         fun clear() {
-            entries.clear()
-            sizeBytes = 0L
+            mEntries.clear()
+            mSizeBytes = 0L
         }
 
         private fun trimToBudget() {
-            val iterator = entries.entries.iterator()
-            while (sizeBytes > maxBytes && iterator.hasNext()) {
+            val iterator = mEntries.entries.iterator()
+            while (mSizeBytes > mMaxBytes && iterator.hasNext()) {
                 val bitmap = iterator.next().value
-                sizeBytes -= bitmap.byteCount.toLong()
+                mSizeBytes -= bitmap.byteCount.toLong()
                 iterator.remove()
             }
         }

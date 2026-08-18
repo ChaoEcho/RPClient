@@ -32,22 +32,22 @@ import kotlinx.coroutines.launch
 /**
  * 列表拖拽重排状态管理器。
  *
- * 使用稳定 item key 而非可变索引追踪拖拽项，列表在 [onMove] 后立即重排时仍能找到
+ * 使用稳定 item key 而非可变索引追踪拖拽项，列表在移动回调后立即重排时仍能找到
  * 当前项目；拖拽结束回调只在一次手势结束或取消时触发。
  */
 class LazyListDragDropState internal constructor(
-    private val state: LazyListState,
-    private val scope: CoroutineScope,
-    private val isItemDraggable: (key: Any) -> Boolean,
-    private val onMove: (fromKey: Any, toKey: Any) -> Unit,
-    private val onDragEnd: () -> Unit = {},
+    private val mState: LazyListState,
+    private val mScope: CoroutineScope,
+    private val mIsItemDraggable: (key: Any) -> Boolean,
+    private val mOnMove: (fromKey: Any, toKey: Any) -> Unit,
+    private val mOnDragEnd: () -> Unit = {},
 ) {
     var draggingItemKey by mutableStateOf<Any?>(null)
         private set
 
     internal val draggingItemIndex: Int?
         get() = draggingItemKey?.let { key ->
-            state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
+            mState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
         }
 
     internal val scrollChannel = Channel<Float>()
@@ -62,7 +62,7 @@ class LazyListDragDropState internal constructor(
 
     private val mDraggingItemLayoutInfo: LazyListItemInfo?
         get() = draggingItemKey?.let { key ->
-            state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
+            mState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
         }
 
     internal var previousKeyOfDraggedItem by mutableStateOf<Any?>(null)
@@ -72,9 +72,9 @@ class LazyListDragDropState internal constructor(
         private set
 
     internal fun onDragStart(offset: Offset) {
-        state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+        mState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
             offset.y.toInt() in item.offset..(item.offset + item.size)
-        }?.takeIf { isItemDraggable(it.key) }?.also {
+        }?.takeIf { mIsItemDraggable(it.key) }?.also {
             draggingItemKey = it.key
             mDraggingItemInitialOffset = it.offset.toFloat()
             mDraggingItemDraggedDelta = 0f
@@ -83,10 +83,10 @@ class LazyListDragDropState internal constructor(
 
     internal fun onDragInterrupted() {
         if (draggingItemKey != null) {
-            onDragEnd()
+            mOnDragEnd()
             previousKeyOfDraggedItem = draggingItemKey
             val startOffset = draggingItemOffset
-            scope.launch {
+            mScope.launch {
                 previousItemOffset.snapTo(Offset(0f, startOffset))
                 previousItemOffset.animateTo(
                     Offset.Zero,
@@ -110,8 +110,8 @@ class LazyListDragDropState internal constructor(
         val startOffset = draggingItem.offset.toFloat() + draggingItemOffset
         val endOffset = startOffset + draggingItem.size
 
-        val candidates = state.layoutInfo.visibleItemsInfo.filter { item ->
-            isItemDraggable(item.key) && draggingItem.key != item.key
+        val candidates = mState.layoutInfo.visibleItemsInfo.filter { item ->
+            mIsItemDraggable(item.key) && draggingItem.key != item.key
         }
 
         val targetItem = if (mDraggingItemDraggedDelta >= 0) {
@@ -136,21 +136,21 @@ class LazyListDragDropState internal constructor(
 
         if (targetItem != null) {
             if (
-                draggingItem.index == state.firstVisibleItemIndex ||
-                targetItem.index == state.firstVisibleItemIndex
+                draggingItem.index == mState.firstVisibleItemIndex ||
+                targetItem.index == mState.firstVisibleItemIndex
             ) {
-                state.requestScrollToItem(
-                    state.firstVisibleItemIndex,
-                    state.firstVisibleItemScrollOffset,
+                mState.requestScrollToItem(
+                    mState.firstVisibleItemIndex,
+                    mState.firstVisibleItemScrollOffset,
                 )
             }
-            onMove(draggingItem.key, targetItem.key)
+            mOnMove(draggingItem.key, targetItem.key)
         } else {
             val overscroll = when {
                 mDraggingItemDraggedDelta > 0 ->
-                    (endOffset - state.layoutInfo.viewportEndOffset).coerceAtLeast(0f)
+                    (endOffset - mState.layoutInfo.viewportEndOffset).coerceAtLeast(0f)
                 mDraggingItemDraggedDelta < 0 ->
-                    (startOffset - state.layoutInfo.viewportStartOffset).coerceAtMost(0f)
+                    (startOffset - mState.layoutInfo.viewportStartOffset).coerceAtMost(0f)
                 else -> 0f
             }
             if (overscroll != 0f) {
@@ -178,11 +178,11 @@ fun rememberLazyListDragDropState(
     val currentOnDragEnd = rememberUpdatedState(onDragEnd)
     val state = remember(lazyListState) {
         LazyListDragDropState(
-            state = lazyListState,
-            scope = scope,
-            isItemDraggable = { key -> currentIsItemDraggable.value(key) },
-            onMove = { fromKey, toKey -> currentOnMove.value(fromKey, toKey) },
-            onDragEnd = { currentOnDragEnd.value() }
+            mState = lazyListState,
+            mScope = scope,
+            mIsItemDraggable = { key -> currentIsItemDraggable.value(key) },
+            mOnMove = { fromKey, toKey -> currentOnMove.value(fromKey, toKey) },
+            mOnDragEnd = { currentOnDragEnd.value() }
         )
     }
     LaunchedEffect(state) {

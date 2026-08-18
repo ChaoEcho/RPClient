@@ -59,7 +59,7 @@ fun rememberDefaultPromptHighlightColors(): PromptHighlightColors {
  * 为 Prompt 模板中的宏变量（如 `{{char}}`、`{{user}}`、`{0}`）与系统边界标签提供实时高亮显示的 [VisualTransformation]。
  */
 class PromptMacroVisualTransformation(
-    private val colors: PromptHighlightColors
+    private val mColors: PromptHighlightColors
 ) : VisualTransformation {
 
     private val mMacroRegex = Regex("""\{\{[^{}\n\r]+\}\}|\{\d+\}|<START>|<START_EXAMPLES>|<END_EXAMPLES>""")
@@ -74,8 +74,8 @@ class PromptMacroVisualTransformation(
             mTagRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(
-                        color = colors.tagForeground,
-                        background = colors.tagBackground,
+                        color = mColors.tagForeground,
+                        background = mColors.tagBackground,
                         fontWeight = FontWeight.Medium
                     ),
                     start = match.range.first,
@@ -86,7 +86,7 @@ class PromptMacroVisualTransformation(
             mSectionRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(
-                        color = colors.sectionForeground,
+                        color = mColors.sectionForeground,
                         fontWeight = FontWeight.Bold
                     ),
                     start = match.range.first,
@@ -97,8 +97,8 @@ class PromptMacroVisualTransformation(
             mMacroRegex.findAll(raw).forEach { match ->
                 addStyle(
                     style = SpanStyle(
-                        color = colors.macroForeground,
-                        background = colors.macroBackground,
+                        color = mColors.macroForeground,
+                        background = mColors.macroBackground,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     ),

@@ -146,7 +146,6 @@ internal val appModules = module {
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
-            .allowMainThreadQueries()
             .fallbackToDestructiveMigrationOnDowngrade(true)
             .build()
     }
