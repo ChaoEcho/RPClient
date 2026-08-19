@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
@@ -9,6 +10,8 @@ sealed class LLMProviderEditUiIntent {
     data class Init(val providerId: Long?) : LLMProviderEditUiIntent()
 
     data object Back : LLMProviderEditUiIntent()
+
+    data class ApplyPresetTemplate(val preset: ProviderPreset) : LLMProviderEditUiIntent()
 
     data class ChangeName(val value: String) : LLMProviderEditUiIntent()
 

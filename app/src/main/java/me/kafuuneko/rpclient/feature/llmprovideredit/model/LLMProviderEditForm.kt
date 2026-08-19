@@ -31,6 +31,7 @@ data class LLMProviderEditForm(
     val model: String = "",
     val hasExistingCustomHeaders: Boolean = false,
     val customHeadersEditMode: CredentialEditMode = CredentialEditMode.KeepExisting,
+    val customHeadersJson: String = "",
     val requestBodyPatchJson: String = "{}",
     val temperature: String = "0.8",
     val topP: String = "1.0",
@@ -42,10 +43,9 @@ data class LLMProviderEditForm(
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     val isEnabled: Boolean = true
 ) {
-    /** 校验并转换表单；鉴权内容由 ViewModel 在转换时显式提供。 */
+    /** 校验并转换表单；敏感鉴权字段由 ViewModel 在转换时显式提供。 */
     fun toProviderOrNull(
-        apiKey: String = "",
-        customHeadersJson: String = ""
+        apiKey: String = ""
     ): LLMProvider? {
         val parsedTemperature = temperature.toFloatOrNull() ?: return null
         val parsedTopP = topP.toFloatOrNull() ?: return null
@@ -113,6 +113,7 @@ fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
         topP = topP.trim(),
         maxTokens = maxTokens.trim(),
         contextTokens = contextTokens.trim(),
+        customHeadersJson = customHeadersJson.trim(),
         requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
     )
 }

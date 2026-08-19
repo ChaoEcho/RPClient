@@ -1,17 +1,18 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit
 
 import androidx.lifecycle.viewModelScope
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.CredentialEditMode
-import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderCredentialResolver
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.toEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
@@ -44,6 +45,7 @@ import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.utils.formatJsonPretty
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -55,12 +57,13 @@ class LLMProviderEditViewModel :
     private val mLLMRepository by inject<LLMRepository>()
     private val mLLMClientFactory by inject<LLMClientFactory>()
     private val mModelCatalogRepository by inject<LLMModelCatalogRepository>()
+
     /** 当前连接测试任务；重复测试或离开页面时用于取消旧请求。 */
     private var mTestJob: Job? = null
+
     /** 模型目录查询与生成测试互不替代，因此使用独立任务管理取消。 */
     private var mModelCatalogJob: Job? = null
     private var mApiKeyReplacement: String? = null
-    private var mCustomHeadersReplacement: String? = null
     private var mInitialApiKey = ""
     private var mInitialCustomHeaders = ""
 
@@ -98,6 +101,25 @@ class LLMProviderEditViewModel :
             return
         }
         finishPage()
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ApplyPresetTemplate::class)
+    private fun onApplyPresetTemplate(intent: LLMProviderEditUiIntent.ApplyPresetTemplate) {
+        val preset = intent.preset
+        val capabilities = LLMProviderCapabilities.forProtocol(preset.protocol)
+        val formattedPatch = formatJsonPretty(preset.defaultRequestBodyPatchJson).ifBlank { "{}" }
+        updateForm(invalidateModelCatalog = true) {
+            copy(
+                name = if (name.isBlank() || ProviderPreset.entries.any { it.displayName == name }) preset.displayName else name,
+                providerType = preset.providerType,
+                protocol = preset.protocol,
+                baseUrl = preset.baseUrl,
+                model = preset.defaultModel,
+                requestBodyPatchJson = formattedPatch,
+                sendTemperature = capabilities.defaultSendTemperature,
+                sendTopP = capabilities.defaultSendTopP
+            )
+        }
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeName::class)
@@ -219,7 +241,7 @@ class LLMProviderEditViewModel :
     private fun onShowModelPicker() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         val catalogState = uiState.modelCatalogState
-            as? LLMProviderEditModelCatalogState.Loaded
+                as? LLMProviderEditModelCatalogState.Loaded
             ?: return
         if (catalogState.models.isEmpty()) return
         uiState.copy(
@@ -234,11 +256,11 @@ class LLMProviderEditViewModel :
     private fun onChangeModelSearch(intent: LLMProviderEditUiIntent.ChangeModelSearch) {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         val dialogState = uiState.dialogState
-            as? LLMProviderEditDialogState.ModelPicker
+                as? LLMProviderEditDialogState.ModelPicker
             ?: return
         val models = (
-            uiState.modelCatalogState as? LLMProviderEditModelCatalogState.Loaded
-        )?.models ?: return
+                uiState.modelCatalogState as? LLMProviderEditModelCatalogState.Loaded
+                )?.models ?: return
         uiState.copy(
             dialogState = dialogState.copy(
                 searchQuery = intent.value,
@@ -256,8 +278,10 @@ class LLMProviderEditViewModel :
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ShowCustomHeadersEditor::class)
-    private fun onShowCustomHeadersEditor() =
-        showDialog(LLMProviderEditDialogState.CustomHeadersEditor)
+    private fun onShowCustomHeadersEditor() {
+        val form = getOrNull<LLMProviderEditUiState.Normal>()?.form ?: return
+        showDialog(LLMProviderEditDialogState.CustomHeadersEditor(form.customHeadersJson))
+    }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement::class)
     private fun onConfirmCustomHeadersReplacement(
@@ -270,26 +294,34 @@ class LLMProviderEditViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.custom_headers_json_invalid).tryEmit()
             return
         }
-        mCustomHeadersReplacement = intent.value
+        val formatted = formatJsonPretty(intent.value)
         updateForm(invalidateModelCatalog = true) {
-            copy(customHeadersEditMode = CredentialEditMode.Replace)
+            copy(
+                customHeadersEditMode = CredentialEditMode.Replace,
+                customHeadersJson = formatted
+            )
         }
         closeDialog()
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ClearCustomHeaders::class)
     private fun onClearCustomHeaders() {
-        mCustomHeadersReplacement = null
         updateForm(invalidateModelCatalog = true) {
-            copy(customHeadersEditMode = CredentialEditMode.Clear)
+            copy(
+                customHeadersEditMode = CredentialEditMode.Clear,
+                customHeadersJson = ""
+            )
         }
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.KeepExistingCustomHeaders::class)
     private fun onKeepExistingCustomHeaders() {
-        mCustomHeadersReplacement = null
+        val formatted = formatJsonPretty(mInitialCustomHeaders)
         updateForm(invalidateModelCatalog = true) {
-            copy(customHeadersEditMode = CredentialEditMode.KeepExisting)
+            copy(
+                customHeadersEditMode = CredentialEditMode.KeepExisting,
+                customHeadersJson = formatted
+            )
         }
     }
 
@@ -317,7 +349,10 @@ class LLMProviderEditViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return
         }
-        updateForm { copy(requestBodyPatchJson = value) }
+        val formatted = formatJsonPretty(value).ifBlank { "{}" }
+        updateForm {
+            copy(requestBodyPatchJson = formatted)
+        }
         closeDialog()
     }
 
@@ -325,27 +360,30 @@ class LLMProviderEditViewModel :
     private fun onToggleOpenRouterPreferredProvider(
         intent: LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider
     ) = updateForm {
-        copy(
-            requestBodyPatchJson = requestBodyPatchJson
-                .withOpenRouterPreferredProviderEnabled(intent.value)
-        )
+        val updated = formatJsonPretty(
+            requestBodyPatchJson.withOpenRouterPreferredProviderEnabled(intent.value)
+        ).ifBlank { "{}" }
+        copy(requestBodyPatchJson = updated)
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider::class)
     private fun onChangeOpenRouterPreferredProvider(
         intent: LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider
     ) = updateForm {
-        copy(
-            requestBodyPatchJson = requestBodyPatchJson
-                .withOpenRouterPreferredProvider(intent.value)
-        )
+        val updated = formatJsonPretty(
+            requestBodyPatchJson.withOpenRouterPreferredProvider(intent.value)
+        ).ifBlank { "{}" }
+        copy(requestBodyPatchJson = updated)
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleOpenRouterFallbacks::class)
     private fun onToggleOpenRouterFallbacks(
         intent: LLMProviderEditUiIntent.ToggleOpenRouterFallbacks
     ) = updateForm {
-        copy(requestBodyPatchJson = requestBodyPatchJson.withOpenRouterFallbacks(intent.value))
+        val updated = formatJsonPretty(
+            requestBodyPatchJson.withOpenRouterFallbacks(intent.value)
+        ).ifBlank { "{}" }
+        copy(requestBodyPatchJson = updated)
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTemperature::class)
@@ -494,15 +532,15 @@ class LLMProviderEditViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.base_url_empty).tryEmit()
             return null
         }
-        val credentials = resolveCredentials() ?: return null
+        val apiKey = resolveApiKey() ?: return null
         return LLMProviderConfig(
             name = name.trim(),
             providerType = providerType,
             protocol = protocol,
             baseUrl = baseUrl.trim(),
-            apiKey = credentials.apiKey.trim(),
+            apiKey = apiKey.trim(),
             model = model.trim(),
-            customHeadersJson = credentials.customHeadersJson.trim(),
+            customHeadersJson = customHeadersJson.trim(),
             requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
         )
     }
@@ -556,28 +594,22 @@ class LLMProviderEditViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return null
         }
-        val credentials = resolveCredentials() ?: return null
-        val provider = toProviderOrNull(
-            apiKey = credentials.apiKey,
-            customHeadersJson = credentials.customHeadersJson
-        )
+        val apiKey = resolveApiKey() ?: return null
+        val provider = toProviderOrNull(apiKey = apiKey)
         if (provider == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
         }
         return provider
     }
 
-    private fun LLMProviderEditForm.resolveCredentials() =
-        LLMProviderCredentialResolver.resolve(
-            form = this,
-            initialApiKey = mInitialApiKey,
-            initialCustomHeaders = mInitialCustomHeaders,
-            apiKeyReplacement = mApiKeyReplacement,
-            customHeadersReplacement = mCustomHeadersReplacement
-        )
+    private fun LLMProviderEditForm.resolveApiKey() = LLMProviderCredentialResolver.resolveApiKey(
+        form = this,
+        initialApiKey = mInitialApiKey,
+        apiKeyReplacement = mApiKeyReplacement
+    )
 
     private fun LLMProviderEditForm.toRequestExtensionsState():
-        LLMProviderEditRequestExtensionsState {
+            LLMProviderEditRequestExtensionsState {
         val routing = requestBodyPatchJson.readOpenRouterRoutingPreferences()
         return LLMProviderEditRequestExtensionsState(
             isOpenRouter = providerType == LLMProviderType.OpenRouter,
@@ -594,7 +626,7 @@ class LLMProviderEditViewModel :
         if (normalizedQuery.isBlank()) return this
         return filter { model ->
             model.id.contains(normalizedQuery, ignoreCase = true) ||
-                model.displayName.contains(normalizedQuery, ignoreCase = true)
+                    model.displayName.contains(normalizedQuery, ignoreCase = true)
         }
     }
 
@@ -625,7 +657,6 @@ class LLMProviderEditViewModel :
 
     private fun clearSensitiveDrafts() {
         mApiKeyReplacement = null
-        mCustomHeadersReplacement = null
         mInitialApiKey = ""
         mInitialCustomHeaders = ""
     }

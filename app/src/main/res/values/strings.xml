@@ -433,6 +433,9 @@
     <string name="model_list_title">Model List</string>
     <string name="model_list_subtitle">Manage all online model configurations, enabled status and protocol types</string>
     <string name="all_models">All Models</string>
+    <string name="no_providers_title">No model providers</string>
+    <string name="no_providers_subtitle">Add an online or local model provider to start chatting</string>
+    <string name="add_first_provider">Add Provider</string>
     <string name="edit_world_book_title">Edit World Book</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -440,6 +443,12 @@
     <string name="edit_model_title">Edit Model</string>
     <string name="create_model_subtitle">Protocol, authentication, model name and generation parameters</string>
     <string name="edit_model_subtitle">Protocol, authentication, model name and generation parameters</string>
+    <string name="quick_presets">Quick Presets</string>
+    <string name="preset_custom">Custom</string>
+    <string name="advanced_settings">Advanced &amp; Extensions</string>
+    <string name="advanced_settings_desc">Custom headers, request body patch, and routing</string>
+    <string name="custom_headers_preview">Custom Headers Preview</string>
+    <string name="request_body_patch_preview">Request Body Patch Preview</string>
     <string name="basic_info">Basic Info</string>
     <string name="name">Name</string>
     <string name="base_url">Base URL</string>
@@ -478,9 +487,14 @@
     <string name="api_key_required">API key cannot be empty. Use Clear to remove it.</string>
     <string name="custom_headers_json_invalid">Custom headers must be a valid JSON object.</string>
     <string name="request_extensions">Request Extensions</string>
+    <string name="request_body_patch_title">Request Body Patch JSON</string>
+    <string name="request_body_patch_status_custom">Custom JSON merge patch applied</string>
+    <string name="request_body_patch_status_default">Default request structure ({})</string>
+    <string name="reset">Reset</string>
+    <string name="reset_to_default">Reset</string>
     <string name="request_body_patch_description">Merge extra fields, including provider-native reasoning settings, into the generated request body. RPClient protects structural and generation fields it manages.</string>
     <string name="request_body_patch_json">Request body patch JSON</string>
-    <string name="edit_request_body_patch">Edit advanced JSON</string>
+    <string name="edit_request_body_patch">Edit</string>
     <string name="request_body_patch_editor_title">Edit request body patch</string>
     <string name="request_body_patch_editor_note">Enter a JSON object using JSON Merge Patch semantics. null removes a field; objects merge recursively; arrays replace the existing array. Use &quot;$rpclient.routing_session_id&quot; as a field value to insert the stable anonymous routing ID for the current conversation.</string>
     <string name="request_body_patch_invalid">The request body patch must be a valid JSON object, use supported system variables, and not override protected fields.</string>

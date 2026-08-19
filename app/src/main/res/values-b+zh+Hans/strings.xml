@@ -432,6 +432,9 @@
     <string name="model_list_title">模型列表</string>
     <string name="model_list_subtitle">管理所有在线模型配置、启用状态和协议类型</string>
     <string name="all_models">全部模型</string>
+    <string name="no_providers_title">暂无模型提供商</string>
+    <string name="no_providers_subtitle">添加在线或本地模型服务，开启角色扮演与对话体验</string>
+    <string name="add_first_provider">添加提供商配置</string>
     <string name="edit_world_book_title">编辑世界书</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -439,6 +442,12 @@
     <string name="edit_model_title">编辑模型</string>
     <string name="create_model_subtitle">协议、鉴权、模型名称和生成参数</string>
     <string name="edit_model_subtitle">协议、鉴权、模型名称和生成参数</string>
+    <string name="quick_presets">快捷预设模板</string>
+    <string name="preset_custom">自定义</string>
+    <string name="advanced_settings">高级与扩展配置</string>
+    <string name="advanced_settings_desc">自定义请求头、JSON Patch 与路由偏好</string>
+    <string name="custom_headers_preview">自定义请求头预览</string>
+    <string name="request_body_patch_preview">请求体 Patch 预览</string>
     <string name="basic_info">基本信息</string>
     <string name="name">名称</string>
     <string name="base_url">Base URL</string>
@@ -921,9 +930,14 @@
     <string name="prompt_story_summarize_desc">控制剧情摘要的更新方式</string>
     <string name="prompt_source_story_summary">剧情摘要</string>
     <string name="request_extensions">请求扩展</string>
+    <string name="request_body_patch_title">请求体 Patch JSON</string>
+    <string name="request_body_patch_status_custom">已配置自定义请求体 Patch</string>
+    <string name="request_body_patch_status_default">使用默认请求体结构 ({})</string>
+    <string name="reset">重置</string>
+    <string name="reset_to_default">重置</string>
     <string name="request_body_patch_description">将额外字段（包括供应商原生思考配置）合并到生成的请求体中。RPClient 会保护由应用维护的结构和生成参数。</string>
     <string name="request_body_patch_json">请求体 Patch JSON</string>
-    <string name="edit_request_body_patch">编辑高级 JSON</string>
+    <string name="edit_request_body_patch">编辑</string>
     <string name="request_body_patch_editor_title">编辑请求体 Patch</string>
     <string name="request_body_patch_editor_note">请输入 JSON 对象，使用 JSON Merge Patch 语义：null 删除字段，对象递归合并，数组整体替换。可将 &quot;$rpclient.routing_session_id&quot; 作为字段值，插入当前对话稳定且匿名的路由 ID。</string>
     <string name="request_body_patch_invalid">请求体 Patch 必须是有效的 JSON 对象，只能使用受支持的系统变量，且不能覆盖受保护字段。</string>

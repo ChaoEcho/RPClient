@@ -77,7 +77,7 @@ sealed class LLMProviderEditDialogState {
     data object None : LLMProviderEditDialogState()
     data object UnsavedChangesConfirm : LLMProviderEditDialogState()
     data object ApiKeyEditor : LLMProviderEditDialogState()
-    data object CustomHeadersEditor : LLMProviderEditDialogState()
+    data class CustomHeadersEditor(val initialValue: String = "") : LLMProviderEditDialogState()
     data class RequestBodyPatchEditor(val initialValue: String) : LLMProviderEditDialogState()
     data class ModelPicker(
         val searchQuery: String,

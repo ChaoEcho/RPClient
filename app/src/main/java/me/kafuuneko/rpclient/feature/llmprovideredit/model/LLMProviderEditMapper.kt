@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.utils.formatJsonPretty
 
 /** 将持久化 Provider 映射成不含密钥原文的编辑表单。 */
 internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
@@ -14,7 +15,8 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     hasExistingApiKey = apiKey.isNotBlank(),
     model = model,
     hasExistingCustomHeaders = customHeadersJson.isNotBlank(),
-    requestBodyPatchJson = requestBodyPatchJson,
+    customHeadersJson = formatJsonPretty(customHeadersJson),
+    requestBodyPatchJson = formatJsonPretty(requestBodyPatchJson).ifBlank { "{}" },
     temperature = temperature.toString(),
     topP = topP.toString(),
     maxTokens = maxTokens.toString(),
