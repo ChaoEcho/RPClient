@@ -4,7 +4,7 @@ import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import java.io.IOException
 
-/** 当前没有可用于生成的已启用 Provider。 */
+/** 当前没有可用于生成的已启用模型配置。 */
 class NoEnabledLLMProviderException : IllegalStateException(
     "No enabled LLM provider is configured"
 )

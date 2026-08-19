@@ -49,7 +49,7 @@ import me.kafuuneko.rpclient.utils.formatJsonPretty
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** 模型供应商编辑页状态持有者，负责表单校验、连接测试与配置持久化。 */
+/** 模型配置编辑页状态持有者，负责表单校验、连接测试与配置持久化。 */
 class LLMProviderEditViewModel :
     CoreViewModelWithEvent<LLMProviderEditUiIntent, LLMProviderEditUiState>(
         LLMProviderEditUiState.None

@@ -148,7 +148,13 @@ fun PromptInspectorDialog(
                                                 R.string.regex_temporary
                                             }
                                         ) + " · " +
-                                        if (hit.changed) "changed" else "matched",
+                                        stringResource(
+                                            if (hit.changed) {
+                                                R.string.regex_changed
+                                            } else {
+                                                R.string.regex_matched
+                                            }
+                                        ),
                                     modifier = Modifier.padding(14.dp),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontFamily = FontFamily.Monospace
@@ -171,7 +177,8 @@ fun PromptInspectorDialog(
                         }
                         items(inspection.regexErrors) { error ->
                             Text(
-                                text = "${error.scriptName}: ${error.message}",
+                                text = "${error.scriptName}: " +
+                                    stringResource(R.string.regex_execution_invalid),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
                             )

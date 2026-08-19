@@ -26,13 +26,13 @@
     <string name="expand_session_group">세션 펼치기</string>
     <string name="collapse_session_group">세션 접기</string>
     <string name="setting_page_title">설정</string>
-    <string name="setting_subtitle">제공자, 생성 파라미터 및 프롬프트 동작</string>
+    <string name="setting_subtitle">모델 구성, 생성 파라미터 및 프롬프트 동작</string>
     <string name="prompt_and_memory_section">프롬프트 및 컨텍스트 메모리</string>
     <string name="system_and_data_section">데이터 및 시스템</string>
-    <string name="model_provider">모델 제공자</string>
+    <string name="model_provider">모델 구성</string>
     <string name="manage">관리</string>
     <string name="no_enabled_model">활성화된 모델 없음</string>
-    <string name="go_to_model_manager">모델 관리자로 이동하여 제공자를 활성화하거나 생성하세요.</string>
+    <string name="go_to_model_manager">모델 관리자에서 모델 구성을 활성화하거나 생성하세요.</string>
     <string name="not_enabled">비활성화됨</string>
     <string name="pending_config">설정 대기 중</string>
     <string name="available">사용 가능</string>
@@ -117,6 +117,8 @@
     <string name="json_empty_node">하위 항목 없음</string>
     <string name="json_empty_node_desc">이 JSON 노드에는 중첩된 필드나 항목이 없습니다.</string>
     <string name="json_invalid_title">유효하지 않은 JSON</string>
+    <string name="json_payload_unavailable">JSON 데이터를 더 이상 사용할 수 없습니다.</string>
+    <string name="json_invalid_desc">데이터를 유효한 JSON으로 분석할 수 없습니다.</string>
     <string name="json_type_object">객체</string>
     <string name="json_type_array">배열</string>
     <string name="json_type_string">문자열</string>
@@ -285,7 +287,7 @@
     <string name="branch_session_title">%s (분기)</string>
     <string name="branch_create_failed">분기 생성 실패</string>
     <string name="character_not_found">캐릭터를 찾을 수 없습니다</string>
-    <string name="no_enabled_llm_provider_configured">활성화된 LLM 제공자가 설정되어 있지 않습니다</string>
+    <string name="no_enabled_llm_provider_configured">활성화된 모델 구성이 없습니다</string>
     <string name="system_speaker">시스템</string>
     <string name="message">메시지</string>
     <string name="unknown_lorebook">알 수 없는 로어북</string>
@@ -380,11 +382,14 @@
     <string name="world_book_entry_deleted">항목이 삭제되었습니다</string>
 
     <!-- LLM Provider List Layout -->
-    <string name="model_provider_title">모델 제공자</string>
+    <string name="model_provider_title">모델 구성</string>
     <string name="create_model">모델 생성</string>
     <string name="model_list_title">모델 목록</string>
     <string name="model_list_subtitle">모든 온라인 모델 설정, 활성화 상태 및 프로토콜 유형 관리</string>
     <string name="all_models">모든 모델</string>
+    <string name="no_providers_title">모델 구성이 없습니다</string>
+    <string name="no_providers_subtitle">온라인 또는 로컬 모델 서비스를 추가하여 채팅을 시작하세요</string>
+    <string name="add_first_provider">모델 구성 추가</string>
     <string name="edit_world_book_title">월드북 편집</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -392,6 +397,12 @@
     <string name="edit_model_title">모델 편집</string>
     <string name="create_model_subtitle">프로토콜, 인증, 모델 이름 및 생성 파라미터</string>
     <string name="edit_model_subtitle">프로토콜, 인증, 모델 이름 및 생성 파라미터</string>
+    <string name="quick_presets">빠른 프리셋</string>
+    <string name="preset_custom">사용자 지정</string>
+    <string name="advanced_settings">고급 설정 및 확장</string>
+    <string name="advanced_settings_desc">사용자 지정 헤더, 요청 본문 패치 및 라우팅</string>
+    <string name="custom_headers_preview">사용자 지정 헤더 미리보기</string>
+    <string name="request_body_patch_preview">요청 본문 패치 미리보기</string>
     <string name="basic_info">기본 정보</string>
     <string name="name">이름</string>
     <string name="base_url">기본 URL (Base URL)</string>
@@ -400,7 +411,7 @@
     <string name="query_models">모델 조회</string>
     <string name="cancel_model_query">모델 조회 취소</string>
     <string name="querying_models">사용 가능한 모델을 조회하는 중…</string>
-    <string name="model_manual_input_hint">모델 ID를 직접 입력하거나 제공자에서 조회하세요</string>
+    <string name="model_manual_input_hint">모델 ID를 직접 입력하거나 모델 서비스에서 조회하세요</string>
     <string name="available_models_found">사용 가능한 모델 %1$d개 · 선택</string>
     <string name="no_available_models_returned">텍스트 생성에 사용할 수 있는 모델이 반환되지 않았습니다. 모델 ID를 직접 입력할 수 있습니다</string>
     <string name="choose_model">모델 선택</string>
@@ -411,11 +422,16 @@
     <string name="enabled">활성화됨</string>
     <string name="enabled_desc">활성화 시 메인 페이지 설정에 표시됩니다</string>
     <string name="protocol">프로토콜</string>
-    <string name="provider_type">제공자 유형</string>
+    <string name="provider_type">공급자 유형</string>
     <string name="provider_send_temperature">temperature 전송</string>
     <string name="provider_send_top_p">top_p 전송</string>
-    <string name="prompt_post_processing_provider_title">제공자 프롬프트 후처리</string>
+    <string name="prompt_post_processing_provider_title">모델 구성 프롬프트 후처리</string>
     <string name="custom_headers_json">사용자 정의 요청 헤더 JSON</string>
+    <string name="request_body_patch_title">요청 본문 패치 JSON</string>
+    <string name="request_body_patch_status_custom">사용자 지정 JSON Merge Patch 적용됨</string>
+    <string name="request_body_patch_status_default">기본 요청 구조 ({})</string>
+    <string name="reset">재설정</string>
+    <string name="reset_to_default">기본값으로 재설정</string>
     <string name="save">저장</string>
     <string name="model_test">모델 테스트</string>
     <string name="send_short_message">연결 확인을 위해 짧은 메시지를 전송합니다</string>
@@ -428,6 +444,8 @@
     <string name="success">성공</string>
     <string name="cancel">취소</string>
     <string name="confirm">확인</string>
+    <string name="decrease">감소</string>
+    <string name="increase">증가</string>
     <string name="delete">삭제</string>
     <string name="unsaved_changes_title">변경 사항을 취소하시겠습니까?</string>
     <string name="unsaved_changes_message">저장되지 않은 변경 사항이 있습니다. 이 페이지를 나가면 모두 취소됩니다.</string>
@@ -447,7 +465,7 @@
     <string name="token_estimate_reserve_invalid">토큰 추정 여유분은 0에서 50 사이의 정수여야 합니다</string>
     <string name="max_tokens_must_be_less_than_context">최대 토큰은 컨텍스트 토큰보다 작아야 합니다</string>
     <string name="model_query_unsupported">이 서비스는 모델 조회를 지원하지 않습니다. 모델 ID를 직접 입력하세요</string>
-    <string name="model_query_invalid_response">제공자가 인식할 수 없는 모델 목록을 반환했습니다</string>
+    <string name="model_query_invalid_response">모델 서비스가 인식할 수 없는 모델 목록을 반환했습니다</string>
     <string name="model_query_failed">사용 가능한 모델을 조회하지 못했습니다</string>
     <string name="character_name_empty">캐릭터 이름은 비워둘 수 없습니다</string>
     <string name="character_created">캐릭터가 생성되었습니다</string>
@@ -502,7 +520,7 @@
     <string name="prompt_editor_macro_title">사용 가능한 매크로</string>
     <string name="prompt_editor_char_count">%1$d자 · 약 %2$d토큰</string>
     <string name="prompt_editor_clear">지우기</string>
-    <string name="prompt_post_processing_desc">제공자 어댑터가 전송하기 전에 발신 메시지를 다시 작성합니다</string>
+    <string name="prompt_post_processing_desc">모델 서비스 어댑터가 전송하기 전에 발신 메시지를 다시 작성합니다</string>
     <string name="prompt_post_processing_none">없음</string>
     <string name="prompt_post_processing_none_desc">메시지를 빌드된 상태 그대로 보냅니다</string>
     <string name="prompt_post_processing_merge">병합</string>
@@ -705,6 +723,11 @@
     <string name="regex_name_required">스크립트 이름은 필수입니다.</string>
     <string name="regex_placement_required">적용 위치를 하나 이상 선택하세요.</string>
     <string name="regex_depth_invalid">깊이는 정수여야 하며 최소 깊이는 최대 깊이를 초과할 수 없습니다.</string>
+    <string name="regex_find_required">검색 정규식이 필요합니다.</string>
+    <string name="regex_pattern_invalid">정규식이 올바르지 않습니다.</string>
+    <string name="regex_execution_invalid">정규식을 적용할 수 없습니다.</string>
+    <string name="regex_changed">변경됨</string>
+    <string name="regex_matched">일치함</string>
     <string name="regex_import_success">Regex 스크립트를 가져왔습니다</string>
     <string name="regex_import_failed">Regex 스크립트 가져오기 실패</string>
     <string name="regex_export_success">Regex 스크립트를 내보냈습니다</string>
@@ -726,13 +749,13 @@
     <string name="credential_editor_privacy_note">이 값은 확정할 때까지 현재 편집기에만 유지됩니다. 이 대화상자를 닫으면 확정하지 않은 입력이 삭제됩니다.</string>
     <string name="api_key_required">API 키는 비워 둘 수 없습니다. 삭제하려면 지우기를 사용하세요.</string>
     <string name="custom_headers_json_invalid">사용자 지정 헤더는 유효한 JSON 객체여야 합니다.</string>
-    <string name="generation_error_no_provider">활성화된 모델 제공자를 사용할 수 없습니다.</string>
+    <string name="generation_error_no_provider">사용 가능한 활성 모델 구성이 없습니다.</string>
     <string name="generation_error_prompt_budget">필요한 프롬프트(%1$d 토큰)가 사용 가능한 입력 예산(%2$d 토큰)을 초과합니다.</string>
-    <string name="generation_error_unauthorized">모델 제공자가 인증 정보를 거부했습니다.</string>
-    <string name="generation_error_forbidden">모델 제공자가 이 요청을 거부했습니다.</string>
-    <string name="generation_error_rate_limited">모델 제공자가 혼잡합니다. 나중에 다시 시도하세요.</string>
-    <string name="generation_error_http">모델 제공자가 HTTP %1$d을 반환했습니다.</string>
-    <string name="generation_error_network">모델 제공자에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
+    <string name="generation_error_unauthorized">모델 서비스가 인증 정보를 거부했습니다.</string>
+    <string name="generation_error_forbidden">모델 서비스가 이 요청을 거부했습니다.</string>
+    <string name="generation_error_rate_limited">모델 서비스가 혼잡합니다. 나중에 다시 시도하세요.</string>
+    <string name="generation_error_http">모델 서비스가 HTTP %1$d을 반환했습니다.</string>
+    <string name="generation_error_network">모델 서비스에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
     <string name="generation_error_empty_response">모델이 빈 응답을 반환했습니다.</string>
     <string name="data_management">데이터 관리</string>
     <string name="import_chat">채팅 가져오기</string>
@@ -793,11 +816,11 @@
     <string name="story_generated_text_clip_label">AI 생성 이야기 텍스트</string>
     <string name="story_generation_budget">필수 Story 컨텍스트가 입력 예산을 초과합니다. 선택 영역, 이어쓰기 지침, Memory, 작가 노트 또는 캐릭터를 줄이세요.</string>
     <string name="story_generation_conflict">결과 적용 전에 원고가 변경되어 생성된 텍스트를 삽입하지 않았습니다.</string>
-    <string name="story_generation_empty">공급자가 사용할 수 있는 원고를 반환하지 않았습니다.</string>
-    <string name="story_generation_failed">AI 쓰기를 시작할 수 없습니다. 공급자와 컨텍스트 설정을 확인하세요.</string>
+    <string name="story_generation_empty">모델 서비스가 사용할 수 있는 원고를 반환하지 않았습니다.</string>
+    <string name="story_generation_failed">AI 쓰기를 시작할 수 없습니다. 모델 구성과 컨텍스트 설정을 확인하세요.</string>
     <string name="story_generation_largest_characters">가장 큰 활성 캐릭터 참조: %1$s</string>
-    <string name="story_generation_provider_failed">공급자가 작업을 완료하지 못했습니다. 부분 결과는 원고에 삽입되지 않았습니다.</string>
-    <string name="story_generation_provider_failed_without_partial">공급자가 작업을 완료하지 못했습니다. 원고는 변경되지 않았습니다.</string>
+    <string name="story_generation_provider_failed">모델 서비스가 작업을 완료하지 못했습니다. 부분 결과는 원고에 삽입되지 않았습니다.</string>
+    <string name="story_generation_provider_failed_without_partial">모델 서비스가 작업을 완료하지 못했습니다. 원고는 변경되지 않았습니다.</string>
     <string name="story_generation_apply_failed">생성된 텍스트를 받았지만 원고에 적용하지 못했습니다. 원고는 변경되지 않았습니다.</string>
     <string name="story_home_desc">메모리와 참조를 활용해 연속 원고를 작성하고 정리하세요</string>
     <string name="story_import_archive">Story 보관 파일 가져오기</string>
@@ -867,7 +890,7 @@
     <string name="story_summarize_now">AI로 업데이트</string>
     <string name="story_summarizing">스토리 요약 중…</string>
     <string name="story_summary_empty_document">요약하기 전에 원고를 작성하세요</string>
-    <string name="story_summary_failed">스토리를 요약하지 못했습니다. 공급자와 컨텍스트 설정을 확인하세요.</string>
+    <string name="story_summary_failed">스토리를 요약하지 못했습니다. 모델 구성과 컨텍스트 설정을 확인하세요.</string>
     <string name="story_summary_conflict">요약 중 원고가 변경되었습니다. 다시 생성하세요.</string>
     <string name="story_summary_updated">스토리 요약이 업데이트되었습니다</string>
     <string name="prompt_story_summarize_title">스토리 요약 프롬프트</string>
@@ -880,10 +903,10 @@
     <string name="request_body_patch_editor_title">요청 본문 Patch 편집</string>
     <string name="request_body_patch_editor_note">JSON Merge Patch 의미 체계를 사용하는 JSON 객체를 입력하세요. null은 필드를 삭제하고, 객체는 재귀적으로 병합되며, 배열은 전체가 교체됩니다. 필드 값으로 &quot;$rpclient.routing_session_id&quot;를 사용하면 현재 대화의 안정적인 익명 라우팅 ID를 삽입할 수 있습니다.</string>
     <string name="request_body_patch_invalid">요청 본문 Patch는 유효한 JSON 객체여야 하고 지원되는 시스템 변수만 사용해야 하며 보호된 필드를 덮어쓸 수 없습니다.</string>
-    <string name="openrouter_preferred_provider">특정 OpenRouter 공급자 우선 사용</string>
-    <string name="openrouter_provider_slug">공급자 식별자(예: deepinfra)</string>
-    <string name="openrouter_allow_fallbacks">공급자 폴백 허용</string>
-    <string name="openrouter_session_affinity_note">자동 모드에서는 RPClient가 대화별로 안정적인 익명 세션 ID를 보내 고정 라우팅을 사용합니다. 우선 공급자 순서를 활성화하면 해당 설정이 우선합니다.</string>
+    <string name="openrouter_preferred_provider">특정 OpenRouter 업스트림 공급자 우선 사용</string>
+    <string name="openrouter_provider_slug">업스트림 공급자 식별자(예: deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">업스트림 공급자 폴백 허용</string>
+    <string name="openrouter_session_affinity_note">자동 모드에서는 RPClient가 대화별로 안정적인 익명 세션 ID를 보내 고정 라우팅을 사용합니다. 우선 업스트림 공급자 순서를 활성화하면 해당 설정이 우선합니다.</string>
     <string name="add_tag">태그 추가</string>
     <string name="add_keyword">키워드 추가</string>
     <string name="add_category">카테고리 추가</string>

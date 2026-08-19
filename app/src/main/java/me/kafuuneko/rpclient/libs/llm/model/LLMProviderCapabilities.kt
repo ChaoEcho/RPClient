@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.llm.model
 
-/** Provider 编辑和请求序列化共用的参数能力约束。 */
+/** 模型配置编辑和请求序列化共用的参数能力约束。 */
 data class LLMProviderCapabilities(
     val temperatureRange: ClosedFloatingPointRange<Float>,
     val topPRange: ClosedFloatingPointRange<Float>,
@@ -8,7 +8,7 @@ data class LLMProviderCapabilities(
     val defaultSendTopP: Boolean
 ) {
     companion object {
-        /** 按协议给出保守默认值；用户仍可在 Provider 页面显式调整发送开关。 */
+        /** 按协议给出保守默认值；用户仍可在模型配置页面显式调整发送开关。 */
         fun forProtocol(protocol: LLMProviderProtocol): LLMProviderCapabilities {
             return when (protocol) {
                 LLMProviderProtocol.OpenAICompatible -> LLMProviderCapabilities(

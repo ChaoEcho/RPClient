@@ -66,9 +66,9 @@ data class PromptOmittedItem(
 
 /** Token 统计的可信度策略。 */
 enum class PromptTokenizerStrategy {
-    /** 根据模型选择已知编码器，统计结果更接近供应商实际值。 */
+    /** 根据模型选择已知编码器，统计结果更接近模型服务的实际值。 */
     ModelAware,
-    /** 使用其他离线 BPE 作为代理，并应用 Provider 配置的估算预留率。 */
+    /** 使用其他离线 BPE 作为代理，并应用模型配置的估算预留率。 */
     Estimated,
     /** 预留给将来可证明不会低估的统计实现。 */
     Conservative

@@ -5,7 +5,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
-/** LLM Provider 编辑页的字段变更、连接测试和保存意图。 */
+/** 模型配置编辑页的字段变更、连接测试和保存意图。 */
 sealed class LLMProviderEditUiIntent {
     data class Init(val providerId: Long?) : LLMProviderEditUiIntent()
 

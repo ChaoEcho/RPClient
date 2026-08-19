@@ -15,7 +15,7 @@ import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
 /**
  * Prompt Token 统计抽象。
  *
- * 消息统计包含通用聊天模板开销；具体供应商若无公开编码器，可使用带预留率的代理估算。
+ * 消息统计包含通用聊天模板开销；具体模型服务若无公开编码器，可使用带预留率的代理估算。
  */
 interface PromptTokenizer {
     /** 调试界面展示的编码器名称。 */
@@ -48,7 +48,7 @@ interface PromptTokenizer {
     }
 }
 
-/** 根据供应商协议和模型名称选择 Tokenizer。 */
+/** 根据模型配置的协议和模型名称选择 Tokenizer。 */
 fun interface PromptTokenizerResolver {
     fun resolve(provider: LLMProvider?): PromptTokenizer
 }
@@ -57,7 +57,7 @@ fun interface PromptTokenizerResolver {
  * 内置 Tokenizer 注册表。
  *
  * 已知 OpenAI 模型使用 JTokkit 编码；其他模型族使用接近的 BPE 编码并加入
- * Provider 配置的估算预留。这些供应商未提供适合 Android 离线集成的官方 Tokenizer，
+ * 模型配置的估算预留。这些模型服务未提供适合 Android 离线集成的官方 Tokenizer，
  * 因此调试名称会明确标记 proxy，避免把估算值误解为精确计数。
  */
 class PromptTokenizerRegistry : PromptTokenizerResolver {

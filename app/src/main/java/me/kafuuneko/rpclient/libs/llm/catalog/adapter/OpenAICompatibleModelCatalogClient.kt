@@ -40,7 +40,7 @@ class OpenAICompatibleModelCatalogClient(
 /**
  * 解析 OpenAI Compatible `/models` 响应。
  *
- * 只有已知提供扩展元数据的 Provider 才读取上下文、输出上限和参数列表；普通兼容网关
+ * 只有已知提供扩展元数据的模型服务才读取上下文、输出上限和参数列表；普通兼容网关
  * 的同名非标准字段不会被误当成可靠能力声明。
  */
 internal fun parseOpenAIModelCatalog(

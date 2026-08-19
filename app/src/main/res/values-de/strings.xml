@@ -27,13 +27,13 @@
     <string name="expand_session_group">Sitzungen erweitern</string>
     <string name="collapse_session_group">Sitzungen einklappen</string>
     <string name="setting_page_title">Einstellungen</string>
-    <string name="setting_subtitle">Anbieter, Generierungsparameter und Prompt-Verhalten</string>
+    <string name="setting_subtitle">Modellkonfigurationen, Generierungsparameter und Prompt-Verhalten</string>
     <string name="prompt_and_memory_section">Prompt- &amp; Kontextspeicher</string>
     <string name="system_and_data_section">Daten &amp; System</string>
-    <string name="model_provider">Modellanbieter</string>
+    <string name="model_provider">Modellkonfigurationen</string>
     <string name="manage">Verwalten</string>
     <string name="no_enabled_model">Kein Modell aktiviert</string>
-    <string name="go_to_model_manager">Gehe zum Modell-Manager, um einen Anbieter zu aktivieren oder zu erstellen</string>
+    <string name="go_to_model_manager">Öffne den Modell-Manager, um eine Modellkonfiguration zu aktivieren oder zu erstellen</string>
     <string name="not_enabled">Nicht aktiviert</string>
     <string name="pending_config">Konfiguration ausstehend</string>
     <string name="available">Verfügbar</string>
@@ -118,6 +118,8 @@
     <string name="json_empty_node">Keine untergeordneten Elemente</string>
     <string name="json_empty_node_desc">Dieser JSON-Knoten hat keine verschachtelten Felder oder Elemente.</string>
     <string name="json_invalid_title">Ungültiges JSON</string>
+    <string name="json_payload_unavailable">Die JSON-Daten sind nicht mehr verfügbar.</string>
+    <string name="json_invalid_desc">Die Daten konnten nicht als gültiges JSON gelesen werden.</string>
     <string name="json_type_object">Objekt</string>
     <string name="json_type_array">Array</string>
     <string name="json_type_string">String</string>
@@ -286,7 +288,7 @@
     <string name="branch_session_title">%s (Abzweigung)</string>
     <string name="branch_create_failed">Abzweigung konnte nicht erstellt werden</string>
     <string name="character_not_found">Charakter nicht gefunden</string>
-    <string name="no_enabled_llm_provider_configured">Kein aktivierter LLM-Anbieter konfiguriert</string>
+    <string name="no_enabled_llm_provider_configured">Keine aktivierte Modellkonfiguration eingerichtet</string>
     <string name="system_speaker">System</string>
     <string name="message">Nachricht</string>
     <string name="unknown_lorebook">Unbekanntes Lorebook</string>
@@ -381,11 +383,14 @@
     <string name="world_book_entry_deleted">Eintrag gelöscht</string>
 
     <!-- LLM Provider List Layout -->
-    <string name="model_provider_title">Modellanbieter</string>
+    <string name="model_provider_title">Modellkonfigurationen</string>
     <string name="create_model">Modell erstellen</string>
     <string name="model_list_title">Modellliste</string>
     <string name="model_list_subtitle">Verwalte alle Online-Modellkonfigurationen, den Aktivierungsstatus und die Protokolltypen</string>
     <string name="all_models">Alle Modelle</string>
+    <string name="no_providers_title">Keine Modellkonfigurationen</string>
+    <string name="no_providers_subtitle">Füge einen Online- oder lokalen Modelldienst hinzu, um zu chatten</string>
+    <string name="add_first_provider">Konfiguration hinzufügen</string>
     <string name="edit_world_book_title">Weltbuch bearbeiten</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -393,6 +398,12 @@
     <string name="edit_model_title">Modell bearbeiten</string>
     <string name="create_model_subtitle">Protokoll, Authentifizierung, Modellname und Generierungsparameter</string>
     <string name="edit_model_subtitle">Protokoll, Authentifizierung, Modellname und Generierungsparameter</string>
+    <string name="quick_presets">Schnellvorlagen</string>
+    <string name="preset_custom">Benutzerdefiniert</string>
+    <string name="advanced_settings">Erweiterte Einstellungen</string>
+    <string name="advanced_settings_desc">Benutzerdefinierte Header, Anfragekörper-Patch und Routing</string>
+    <string name="custom_headers_preview">Vorschau benutzerdefinierter Header</string>
+    <string name="request_body_patch_preview">Vorschau des Anfragekörper-Patches</string>
     <string name="basic_info">Basisinfo</string>
     <string name="name">Name</string>
     <string name="base_url">Basis-URL</string>
@@ -401,7 +412,7 @@
     <string name="query_models">Modelle abfragen</string>
     <string name="cancel_model_query">Modellabfrage abbrechen</string>
     <string name="querying_models">Verfügbare Modelle werden abgefragt…</string>
-    <string name="model_manual_input_hint">Modell-ID manuell eingeben oder beim Anbieter abfragen</string>
+    <string name="model_manual_input_hint">Modell-ID manuell eingeben oder beim Modelldienst abfragen</string>
     <string name="available_models_found">%1$d Modelle verfügbar · Auswählen</string>
     <string name="no_available_models_returned">Keine Modelle zur Textgenerierung zurückgegeben; die ID kann weiterhin manuell eingegeben werden</string>
     <string name="choose_model">Modell auswählen</string>
@@ -415,8 +426,13 @@
     <string name="provider_type">Anbietertyp</string>
     <string name="provider_send_temperature">Temperature senden</string>
     <string name="provider_send_top_p">top_p senden</string>
-    <string name="prompt_post_processing_provider_title">Provider-Prompt-Nachbearbeitung</string>
+    <string name="prompt_post_processing_provider_title">Prompt-Nachbearbeitung der Modellkonfiguration</string>
     <string name="custom_headers_json">Benutzerdefinierte Anfrage-Header-JSON</string>
+    <string name="request_body_patch_title">Anfragekörper-Patch (JSON)</string>
+    <string name="request_body_patch_status_custom">Benutzerdefinierter JSON Merge Patch angewendet</string>
+    <string name="request_body_patch_status_default">Standard-Anfragestruktur ({})</string>
+    <string name="reset">Zurücksetzen</string>
+    <string name="reset_to_default">Auf Standard zurücksetzen</string>
     <string name="save">Speichern</string>
     <string name="model_test">Modelltest</string>
     <string name="send_short_message">Sende eine kurze Nachricht, um die Verbindung zu überprüfen</string>
@@ -429,6 +445,8 @@
     <string name="success">Erfolgreich</string>
     <string name="cancel">Abbrechen</string>
     <string name="confirm">Bestätigen</string>
+    <string name="decrease">Verringern</string>
+    <string name="increase">Erhöhen</string>
     <string name="delete">Löschen</string>
     <string name="unsaved_changes_title">Änderungen verwerfen?</string>
     <string name="unsaved_changes_message">Du hast ungespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.</string>
@@ -448,7 +466,7 @@
     <string name="token_estimate_reserve_invalid">Die Token-Schätzreserve muss eine ganze Zahl von 0 bis 50 sein</string>
     <string name="max_tokens_must_be_less_than_context">Maximale Tokens müssen kleiner als die Kontext-Tokens sein</string>
     <string name="model_query_unsupported">Dieser Dienst unterstützt keine Modellabfrage. Gib die Modell-ID manuell ein.</string>
-    <string name="model_query_invalid_response">Der Anbieter hat eine nicht erkennbare Modellliste zurückgegeben</string>
+    <string name="model_query_invalid_response">Der Modelldienst hat eine nicht erkennbare Modellliste zurückgegeben</string>
     <string name="model_query_failed">Verfügbare Modelle konnten nicht abgefragt werden</string>
     <string name="character_name_empty">Charaktername darf nicht leer sein</string>
     <string name="character_created">Charakter erstellt</string>
@@ -503,7 +521,7 @@
     <string name="prompt_editor_macro_title">Verfügbare Makros</string>
     <string name="prompt_editor_char_count">%1$d Zeichen · ~%2$d Tokens</string>
     <string name="prompt_editor_clear">Leeren</string>
-    <string name="prompt_post_processing_desc">Ausgehende Nachrichten umschreiben, bevor sie von einem Anbieter-Adapter gesendet werden.</string>
+    <string name="prompt_post_processing_desc">Ausgehende Nachrichten umschreiben, bevor sie vom Modelldienst-Adapter gesendet werden.</string>
     <string name="prompt_post_processing_none">Keine</string>
     <string name="prompt_post_processing_none_desc">Nachrichten genau so senden, wie sie erstellt wurden.</string>
     <string name="prompt_post_processing_merge">Zusammenführen</string>
@@ -707,6 +725,11 @@
     <string name="regex_name_required">Skriptname ist erforderlich.</string>
     <string name="regex_placement_required">Wähle mindestens eine Position aus.</string>
     <string name="regex_depth_invalid">Die Tiefe muss eine Ganzzahl sein und die Min. Tiefe darf die Max. Tiefe nicht überschreiten.</string>
+    <string name="regex_find_required">Ein Suchausdruck ist erforderlich.</string>
+    <string name="regex_pattern_invalid">Der reguläre Ausdruck ist ungültig.</string>
+    <string name="regex_execution_invalid">Der reguläre Ausdruck konnte nicht angewendet werden.</string>
+    <string name="regex_changed">geändert</string>
+    <string name="regex_matched">gefunden</string>
     <string name="regex_import_success">Regex-Skripte importiert</string>
     <string name="regex_import_failed">Import der Regex-Skripte fehlgeschlagen</string>
     <string name="regex_export_success">Regex-Skripte exportiert</string>
@@ -728,13 +751,13 @@
     <string name="credential_editor_privacy_note">Dieser Wert bleibt nur bis zur Bestätigung im aktuellen Editor. Beim Verlassen dieses Dialogs wird die unbestätigte Eingabe verworfen.</string>
     <string name="api_key_required">Der API-Schlüssel darf nicht leer sein. Verwende „Löschen“, um ihn zu entfernen.</string>
     <string name="custom_headers_json_invalid">Benutzerdefinierte Header müssen ein gültiges JSON-Objekt sein.</string>
-    <string name="generation_error_no_provider">Es ist kein aktivierter Modellanbieter verfügbar.</string>
+    <string name="generation_error_no_provider">Es ist keine aktivierte Modellkonfiguration verfügbar.</string>
     <string name="generation_error_prompt_budget">Der erforderliche Prompt (%1$d Token) überschreitet das verfügbare Eingabebudget (%2$d Token).</string>
-    <string name="generation_error_unauthorized">Der Modellanbieter hat die Anmeldedaten abgelehnt.</string>
-    <string name="generation_error_forbidden">Der Modellanbieter hat diese Anfrage abgelehnt.</string>
-    <string name="generation_error_rate_limited">Der Modellanbieter ist ausgelastet. Versuche es später erneut.</string>
-    <string name="generation_error_http">Der Modellanbieter hat HTTP %1$d zurückgegeben.</string>
-    <string name="generation_error_network">Der Modellanbieter ist nicht erreichbar. Prüfe das Netzwerk und versuche es erneut.</string>
+    <string name="generation_error_unauthorized">Der Modelldienst hat die Anmeldedaten abgelehnt.</string>
+    <string name="generation_error_forbidden">Der Modelldienst hat diese Anfrage abgelehnt.</string>
+    <string name="generation_error_rate_limited">Der Modelldienst ist ausgelastet. Versuche es später erneut.</string>
+    <string name="generation_error_http">Der Modelldienst hat HTTP %1$d zurückgegeben.</string>
+    <string name="generation_error_network">Der Modelldienst ist nicht erreichbar. Prüfe das Netzwerk und versuche es erneut.</string>
     <string name="generation_error_empty_response">Das Modell hat eine leere Antwort zurückgegeben.</string>
     <string name="data_management">Datenverwaltung</string>
     <string name="import_chat">Chat importieren</string>
@@ -824,12 +847,12 @@
     <string name="story_undo">Letzte Änderung rückgängig</string>
     <string name="story_redo">Letzte Änderung wiederholen</string>
     <string name="story_discard">Verwerfen</string>
-    <string name="story_generation_failed">KI-Schreiben konnte nicht gestartet werden. Prüfe Anbieter und Kontext.</string>
-    <string name="story_generation_provider_failed">Der Anbieter hat den Vorgang nicht abgeschlossen. Teiltext wurde nicht eingefügt.</string>
-    <string name="story_generation_provider_failed_without_partial">Der Anbieter hat den Vorgang nicht abgeschlossen. Der Text wurde nicht geändert.</string>
+    <string name="story_generation_failed">KI-Schreiben konnte nicht gestartet werden. Prüfe Modellkonfiguration und Kontext.</string>
+    <string name="story_generation_provider_failed">Der Modelldienst hat den Vorgang nicht abgeschlossen. Teiltext wurde nicht eingefügt.</string>
+    <string name="story_generation_provider_failed_without_partial">Der Modelldienst hat den Vorgang nicht abgeschlossen. Der Text wurde nicht geändert.</string>
     <string name="story_generation_apply_failed">Der generierte Text wurde empfangen, konnte aber nicht angewendet werden. Der Text wurde nicht geändert.</string>
     <string name="story_generation_conflict">Das Manuskript wurde vor dem Anwenden geändert. Der Text wurde nicht eingefügt.</string>
-    <string name="story_generation_empty">Der Anbieter lieferte keinen verwendbaren Text.</string>
+    <string name="story_generation_empty">Der Modelldienst lieferte keinen verwendbaren Text.</string>
     <string name="story_generation_budget">Der erforderliche Story-Kontext überschreitet das Eingabebudget. Kürze Auswahl, Fortsetzungshinweis, Memory, Autorennotiz oder Figuren.</string>
     <string name="story_generation_largest_characters">Größte aktive Figurenreferenzen: %1$s</string>
     <string name="story_insert_partial">Teiltext einfügen</string>
@@ -871,7 +894,7 @@
     <string name="story_summarize_now">Mit KI aktualisieren</string>
     <string name="story_summarizing">Story wird zusammengefasst…</string>
     <string name="story_summary_empty_document">Schreibe zuerst Manuskripttext</string>
-    <string name="story_summary_failed">Die Story konnte nicht zusammengefasst werden. Prüfe Anbieter und Kontext.</string>
+    <string name="story_summary_failed">Die Story konnte nicht zusammengefasst werden. Prüfe Modellkonfiguration und Kontext.</string>
     <string name="story_summary_conflict">Das Manuskript wurde während der Zusammenfassung geändert. Erstelle sie erneut.</string>
     <string name="story_summary_updated">Handlungszusammenfassung aktualisiert</string>
     <string name="prompt_story_summarize_title">Prompt für Story-Zusammenfassung</string>
@@ -884,10 +907,10 @@
     <string name="request_body_patch_editor_title">Anfragekörper-Patch bearbeiten</string>
     <string name="request_body_patch_editor_note">Gib ein JSON-Objekt mit JSON-Merge-Patch-Semantik ein. null entfernt ein Feld, Objekte werden rekursiv zusammengeführt und Arrays vollständig ersetzt. Verwende &quot;$rpclient.routing_session_id&quot; als Feldwert, um die stabile anonyme Routing-ID der aktuellen Unterhaltung einzufügen.</string>
     <string name="request_body_patch_invalid">Der Anfragekörper-Patch muss ein gültiges JSON-Objekt sein, unterstützte Systemvariablen verwenden und darf keine geschützten Felder überschreiben.</string>
-    <string name="openrouter_preferred_provider">Bestimmten OpenRouter-Anbieter bevorzugen</string>
-    <string name="openrouter_provider_slug">Anbieter-Slug (zum Beispiel deepinfra)</string>
-    <string name="openrouter_allow_fallbacks">Anbieter-Fallback erlauben</string>
-    <string name="openrouter_session_affinity_note">Im Auto-Modus sendet RPClient pro Unterhaltung eine stabile anonyme Sitzungs-ID für Sticky Routing. Eine aktivierte Anbieterreihenfolge hat Vorrang.</string>
+    <string name="openrouter_preferred_provider">Bestimmten OpenRouter-Upstream-Anbieter bevorzugen</string>
+    <string name="openrouter_provider_slug">Upstream-Anbieter-Slug (zum Beispiel deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">Upstream-Anbieter-Fallback erlauben</string>
+    <string name="openrouter_session_affinity_note">Im Auto-Modus sendet RPClient pro Unterhaltung eine stabile anonyme Sitzungs-ID für Sticky Routing. Eine aktivierte Reihenfolge der bevorzugten Upstream-Anbieter hat Vorrang.</string>
     <string name="add_tag">Tag hinzufügen</string>
     <string name="add_keyword">Schlüsselwort hinzufügen</string>
     <string name="add_category">Kategorie hinzufügen</string>

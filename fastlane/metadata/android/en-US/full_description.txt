@@ -2,7 +2,7 @@ RPClient is a local-first AI role-playing chat client for Android.
 
 It helps you manage character cards, lorebooks, one-on-one chats, group chats, prompt presets, summary memory, and regex scripts directly on your device. Chat histories, characters, lorebooks, and app settings are stored locally by default.
 
-RPClient does not provide model services. You choose and configure your own model provider, including OpenAI-compatible APIs, Gemini, Anthropic Messages, DeepSeek, OpenRouter, or a custom endpoint. Model requests are sent directly to the provider configured by you.
+RPClient does not provide model services. You create your own model configurations for OpenAI-compatible APIs, Gemini, Anthropic Messages, DeepSeek, OpenRouter, or custom endpoints. Model requests are sent directly to the service selected by you.
 
 Features include:
 

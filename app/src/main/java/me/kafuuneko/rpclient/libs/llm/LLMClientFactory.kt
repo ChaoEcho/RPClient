@@ -9,9 +9,9 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 
 /**
- * 将持久化层的供应商配置转换为对应协议的 [LLMClient]。
+ * 将持久化层的模型配置转换为对应协议的 [LLMClient]。
  *
- * 工厂只负责选择协议适配器，共享的 Prompt 后处理、供应商选择和默认配置初始化
+ * 工厂只负责选择协议适配器，共享的 Prompt 后处理、模型配置选择和默认配置初始化
  * 均由上层 Repository 处理，避免各适配器出现不同的业务语义。
  */
 class LLMClientFactory(
@@ -19,7 +19,7 @@ class LLMClientFactory(
     private val mLLMRequestLogRepository: LLMRequestLogRepository
 ) {
     /**
-     * 根据 Provider 协议创建具体适配器。
+     * 根据模型配置的协议创建具体适配器。
      */
     fun create(provider: LLMProviderConfig): LLMClient {
         return when (provider.protocol) {

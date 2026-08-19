@@ -4,7 +4,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.utils.formatJsonPretty
 
-/** 将持久化 Provider 映射成不含密钥原文的编辑表单。 */
+/** 将持久化模型配置映射成不含密钥原文的编辑表单。 */
 internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     id = id,
     createTime = createTime,

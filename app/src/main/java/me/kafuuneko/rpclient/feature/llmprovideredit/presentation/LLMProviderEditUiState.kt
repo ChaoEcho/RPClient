@@ -4,11 +4,11 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 
-/** LLM Provider 创建/编辑页面状态树。 */
+/** 模型配置创建/编辑页面状态树。 */
 sealed class LLMProviderEditUiState {
     data object None : LLMProviderEditUiState()
 
-    /** Provider 表单、连接测试和未保存确认的稳定页面状态。 */
+    /** 模型配置表单、连接测试和未保存确认的稳定页面状态。 */
     data class Normal(
         val mode: LLMProviderEditMode,
         val form: LLMProviderEditForm,
@@ -32,7 +32,7 @@ sealed class LLMProviderEditUiState {
     }
 }
 
-/** 请求扩展面板的可渲染状态，避免 Compose 直接解析 Provider JSON。 */
+/** 请求扩展面板的可渲染状态，避免 Compose 直接解析模型配置 JSON。 */
 data class LLMProviderEditRequestExtensionsState(
     val isOpenRouter: Boolean = false,
     val usesPreferredProvider: Boolean = false,
@@ -40,13 +40,13 @@ data class LLMProviderEditRequestExtensionsState(
     val allowFallbacks: Boolean = true
 )
 
-/** Provider 页面当前是新增还是编辑。 */
+/** 模型配置页面当前是新增还是编辑。 */
 enum class LLMProviderEditMode {
     Create,
     Edit
 }
 
-/** Provider 保存操作状态。 */
+/** 模型配置保存操作状态。 */
 sealed class LLMProviderEditLoadState {
     data object None : LLMProviderEditLoadState()
     data object Saving : LLMProviderEditLoadState()
@@ -72,7 +72,7 @@ sealed class LLMProviderEditModelCatalogState {
     ) : LLMProviderEditModelCatalogState()
 }
 
-/** Provider 编辑页互斥显示的确认对话框。 */
+/** 模型配置编辑页互斥显示的确认对话框。 */
 sealed class LLMProviderEditDialogState {
     data object None : LLMProviderEditDialogState()
     data object UnsavedChangesConfirm : LLMProviderEditDialogState()

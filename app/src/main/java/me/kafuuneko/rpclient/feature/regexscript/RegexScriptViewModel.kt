@@ -393,7 +393,10 @@ class RegexScriptViewModel :
         if (minDepth != null && maxDepth != null && minDepth > maxDepth) {
             return mContext.getString(R.string.regex_depth_invalid)
         }
-        return mEngine.validate(draft.toScript())
+        if (draft.findRegex.isBlank()) return mContext.getString(R.string.regex_find_required)
+        return mEngine.validate(draft.toScript())?.let {
+            mContext.getString(R.string.regex_pattern_invalid)
+        }
     }
 
     /** 根据当前作用域重读脚本与授权状态，避免页面持有跨作用域旧数据。 */

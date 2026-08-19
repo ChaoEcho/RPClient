@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.llm.catalog.model
 
-/** Provider 模型目录中可供用户选择的非敏感模型信息。 */
+/** 模型服务目录中可供用户选择的非敏感模型信息。 */
 data class LLMAvailableModel(
     val id: String,
     val displayName: String = id,

@@ -142,7 +142,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 --- END CONTINUATION GUIDANCE ---
 """
 
-    // 当前选中的模型供应商 ID。
+    // 当前选中的模型配置 ID。
     var currentLLMProvider by longPref()
 
     // 摘要专用模型配置 ID；0 表示跟随当前全局模型配置。

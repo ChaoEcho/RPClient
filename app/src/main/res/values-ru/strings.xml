@@ -26,13 +26,13 @@
     <string name="expand_session_group">Развернуть сессии</string>
     <string name="collapse_session_group">Свернуть сессии</string>
     <string name="setting_page_title">Настройки</string>
-    <string name="setting_subtitle">Провайдер, параметры генерации и поведение промпта</string>
+    <string name="setting_subtitle">Конфигурации моделей, параметры генерации и поведение промпта</string>
     <string name="prompt_and_memory_section">Промпты и память контекста</string>
     <string name="system_and_data_section">Данные и система</string>
-    <string name="model_provider">Провайдер моделей</string>
+    <string name="model_provider">Конфигурации моделей</string>
     <string name="manage">Управление</string>
     <string name="no_enabled_model">Нет включенных моделей</string>
-    <string name="go_to_model_manager">Перейдите в менеджер моделей, чтобы включить или создать провайдера</string>
+    <string name="go_to_model_manager">Откройте менеджер моделей, чтобы включить или создать конфигурацию</string>
     <string name="not_enabled">Не включено</string>
     <string name="pending_config">Ожидает настройки</string>
     <string name="available">Доступно</string>
@@ -117,6 +117,8 @@
     <string name="json_empty_node">Нет дочерних элементов</string>
     <string name="json_empty_node_desc">Этот узел JSON не содержит вложенных полей или элементов.</string>
     <string name="json_invalid_title">Некорректный JSON</string>
+    <string name="json_payload_unavailable">Данные JSON больше недоступны.</string>
+    <string name="json_invalid_desc">Не удалось распознать данные как корректный JSON.</string>
     <string name="json_type_object">объект</string>
     <string name="json_type_array">массив</string>
     <string name="json_type_string">строка</string>
@@ -285,7 +287,7 @@
     <string name="branch_session_title">%s (ветка)</string>
     <string name="branch_create_failed">Не удалось создать ветку</string>
     <string name="character_not_found">Персонаж не найден</string>
-    <string name="no_enabled_llm_provider_configured">Нет настроенного активного провайдера LLM</string>
+    <string name="no_enabled_llm_provider_configured">Нет включённой конфигурации модели</string>
     <string name="system_speaker">Система</string>
     <string name="message">Сообщение</string>
     <string name="unknown_lorebook">Неизвестный лорбук</string>
@@ -380,11 +382,14 @@
     <string name="world_book_entry_deleted">Запись удалена</string>
 
     <!-- LLM Provider List Layout -->
-    <string name="model_provider_title">Провайдер моделей</string>
+    <string name="model_provider_title">Конфигурации моделей</string>
     <string name="create_model">Создать модель</string>
     <string name="model_list_title">Список моделей</string>
     <string name="model_list_subtitle">Управление конфигурациями всех онлайн-моделей, статусом активности и типами протоколов</string>
     <string name="all_models">Все модели</string>
+    <string name="no_providers_title">Нет конфигураций моделей</string>
+    <string name="no_providers_subtitle">Добавьте облачный или локальный сервис модели, чтобы начать общение</string>
+    <string name="add_first_provider">Добавить конфигурацию</string>
     <string name="edit_world_book_title">Редактировать книгу мира</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -392,6 +397,12 @@
     <string name="edit_model_title">Редактировать модель</string>
     <string name="create_model_subtitle">Протокол, аутентификация, имя модели и параметры генерации</string>
     <string name="edit_model_subtitle">Протокол, аутентификация, имя модели и параметры генерации</string>
+    <string name="quick_presets">Быстрые шаблоны</string>
+    <string name="preset_custom">Пользовательский</string>
+    <string name="advanced_settings">Расширенные настройки</string>
+    <string name="advanced_settings_desc">Пользовательские заголовки, патч тела запроса и маршрутизация</string>
+    <string name="custom_headers_preview">Предпросмотр пользовательских заголовков</string>
+    <string name="request_body_patch_preview">Предпросмотр патча тела запроса</string>
     <string name="basic_info">Основная информация</string>
     <string name="name">Название</string>
     <string name="base_url">Базовый URL</string>
@@ -400,7 +411,7 @@
     <string name="query_models">Запросить модели</string>
     <string name="cancel_model_query">Отменить запрос моделей</string>
     <string name="querying_models">Запрос доступных моделей…</string>
-    <string name="model_manual_input_hint">Введите ID модели вручную или запросите список у поставщика</string>
+    <string name="model_manual_input_hint">Введите ID модели вручную или запросите список у сервиса модели</string>
     <string name="available_models_found">Доступно моделей: %1$d · Выбрать</string>
     <string name="no_available_models_returned">Модели для генерации текста не возвращены; ID всё равно можно ввести вручную</string>
     <string name="choose_model">Выбрать модель</string>
@@ -411,11 +422,16 @@
     <string name="enabled">Включено</string>
     <string name="enabled_desc">Появится в настройках главной страницы после включения</string>
     <string name="protocol">Протокол</string>
-    <string name="provider_type">Тип провайдера</string>
+    <string name="provider_type">Тип поставщика</string>
     <string name="provider_send_temperature">Отправлять temperature</string>
     <string name="provider_send_top_p">Отправлять top_p</string>
-    <string name="prompt_post_processing_provider_title">Постобработка промпта провайдера</string>
+    <string name="prompt_post_processing_provider_title">Постобработка промпта конфигурации модели</string>
     <string name="custom_headers_json">JSON пользовательских заголовков запроса</string>
+    <string name="request_body_patch_title">JSON-патч тела запроса</string>
+    <string name="request_body_patch_status_custom">Применён пользовательский JSON Merge Patch</string>
+    <string name="request_body_patch_status_default">Структура запроса по умолчанию ({})</string>
+    <string name="reset">Сбросить</string>
+    <string name="reset_to_default">Восстановить значения по умолчанию</string>
     <string name="save">Сохранить</string>
     <string name="model_test">Тест модели</string>
     <string name="send_short_message">Отправить короткое сообщение для проверки соединения</string>
@@ -428,6 +444,8 @@
     <string name="success">Успех</string>
     <string name="cancel">Отмена</string>
     <string name="confirm">Подтвердить</string>
+    <string name="decrease">Уменьшить</string>
+    <string name="increase">Увеличить</string>
     <string name="delete">Удалить</string>
     <string name="unsaved_changes_title">Отменить изменения?</string>
     <string name="unsaved_changes_message">У вас есть несохранённые изменения. Выход из страницы приведёт к их потере.</string>
@@ -447,7 +465,7 @@
     <string name="token_estimate_reserve_invalid">Резерв оценки токенов должен быть целым числом от 0 до 50</string>
     <string name="max_tokens_must_be_less_than_context">Максимальное число токенов должно быть меньше размера контекста</string>
     <string name="model_query_unsupported">Этот сервис не поддерживает запрос моделей. Введите ID модели вручную</string>
-    <string name="model_query_invalid_response">Поставщик вернул нераспознанный список моделей</string>
+    <string name="model_query_invalid_response">Сервис модели вернул нераспознанный список моделей</string>
     <string name="model_query_failed">Не удалось запросить доступные модели</string>
     <string name="character_name_empty">Имя персонажа не может быть пустым</string>
     <string name="character_created">Персонаж создан</string>
@@ -502,7 +520,7 @@
     <string name="prompt_editor_macro_title">Доступные макросы</string>
     <string name="prompt_editor_char_count">%1$d симв. · ~%2$d токенов</string>
     <string name="prompt_editor_clear">Очистить</string>
-    <string name="prompt_post_processing_desc">Переписывать исходящие сообщения перед тем, как их отправит адаптер провайдера.</string>
+    <string name="prompt_post_processing_desc">Переписывать исходящие сообщения перед отправкой адаптером сервиса модели.</string>
     <string name="prompt_post_processing_none">Нет</string>
     <string name="prompt_post_processing_none_desc">Отправлять сообщения ровно в том виде, в каком они были созданы.</string>
     <string name="prompt_post_processing_merge">Слияние</string>
@@ -708,6 +726,11 @@
     <string name="regex_name_required">Имя скрипта обязательно.</string>
     <string name="regex_placement_required">Выберите хотя бы одну позицию применения.</string>
     <string name="regex_depth_invalid">Глубина должна быть целым числом, а мин. глубина не может превышать макс. глубину.</string>
+    <string name="regex_find_required">Укажите регулярное выражение для поиска.</string>
+    <string name="regex_pattern_invalid">Некорректное регулярное выражение.</string>
+    <string name="regex_execution_invalid">Не удалось применить регулярное выражение.</string>
+    <string name="regex_changed">изменено</string>
+    <string name="regex_matched">совпадение</string>
     <string name="regex_import_success">Regex-скрипты импортированы</string>
     <string name="regex_import_failed">Не удалось импортировать Regex-скрипты</string>
     <string name="regex_export_success">Regex-скрипты экспортированы</string>
@@ -729,13 +752,13 @@
     <string name="credential_editor_privacy_note">Это значение хранится только в текущем редакторе до подтверждения. Закройте диалог, чтобы удалить неподтверждённый ввод.</string>
     <string name="api_key_required">API-ключ не может быть пустым. Используйте «Удалить», чтобы убрать его.</string>
     <string name="custom_headers_json_invalid">Пользовательские заголовки должны быть корректным объектом JSON.</string>
-    <string name="generation_error_no_provider">Нет доступного включённого поставщика модели.</string>
+    <string name="generation_error_no_provider">Нет доступной включённой конфигурации модели.</string>
     <string name="generation_error_prompt_budget">Требуемый промпт (%1$d токенов) превышает доступный бюджет ввода (%2$d токенов).</string>
-    <string name="generation_error_unauthorized">Поставщик модели отклонил учётные данные.</string>
-    <string name="generation_error_forbidden">Поставщик модели отклонил этот запрос.</string>
-    <string name="generation_error_rate_limited">Поставщик модели занят. Повторите попытку позже.</string>
-    <string name="generation_error_http">Поставщик модели вернул HTTP %1$d.</string>
-    <string name="generation_error_network">Не удалось связаться с поставщиком модели. Проверьте сеть и повторите попытку.</string>
+    <string name="generation_error_unauthorized">Сервис модели отклонил учётные данные.</string>
+    <string name="generation_error_forbidden">Сервис модели отклонил этот запрос.</string>
+    <string name="generation_error_rate_limited">Сервис модели занят. Повторите попытку позже.</string>
+    <string name="generation_error_http">Сервис модели вернул HTTP %1$d.</string>
+    <string name="generation_error_network">Не удалось связаться с сервисом модели. Проверьте сеть и повторите попытку.</string>
     <string name="generation_error_empty_response">Модель вернула пустой ответ.</string>
     <string name="data_management">Управление данными</string>
     <string name="import_chat">Импортировать чат</string>
@@ -827,12 +850,12 @@
     <string name="story_undo">Отменить последнее изменение</string>
     <string name="story_redo">Повторить последнее изменение</string>
     <string name="story_discard">Удалить</string>
-    <string name="story_generation_failed">Не удалось запустить ИИ. Проверьте провайдера и настройки контекста.</string>
-    <string name="story_generation_provider_failed">Провайдер не завершил операцию. Частичный текст не вставлен.</string>
-    <string name="story_generation_provider_failed_without_partial">Провайдер не завершил операцию. Текст не был изменён.</string>
+    <string name="story_generation_failed">Не удалось запустить ИИ. Проверьте конфигурацию модели и настройки контекста.</string>
+    <string name="story_generation_provider_failed">Сервис модели не завершил операцию. Частичный текст не вставлен.</string>
+    <string name="story_generation_provider_failed_without_partial">Сервис модели не завершил операцию. Текст не был изменён.</string>
     <string name="story_generation_apply_failed">Созданный текст получен, но его не удалось применить. Текст не был изменён.</string>
     <string name="story_generation_conflict">Рукопись изменилась до применения результата. Текст не вставлен.</string>
-    <string name="story_generation_empty">Провайдер не вернул пригодный текст.</string>
+    <string name="story_generation_empty">Сервис модели не вернул пригодный текст.</string>
     <string name="story_generation_budget">Обязательный контекст превышает лимит ввода. Сократите выделение, указание для продолжения, Memory, заметку автора или персонажей.</string>
     <string name="story_generation_largest_characters">Самые крупные активные персонажи: %1$s</string>
     <string name="story_insert_partial">Вставить часть</string>
@@ -874,7 +897,7 @@
     <string name="story_summarize_now">Обновить с помощью ИИ</string>
     <string name="story_summarizing">Создание сводки сюжета…</string>
     <string name="story_summary_empty_document">Сначала напишите текст рукописи</string>
-    <string name="story_summary_failed">Не удалось суммаризировать историю. Проверьте провайдера и контекст.</string>
+    <string name="story_summary_failed">Не удалось суммаризировать историю. Проверьте конфигурацию модели и контекст.</string>
     <string name="story_summary_conflict">Во время суммаризации рукопись изменилась. Создайте сводку заново.</string>
     <string name="story_summary_updated">Сводка сюжета обновлена</string>
     <string name="prompt_story_summarize_title">Промпт сводки сюжета</string>
@@ -887,10 +910,10 @@
     <string name="request_body_patch_editor_title">Изменить патч тела запроса</string>
     <string name="request_body_patch_editor_note">Введите JSON-объект с семантикой JSON Merge Patch. null удаляет поле, объекты рекурсивно объединяются, а массивы заменяются целиком. Используйте &quot;$rpclient.routing_session_id&quot; как значение поля, чтобы вставить стабильный анонимный ID маршрутизации текущего диалога.</string>
     <string name="request_body_patch_invalid">Патч тела запроса должен быть допустимым JSON-объектом, использовать поддерживаемые системные переменные и не переопределять защищённые поля.</string>
-    <string name="openrouter_preferred_provider">Предпочитать указанного провайдера OpenRouter</string>
-    <string name="openrouter_provider_slug">Идентификатор провайдера (например, deepinfra)</string>
-    <string name="openrouter_allow_fallbacks">Разрешить резервного провайдера</string>
-    <string name="openrouter_session_affinity_note">В режиме Auto RPClient отправляет стабильный анонимный ID сессии для каждого диалога, чтобы включить закреплённую маршрутизацию. Включённый порядок предпочитаемых провайдеров имеет приоритет.</string>
+    <string name="openrouter_preferred_provider">Предпочитать указанного вышестоящего поставщика OpenRouter</string>
+    <string name="openrouter_provider_slug">Идентификатор вышестоящего поставщика (например, deepinfra)</string>
+    <string name="openrouter_allow_fallbacks">Разрешить резервного вышестоящего поставщика</string>
+    <string name="openrouter_session_affinity_note">В режиме Auto RPClient отправляет стабильный анонимный ID сессии для каждого диалога, чтобы включить закреплённую маршрутизацию. Включённый порядок предпочитаемых вышестоящих поставщиков имеет приоритет.</string>
     <string name="add_tag">Добавить тег</string>
     <string name="add_keyword">Добавить ключевое слово</string>
     <string name="add_category">Добавить категорию</string>

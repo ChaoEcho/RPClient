@@ -19,7 +19,7 @@ internal fun JsonObject.stringOrNull(name: String): String? {
         ?.takeIf { it.isNotBlank() }
 }
 
-/** 读取可信的正整数限制；零、负数和类型错误均视为 Provider 未声明限制。 */
+/** 读取可信的正整数限制；零、负数和类型错误均视为模型服务未声明限制。 */
 internal fun JsonObject.positiveIntOrNull(name: String): Int? {
     val element = get(name)?.takeUnless { it.isJsonNull } ?: return null
     return runCatching { element.asInt }
@@ -33,7 +33,7 @@ internal fun JsonObject.arrayOrNull(name: String): JsonArray? {
     return element.takeIf { it.isJsonArray }?.asJsonArray
 }
 
-/** 仅在字段确实为对象时返回值，用于读取可选的 Provider 扩展结构。 */
+/** 仅在字段确实为对象时返回值，用于读取可选的模型服务扩展结构。 */
 internal fun JsonObject.objectOrNull(name: String): JsonObject? {
     val element = get(name)?.takeUnless { it.isJsonNull } ?: return null
     return element.takeIf { it.isJsonObject }?.asJsonObject

@@ -35,7 +35,7 @@ sealed class MainUserAvatarState {
     data class Configured(val image: ImageBitmap?) : MainUserAvatarState()
 }
 
-/** Provider 面板状态；生成参数只在至少存在一个可用 Provider 时进入状态树。 */
+/** 模型配置面板状态；生成参数只在至少存在一个可用模型配置时进入状态树。 */
 sealed class MainProviderSettingsState {
     data object Empty : MainProviderSettingsState()
 
@@ -46,7 +46,7 @@ sealed class MainProviderSettingsState {
     ) : MainProviderSettingsState()
 }
 
-/** 当前 Provider 的生成参数快照。 */
+/** 当前模型配置的生成参数快照。 */
 data class MainGenerationParametersState(
     val temperature: Float,
     val topP: Float,
@@ -63,7 +63,7 @@ data class MainPromptBehaviorState(
     val streamEnabled: Boolean
 )
 
-/** 仅在存在当前 Provider 时允许修改其 Prompt 后处理模式。 */
+/** 仅在存在当前模型配置时允许修改其 Prompt 后处理模式。 */
 sealed class MainProviderPostProcessingState {
     data object Unavailable : MainProviderPostProcessingState()
     data class Available(

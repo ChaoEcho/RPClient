@@ -248,7 +248,7 @@ internal fun cleanContentString(value: String): String {
  * 返回 OpenAI-compatible 请求的输出 Token 上限字段。
  *
  * OpenAI 官方接口已用 max_completion_tokens 取代 max_tokens；第三方兼容服务可能尚未
- * 实现新字段，因此只对明确的 ChatGPT Provider 使用新名称。
+ * 实现新字段，因此只对供应商类型明确为 ChatGPT 的模型配置使用新名称。
  */
 internal fun openAICompatibleTokenLimitField(providerType: LLMProviderType): String {
     return if (providerType == LLMProviderType.ChatGPT) {

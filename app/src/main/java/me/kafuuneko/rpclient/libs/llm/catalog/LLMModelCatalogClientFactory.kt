@@ -7,7 +7,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import okhttp3.OkHttpClient
 
-/** 根据 Provider 协议创建模型目录适配器。 */
+/** 根据模型配置的协议创建模型目录适配器。 */
 class LLMModelCatalogClientFactory(
     private val mOkHttpClient: OkHttpClient
 ) {

@@ -6,7 +6,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 
-/** 将生成异常转换为不包含供应商响应、请求内容或凭据的本地化消息。 */
+/** 将生成异常转换为不包含模型服务响应、请求内容或凭据的本地化消息。 */
 internal fun Throwable.toGenerationFailureMessage(
     context: Context,
     @StringRes fallbackMessageResId: Int

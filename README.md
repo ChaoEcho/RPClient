@@ -14,7 +14,7 @@
 
 ## Overview
 
-RPClient is built with Kotlin and Jetpack Compose to provide a complete and controllable AI role-playing experience on Android devices. Chat histories, characters, lorebooks, and app settings are stored locally by default, while model requests are sent directly to the provider configured by the user.
+RPClient is built with Kotlin and Jetpack Compose to provide a complete and controllable AI role-playing experience on Android devices. Chat histories, characters, lorebooks, and app settings are stored locally by default, while model requests are sent directly to the model service selected by the user.
 
 The project draws on SillyTavern's ecosystem for character cards, lorebooks, prompts, and Regex scripts, and provides corresponding import, export, and compatibility features. RPClient is not an Android port of SillyTavern, and some advanced fields and runtime behaviors may differ.
 
@@ -86,13 +86,13 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 ## Quick Start
 
 1. Install and open RPClient.
-2. Go to "Settings > Model Providers" and select an existing template or create a new provider.
-3. Enter the API key, model name, and service URL. Test the connection, then enable the provider.
+2. Go to "Settings > Model Configurations" and select an existing template or create a new configuration.
+3. Enter the API key, model name, and service URL. Test the connection, then enable the configuration.
 4. Create a character or import an existing JSON/PNG character card.
 5. Import lorebooks and associate them with characters as needed.
 6. Create a one-on-one chat or group chat, or open "Story Writing" to create a continuous manuscript.
 
-API keys are stored only on the device, but they are sent to the configured provider with model requests. Only use API endpoints and proxy services that you trust.
+API keys are stored only on the device, but they are sent to the configured model service with model requests. Only use API endpoints and proxy services that you trust.
 
 ## AI Coding Guide
 
@@ -106,12 +106,12 @@ Issues and pull requests are welcome. Before making changes, please review the [
 
 Before submitting code, please ensure that the project can at least be built successfully.
 
-When reporting compatibility issues, include sanitized character cards, lorebooks, or Regex JSON where possible, along with the provider protocol, model name, and reproduction steps. Do not disclose API keys, private conversations, or character resources without authorization in an issue.
+When reporting compatibility issues, include sanitized character cards, lorebooks, or Regex JSON where possible, along with the API protocol, model name, and reproduction steps. Do not disclose API keys, private conversations, or character resources without authorization in an issue.
 
 ## Privacy and Disclaimer
 
 - RPClient does not provide model services. Users are responsible for API usage fees and generated content.
-- Request content is sent to the model provider configured by the user. Review the provider's privacy policy before use.
+- Request content is sent to the model service selected by the user. Review the service provider's privacy policy before use.
 - This project is not affiliated with or officially partnered with SillyTavern, OpenAI, Google, Anthropic, DeepSeek, xAI, or OpenRouter.
 - Copyright and usage permissions for character cards, lorebooks, and other imported content are the responsibility of their providers and users.
 

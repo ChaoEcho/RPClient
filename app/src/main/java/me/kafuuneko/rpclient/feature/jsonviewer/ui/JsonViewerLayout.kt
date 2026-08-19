@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerEntry
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
+import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerErrorReason
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -154,7 +155,12 @@ private fun ErrorView(
                     modifier = Modifier.fillMaxWidth(),
                     icon = Icons.Rounded.DataObject,
                     title = stringResource(R.string.json_invalid_title),
-                    subtitle = uiState.message
+                    subtitle = stringResource(
+                        when (uiState.reason) {
+                            JsonViewerErrorReason.PayloadUnavailable -> R.string.json_payload_unavailable
+                            JsonViewerErrorReason.InvalidJson -> R.string.json_invalid_desc
+                        }
+                    )
                 )
             }
             if (uiState.rawPreview.isNotBlank()) {

@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.jsonviewer
 
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerEntry
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
+import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerErrorReason
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.libs.core.CoreViewModel
@@ -32,7 +33,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         if (payload == null) {
             JsonViewerUiState.Error(
                 title = "",
-                message = "JSON payload is not available.",
+                reason = JsonViewerErrorReason.PayloadUnavailable,
                 rawPreview = ""
             ).setup()
             return
@@ -43,7 +44,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         if (parsed.isFailure) {
             JsonViewerUiState.Error(
                 title = mTitle,
-                message = "Invalid JSON.",
+                reason = JsonViewerErrorReason.InvalidJson,
                 rawPreview = payload.json.toPreview()
             ).setup()
             return

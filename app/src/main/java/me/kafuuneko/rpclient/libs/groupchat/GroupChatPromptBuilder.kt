@@ -831,7 +831,7 @@ class GroupChatPromptBuilder(
     /**
      * 构建 Continue 或 Impersonate 模式位于请求末尾的唯一任务提示。
      *
-     * 两种特殊模式统一使用 user 角色，使所有供应商都接收到明确且位于末尾的生成目标。
+     * 两种特殊模式统一使用 user 角色，使所有模型服务都接收到明确且位于末尾的生成目标。
      */
     private fun buildGenerationControlDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         val content = when (context.generationMode) {

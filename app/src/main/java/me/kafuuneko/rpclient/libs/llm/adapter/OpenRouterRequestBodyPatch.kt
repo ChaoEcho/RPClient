@@ -41,7 +41,7 @@ internal fun String.readOpenRouterRoutingPreferences(): OpenRouterRoutingPrefere
     )
 }
 
-/** 开关首选供应商快捷配置，同时保留 Patch 中其他未知字段。 */
+/** 开关首选上游供应商快捷配置，同时保留 Patch 中其他未知字段。 */
 internal fun String.withOpenRouterPreferredProviderEnabled(enabled: Boolean): String =
     updateOpenRouterPatch { provider ->
         if (enabled) {
@@ -55,7 +55,7 @@ internal fun String.withOpenRouterPreferredProviderEnabled(enabled: Boolean): St
         }
     }
 
-/** 更新首选供应商 slug，同时保留 Patch 中其他未知字段。 */
+/** 更新首选上游供应商 slug，同时保留 Patch 中其他未知字段。 */
 internal fun String.withOpenRouterPreferredProvider(value: String): String =
     updateOpenRouterPatch { provider ->
         provider.add("order", JsonArray().apply { add(value.trim()) })

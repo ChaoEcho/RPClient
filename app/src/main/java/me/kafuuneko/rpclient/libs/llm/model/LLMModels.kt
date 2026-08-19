@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.model
 
-/** 新供应商为模型回复预留的默认 Token 数。 */
+/** 新模型配置为模型回复预留的默认 Token 数。 */
 const val DEFAULT_LLM_MAX_TOKENS = 8192
 
-/** 新供应商用于输入与输出的默认总上下文预算。 */
+/** 新模型配置用于输入与输出的默认总上下文预算。 */
 const val DEFAULT_LLM_CONTEXT_TOKENS = 32768
 
 /** 高级请求 JSON 中用于引用稳定匿名会话路由 ID 的系统变量名。 */
@@ -47,7 +47,7 @@ enum class LLMProviderType {
 }
 
 /**
- * 供应商实际使用的 HTTP 协议。
+ * 模型配置实际使用的 HTTP 协议。
  *
  * ChatGPT、DeepSeek、OpenRouter 以及大多数第三方网关都归入 OpenAICompatible。
  */
@@ -58,7 +58,7 @@ enum class LLMProviderProtocol {
 }
 
 /**
- * LLM 模块运行时使用的 Provider 配置
+ * LLM 模块运行时使用的模型配置。
  */
 data class LLMProviderConfig(
     val name: String,
@@ -96,7 +96,7 @@ data class LLMMessage(
 )
 
 /**
- * 通用生成参数。为空时使用当前 Provider 的默认配置。
+ * 通用生成参数。为空时使用当前模型配置的默认值。
  */
 data class LLMGenerationOptions(
     val temperature: Float? = null,
@@ -105,7 +105,7 @@ data class LLMGenerationOptions(
     val stop: List<String> = emptyList()
 )
 
-/** 已按 Provider 能力开关收敛的实际请求参数。 */
+/** 已按模型配置的能力开关收敛的实际请求参数。 */
 data class ResolvedLLMGenerationOptions(
     val temperature: Float?,
     val maxTokens: Int,
@@ -113,7 +113,7 @@ data class ResolvedLLMGenerationOptions(
     val stop: List<String>
 )
 
-/** 将业务请求参数与 Provider 默认值合并，并过滤未启用的可选参数。 */
+/** 将业务请求参数与模型配置默认值合并，并过滤未启用的可选参数。 */
 fun LLMGenerationOptions.resolveFor(
     provider: LLMProviderConfig
 ): ResolvedLLMGenerationOptions {
@@ -137,14 +137,14 @@ data class LLMGenerationRequest(
     val model: String? = null,
     val options: LLMGenerationOptions = LLMGenerationOptions(),
     val includeReasoningInContent: Boolean = false,
-    /** 请求模板可用于会话粘性路由的不透明 ID；字段位置由 Provider 配置决定。 */
+    /** 请求模板可用于会话粘性路由的不透明 ID；字段位置由模型配置决定。 */
     val routingSessionId: String? = null,
     /** 已完成宏展开、后处理和最终上下文预算，不应在 Repository 中再次改写。 */
     val isPromptFinalized: Boolean = false
 )
 
 /**
- * Token 用量信息。不同供应商字段不完全一致，因此允许为空。
+ * Token 用量信息。不同模型服务的字段不完全一致，因此允许为空。
  */
 data class LLMUsage(
     val promptTokens: Int? = null,
@@ -160,7 +160,7 @@ data class LLMGenerationResponse(
     val model: String,
     val provider: LLMProviderType,
     val usage: LLMUsage? = null,
-    /** 供应商给出的停止原因，用于区分正常完成、长度限制和空响应。 */
+    /** 模型服务给出的停止原因，用于区分正常完成、长度限制和空响应。 */
     val finishReason: String? = null,
     val rawResponse: String
 )
@@ -178,7 +178,7 @@ sealed class LLMStreamEvent {
     ) : LLMStreamEvent()
 
     /**
-     * 供应商明确返回的完成事件。
+     * 模型服务明确返回的完成事件。
      */
     data class Finished(
         val rawChunk: String? = null,

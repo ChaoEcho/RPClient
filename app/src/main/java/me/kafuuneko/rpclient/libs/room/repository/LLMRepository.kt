@@ -31,22 +31,22 @@ internal const val DEFAULT_GROK_MODEL = "grok-4.5-latest"
 internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 
 /**
- * 模型供应商配置与生成调用的统一业务入口。
+ * 模型配置与生成调用的统一业务入口。
  *
- * 该类负责默认供应商初始化、当前供应商同步和 Prompt 最终化兜底；
+ * 该类负责默认模型配置初始化、当前模型配置同步和 Prompt 最终化兜底；
  * HTTP 协议细节由 [LLMClientFactory] 创建的适配器承担。
  */
 class LLMRepository(
     private val mAppDatabase: AppDatabase,
     private val mLLMClientFactory: LLMClientFactory
 ) {
-    /** 供应商表访问入口，仅在 Repository 内暴露。 */
+    /** 模型配置表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
     private val mCharacterLLMProviderAssociationDao =
         mAppDatabase.getCharacterLLMProviderAssociationDao()
 
     /**
-     * 获取所有模型供应商配置。首次访问时会初始化常见在线模型默认配置。
+     * 获取所有模型配置。首次访问时会初始化常见在线模型默认配置。
      */
     suspend fun getAllProviders(): List<LLMProvider> {
         ensureDefaultProviders()
@@ -54,7 +54,7 @@ class LLMRepository(
     }
 
     /**
-     * 获取已启用的模型供应商配置。
+     * 获取已启用的模型配置。
      */
     suspend fun getEnabledProviders(): List<LLMProvider> {
         ensureDefaultProviders()
@@ -62,7 +62,7 @@ class LLMRepository(
     }
 
     /**
-     * 根据 id 获取供应商配置。
+     * 根据 id 获取模型配置。
      */
     suspend fun getProviderById(id: Long): LLMProvider? {
         ensureDefaultProviders()
@@ -70,9 +70,9 @@ class LLMRepository(
     }
 
     /**
-     * 获取当前选中的已启用供应商。
+     * 获取当前选中的已启用模型配置。
      *
-     * 此处刻意不自动回退到其他供应商，避免一次生成请求在用户不知情时切换模型。
+     * 此处刻意不自动回退到其他模型配置，避免一次生成请求在用户不知情时切换模型。
      */
     suspend fun getSelectedProvider(): LLMProvider? {
         ensureDefaultProviders()
@@ -87,7 +87,7 @@ class LLMRepository(
     }
 
     /**
-     * 保存供应商配置。
+     * 保存模型配置。
      */
     suspend fun saveProvider(provider: LLMProvider): Long {
         val now = System.currentTimeMillis()
@@ -103,14 +103,14 @@ class LLMRepository(
     }
 
     /**
-     * 将指定供应商设为当前选中项。
+     * 将指定模型配置设为当前选中项。
      */
     fun updateCurrentProvider(id: Long) {
         AppModel.currentLLMProvider = id
     }
 
     /**
-     * 启用或停用供应商。
+     * 启用或停用模型配置。
      */
     suspend fun updateProviderEnabled(id: Long, isEnabled: Boolean) {
         mLLMProviderDao.updateProviderEnabled(id, isEnabled)
@@ -123,9 +123,9 @@ class LLMRepository(
     }
 
     /**
-     * 删除供应商配置，并让所有绑定角色及摘要设置恢复跟随全局模型。
+     * 删除模型配置，并让所有绑定角色及摘要设置恢复跟随全局模型。
      *
-     * 角色关联和 Provider 记录必须在同一 Room 事务内删除，避免留下悬空引用；
+     * 角色关联和模型配置记录必须在同一 Room 事务内删除，避免留下悬空引用；
      * 摘要模型保存在 Kotpref 中，只能在数据库事务成功后单独清理。
      */
     suspend fun deleteProvider(id: Long) {
@@ -141,10 +141,10 @@ class LLMRepository(
     }
 
     /**
-     * 同步当前选中的模型供应商。
+     * 同步当前选中的模型配置。
      *
-     * 当已有当前供应商且仍然启用时，不会覆盖用户选择；仅在当前供应商为空、
-     * 已删除或被禁用时，才优先切换到本次启用/保存的供应商，否则回退到第一个已启用供应商。
+     * 当已有当前模型配置且仍然启用时，不会覆盖用户选择；仅在当前模型配置为空、
+     * 已删除或被禁用时，才优先切换到本次启用/保存的配置，否则回退到第一个已启用配置。
      */
     private suspend fun syncCurrentProvider(preferredProviderId: Long? = null) {
         preferredProviderId
@@ -171,7 +171,7 @@ class LLMRepository(
     }
 
     /**
-     * 使用指定供应商进行一次性生成。
+     * 使用指定模型配置进行一次性生成。
      */
     suspend fun generate(providerId: Long, request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = mLLMProviderDao.getProviderById(providerId)
@@ -182,7 +182,7 @@ class LLMRepository(
     }
 
     /**
-     * 使用当前选中的供应商进行一次性生成。
+     * 使用当前选中的模型配置进行一次性生成。
      */
     suspend fun generateWithSelectedProvider(
         request: LLMGenerationRequest,
@@ -194,7 +194,7 @@ class LLMRepository(
         ).requireNonEmptyContent()
     }
 
-    /** 使用调用方指定的供应商生成，并可为网关附加稳定的业务会话路由键。 */
+    /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
     suspend fun generateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
@@ -206,7 +206,7 @@ class LLMRepository(
     }
 
     /**
-     * 使用指定供应商进行流式生成。
+     * 使用指定模型配置进行流式生成。
      */
     suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = mLLMProviderDao.getProviderById(providerId)
@@ -217,7 +217,7 @@ class LLMRepository(
     }
 
     /**
-     * 使用当前选中的供应商进行流式生成。
+     * 使用当前选中的模型配置进行流式生成。
      */
     suspend fun streamGenerateWithSelectedProvider(
         request: LLMGenerationRequest,
@@ -230,7 +230,7 @@ class LLMRepository(
     }
 
     /**
-     * 使用临时供应商配置进行流式生成，适合编辑页保存前测试。
+     * 使用临时模型配置进行流式生成，适合编辑页保存前测试。
      */
     fun streamGenerateWithProvider(
         provider: LLMProvider,
@@ -265,7 +265,7 @@ class LLMRepository(
     }
 
     /**
-     * 首次启动时写入常用在线模型供应商模板。
+     * 首次启动时写入常用在线模型配置模板。
      */
     private suspend fun ensureDefaultProviders() {
         if (AppModel.llmDefaultProvidersInitialized) return
@@ -282,7 +282,7 @@ class LLMRepository(
 }
 
 /**
- * 默认供应商列表。API Key 留空，用户配置后即可启用真实请求。
+ * 默认模型配置列表。API Key 留空，用户配置后即可启用真实请求。
  */
 internal fun createDefaultLLMProviders(
     now: Long = System.currentTimeMillis()

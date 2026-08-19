@@ -61,7 +61,7 @@ internal suspend fun OkHttpClient.await(request: Request): String {
 }
 
 /**
- * 按行读取 SSE/行流响应。调用方负责解析各供应商的 data 内容。
+ * 按行读取 SSE/行流响应。调用方负责解析各模型服务的 data 内容。
  */
 internal fun OkHttpClient.streamLines(request: Request): Flow<String> = flow {
     val response = withContext(Dispatchers.IO) { newCall(request).execute() }
@@ -187,7 +187,7 @@ internal fun List<LLMMessage>.toAlternatingConversationMessages(
 }
 
 /**
- * 标准化 Provider baseUrl，避免拼接路径时出现重复斜杠。
+ * 标准化模型配置的 baseUrl，避免拼接路径时出现重复斜杠。
  */
 internal fun LLMProviderConfig.normalizedBaseUrl(): String {
     return baseUrl.trim().trimEnd('/')
@@ -205,7 +205,7 @@ internal fun LLMProviderConfig.customHeaders(): Map<String, String> {
 }
 
 /**
- * 将 Provider 自定义请求头应用到当前请求。
+ * 将模型配置的自定义请求头应用到当前请求。
  */
 internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): Request.Builder {
     provider.customHeaders().forEach { (key, value) -> header(key, value) }

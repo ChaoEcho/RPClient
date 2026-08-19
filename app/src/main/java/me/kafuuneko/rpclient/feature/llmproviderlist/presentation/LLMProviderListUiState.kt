@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.llmproviderlist.presentation
 
 import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
 
-/** 模型供应商列表页状态。 */
+/** 模型配置列表页状态。 */
 sealed class LLMProviderListUiState {
     data object None : LLMProviderListUiState()
 
@@ -34,7 +34,7 @@ sealed class LLMProviderListDialogState {
     ) : LLMProviderListDialogState()
 }
 
-/** 供应商配置加载或启停更新状态。 */
+/** 模型配置加载或启停更新状态。 */
 sealed class LLMProviderListLoadState {
     data object None : LLMProviderListLoadState()
     data object Loading : LLMProviderListLoadState()

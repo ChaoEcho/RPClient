@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 /**
  * 调试模式下保存的原始 LLM 请求与响应。
  *
- * 记录可能包含 Prompt 或供应商返回内容，仅用于本地排障，不应在普通模式写入或参与备份。
+ * 记录可能包含 Prompt 或模型服务返回内容，仅用于本地排障，不应在普通模式写入或参与备份。
  */
 @Entity(tableName = "llm_request_logs")
 data class LLMRequestLog(
@@ -16,9 +16,9 @@ data class LLMRequestLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 创建时间
     val createTime: Long = System.currentTimeMillis(),
-    // Provider 名称
+    // 模型配置名称
     val providerName: String,
-    // Provider 类型
+    // 供应商类型
     val providerType: LLMProviderType,
     // 请求协议
     val protocol: LLMProviderProtocol,

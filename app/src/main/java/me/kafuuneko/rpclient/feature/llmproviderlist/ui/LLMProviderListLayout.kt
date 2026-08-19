@@ -70,7 +70,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
-/** 模型供应商列表页 Compose 入口。 */
+/** 模型配置列表页 Compose 入口。 */
 @Composable
 fun LLMProviderListLayout(
     uiState: LLMProviderListUiState,
@@ -507,4 +507,3 @@ private fun LLMProviderListEmptyPreview() {
         )
     }
 }
-

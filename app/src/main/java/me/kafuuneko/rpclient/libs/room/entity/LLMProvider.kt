@@ -9,10 +9,10 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
-/** 持久化的 LLM Provider 配置和默认生成参数。 */
+/** 持久化的模型配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
 data class LLMProvider(
-    // Provider 主键
+    // 模型配置主键
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 展示名称
     val name: String,
@@ -39,14 +39,14 @@ data class LLMProvider(
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     // 默认上下文 Token 预算
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
-    // 代理 Tokenizer 的本地预算预留率，不会发送给供应商。
+    // 代理 Tokenizer 的本地预算预留率，不会发送给模型服务。
     @ColumnInfo(defaultValue = "15")
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
     // 是否在请求中显式发送 temperature。
     val sendTemperature: Boolean = true,
     // 是否在请求中显式发送 top_p。
     val sendTopP: Boolean = true,
-    // 当前 Provider 独立使用的 Prompt 后处理模式 ordinal。
+    // 当前模型配置独立使用的 Prompt 后处理模式 ordinal。
     val promptPostProcessingMode: Int = 0,
     // 是否启用
     val isEnabled: Boolean = true,

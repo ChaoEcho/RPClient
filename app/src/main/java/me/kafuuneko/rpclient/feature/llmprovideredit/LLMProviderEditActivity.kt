@@ -11,7 +11,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.ui.LLMProviderEditLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
-/** 模型供应商创建与编辑页面宿主。 */
+/** 模型配置创建与编辑页面宿主。 */
 class LLMProviderEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<LLMProviderEditViewModel>()
 

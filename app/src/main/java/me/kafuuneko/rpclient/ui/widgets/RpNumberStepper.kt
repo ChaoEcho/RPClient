@@ -102,7 +102,7 @@ fun RpNumberStepper(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Remove,
-                        contentDescription = "减少",
+                        contentDescription = stringResource(R.string.decrease),
                         tint = if (enabled && currentValue > min) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -136,7 +136,7 @@ fun RpNumberStepper(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Add,
-                        contentDescription = "增加",
+                        contentDescription = stringResource(R.string.increase),
                         tint = if (enabled && currentValue < max) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                         modifier = Modifier.size(18.dp)
                     )

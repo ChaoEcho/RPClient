@@ -33,7 +33,7 @@ data class StoryPromptBuildResult(
     val activeCharacters: List<ActiveStoryCharacter>
 )
 
-/** 必需故事上下文超过 Provider 可用 Prompt 预算。 */
+/** 必需故事上下文超过模型配置的可用 Prompt 预算。 */
 class StoryPromptBudgetException(
     val requiredTokens: Int,
     val promptBudget: Int,

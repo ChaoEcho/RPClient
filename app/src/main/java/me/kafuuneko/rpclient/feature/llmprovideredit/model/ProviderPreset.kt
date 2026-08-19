@@ -9,7 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
 /**
- * 常用模型供应商预设模板，用于快速填入标准接入参数。
+ * 常用模型配置预设模板，用于快速填入标准接入参数。
  */
 enum class ProviderPreset(
     val displayName: String,

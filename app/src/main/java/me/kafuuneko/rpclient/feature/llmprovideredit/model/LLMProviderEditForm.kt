@@ -15,7 +15,7 @@ import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
 
 /**
- * LLM Provider 编辑页的可渲染表单。
+ * 模型配置编辑页的可渲染表单。
  *
  * 密钥和自定义请求头只以“是否已配置”的形式出现，原文由 ViewModel 私有持有。
  */

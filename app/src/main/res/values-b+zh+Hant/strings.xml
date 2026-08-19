@@ -25,13 +25,13 @@
     <string name="expand_session_group">展開會話</string>
     <string name="collapse_session_group">折疊會話</string>
     <string name="setting_page_title">設定</string>
-    <string name="setting_subtitle">提供者、生成參數和提示詞行為</string>
+    <string name="setting_subtitle">模型設定、生成參數和提示詞行為</string>
     <string name="prompt_and_memory_section">提示詞與上下文記憶</string>
     <string name="system_and_data_section">資料與系統</string>
-    <string name="model_provider">模型提供者</string>
+    <string name="model_provider">模型設定</string>
     <string name="manage">管理</string>
     <string name="no_enabled_model">沒有已啟用的模型</string>
-    <string name="go_to_model_manager">前往模型管理器啟用或建立提供者</string>
+    <string name="go_to_model_manager">前往模型管理器啟用或建立模型設定</string>
     <string name="not_enabled">未啟用</string>
     <string name="pending_config">待設定</string>
     <string name="available">可用</string>
@@ -116,6 +116,8 @@
     <string name="json_empty_node">沒有子項</string>
     <string name="json_empty_node_desc">目前 JSON 節點沒有巢狀欄位或項目。</string>
     <string name="json_invalid_title">JSON 無效</string>
+    <string name="json_payload_unavailable">JSON 資料已無法使用。</string>
+    <string name="json_invalid_desc">無法將資料解析為有效的 JSON。</string>
     <string name="json_type_object">物件</string>
     <string name="json_type_array">陣列</string>
     <string name="json_type_string">字串</string>
@@ -284,7 +286,7 @@
     <string name="branch_session_title">%s（分支）</string>
     <string name="branch_create_failed">建立分支失敗</string>
     <string name="character_not_found">找不到角色</string>
-    <string name="no_enabled_llm_provider_configured">未設定已啟用的 LLM 提供者</string>
+    <string name="no_enabled_llm_provider_configured">未設定已啟用的模型設定</string>
     <string name="system_speaker">系統</string>
     <string name="message">訊息</string>
     <string name="unknown_lorebook">未知世界書</string>
@@ -379,11 +381,14 @@
     <string name="world_book_entry_deleted">條目已刪除</string>
 
     <!-- LLM Provider List Layout -->
-    <string name="model_provider_title">模型提供者</string>
+    <string name="model_provider_title">模型設定</string>
     <string name="create_model">建立模型</string>
     <string name="model_list_title">模型列表</string>
     <string name="model_list_subtitle">管理所有線上模型設定、啟用狀態和協定類型</string>
     <string name="all_models">全部模型</string>
+    <string name="no_providers_title">暫無模型設定</string>
+    <string name="no_providers_subtitle">新增線上或本機模型服務，開始角色扮演與對話</string>
+    <string name="add_first_provider">新增模型設定</string>
     <string name="edit_world_book_title">編輯世界書</string>
 
     <!-- LLM Provider Edit Layout -->
@@ -391,6 +396,12 @@
     <string name="edit_model_title">編輯模型</string>
     <string name="create_model_subtitle">協定、驗證、模型名稱和生成參數</string>
     <string name="edit_model_subtitle">協定、驗證、模型名稱和生成參數</string>
+    <string name="quick_presets">快速預設</string>
+    <string name="preset_custom">自訂</string>
+    <string name="advanced_settings">進階與擴充設定</string>
+    <string name="advanced_settings_desc">自訂請求標頭、請求主體 Patch 與路由設定</string>
+    <string name="custom_headers_preview">自訂請求標頭預覽</string>
+    <string name="request_body_patch_preview">請求主體 Patch 預覽</string>
     <string name="basic_info">基本資訊</string>
     <string name="name">名稱</string>
     <string name="base_url">Base URL</string>
@@ -399,7 +410,7 @@
     <string name="query_models">查詢模型</string>
     <string name="cancel_model_query">取消模型查詢</string>
     <string name="querying_models">正在查詢可用模型…</string>
-    <string name="model_manual_input_hint">手動輸入模型 ID，或向供應商查詢</string>
+    <string name="model_manual_input_hint">手動輸入模型 ID，或向模型服務查詢</string>
     <string name="available_models_found">已查詢到 %1$d 個模型 · 點選選擇</string>
     <string name="no_available_models_returned">未傳回可用於文字生成的模型，仍可手動輸入 ID</string>
     <string name="choose_model">選擇模型</string>
@@ -410,10 +421,10 @@
     <string name="enabled">已啟用</string>
     <string name="enabled_desc">啟用後會顯示在首頁設定中</string>
     <string name="protocol">協定</string>
-    <string name="provider_type">提供者類型</string>
+    <string name="provider_type">供應商類型</string>
     <string name="provider_send_temperature">傳送 temperature</string>
     <string name="provider_send_top_p">傳送 top_p</string>
-    <string name="prompt_post_processing_provider_title">提供者 Prompt 後處理</string>
+    <string name="prompt_post_processing_provider_title">模型設定 Prompt 後處理</string>
     <string name="custom_headers_json">自訂請求標頭 JSON</string>
     <string name="credential_not_set">尚未設定</string>
     <string name="credential_keep_existing">保留已儲存的值</string>
@@ -428,6 +439,11 @@
     <string name="credential_editor_privacy_note">確認前，此值只存在於目前編輯框中；關閉對話框會捨棄未確認輸入。</string>
     <string name="api_key_required">API Key 不可為空；如需移除，請使用「清除」。</string>
     <string name="custom_headers_json_invalid">自訂請求標頭必須是有效的 JSON 物件。</string>
+    <string name="request_body_patch_title">請求主體 Patch JSON</string>
+    <string name="request_body_patch_status_custom">已套用自訂 JSON Merge Patch</string>
+    <string name="request_body_patch_status_default">預設請求結構 ({})</string>
+    <string name="reset">重設</string>
+    <string name="reset_to_default">重設為預設值</string>
     <string name="save">儲存</string>
     <string name="model_test">模型測試</string>
     <string name="send_short_message">傳送一則短訊息以驗證連線</string>
@@ -440,6 +456,8 @@
     <string name="success">成功</string>
     <string name="cancel">取消</string>
     <string name="confirm">確認</string>
+    <string name="decrease">減少</string>
+    <string name="increase">增加</string>
     <string name="delete">刪除</string>
     <string name="unsaved_changes_title">放棄變更？</string>
     <string name="unsaved_changes_message">你有未儲存的變更。離開此頁面將捨棄這些變更。</string>
@@ -459,7 +477,7 @@
     <string name="token_estimate_reserve_invalid">Token 估算預留必須是 0 到 50 的整數</string>
     <string name="max_tokens_must_be_less_than_context">最大 Token 必須小於上下文 Token</string>
     <string name="model_query_unsupported">此服務不支援查詢模型，請手動填寫模型 ID</string>
-    <string name="model_query_invalid_response">供應商傳回了無法辨識的模型清單</string>
+    <string name="model_query_invalid_response">模型服務傳回了無法辨識的模型清單</string>
     <string name="model_query_failed">查詢可用模型失敗</string>
     <string name="character_name_empty">角色名稱不能為空</string>
     <string name="character_created">角色已建立</string>
@@ -514,7 +532,7 @@
     <string name="prompt_editor_macro_title">可用巨集佔位符</string>
     <string name="prompt_editor_char_count">%1$d 個字元 · 約 %2$d Tokens</string>
     <string name="prompt_editor_clear">清除</string>
-    <string name="prompt_post_processing_desc">在任何提供商適配器送出前改寫 messages 結構。</string>
+    <string name="prompt_post_processing_desc">在模型服務介面卡送出前改寫 messages 結構。</string>
     <string name="prompt_post_processing_none">None</string>
     <string name="prompt_post_processing_none_desc">依構建結果原樣送出 messages。</string>
     <string name="prompt_post_processing_merge">Merge</string>
@@ -717,6 +735,11 @@
     <string name="regex_name_required">腳本名稱為必填。</string>
     <string name="regex_placement_required">請至少選擇一個作用位置。</string>
     <string name="regex_depth_invalid">深度必須是整數，且最小深度不能大於最大深度。</string>
+    <string name="regex_find_required">查找正規表示式不可為空。</string>
+    <string name="regex_pattern_invalid">正規表示式無效。</string>
+    <string name="regex_execution_invalid">無法套用正規表示式。</string>
+    <string name="regex_changed">已修改</string>
+    <string name="regex_matched">已符合</string>
     <string name="regex_import_success">Regex 腳本已匯入</string>
     <string name="regex_import_failed">Regex 腳本匯入失敗</string>
     <string name="regex_export_success">Regex 腳本已匯出</string>
@@ -725,13 +748,13 @@
     <string name="regex_temporary">暫時生效</string>
     <string name="prompt_inspector_regex_title">Regex 執行記錄（%1$d）</string>
     <string name="prompt_inspector_regex_errors">Regex 錯誤（%1$d）</string>
-    <string name="generation_error_no_provider">沒有可用的已啟用模型供應商。</string>
+    <string name="generation_error_no_provider">沒有可用的已啟用模型設定。</string>
     <string name="generation_error_prompt_budget">提示詞需要 %1$d 個 token，超過可用輸入預算 %2$d 個 token。</string>
-    <string name="generation_error_unauthorized">模型供應商拒絕了目前的憑據。</string>
-    <string name="generation_error_forbidden">模型供應商拒絕了這次請求。</string>
-    <string name="generation_error_rate_limited">模型供應商目前忙碌，請稍後重試。</string>
-    <string name="generation_error_http">模型供應商回傳 HTTP %1$d。</string>
-    <string name="generation_error_network">無法連線模型供應商，請檢查網路後重試。</string>
+    <string name="generation_error_unauthorized">模型服務拒絕了目前的憑證。</string>
+    <string name="generation_error_forbidden">模型服務拒絕了這次請求。</string>
+    <string name="generation_error_rate_limited">模型服務目前忙碌，請稍後重試。</string>
+    <string name="generation_error_http">模型服務回傳 HTTP %1$d。</string>
+    <string name="generation_error_network">無法連線模型服務，請檢查網路後重試。</string>
     <string name="generation_error_empty_response">模型回傳了空回應。</string>
     <string name="data_management">資料管理</string>
     <string name="import_chat">匯入對話</string>
@@ -790,13 +813,13 @@
     <string name="story_export_txt">匯出 TXT</string>
     <string name="story_file_actions">匯入與匯出</string>
     <string name="story_generated_text_clip_label">AI 生成的故事正文</string>
-    <string name="story_generation_budget">必要的 Story 上下文超過目前供應商的輸入預算，請縮短選取內容、續寫引導、Memory、作者註記或角色卡。</string>
+    <string name="story_generation_budget">必要的 Story 上下文超過目前模型設定的輸入預算，請縮短選取內容、續寫引導、Memory、作者註記或角色卡。</string>
     <string name="story_generation_conflict">套用結果前正文已變更，生成內容未被插入。</string>
-    <string name="story_generation_empty">供應商沒有回傳可用的正文。</string>
-    <string name="story_generation_failed">無法開始 AI 寫作，請檢查目前的模型供應商與上下文設定。</string>
+    <string name="story_generation_empty">模型服務沒有回傳可用的正文。</string>
+    <string name="story_generation_failed">無法開始 AI 寫作，請檢查目前的模型設定與上下文設定。</string>
     <string name="story_generation_largest_characters">佔用最大的已啟用角色：%1$s</string>
-    <string name="story_generation_provider_failed">供應商未完成本次操作。已有的部分結果尚未插入正文。</string>
-    <string name="story_generation_provider_failed_without_partial">供應商未完成本次操作，正文未發生變化。</string>
+    <string name="story_generation_provider_failed">模型服務未完成本次操作。已有的部分結果尚未插入正文。</string>
+    <string name="story_generation_provider_failed_without_partial">模型服務未完成本次操作，正文未發生變化。</string>
     <string name="story_generation_apply_failed">已收到生成內容，但無法套用到正文，正文未發生變化。</string>
     <string name="story_home_desc">編寫連續正文，並管理故事記憶、角色與世界書參考</string>
     <string name="story_import_archive">匯入 Story 封存檔</string>
@@ -866,7 +889,7 @@
     <string name="story_summarize_now">AI 更新摘要</string>
     <string name="story_summarizing">正在摘要劇情……</string>
     <string name="story_summary_empty_document">請先寫入正文再產生摘要</string>
-    <string name="story_summary_failed">無法摘要此故事，請檢查目前供應商及上下文設定。</string>
+    <string name="story_summary_failed">無法摘要此故事，請檢查目前模型設定及上下文設定。</string>
     <string name="story_summary_conflict">產生摘要期間正文發生了變化，請重新產生。</string>
     <string name="story_summary_updated">劇情摘要已更新</string>
     <string name="prompt_story_summarize_title">故事摘要提示詞</string>
@@ -879,10 +902,10 @@
     <string name="request_body_patch_editor_title">編輯請求主體 Patch</string>
     <string name="request_body_patch_editor_note">請輸入 JSON 物件並使用 JSON Merge Patch 語意：null 會刪除欄位、物件遞迴合併、陣列整體取代。可將 &quot;$rpclient.routing_session_id&quot; 作為欄位值，插入目前對話穩定且匿名的路由 ID。</string>
     <string name="request_body_patch_invalid">請求主體 Patch 必須是有效的 JSON 物件，只能使用支援的系統變數，且不得覆寫受保護欄位。</string>
-    <string name="openrouter_preferred_provider">優先使用指定的 OpenRouter 供應商</string>
-    <string name="openrouter_provider_slug">供應商識別碼（例如 deepinfra）</string>
-    <string name="openrouter_allow_fallbacks">允許供應商備援</string>
-    <string name="openrouter_session_affinity_note">自動模式下，RPClient 會為每個對話傳送穩定的匿名工作階段 ID，以啟用黏性路由；啟用首選供應商後，其順序設定優先。</string>
+    <string name="openrouter_preferred_provider">優先使用指定的 OpenRouter 上游供應商</string>
+    <string name="openrouter_provider_slug">上游供應商識別碼（例如 deepinfra）</string>
+    <string name="openrouter_allow_fallbacks">允許上游供應商備援</string>
+    <string name="openrouter_session_affinity_note">自動模式下，RPClient 會為每個對話傳送穩定的匿名工作階段 ID，以啟用黏性路由；啟用首選上游供應商後，其順序設定優先。</string>
     <string name="add_tag">新增標籤</string>
     <string name="add_keyword">新增關鍵字</string>
     <string name="add_category">新增分類</string>

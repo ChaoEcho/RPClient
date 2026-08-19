@@ -9,7 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
  * 模型明确结束请求但没有返回任何可显示内容。
  *
  * 空内容配合 stop 并不代表一次有效生成，常见原因包括提示目标冲突、
- * 供应商不接受当前消息顺序，或模型在网关内部立即停止。
+ * 模型服务不接受当前消息顺序，或模型在网关内部立即停止。
  */
 class LLMEmptyResponseException : IllegalStateException("The model returned an empty response")
 
@@ -25,7 +25,7 @@ internal fun LLMGenerationResponse.requireNonEmptyContent(): LLMGenerationRespon
  * 校验流式结果是否至少产生过一个非空文本增量。
  *
  * 完成事件仍会原样转发给 UI；只有流正常结束且始终没有有效文本时才抛出异常，
- * 网络错误和供应商显式错误继续保留原异常。
+ * 网络错误和模型服务显式错误继续保留原异常。
  */
 internal fun Flow<LLMStreamEvent>.requireNonEmptyContent(): Flow<LLMStreamEvent> = flow {
     var hasContent = false

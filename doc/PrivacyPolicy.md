@@ -4,7 +4,7 @@ Last updated: June 16, 2026
 
 Effective date: June 16, 2026
 
-This Privacy Policy applies to the RPClient Android application and its related features. RPClient is a local-first AI roleplay chat client designed to help users manage character cards, lorebooks, chat history, prompt settings, and model provider configurations on their own devices.
+This Privacy Policy applies to the RPClient Android application and its related features. RPClient is a local-first AI roleplay chat client designed to help users manage character cards, lorebooks, chat history, prompt settings, and model configurations on their own devices.
 
 Please read this Privacy Policy carefully before using RPClient. If you do not agree with any part of this Policy, please stop using the application. This document is a project privacy notice template and does not constitute legal advice. Before publishing the app commercially or distributing it in specific jurisdictions, you should have this Policy reviewed by a qualified compliance or legal professional.
 
@@ -26,8 +26,8 @@ RPClient stores chat history, characters, lorebooks, model settings, and app pre
 
 To provide app features, RPClient may process the following information locally:
 
-1. App settings and preferences, such as language, theme, selected model provider, streaming settings, summary settings, prompt templates, username, user persona description, and Regex script authorization status.
-2. Model provider configuration, such as provider name, base URL, protocol type, model name, API key, custom headers, temperature, top-p, maximum output tokens, and context token budget.
+1. App settings and preferences, such as language, theme, selected model configuration, streaming settings, summary settings, prompt templates, username, user persona description, and Regex script authorization status.
+2. Model configuration data, such as provider name, base URL, protocol type, model name, API key, custom headers, temperature, top-p, maximum output tokens, and context token budget.
 3. Character and lorebook data, such as character names, avatars, tags, descriptions, personality, scenario, greetings, example dialogues, creator notes, lorebook entries, trigger keywords, priority, depth, probability, and token budget.
 4. Chat, group chat, and Story data, such as messages, session settings, manuscripts, Story memory and summaries, group members, timestamps, and message roles.
 5. Imported and exported file data, such as Character Card JSON/PNG files, lorebook JSON files, Regex script JSON files, avatars, and other compatible files that you choose to import or export.
@@ -36,14 +36,14 @@ To provide app features, RPClient may process the following information locally:
 We process this information to:
 
 1. Create, edit, save, and display characters, lorebooks, sessions, and group chats.
-2. Build prompts and send generation requests to the model provider configured by you.
+2. Build prompts and send generation requests to the model service selected by you.
 3. Save your app settings, prompt templates, model parameters, and authorization preferences.
 4. Support import, export, and compatibility features for character cards, lorebooks, and Regex scripts.
 5. Support prompt inspection, token budgeting, summary memory, request logging, and troubleshooting.
 
 ## 3. Third-Party Model Providers
 
-RPClient does not provide large language model services. When you configure and enable a model provider, RPClient sends necessary request data directly to the model provider or custom endpoint configured by you.
+RPClient does not provide large language model services. When you configure and enable a model configuration, RPClient sends necessary request data directly to the third-party model provider or custom endpoint selected by you.
 
 The data sent to a model provider may include:
 
@@ -60,7 +60,7 @@ Only configure service addresses and proxy endpoints that you trust. Avoid enter
 
 RPClient currently uses the following Android permission:
 
-1. Internet access (`android.permission.INTERNET`): used to connect to the model provider or custom endpoint configured by you, send model requests, and receive responses.
+1. Internet access (`android.permission.INTERNET`): used to connect to the model service or custom endpoint selected by you, send model requests, and receive responses.
 
 RPClient currently does not request location, contacts, SMS, phone, camera, microphone, or similar permissions. If future versions add new permissions, we will explain their purposes in an updated Privacy Policy and request authorization where required by the operating system.
 
@@ -78,7 +78,7 @@ Data sent to third-party model providers is stored, retained, deleted, and secur
 
 Except in the following cases, the RPClient developer does not actively share, transfer, or publicly disclose your personal information:
 
-1. You configure a model provider and initiate a model request, and RPClient sends request data to that provider at your direction.
+1. You enable a model configuration and initiate a model request, and RPClient sends request data to the selected provider at your direction.
 2. You export, copy, or share character cards, lorebooks, chat content, request logs, or other files.
 3. Disclosure is required by applicable laws, courts, administrative authorities, or regulators.
 4. Disclosure is necessary to protect the personal or property safety, lawful rights, or app security of you, other users, the developer, or the public, and is permitted by applicable law.
@@ -102,9 +102,9 @@ No system or network environment can guarantee absolute security. To reduce risk
 You can manage your local data through RPClient features:
 
 1. Access and copy: you can view characters, lorebooks, sessions, request logs, and settings in the app. Some data can be copied through export features.
-2. Correction: you can edit characters, lorebooks, model provider settings, prompt templates, and session-related content.
-3. Deletion: you can delete characters, lorebooks, sessions, group chats, model provider settings, request logs, and other data. You can also clear app data through system settings or uninstall the app.
-4. Withdrawal or stopping processing: you can delete API keys, disable or delete model providers, turn off debug mode, disable relevant features, or stop using the app.
+2. Correction: you can edit characters, lorebooks, model configurations, prompt templates, and session-related content.
+3. Deletion: you can delete characters, lorebooks, sessions, group chats, model configurations, request logs, and other data. You can also clear app data through system settings or uninstall the app.
+4. Withdrawal or stopping processing: you can delete API keys, disable or delete model configurations, turn off debug mode, disable relevant features, or stop using the app.
 5. Inquiries and feedback: you can contact the developer through the email address or GitHub repository listed in this Policy.
 
 Because RPClient does not create developer-hosted accounts or centrally store your app data by default, the developer usually cannot directly access, export, correct, or delete data stored locally on your device. You must perform those actions on your own device.

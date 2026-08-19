@@ -122,7 +122,7 @@ import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
 import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
-/** 模型供应商创建与编辑页 Compose 入口。 */
+/** 模型配置创建与编辑页 Compose 入口。 */
 @Composable
 fun LLMProviderEditLayout(
     uiState: LLMProviderEditUiState,
@@ -1400,4 +1400,3 @@ private fun LLMProviderEditLayoutPreview() {
         )
     }
 }
-

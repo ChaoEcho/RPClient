@@ -87,7 +87,7 @@ val CharacterAccentColors = listOf(
 val DefaultCharacterAccentColor = CharacterAccentColors.first()
 val NarratorAvatarColor = Color(0xFF64748B)
 
-// 模型 Provider 状态颜色
+// 模型配置状态颜色
 val ProviderDisabledColor = Color(0xFFEF4444)
 val ProviderPendingColor = Color(0xFFF59E0B)
 val ProviderAvailableColor = Color(0xFF10B981)

@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.feature.main.model
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
-/** 设置页支持快速编辑的 Provider 生成参数。 */
+/** 设置页支持快速编辑的模型配置生成参数。 */
 enum class MainGenerationParameter {
     Temperature,
     TopP,

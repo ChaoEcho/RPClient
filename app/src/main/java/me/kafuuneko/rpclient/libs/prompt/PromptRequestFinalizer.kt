@@ -33,7 +33,7 @@ class PromptBudgetExceededException(
 class PromptRequestFinalizer(
     private val mTokenizerResolver: PromptTokenizerResolver = PromptTokenizerRegistry()
 ) {
-    /** 为供应商选择与预算统计一致的 Tokenizer。 */
+    /** 为模型配置选择与预算统计一致的 Tokenizer。 */
     fun tokenizerFor(provider: LLMProvider?): PromptTokenizer {
         return mTokenizerResolver.resolve(provider)
     }

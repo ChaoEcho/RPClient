@@ -140,7 +140,7 @@ fun NumericEditDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Remove,
-                            contentDescription = "减少"
+                            contentDescription = stringResource(R.string.decrease)
                         )
                     }
 
@@ -171,7 +171,7 @@ fun NumericEditDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Add,
-                            contentDescription = "增加"
+                            contentDescription = stringResource(R.string.increase)
                         )
                     }
                 }

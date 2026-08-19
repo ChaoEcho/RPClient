@@ -11,7 +11,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 /**
  * LLM 通用调用接口。
  *
- * 所有在线模型供应商都必须适配到这个接口，业务层只依赖这里的非流式与流式两种能力。
+ * 所有在线模型服务都必须适配到这个接口，业务层只依赖这里的非流式与流式两种能力。
  */
 interface LLMClient {
     /**

@@ -22,7 +22,7 @@ sealed class JsonViewerUiState {
 
     data class Error(
         val title: String,
-        val message: String,
+        val reason: JsonViewerErrorReason,
         val rawPreview: String
     ) : JsonViewerUiState()
 
@@ -34,4 +34,9 @@ sealed class JsonViewerUiState {
             return Finished(previous)
         }
     }
+}
+
+enum class JsonViewerErrorReason {
+    PayloadUnavailable,
+    InvalidJson
 }
