@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name" translatable="false">RPClient</string>
     <string name="back">Назад</string>
     <string name="about">О приложении</string>
     <string name="about_desc">Версия приложения, эл. почта и репозиторий</string>

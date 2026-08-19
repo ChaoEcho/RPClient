@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name" translatable="false">RPClient</string>
     <string name="back">뒤로</string>
     <string name="about">정보</string>
     <string name="about_desc">앱 버전, 이메일 및 저장소</string>

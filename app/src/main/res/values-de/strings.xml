@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">RPClient</string>
     <string name="back">Zurück</string>
     <string name="about">Über</string>
     <string name="about_desc">App-Version, E-Mail und Repository</string>

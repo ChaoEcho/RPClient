@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name" translatable="false">RPClient</string>
     <string name="back">Retour</string>
     <string name="about">À propos</string>
     <string name="about_desc">Version de l\'application, e-mail et dépôt</string>
