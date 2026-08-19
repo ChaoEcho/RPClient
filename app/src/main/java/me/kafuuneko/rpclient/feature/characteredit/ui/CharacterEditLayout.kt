@@ -1116,14 +1116,11 @@ private fun CharacterProviderSelector(
 
 @Composable
 private fun CharacterProviderItem.displayName(): String {
-    val nameAndModel = listOf(name, model)
-        .filter { it.isNotBlank() }
-        .joinToString(" · ")
-        .ifBlank { stringResource(R.string.unnamed_model_config) }
+    val displayName = name.ifBlank { stringResource(R.string.unnamed_model_config) }
     return if (isEnabled) {
-        nameAndModel
+        displayName
     } else {
-        stringResource(R.string.disabled_model_config_format, nameAndModel)
+        stringResource(R.string.disabled_model_config_format, displayName)
     }
 }
 
