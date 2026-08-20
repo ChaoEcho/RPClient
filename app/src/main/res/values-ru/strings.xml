@@ -16,9 +16,11 @@
     <string name="character_cards_count">%d карточек персонажей</string>
     <string name="lorebook_count">%d лорбуков</string>
     <string name="recent_chats">Недавние чаты</string>
+    <string name="recent_content">Недавние материалы</string>
     <string name="home_session_filter_all">Все</string>
     <string name="home_session_filter_single">Одиночные</string>
     <string name="home_session_filter_group">Групповые</string>
+    <string name="home_content_filter_story">Истории</string>
     <string name="manage_characters">Управление</string>
     <string name="message_count">%d сообщений</string>
     <string name="session_group_count">%d сессий</string>
@@ -64,6 +66,8 @@
     <string name="new_session_desc">Выберите персонажа, заметки и записи книги мира</string>
     <string name="no_recent_chats">Нет недавних чатов</string>
     <string name="no_recent_chats_desc">Создайте сессию, чтобы начать новый диалог.</string>
+    <string name="no_recent_content">Нет недавних материалов</string>
+    <string name="no_recent_content_desc">Создайте чат, групповой чат или историю, чтобы начать.</string>
     <string name="summary_memory">Сводная память</string>
     <string name="general_summary_memory">Общие</string>
     <string name="conversation_summary_memory">Диалог</string>
@@ -551,6 +555,9 @@
     <string name="selected_count">Выбрано: %d</string>
     <string name="delete_selected_sessions_title">Удалить выбранные сессии</string>
     <string name="delete_selected_sessions_message">Удалить %d выбранных сессий и все их сообщения? Это действие нельзя отменить.</string>
+    <string name="delete_selected_items_title">Удалить выбранные элементы</string>
+    <string name="delete_selected_items_message">Удалить %d выбранных чатов или историй и их содержимое? Это действие нельзя отменить.</string>
+    <string name="delete_selected_items_failed">Не удалось удалить все выбранные элементы</string>
     <string name="delete_message_title">Удалить сообщение</string>
     <string name="delete_message_confirm">Вы уверены, что хотите удалить это сообщение? Это действие нельзя отменить.</string>
     <string name="stop_generation_before_deleting_message">Пожалуйста, остановите генерацию перед удалением сообщений</string>
@@ -797,10 +804,12 @@
     <string name="story_library_subtitle">Главы, разделители сцен и Markdown сохраняются прямо в рукописи.</string>
     <string name="story_my_stories">Мои истории</string>
     <string name="story_create_story">Создать историю</string>
+    <string name="story_create_subtitle">Назовите историю и выберите карточки персонажей и записи книги мира до начала работы.</string>
     <string name="story_rename_story">Переименовать историю</string>
     <string name="story_delete_story">Удалить историю</string>
     <string name="story_delete_story_message">Удалить «%1$s»? Рукопись и настройки этой истории нельзя будет восстановить.</string>
     <string name="story_title">Название истории</string>
+    <string name="story_title_required">Введите название истории</string>
     <string name="story_empty_title">Начните свою первую историю</string>
     <string name="story_empty_subtitle">Создайте историю и откройте непрерывный редактор рукописи без лишних отвлечений.</string>
     <string name="story_empty_document_preview">Пустая рукопись ждёт первой строки</string>

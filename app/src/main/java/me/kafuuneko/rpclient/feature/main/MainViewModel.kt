@@ -16,15 +16,16 @@ import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
-import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
-import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
+import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
-import me.kafuuneko.rpclient.feature.main.model.MainSessionType
+import me.kafuuneko.rpclient.feature.main.model.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
@@ -38,6 +39,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessin
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -51,12 +53,13 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
-import me.kafuuneko.rpclient.feature.main.presentation.toggleSession
+import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
-import me.kafuuneko.rpclient.feature.story.list.StoryListActivity
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
+import me.kafuuneko.rpclient.feature.story.create.StoryCreateActivity
+import me.kafuuneko.rpclient.feature.story.editor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
@@ -75,18 +78,21 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+private val WHITESPACE_REGEX = Regex("\\s+")
+
 /**
  * 主页面状态持有者。
  *
- * 聚合最近会话、角色与群聊入口，并将全局设置和当前模型配置映射为可编辑状态。
+ * 聚合最近会话、故事与资源入口，并将全局设置和当前模型配置映射为可编辑状态。
  */
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
@@ -96,6 +102,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
+    private val mStoryRepository by inject<StoryRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mContext by inject<Context>()
@@ -159,21 +166,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             homeState = uiState.homeState.copy(
                 selectionState = MainHomeSelectionState.Selecting(
-                    selectedSessions = setOf(intent.session)
+                    selectedItems = setOf(intent.item)
                 )
             )
         ).setup()
     }
 
-    @UiIntentObserver(MainUiIntent.ToggleSessionSelection::class)
-    private fun onToggleSessionSelection(intent: MainUiIntent.ToggleSessionSelection) {
+    @UiIntentObserver(MainUiIntent.ToggleItemSelection::class)
+    private fun onToggleItemSelection(intent: MainUiIntent.ToggleItemSelection) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val selectionState = uiState.homeState.selectionState
             as? MainHomeSelectionState.Selecting
             ?: return
         uiState.copy(
             homeState = uiState.homeState.copy(
-                selectionState = selectionState.toggleSession(intent.session)
+                selectionState = selectionState.toggleItem(intent.item)
             )
         ).setup()
     }
@@ -218,41 +225,95 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val selectionState = uiState.homeState.selectionState
             as? MainHomeSelectionState.Selecting
             ?: return
-        val count = selectionState.selectedSessions.size
+        val count = selectionState.selectedItems.size
         if (count == 0) return
         uiState.copy(
-            dialogState = MainDialogState.DeleteSelectedSessions(count = count)
+            dialogState = MainDialogState.DeleteSelectedItems(count = count)
         ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.ConfirmDeleteSelected::class)
     private suspend fun onConfirmDeleteSelected() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.dialogState !is MainDialogState.DeleteSelectedSessions) return
-        val selectionState = uiState.homeState.selectionState
-            as? MainHomeSelectionState.Selecting
-        val selections = selectionState?.selectedSessions.orEmpty()
-        withContext(Dispatchers.IO) {
-            selections.forEach { selection ->
-                val sessionId = selection.sessionId.toLongOrNull() ?: return@forEach
-                when (selection.type) {
-                    MainSessionType.Chat -> mChatRepository.deleteSession(sessionId)
-                    MainSessionType.GroupChat -> mGroupChatRepository.deleteSession(sessionId)
+        val dialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems ?: return
+        if (dialog.isDeleting) return
+        val selectionState =
+            uiState.homeState.selectionState as? MainHomeSelectionState.Selecting ?: return
+        val selections = selectionState.selectedItems
+        if (selections.isEmpty()) return
+        uiState.copy(dialogState = dialog.copy(isDeleting = true)).setup()
+        try {
+            withContext(Dispatchers.IO) {
+                selections.forEach { selection ->
+                    val itemId = selection.itemId.toLongOrNull() ?: return@forEach
+                    when (selection.type) {
+                        MainHomeItemType.Chat -> mChatRepository.deleteSession(itemId)
+                        MainHomeItemType.GroupChat -> mGroupChatRepository.deleteSession(itemId)
+                        MainHomeItemType.Story -> mStoryRepository.deleteStory(itemId)
+                    }
                 }
             }
+            val homeState = buildHomeState()
+            val current = getOrNull<MainUiState.Normal>() ?: return
+            current.copy(
+                dialogState = MainDialogState.None,
+                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+            ).setup()
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            AppViewEvent.PopupToastMessageByResId(R.string.delete_selected_items_failed).tryEmit()
+            val current = getOrNull<MainUiState.Normal>() ?: return
+            val currentDialog = current.dialogState as? MainDialogState.DeleteSelectedItems ?: return
+            current.copy(dialogState = currentDialog.copy(isDeleting = false)).setup()
         }
-        val homeState = buildHomeState()
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        current.copy(
-            dialogState = if (
-                current.dialogState is MainDialogState.DeleteSelectedSessions
-            ) {
-                MainDialogState.None
-            } else {
-                current.dialogState
-            },
-            homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+    }
+
+    @UiIntentObserver(MainUiIntent.ShowRenameStoryDialog::class)
+    private fun onShowRenameStoryDialog(intent: MainUiIntent.ShowRenameStoryDialog) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (!uiState.canOpenDialog()) return
+        val story = uiState.homeState.findStory(intent.storyId) ?: return
+        uiState.copy(
+            dialogState = MainDialogState.RenameStory(
+                storyId = story.id,
+                title = story.title
+            )
         ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeStoryTitleDraft::class)
+    private fun onChangeStoryTitleDraft(intent: MainUiIntent.ChangeStoryTitleDraft) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.RenameStory ?: return
+        if (dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(title = intent.value)).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ConfirmStoryRename::class)
+    private suspend fun onConfirmStoryRename() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.RenameStory ?: return
+        val title = dialog.title.trim()
+        if (title.isEmpty() || dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
+        try {
+            val renamed = withContext(Dispatchers.IO) {
+                mStoryRepository.renameStory(dialog.storyId, title)
+            }
+            check(renamed) { "Story no longer exists" }
+            val homeState = buildHomeState()
+            val current = getOrNull<MainUiState.Normal>() ?: return
+            current.copy(
+                dialogState = MainDialogState.None,
+                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+            ).setup()
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed).tryEmit()
+            val current = getOrNull<MainUiState.Normal>() ?: return
+            val currentDialog = current.dialogState as? MainDialogState.RenameStory ?: return
+            current.copy(dialogState = currentDialog.copy(isSaving = false)).setup()
+        }
     }
 
     @UiIntentObserver(MainUiIntent.DismissDialog::class)
@@ -260,6 +321,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
         if (importDialog?.isImporting == true) return
+        val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
+        if (deleteDialog?.isDeleting == true) return
+        val renameDialog = uiState.dialogState as? MainDialogState.RenameStory
+        if (renameDialog?.isSaving == true) return
         if (importDialog != null) {
             mPendingChatImport = null
         }
@@ -412,12 +477,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(selectedPage = intent.page).setup()
     }
 
-    @UiIntentObserver(MainUiIntent.SelectHomeSessionTab::class)
-    private fun onSelectHomeSessionTab(intent: MainUiIntent.SelectHomeSessionTab) {
+    @UiIntentObserver(MainUiIntent.SelectHomeContentTab::class)
+    private fun onSelectHomeContentTab(intent: MainUiIntent.SelectHomeContentTab) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.selectedSessionTab == intent.tab) return
+        if (uiState.homeState.selectedContentTab == intent.tab) return
         uiState.copy(
-            homeState = uiState.homeState.copy(selectedSessionTab = intent.tab)
+            homeState = uiState.homeState.copy(selectedContentTab = intent.tab)
         ).setup()
     }
 
@@ -453,10 +518,22 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(GroupChatCreateActivity::class.java).tryEmit()
     }
 
-    @UiIntentObserver(MainUiIntent.OpenStoryLibrary::class)
-    private fun onOpenStoryLibrary() {
+    @UiIntentObserver(MainUiIntent.OpenStory::class)
+    private fun onOpenStory(intent: MainUiIntent.OpenStory) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.homeState.findStory(intent.storyId) == null) return
+        AppViewEvent.StartActivity(
+            activity = StoryEditorActivity::class.java,
+            extras = Bundle().apply {
+                putLong(StoryEditorActivity.EXTRA_STORY_ID, intent.storyId)
+            }
+        ).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenCreateStory::class)
+    private fun onOpenCreateStory() {
         if (!isStateOf<MainUiState.Normal>()) return
-        AppViewEvent.StartActivity(StoryListActivity::class.java).tryEmit()
+        AppViewEvent.StartActivity(StoryCreateActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
@@ -984,6 +1061,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val characterMap = characters.associateBy { it.id }
             val sessions = mChatRepository.getAllSessions()
             val groupSessions = mGroupChatRepository.getAllSessions()
+            val storyOverviews = mStoryRepository.getStoryOverviews()
             val sessionItems = sessions.map { session ->
                 session.toUiModel(characterMap[session.characterId])
             }
@@ -1010,6 +1088,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
                 )
             }
+            val storyItems = storyOverviews.map { story ->
+                MainStoryItem(
+                    id = story.id,
+                    title = story.title,
+                    preview = story.preview.replace(WHITESPACE_REGEX, " ").trim(),
+                    contentCharacterCount = story.contentCharacterCount,
+                    updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm")
+                )
+            }
             MainHomeState(
                 resourceState = MainHomeResourceState(
                     totalCharacters = characters.size,
@@ -1025,6 +1112,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 } else {
                     MainRecentGroupChatsState.Content(sessions = groupChatItems)
                 },
+                recentStoriesState = if (storyItems.isEmpty()) {
+                    MainRecentStoriesState.Empty
+                } else {
+                    MainRecentStoriesState.Content(stories = storyItems)
+                }
             )
         }
     }
@@ -1146,6 +1238,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.userAvatar
             .takeIf { it.isNotBlank() }
             ?.let { withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() } }
+
+    private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
+        val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
+        return content.stories.firstOrNull { it.id == storyId }
+    }
 
     private fun updateSettingsInt(
         value: String,

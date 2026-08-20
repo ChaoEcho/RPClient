@@ -1,0 +1,13 @@
+package me.kafuuneko.rpclient.feature.story.create.presentation
+
+/** 新建 Story 页面的表单操作和提交意图。 */
+sealed class StoryCreateUiIntent {
+    data object Init : StoryCreateUiIntent()
+    data object Back : StoryCreateUiIntent()
+    data class ChangeTitle(val value: String) : StoryCreateUiIntent()
+    data class ToggleCharacter(val characterId: Long) : StoryCreateUiIntent()
+    data class ChangeLorebookQuery(val value: String) : StoryCreateUiIntent()
+    data class ToggleLorebook(val lorebookId: Long) : StoryCreateUiIntent()
+    data class ToggleLorebookEntry(val entryId: Long) : StoryCreateUiIntent()
+    data object CreateStory : StoryCreateUiIntent()
+}

@@ -17,9 +17,11 @@
     <string name="character_cards_count">%d character cards</string>
     <string name="lorebook_count">%d lorebooks</string>
     <string name="recent_chats">Recent Chats</string>
+    <string name="recent_content">Recent Content</string>
     <string name="home_session_filter_all">All</string>
     <string name="home_session_filter_single">Single</string>
     <string name="home_session_filter_group">Group</string>
+    <string name="home_content_filter_story">Stories</string>
     <string name="manage_characters">Manage</string>
     <string name="message_count">%d messages</string>
     <string name="session_group_count">%d sessions</string>
@@ -65,6 +67,8 @@
     <string name="new_session_desc">Choose a character, notes and world book entries</string>
     <string name="no_recent_chats">No recent chats</string>
     <string name="no_recent_chats_desc">Create a session to start a new conversation.</string>
+    <string name="no_recent_content">No recent content</string>
+    <string name="no_recent_content_desc">Create a chat, group chat, or story to get started.</string>
     <string name="summary_memory">Summary Memory</string>
     <string name="general_summary_memory">General</string>
     <string name="conversation_summary_memory">Conversation</string>
@@ -624,6 +628,9 @@
     <string name="selected_count">%d selected</string>
     <string name="delete_selected_sessions_title">Delete selected sessions</string>
     <string name="delete_selected_sessions_message">Delete %d selected sessions and all their messages? This cannot be undone.</string>
+    <string name="delete_selected_items_title">Delete selected items</string>
+    <string name="delete_selected_items_message">Delete %d selected chats or stories and their content? This cannot be undone.</string>
+    <string name="delete_selected_items_failed">Could not delete all selected items</string>
     <string name="delete_message_title">Delete message</string>
     <string name="delete_message_confirm">Are you sure you want to delete this message? This cannot be undone.</string>
     <string name="stop_generation_before_deleting_message">Please stop generation before deleting messages</string>
@@ -853,6 +860,7 @@
     <string name="story_library_subtitle">Write chapters, scene breaks and Markdown directly in the manuscript.</string>
     <string name="story_my_stories">My Stories</string>
     <string name="story_create_story">Create story</string>
+    <string name="story_create_subtitle">Name your story and choose character cards and world book entries before writing.</string>
     <string name="story_rename_story">Rename story</string>
     <string name="story_delete_story">Delete story</string>
     <string name="story_delete_story_message">Delete “%1$s”? Its manuscript and story-specific settings cannot be recovered.</string>
@@ -923,6 +931,7 @@
     <string name="story_export_archive">Export story archive</string>
     <string name="story_import_preview">Create imported story</string>
     <string name="story_title">Story title</string>
+    <string name="story_title_required">Enter a story title</string>
     <string name="story_import_summary">%1$d characters · %2$d character hints · %3$d lorebook hints</string>
     <string name="story_import_create">Create story</string>
     <string name="story_import_failed">Could not import this file. It may be too large or use an unsupported format.</string>

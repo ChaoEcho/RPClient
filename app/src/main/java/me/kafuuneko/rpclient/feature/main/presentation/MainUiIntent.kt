@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import android.net.Uri
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -18,7 +18,7 @@ sealed class MainUiIntent {
 
     data class SelectPage(val page: MainPage) : MainUiIntent()
 
-    data class SelectHomeSessionTab(val tab: MainHomeSessionTab) : MainUiIntent()
+    data class SelectHomeContentTab(val tab: MainHomeContentTab) : MainUiIntent()
 
     data class OpenChat(val sessionId: String) : MainUiIntent()
 
@@ -28,7 +28,15 @@ sealed class MainUiIntent {
 
     data object OpenCreateGroupChat : MainUiIntent()
 
-    data object OpenStoryLibrary : MainUiIntent()
+    data class OpenStory(val storyId: Long) : MainUiIntent()
+
+    data object OpenCreateStory : MainUiIntent()
+
+    data class ShowRenameStoryDialog(val storyId: Long) : MainUiIntent()
+
+    data class ChangeStoryTitleDraft(val value: String) : MainUiIntent()
+
+    data object ConfirmStoryRename : MainUiIntent()
 
     data object OpenCharacterManager : MainUiIntent()
 
@@ -122,9 +130,9 @@ sealed class MainUiIntent {
 
     data object OpenAbout : MainUiIntent()
 
-    data class EnterMultiSelect(val session: MainSessionSelection) : MainUiIntent()
+    data class EnterMultiSelect(val item: MainHomeItemSelection) : MainUiIntent()
 
-    data class ToggleSessionSelection(val session: MainSessionSelection) : MainUiIntent()
+    data class ToggleItemSelection(val item: MainHomeItemSelection) : MainUiIntent()
 
     data class ToggleSessionGroup(val characterId: String) : MainUiIntent()
 

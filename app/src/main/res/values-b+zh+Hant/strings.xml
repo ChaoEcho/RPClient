@@ -16,9 +16,11 @@
     <string name="character_cards_count">%d 張角色卡</string>
     <string name="lorebook_count">%d 本世界書</string>
     <string name="recent_chats">最近聊天</string>
+    <string name="recent_content">最近內容</string>
     <string name="home_session_filter_all">全部</string>
     <string name="home_session_filter_single">單人</string>
     <string name="home_session_filter_group">群聊</string>
+    <string name="home_content_filter_story">故事</string>
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 則訊息</string>
     <string name="session_group_count">%d 個會話</string>
@@ -64,6 +66,8 @@
     <string name="new_session_desc">選擇角色、備註和世界書條目</string>
     <string name="no_recent_chats">暫無最近聊天</string>
     <string name="no_recent_chats_desc">建立會話以開始新的對話。</string>
+    <string name="no_recent_content">暫無最近內容</string>
+    <string name="no_recent_content_desc">建立單聊、群聊或故事即可開始。</string>
     <string name="summary_memory">摘要記憶</string>
     <string name="general_summary_memory">通用</string>
     <string name="conversation_summary_memory">對話</string>
@@ -564,6 +568,9 @@
     <string name="selected_count">已選 %d 項</string>
     <string name="delete_selected_sessions_title">刪除已選會話</string>
     <string name="delete_selected_sessions_message">刪除 %d 個已選會話及其所有訊息？此操作無法復原。</string>
+    <string name="delete_selected_items_title">刪除已選內容</string>
+    <string name="delete_selected_items_message">刪除 %d 個已選會話或故事及其內容？此操作無法復原。</string>
+    <string name="delete_selected_items_failed">無法刪除全部已選內容</string>
     <string name="delete_message_title">刪除訊息</string>
     <string name="delete_message_confirm">確定要刪除這條訊息嗎？此操作無法復原。</string>
     <string name="stop_generation_before_deleting_message">請在刪除訊息前停止生成</string>
@@ -798,6 +805,7 @@
     <string name="story_continuation_guidance_placeholder">描述下一段希望發生的內容（可選）</string>
     <string name="story_copy_draft">複製草稿</string>
     <string name="story_create_story">建立故事</string>
+    <string name="story_create_subtitle">設定故事名稱，並在開始寫作前選擇角色卡和世界書條目。</string>
     <string name="story_delete_story">刪除故事</string>
     <string name="story_delete_story_message">確定刪除「%1$s」嗎？正文和故事專屬設定將無法復原。</string>
     <string name="story_discard">捨棄</string>
@@ -860,6 +868,7 @@
     <string name="story_save_failed">故事儲存失敗</string>
     <string name="story_settings">故事設定</string>
     <string name="story_title">故事標題</string>
+    <string name="story_title_required">請輸入故事標題</string>
     <string name="story_undo">復原上次修改</string>
     <string name="story_redo">重做上次修改</string>
     <string name="story_unsaved">未儲存</string>

@@ -72,7 +72,7 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
-            android:name=".feature.story.list.StoryListActivity"
+            android:name=".feature.story.create.StoryCreateActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity

@@ -17,9 +17,11 @@
     <string name="character_cards_count">%d Charakterkarten</string>
     <string name="lorebook_count">%d Lorebooks</string>
     <string name="recent_chats">Letzte Chats</string>
+    <string name="recent_content">Neueste Inhalte</string>
     <string name="home_session_filter_all">Alle</string>
     <string name="home_session_filter_single">Einzel</string>
     <string name="home_session_filter_group">Gruppe</string>
+    <string name="home_content_filter_story">Geschichten</string>
     <string name="manage_characters">Verwalten</string>
     <string name="message_count">%d Nachrichten</string>
     <string name="session_group_count">%d Sitzungen</string>
@@ -65,6 +67,8 @@
     <string name="new_session_desc">Wähle einen Charakter, Notizen und Weltbuch-Einträge</string>
     <string name="no_recent_chats">Keine letzten Chats</string>
     <string name="no_recent_chats_desc">Erstelle eine Sitzung, um eine neue Konversation zu beginnen.</string>
+    <string name="no_recent_content">Keine aktuellen Inhalte</string>
+    <string name="no_recent_content_desc">Erstelle einen Chat, Gruppenchat oder eine Geschichte, um loszulegen.</string>
     <string name="summary_memory">Zusammenfassungs-Speicher</string>
     <string name="general_summary_memory">Allgemein</string>
     <string name="conversation_summary_memory">Dialog</string>
@@ -552,6 +556,9 @@
     <string name="selected_count">%d ausgewählt</string>
     <string name="delete_selected_sessions_title">Ausgewählte Sitzungen löschen</string>
     <string name="delete_selected_sessions_message">Möchtest du %d ausgewählte Sitzungen und alle zugehörigen Nachrichten löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_selected_items_title">Ausgewählte Inhalte löschen</string>
+    <string name="delete_selected_items_message">Möchtest du %d ausgewählte Chats oder Geschichten und deren Inhalte löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_selected_items_failed">Nicht alle ausgewählten Inhalte konnten gelöscht werden</string>
     <string name="delete_message_title">Nachricht löschen</string>
     <string name="delete_message_confirm">Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.</string>
     <string name="stop_generation_before_deleting_message">Bitte stoppe die Generierung vor dem Löschen von Nachrichten</string>
@@ -794,10 +801,12 @@
     <string name="story_library_subtitle">Kapitel, Szenentrenner und Markdown werden direkt im Manuskript gespeichert.</string>
     <string name="story_my_stories">Meine Geschichten</string>
     <string name="story_create_story">Geschichte erstellen</string>
+    <string name="story_create_subtitle">Benenne deine Geschichte und wähle vor dem Schreiben Charakterkarten und Weltbuch-Einträge aus.</string>
     <string name="story_rename_story">Geschichte umbenennen</string>
     <string name="story_delete_story">Geschichte löschen</string>
     <string name="story_delete_story_message">„%1$s“ löschen? Manuskript und geschichtsspezifische Einstellungen können nicht wiederhergestellt werden.</string>
     <string name="story_title">Titel der Geschichte</string>
+    <string name="story_title_required">Gib einen Titel für die Geschichte ein</string>
     <string name="story_empty_title">Beginne deine erste Geschichte</string>
     <string name="story_empty_subtitle">Erstelle eine Geschichte und schreibe in einem ablenkungsfreien, fortlaufenden Editor.</string>
     <string name="story_empty_document_preview">Ein leeres Manuskript wartet auf die erste Zeile</string>

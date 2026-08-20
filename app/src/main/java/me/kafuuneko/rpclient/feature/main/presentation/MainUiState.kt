@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 
-/** 应用首页状态树，组合最近会话、全局设置和批量操作对话框。 */
+/** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
 sealed class MainUiState {
     data object None : MainUiState()
 
@@ -47,8 +47,16 @@ internal fun MainUiState.Normal.canOpenDialog(): Boolean {
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()
-    data class DeleteSelectedSessions(
-        val count: Int
+
+    data class DeleteSelectedItems(
+        val count: Int,
+        val isDeleting: Boolean = false
+    ) : MainDialogState()
+
+    data class RenameStory(
+        val storyId: Long,
+        val title: String,
+        val isSaving: Boolean = false
     ) : MainDialogState()
 
     data class EditGenerationParameter(

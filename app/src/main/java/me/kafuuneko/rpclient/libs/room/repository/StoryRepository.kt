@@ -85,15 +85,41 @@ class StoryRepository(
         title: String,
         createTime: Long = System.currentTimeMillis()
     ): Long {
+        return createStoryWithConfiguration(
+            title = title,
+            lorebookEntryIds = emptyList(),
+            characterSelections = emptyList(),
+            createTime = createTime
+        )
+    }
+
+    /**
+     * 在一个事务中创建 Story，并写入初始世界书选择与候选角色配置。
+     *
+     * 所有外键引用会在写入前校验；任一配置无效时不会留下只有 Story 主记录的半成品。
+     */
+    suspend fun createStoryWithConfiguration(
+        title: String,
+        lorebookEntryIds: List<Long>,
+        characterSelections: List<StoryCharacterSelection>,
+        createTime: Long = System.currentTimeMillis()
+    ): Long = mAppDatabase.withTransaction {
         val normalizedTitle = title.trim()
         require(normalizedTitle.isNotEmpty()) { "Story title cannot be blank" }
-        return mStoryDao.insertOrReplace(
+        val configuration = normalizeAndValidateConfiguration(
+            lorebookEntryIds = lorebookEntryIds,
+            characterSelections = characterSelections
+        )
+        val storyId = mStoryDao.insertOrReplace(
             Story(
                 title = normalizedTitle,
+                lorebookEntrySet = mGson.toJson(configuration.lorebookEntryIds),
                 createTime = createTime,
                 latestTime = createTime
             )
         )
+        insertStoryCharacters(storyId, configuration.characterSelections)
+        storyId
     }
 
     suspend fun renameStory(
@@ -192,40 +218,22 @@ class StoryRepository(
         latestTime: Long = System.currentTimeMillis()
     ) = mAppDatabase.withTransaction {
         requireNotNull(mStoryDao.getStory(storyId)) { "Story does not exist" }
-        val distinctLorebookEntryIds = lorebookEntryIds.distinct()
-        distinctLorebookEntryIds.forEach { entryId ->
-            requireNotNull(mLorebookEntryDao.getEntryById(entryId)) {
-                "Lorebook entry does not exist"
-            }
-        }
-        val normalizedSelections = normalizeSelections(characterSelections)
-        normalizedSelections.forEach { selection ->
-            requireNotNull(mCharacterDao.getCharacterById(selection.characterId)) {
-                "Character does not exist"
-            }
-        }
+        val configuration = normalizeAndValidateConfiguration(
+            lorebookEntryIds = lorebookEntryIds,
+            characterSelections = characterSelections
+        )
         check(
             mStoryDao.updateStorySettings(
                 id = storyId,
                 memory = memory,
                 summary = summary,
                 authorNote = authorNote,
-                lorebookEntrySet = mGson.toJson(distinctLorebookEntryIds),
+                lorebookEntrySet = mGson.toJson(configuration.lorebookEntryIds),
                 latestTime = latestTime
             ) == 1
         ) { "Story settings update failed" }
         mStoryCharacterDao.deleteByStoryId(storyId)
-        mStoryCharacterDao.insertOrReplaceAll(
-            normalizedSelections.mapIndexed { index, selection ->
-                StoryCharacter(
-                    storyId = storyId,
-                    characterId = selection.characterId,
-                    sortOrder = index,
-                    activationMode = selection.activationMode,
-                    activationKeysJson = mGson.toJsonString(selection.activationKeys)
-                )
-            }
-        )
+        insertStoryCharacters(storyId, configuration.characterSelections)
     }
 
     /** 仅在正文仍是生成时快照时保存摘要，避免旧响应覆盖新正文。 */
@@ -274,4 +282,48 @@ class StoryRepository(
             )
         }
     }
+
+    private suspend fun normalizeAndValidateConfiguration(
+        lorebookEntryIds: List<Long>,
+        characterSelections: List<StoryCharacterSelection>
+    ): NormalizedStoryConfiguration {
+        val distinctLorebookEntryIds = lorebookEntryIds.distinct()
+        distinctLorebookEntryIds.forEach { entryId ->
+            requireNotNull(mLorebookEntryDao.getEntryById(entryId)) {
+                "Lorebook entry does not exist"
+            }
+        }
+        val normalizedSelections = normalizeSelections(characterSelections)
+        normalizedSelections.forEach { selection ->
+            requireNotNull(mCharacterDao.getCharacterById(selection.characterId)) {
+                "Character does not exist"
+            }
+        }
+        return NormalizedStoryConfiguration(
+            lorebookEntryIds = distinctLorebookEntryIds,
+            characterSelections = normalizedSelections
+        )
+    }
+
+    private suspend fun insertStoryCharacters(
+        storyId: Long,
+        selections: List<StoryCharacterSelection>
+    ) {
+        mStoryCharacterDao.insertOrReplaceAll(
+            selections.mapIndexed { index, selection ->
+                StoryCharacter(
+                    storyId = storyId,
+                    characterId = selection.characterId,
+                    sortOrder = index,
+                    activationMode = selection.activationMode,
+                    activationKeysJson = mGson.toJsonString(selection.activationKeys)
+                )
+            }
+        )
+    }
+
+    private data class NormalizedStoryConfiguration(
+        val lorebookEntryIds: List<Long>,
+        val characterSelections: List<StoryCharacterSelection>
+    )
 }

@@ -16,9 +16,11 @@
     <string name="character_cards_count">%d cartes de personnage</string>
     <string name="lorebook_count">%d lorebooks</string>
     <string name="recent_chats">Discussions récentes</string>
+    <string name="recent_content">Contenu récent</string>
     <string name="home_session_filter_all">Tous</string>
     <string name="home_session_filter_single">Solo</string>
     <string name="home_session_filter_group">Groupe</string>
+    <string name="home_content_filter_story">Récits</string>
     <string name="manage_characters">Gérer</string>
     <string name="message_count">%d messages</string>
     <string name="session_group_count">%d sessions</string>
@@ -64,6 +66,8 @@
     <string name="new_session_desc">Choisissez un personnage, des notes et des entrées de livre d\'univers</string>
     <string name="no_recent_chats">Aucune discussion récente</string>
     <string name="no_recent_chats_desc">Créez une session pour commencer une nouvelle conversation.</string>
+    <string name="no_recent_content">Aucun contenu récent</string>
+    <string name="no_recent_content_desc">Créez une discussion, une discussion de groupe ou un récit pour commencer.</string>
     <string name="summary_memory">Mémoire de résumé</string>
     <string name="general_summary_memory">Général</string>
     <string name="conversation_summary_memory">Conversation</string>
@@ -551,6 +555,9 @@
     <string name="selected_count">%d sélectionnés</string>
     <string name="delete_selected_sessions_title">Supprimer les sessions sélectionnées</string>
     <string name="delete_selected_sessions_message">Supprimer les %d sessions sélectionnées et tous leurs messages ? Cette action est irréversible.</string>
+    <string name="delete_selected_items_title">Supprimer les éléments sélectionnés</string>
+    <string name="delete_selected_items_message">Supprimer les %d discussions ou récits sélectionnés et leur contenu ? Cette action est irréversible.</string>
+    <string name="delete_selected_items_failed">Impossible de supprimer tous les éléments sélectionnés</string>
     <string name="delete_message_title">Supprimer le message</string>
     <string name="delete_message_confirm">Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible.</string>
     <string name="stop_generation_before_deleting_message">Veuillez arrêter la génération avant de supprimer des messages</string>
@@ -802,6 +809,7 @@
     <string name="story_continuation_guidance_placeholder">Décrivez la suite souhaitée (facultatif)</string>
     <string name="story_copy_draft">Copier le brouillon</string>
     <string name="story_create_story">Créer une histoire</string>
+    <string name="story_create_subtitle">Nommez votre récit et choisissez les fiches de personnage et les entrées de livre d’univers avant d’écrire.</string>
     <string name="story_delete_story">Supprimer l’histoire</string>
     <string name="story_delete_story_message">Supprimer « %1$s » ? Le manuscrit et ses réglages spécifiques seront irrécupérables.</string>
     <string name="story_discard">Ignorer</string>
@@ -864,6 +872,7 @@
     <string name="story_save_failed">Impossible d’enregistrer l’histoire</string>
     <string name="story_settings">Réglages de l’histoire</string>
     <string name="story_title">Titre de l’histoire</string>
+    <string name="story_title_required">Saisissez un titre pour le récit</string>
     <string name="story_undo">Annuler la dernière modification</string>
     <string name="story_redo">Rétablir la dernière modification</string>
     <string name="story_unsaved">Non enregistré</string>

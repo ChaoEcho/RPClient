@@ -17,9 +17,11 @@
     <string name="character_cards_count">%d 個のキャラクターカード</string>
     <string name="lorebook_count">%d 個のロアブック</string>
     <string name="recent_chats">最近のチャット</string>
+    <string name="recent_content">最近のコンテンツ</string>
     <string name="home_session_filter_all">すべて</string>
     <string name="home_session_filter_single">個人</string>
     <string name="home_session_filter_group">グループ</string>
+    <string name="home_content_filter_story">ストーリー</string>
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 件のメッセージ</string>
     <string name="session_group_count">%d 件のセッション</string>
@@ -65,6 +67,8 @@
     <string name="new_session_desc">キャラクター、ノート、ワールドブックのエントリを選択します</string>
     <string name="no_recent_chats">最近のチャットはありません</string>
     <string name="no_recent_chats_desc">セッションを作成して、新しい会話を開始します。</string>
+    <string name="no_recent_content">最近のコンテンツはありません</string>
+    <string name="no_recent_content_desc">チャット、グループチャット、またはストーリーを作成して始めましょう。</string>
     <string name="summary_memory">要約メモリ</string>
     <string name="general_summary_memory">共通</string>
     <string name="conversation_summary_memory">会話</string>
@@ -552,6 +556,9 @@
     <string name="selected_count">%d 件選択</string>
     <string name="delete_selected_sessions_title">選択したセッションを削除</string>
     <string name="delete_selected_sessions_message">選択した %d 件のセッションとすべてのメッセージを削除しますか？この操作は取り消せません。</string>
+    <string name="delete_selected_items_title">選択した項目を削除</string>
+    <string name="delete_selected_items_message">選択した %d 件のチャットまたはストーリーとその内容を削除しますか？この操作は取り消せません。</string>
+    <string name="delete_selected_items_failed">選択した項目をすべて削除できませんでした</string>
     <string name="delete_message_title">メッセージを削除</string>
     <string name="delete_message_confirm">このメッセージを削除してもよろしいですか？この操作は取り消せません。</string>
     <string name="stop_generation_before_deleting_message">メッセージを削除する前に生成を停止してください</string>
@@ -799,6 +806,7 @@
     <string name="story_continuation_guidance_placeholder">次に起こしてほしいことを入力（任意）</string>
     <string name="story_copy_draft">下書きをコピー</string>
     <string name="story_create_story">ストーリーを作成</string>
+    <string name="story_create_subtitle">ストーリー名を設定し、執筆前にキャラクターカードとワールドブック項目を選択します。</string>
     <string name="story_delete_story">ストーリーを削除</string>
     <string name="story_delete_story_message">「%1$s」を削除しますか？本文とストーリー固有の設定は復元できません。</string>
     <string name="story_discard">破棄</string>
@@ -861,6 +869,7 @@
     <string name="story_save_failed">ストーリーを保存できませんでした</string>
     <string name="story_settings">ストーリー設定</string>
     <string name="story_title">ストーリーのタイトル</string>
+    <string name="story_title_required">ストーリーのタイトルを入力してください</string>
     <string name="story_undo">直前の編集を元に戻す</string>
     <string name="story_redo">直前の編集をやり直す</string>
     <string name="story_unsaved">未保存</string>

@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,12 +47,14 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.Person
@@ -64,6 +68,7 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -71,6 +76,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -102,15 +108,16 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
-import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
-import me.kafuuneko.rpclient.feature.main.model.MainSessionType
+import me.kafuuneko.rpclient.feature.main.model.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSessionTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
@@ -118,6 +125,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessin
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -132,7 +140,8 @@ import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.model.TokenPreset
-import me.kafuuneko.rpclient.ui.dialog.DeleteSelectedSessionsDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
@@ -155,7 +164,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 
-/** 主页面 Compose 入口，承载首页会话列表与全局设置。 */
+/** 主页面 Compose 入口，承载首页聊天与故事列表以及全局设置。 */
 @Composable
 fun MainLayout(
     uiState: MainUiState,
@@ -199,7 +208,7 @@ private fun MainNormal(
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 24.dp, vertical = 16.dp)
                         .navigationBarsPadding(),
-                    selectedCount = selectionState.selectedSessions.size,
+                    selectedCount = selectionState.selectedItems.size,
                     emit = emit
                 )
             } else {
@@ -309,10 +318,31 @@ private fun DialogSwitch(
     when (dialogState) {
         MainDialogState.None -> Unit
 
-        is MainDialogState.DeleteSelectedSessions -> DeleteSelectedSessionsDialog(
-            count = dialogState.count,
+        is MainDialogState.DeleteSelectedItems -> AppDangerDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_selected_items_title),
+            message = stringResource(
+                R.string.delete_selected_items_message,
+                dialogState.count
+            ),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isDeleting,
+            isConfirmLoading = dialogState.isDeleting,
             onConfirm = { MainUiIntent.ConfirmDeleteSelected.emit() },
-            onDismiss = { MainUiIntent.DismissDialog.emit() }
+        )
+
+        is MainDialogState.RenameStory -> AppInputDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.story_rename_story),
+            value = dialogState.title,
+            onValueChange = { MainUiIntent.ChangeStoryTitleDraft(it).emit() },
+            label = stringResource(R.string.story_title),
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
+            isConfirmLoading = dialogState.isSaving,
+            onConfirm = { MainUiIntent.ConfirmStoryRename.emit() }
         )
 
         is MainDialogState.EditGenerationParameter -> NumericEditDialog(
@@ -677,7 +707,7 @@ private fun HomePage(
 ) {
     val selectionState = state.selectionState as? MainHomeSelectionState.Selecting
     val multiSelectMode = selectionState != null
-    val selectedSessions = selectionState?.selectedSessions.orEmpty()
+    val selectedItems = selectionState?.selectedItems.orEmpty()
 
     LazyColumn(
         modifier = Modifier
@@ -692,7 +722,7 @@ private fun HomePage(
         if (multiSelectMode) {
             item {
                 Text(
-                    text = stringResource(R.string.selected_count, selectedSessions.size),
+                    text = stringResource(R.string.selected_count, selectedItems.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -702,10 +732,10 @@ private fun HomePage(
         } else {
             homeEntryItems(state.resourceState, emit)
         }
-        homeSessionSection(
+        homeContentSection(
             state = state,
             multiSelectMode = multiSelectMode,
-            selectedSessions = selectedSessions,
+            selectedItems = selectedItems,
             emit = emit
         )
     }
@@ -736,8 +766,8 @@ private fun LazyListScope.homeEntryItems(
             HomeQuickActionCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.AutoStories,
-                title = stringResource(R.string.story_library),
-                onClick = { MainUiIntent.OpenStoryLibrary.emit() }
+                title = stringResource(R.string.story_create_story),
+                onClick = { MainUiIntent.OpenCreateStory.emit() }
             )
         }
     }
@@ -746,66 +776,78 @@ private fun LazyListScope.homeEntryItems(
     }
 }
 
-private fun LazyListScope.homeSessionSection(
+private fun LazyListScope.homeContentSection(
     state: MainHomeState,
     multiSelectMode: Boolean,
-    selectedSessions: Set<MainSessionSelection>,
+    selectedItems: Set<MainHomeItemSelection>,
     emit: MainUiIntent.() -> Unit
 ) {
     item {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = stringResource(R.string.recent_chats),
+                text = stringResource(R.string.recent_content),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f)
+                color = MaterialTheme.colorScheme.onBackground
             )
             if (!multiSelectMode) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     FilterChip(
-                        selected = state.selectedSessionTab == MainHomeSessionTab.All,
+                        selected = state.selectedContentTab == MainHomeContentTab.All,
                         onClick = {
-                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.All).emit()
+                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.All).emit()
                         },
                         label = { Text(stringResource(R.string.home_session_filter_all)) }
                     )
                     FilterChip(
-                        selected = state.selectedSessionTab == MainHomeSessionTab.Single,
+                        selected = state.selectedContentTab == MainHomeContentTab.Single,
                         onClick = {
-                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.Single).emit()
+                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Single).emit()
                         },
                         label = { Text(stringResource(R.string.home_session_filter_single)) }
                     )
                     FilterChip(
-                        selected = state.selectedSessionTab == MainHomeSessionTab.Group,
+                        selected = state.selectedContentTab == MainHomeContentTab.Group,
                         onClick = {
-                            MainUiIntent.SelectHomeSessionTab(MainHomeSessionTab.Group).emit()
+                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Group).emit()
                         },
                         label = { Text(stringResource(R.string.home_session_filter_group)) }
+                    )
+                    FilterChip(
+                        selected = state.selectedContentTab == MainHomeContentTab.Story,
+                        onClick = {
+                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Story).emit()
+                        },
+                        label = { Text(stringResource(R.string.home_content_filter_story)) }
                     )
                 }
             }
         }
     }
 
-    when (state.selectedSessionTab) {
-        MainHomeSessionTab.All -> {
+    when (state.selectedContentTab) {
+        MainHomeContentTab.All -> {
             val singleEmpty = state.recentChatsState is MainRecentChatsState.Empty
             val groupEmpty = state.recentGroupChatsState is MainRecentGroupChatsState.Empty
+            val storyEmpty = state.recentStoriesState is MainRecentStoriesState.Empty
 
-            if (singleEmpty && groupEmpty) {
+            if (singleEmpty && groupEmpty && storyEmpty) {
                 item {
                     RpInfoCard(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Rounded.ChatBubble,
-                        title = stringResource(R.string.no_recent_chats),
-                        subtitle = stringResource(R.string.no_recent_chats_desc)
+                        title = stringResource(R.string.no_recent_content),
+                        subtitle = stringResource(R.string.no_recent_content_desc)
                     )
                 }
             } else {
@@ -813,7 +855,7 @@ private fun LazyListScope.homeSessionSection(
                     recentChatSessionItems(
                         state = state.recentChatsState,
                         multiSelectMode = multiSelectMode,
-                        selectedSessions = selectedSessions,
+                        selectedItems = selectedItems,
                         emit = emit
                     )
                 }
@@ -831,14 +873,34 @@ private fun LazyListScope.homeSessionSection(
                     recentGroupChatSessionItems(
                         state = state.recentGroupChatsState,
                         multiSelectMode = multiSelectMode,
-                        selectedSessions = selectedSessions,
+                        selectedItems = selectedItems,
+                        emit = emit
+                    )
+                }
+                if (state.recentStoriesState is MainRecentStoriesState.Content) {
+                    item {
+                        RpSectionHeader(
+                            title = stringResource(R.string.story_my_stories),
+                            action = if (multiSelectMode) {
+                                ""
+                            } else {
+                                stringResource(R.string.create)
+                            }
+                        ) {
+                            if (!multiSelectMode) MainUiIntent.OpenCreateStory.emit()
+                        }
+                    }
+                    recentStoryItems(
+                        state = state.recentStoriesState,
+                        multiSelectMode = multiSelectMode,
+                        selectedItems = selectedItems,
                         emit = emit
                     )
                 }
             }
         }
 
-        MainHomeSessionTab.Single -> {
+        MainHomeContentTab.Single -> {
             when (state.recentChatsState) {
                 MainRecentChatsState.Empty -> item {
                     RpInfoCard(
@@ -852,13 +914,13 @@ private fun LazyListScope.homeSessionSection(
                 is MainRecentChatsState.Content -> recentChatSessionItems(
                     state = state.recentChatsState,
                     multiSelectMode = multiSelectMode,
-                    selectedSessions = selectedSessions,
+                    selectedItems = selectedItems,
                     emit = emit
                 )
             }
         }
 
-        MainHomeSessionTab.Group -> {
+        MainHomeContentTab.Group -> {
             when (state.recentGroupChatsState) {
                 MainRecentGroupChatsState.Empty -> item {
                     RpInfoCard(
@@ -872,7 +934,27 @@ private fun LazyListScope.homeSessionSection(
                 is MainRecentGroupChatsState.Content -> recentGroupChatSessionItems(
                     state = state.recentGroupChatsState,
                     multiSelectMode = multiSelectMode,
-                    selectedSessions = selectedSessions,
+                    selectedItems = selectedItems,
+                    emit = emit
+                )
+            }
+        }
+
+        MainHomeContentTab.Story -> {
+            when (state.recentStoriesState) {
+                MainRecentStoriesState.Empty -> item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.AutoStories,
+                        title = stringResource(R.string.story_empty_title),
+                        subtitle = stringResource(R.string.story_empty_subtitle)
+                    )
+                }
+
+                is MainRecentStoriesState.Content -> recentStoryItems(
+                    state = state.recentStoriesState,
+                    multiSelectMode = multiSelectMode,
+                    selectedItems = selectedItems,
                     emit = emit
                 )
             }
@@ -883,7 +965,7 @@ private fun LazyListScope.homeSessionSection(
 private fun LazyListScope.recentChatSessionItems(
     state: MainRecentChatsState.Content,
     multiSelectMode: Boolean,
-    selectedSessions: Set<MainSessionSelection>,
+    selectedItems: Set<MainHomeItemSelection>,
     emit: MainUiIntent.() -> Unit
 ) {
     state.sessionGroups.forEach { group ->
@@ -903,8 +985,8 @@ private fun LazyListScope.recentChatSessionItems(
             items = group.sessions,
             key = { session -> "session-${session.id}" }
         ) { session ->
-            val selection = MainSessionSelection(MainSessionType.Chat, session.id)
-            HomeSessionCard(
+            val selection = MainHomeItemSelection(MainHomeItemType.Chat, session.id)
+            HomeContentCard(
                 modifier = Modifier.animateItem(),
                 accentKey = session.characterName,
                 icon = Icons.Rounded.ChatBubble,
@@ -916,10 +998,10 @@ private fun LazyListScope.recentChatSessionItems(
                     session.updatedAt
                 ),
                 multiSelectMode = multiSelectMode,
-                selected = selection in selectedSessions,
+                selected = selection in selectedItems,
                 onClick = {
                     if (multiSelectMode) {
-                        MainUiIntent.ToggleSessionSelection(selection).emit()
+                        MainUiIntent.ToggleItemSelection(selection).emit()
                     } else {
                         MainUiIntent.OpenChat(session.id).emit()
                     }
@@ -935,15 +1017,15 @@ private fun LazyListScope.recentChatSessionItems(
 private fun LazyListScope.recentGroupChatSessionItems(
     state: MainRecentGroupChatsState.Content,
     multiSelectMode: Boolean,
-    selectedSessions: Set<MainSessionSelection>,
+    selectedItems: Set<MainHomeItemSelection>,
     emit: MainUiIntent.() -> Unit
 ) {
     items(
         items = state.sessions,
         key = { "group-session-${it.id}" }
     ) { session ->
-        val selection = MainSessionSelection(MainSessionType.GroupChat, session.id)
-        HomeSessionCard(
+        val selection = MainHomeItemSelection(MainHomeItemType.GroupChat, session.id)
+        HomeContentCard(
             modifier = Modifier.animateItem(),
             accentKey = session.title,
             icon = Icons.Rounded.Groups,
@@ -955,10 +1037,10 @@ private fun LazyListScope.recentGroupChatSessionItems(
                 session.updatedAt
             ),
             multiSelectMode = multiSelectMode,
-            selected = selection in selectedSessions,
+            selected = selection in selectedItems,
             onClick = {
                 if (multiSelectMode) {
-                    MainUiIntent.ToggleSessionSelection(selection).emit()
+                    MainUiIntent.ToggleItemSelection(selection).emit()
                 } else {
                     MainUiIntent.OpenGroupChat(session.id).emit()
                 }
@@ -970,9 +1052,65 @@ private fun LazyListScope.recentGroupChatSessionItems(
     }
 }
 
+private fun LazyListScope.recentStoryItems(
+    state: MainRecentStoriesState.Content,
+    multiSelectMode: Boolean,
+    selectedItems: Set<MainHomeItemSelection>,
+    emit: MainUiIntent.() -> Unit
+) {
+    items(
+        items = state.stories,
+        key = { "story-${it.id}" }
+    ) { story ->
+        val selection = MainHomeItemSelection(
+            type = MainHomeItemType.Story,
+            itemId = story.id.toString()
+        )
+        HomeContentCard(
+            modifier = Modifier.animateItem(),
+            accentKey = story.title,
+            icon = Icons.Rounded.AutoStories,
+            title = story.title,
+            preview = story.preview.ifBlank {
+                stringResource(R.string.story_empty_document_preview)
+            },
+            metadata = listOf(
+                stringResource(
+                    R.string.story_character_count,
+                    story.contentCharacterCount
+                ),
+                story.updatedAt
+            ),
+            multiSelectMode = multiSelectMode,
+            selected = selection in selectedItems,
+            onClick = {
+                if (multiSelectMode) {
+                    MainUiIntent.ToggleItemSelection(selection).emit()
+                } else {
+                    MainUiIntent.OpenStory(story.id).emit()
+                }
+            },
+            onLongClick = {
+                if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+            },
+            trailingContent = {
+                StoryItemMenu(
+                    onRename = {
+                        MainUiIntent.ShowRenameStoryDialog(story.id).emit()
+                    },
+                    onDelete = {
+                        MainUiIntent.EnterMultiSelect(selection).emit()
+                        MainUiIntent.ShowDeleteSelectedDialog.emit()
+                    }
+                )
+            }
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeSessionCard(
+private fun HomeContentCard(
     modifier: Modifier = Modifier,
     accentKey: String,
     icon: ImageVector,
@@ -982,7 +1120,8 @@ private fun HomeSessionCard(
     multiSelectMode: Boolean = false,
     selected: Boolean = false,
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val borderColor by animateColorAsState(
@@ -991,7 +1130,7 @@ private fun HomeSessionCard(
         } else {
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         },
-        label = "homeSessionCardBorder"
+        label = "homeContentCardBorder"
     )
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
@@ -999,7 +1138,7 @@ private fun HomeSessionCard(
         } else {
             MaterialTheme.colorScheme.surface
         },
-        label = "homeSessionCardContainer"
+        label = "homeContentCardContainer"
     )
 
     Card(
@@ -1083,12 +1222,49 @@ private fun HomeSessionCard(
                     onCheckedChange = { onClick() },
                     modifier = Modifier.padding(end = 8.dp)
                 )
+            } else {
+                trailingContent?.invoke()
             }
         }
     }
 }
 
-
+@Composable
+private fun StoryItemMenu(
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Rounded.MoreVert,
+                contentDescription = stringResource(R.string.more)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.rename)) },
+                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onRename()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.delete)) },
+                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                }
+            )
+        }
+    }
+}
 
 @Composable
 private fun SessionCharacterHeader(
@@ -2244,6 +2420,17 @@ private fun MainLayoutPreview() {
                                 updatedAt = "06-15 22:10"
                             )
                         )
+                    ),
+                    recentStoriesState = MainRecentStoriesState.Content(
+                        stories = listOf(
+                            MainStoryItem(
+                                id = 1L,
+                                title = "Rain over the old city",
+                                preview = "The station clock stopped at midnight.",
+                                contentCharacterCount = 12840,
+                                updatedAt = "06-15 22:30"
+                            )
+                        )
                     )
                 ),
                 settingsState = MainSettingsState(
@@ -2294,7 +2481,8 @@ private fun MainSettingsLayoutPreview() {
                         totalWorldBooks = 7
                     ),
                     recentChatsState = MainRecentChatsState.Empty,
-                    recentGroupChatsState = MainRecentGroupChatsState.Empty
+                    recentGroupChatsState = MainRecentGroupChatsState.Empty,
+                    recentStoriesState = MainRecentStoriesState.Empty
                 ),
                 settingsState = MainSettingsState(
                     identityState = MainUserIdentityState(

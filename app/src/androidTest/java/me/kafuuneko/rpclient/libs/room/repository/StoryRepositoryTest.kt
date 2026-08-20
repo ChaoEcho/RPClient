@@ -86,6 +86,62 @@ class StoryRepositoryTest {
     }
 
     @Test
+    fun createStoryWithConfiguration_persistsInitialReferences() = runBlocking {
+        val characterId = mDatabase.getCharacterDao().insertOrReplace(testCharacter())
+        val lorebookId = mDatabase.getLorebookDao().insertOrReplace(Lorebook(name = "World"))
+        val entryId = mDatabase.getLorebookEntryDao().insertOrReplace(
+            testLorebookEntry(lorebookId)
+        )
+
+        val storyId = mRepository.createStoryWithConfiguration(
+            title = " Configured story ",
+            lorebookEntryIds = listOf(entryId, entryId),
+            characterSelections = listOf(
+                StoryCharacterSelection(
+                    characterId = characterId,
+                    activationMode = StoryCharacter.ACTIVATION_AUTO,
+                    activationKeys = listOf("  Ally  ", "Ally", "")
+                )
+            ),
+            createTime = 10L
+        )
+
+        val story = requireNotNull(mRepository.getStory(storyId))
+        assertEquals("Configured story", story.title)
+        assertEquals(10L, story.createTime)
+        assertEquals(10L, story.latestTime)
+        assertEquals(listOf(entryId), mRepository.getLorebookEntryIds(story))
+        val candidate = mRepository.getStoryCharacterCandidates(storyId).single()
+        assertEquals(characterId, candidate.character.id)
+        assertEquals(0, candidate.relation.sortOrder)
+        assertEquals(StoryCharacter.ACTIVATION_AUTO, candidate.relation.activationMode)
+        assertEquals(listOf("Ally"), candidate.activationKeys)
+    }
+
+    @Test
+    fun createStoryWithConfiguration_invalidReferenceRollsBackStory() = runBlocking {
+        val characterId = mDatabase.getCharacterDao().insertOrReplace(testCharacter())
+
+        val result = runCatching {
+            mRepository.createStoryWithConfiguration(
+                title = "Invalid configuration",
+                lorebookEntryIds = listOf(Long.MAX_VALUE),
+                characterSelections = listOf(
+                    StoryCharacterSelection(
+                        characterId = characterId,
+                        activationMode = StoryCharacter.ACTIVATION_ALWAYS,
+                        activationKeys = emptyList()
+                    )
+                ),
+                createTime = 10L
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertTrue(mRepository.getStoryOverviews().isEmpty())
+    }
+
+    @Test
     fun summaryChecksRevisionAndOverwritesCurrentValue() = runBlocking {
         val storyId = mRepository.createStory("Story", createTime = 10L)
         assertTrue(mRepository.updateContent(storyId, 0L, "Manuscript", latestTime = 11L))
