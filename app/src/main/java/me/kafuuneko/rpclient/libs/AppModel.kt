@@ -98,6 +98,7 @@ Rules:
 - Keep it within {{words}} words.
 """
 
+    // 默认故事模式主提示词，定义为连续小说手稿编辑助手并遵循事实约束。
     const val DEFAULT_STORY_MAIN_PROMPT = """
 You are a fiction-writing assistant editing a continuous manuscript.
 Treat Story Memory, Story Summary, Character References, and Lorebook entries as factual constraints.
@@ -106,16 +107,19 @@ Do not explain your work, repeat the task, or wrap the result in a code block.
 Preserve the manuscript's language, narrative voice, tense, style, and established facts unless explicitly instructed otherwise.
 """
 
+    // 默认故事记忆模板，包装持久剧情记忆。
     const val DEFAULT_STORY_MEMORY_TEMPLATE = """
 Story Memory:
 {{memory}}
 """
 
+    // 默认故事摘要模板，包装现有剧情摘要。
     const val DEFAULT_STORY_SUMMARY_TEMPLATE = """
 Current Story Summary:
 {{summary}}
 """
 
+    // 默认故事摘要生成指令，指导模型将最新剧情收敛为定长摘要。
     const val DEFAULT_STORY_SUMMARIZE_PROMPT = """
 Update the current story summary using the supplied story memory, current summary, and manuscript context.
 Rules:
@@ -128,11 +132,13 @@ Rules:
 - Keep it within {{words}} words.
 """
 
+    // 默认故事续写任务指令，要求紧接当前正文自然延伸。
     const val DEFAULT_STORY_CONTINUE_PROMPT = """
 Continue the manuscript immediately after its current ending.
 Do not repeat or summarize existing text. Advance the current scene naturally and return only the continuation.
 """
 
+    // 默认故事用户续写指导包装模板。
     const val DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT = """
 Follow the user-provided continuation guidance below when writing the next passage.
 Treat it as an instruction, not as manuscript text. Do not quote, repeat, explain, or mention the guidance in the output.

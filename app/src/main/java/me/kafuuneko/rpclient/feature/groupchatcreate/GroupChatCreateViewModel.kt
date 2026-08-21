@@ -32,7 +32,16 @@ import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** 新建群聊页状态持有者，负责成员排序、世界书授权与群聊聚合数据落库。 */
+/**
+ * 新建群聊页状态持有者。
+ *
+ * 核心职责：
+ * - 异步加载所有候选角色与世界书条目分组；
+ * - 维护群聊参演成员多选状态（最少选择 2 个角色），并联动专属世界书授权；
+ * - 管理群聊轮转激活策略（自然发言 Natural / 顺序轮询 RoundRobin）及连续发言权限；
+ * - 管理群聊开场白生成模式（每个角色随机首条 Random / 手动指定角色与条目 Manual / 自定义内容 Custom / 无开场白 None）及成员变动时的状态收敛；
+ * - 驱动开场白规划器（GreetingPlanner）生成初始快照并原子事务创建群聊会话。
+ */
 class GroupChatCreateViewModel :
     CoreViewModelWithEvent<GroupChatCreateUiIntent, GroupChatCreateUiState>(
         GroupChatCreateUiState.None
@@ -42,12 +51,14 @@ class GroupChatCreateViewModel :
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mGreetingPlanner by inject<GroupChatGreetingPlanner>()
 
+    /** 初始化页面，拉取候选角色列表与世界书条目列表。 */
     @UiIntentObserver(GroupChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<GroupChatCreateUiState.None>()) return
         GroupChatCreateUiState.Normal(
             loadState = GroupChatCreateLoadState.Loading
         ).setup()
+        // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters().map {
                 GroupChatCreateCharacterItem(
@@ -84,6 +95,7 @@ class GroupChatCreateViewModel :
             }.filter { it.entries.isNotEmpty() }
             characters to lorebookGroups
         }
+        // 渲染就绪状态
         GroupChatCreateUiState.Normal(
             characters = data.first,
             visibleCharacters = data.first,
@@ -92,18 +104,21 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 处理返回操作，迁移至 Finished 状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.Back::class)
     private fun onBack() {
         if (isStateOf<GroupChatCreateUiState.Finished>()) return
         GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 修改群聊自定义标题。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: GroupChatCreateUiIntent.ChangeTitle) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(title = intent.value).setup()
     }
 
+    /** 修改角色搜索关键词，实时过滤展示的候选成员。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeSearchQuery::class)
     private fun onChangeSearchQuery(intent: GroupChatCreateUiIntent.ChangeSearchQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -118,6 +133,7 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 修改世界书检索关键词，实时过滤展示的分组与条目。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: GroupChatCreateUiIntent.ChangeLorebookQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -127,13 +143,20 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /**
+     * 切换群聊成员选中状态，自动同步专属世界书条目授权并收敛开场白候选。
+     *
+     * @param intent 包含目标角色 ID 的意图
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacter::class)
     private fun onToggleCharacter(intent: GroupChatCreateUiIntent.ToggleCharacter) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        // 切换目标角色选中态
         val characters = uiState.characters.map {
             if (it.id == intent.characterId) it.copy(selected = !it.selected) else it
         }
         val selectedCharacter = characters.firstOrNull { it.id == intent.characterId }
+        // 提取角色专属绑定的世界书条目
         val defaultEntryIds = selectedCharacter
             ?.takeIf { it.selected }
             ?.characterLorebookId
@@ -147,6 +170,7 @@ class GroupChatCreateViewModel :
             .orEmpty()
         val selectedEntryIds = uiState.selectedLorebookEntryIds + defaultEntryIds
         val lorebookGroups = uiState.lorebookGroups.withEnabledIds(selectedEntryIds)
+        // 更新 UI 状态并收敛开场白候选成员
         uiState.copy(
             characters = characters,
             visibleCharacters = characters.visibleFor(uiState.searchQuery),
@@ -157,12 +181,14 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 选择群聊角色轮转激活策略。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectStrategy::class)
     private fun onSelectStrategy(intent: GroupChatCreateUiIntent.SelectStrategy) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(activationStrategy = intent.strategy).setup()
     }
 
+    /** 切换是否允许同一个角色连续发言。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleAllowSelfResponses::class)
     private fun onToggleAllowSelfResponses(
         intent: GroupChatCreateUiIntent.ToggleAllowSelfResponses
@@ -171,6 +197,7 @@ class GroupChatCreateViewModel :
         uiState.copy(allowSelfResponses = intent.enabled).setup()
     }
 
+    /** 选择群聊开场白模式。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingMode::class)
     private fun onSelectGreetingMode(
         intent: GroupChatCreateUiIntent.SelectGreetingMode
@@ -183,6 +210,7 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 选择指定发言的开场白角色。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingCharacter::class)
     private fun onSelectGreetingCharacter(
         intent: GroupChatCreateUiIntent.SelectGreetingCharacter
@@ -197,6 +225,7 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 选择指定角色的开场白索引。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectGreeting::class)
     private fun onSelectGreeting(intent: GroupChatCreateUiIntent.SelectGreeting) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -209,6 +238,7 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 修改自定义开场白文本内容。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeCustomGreeting::class)
     private fun onChangeCustomGreeting(
         intent: GroupChatCreateUiIntent.ChangeCustomGreeting
@@ -219,16 +249,18 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 批量切换某一本世界书下所有条目的选中状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebook::class)
-    /** 切换创建表单中一本世界书的全部条目。 */
     private fun onToggleLorebook(intent: GroupChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        // 收集该世界书下所有条目 ID
         val entryIds = uiState.lorebookGroups
             .firstOrNull { it.lorebookId == intent.lorebookId }
             ?.entries
             ?.mapTo(mutableSetOf()) { it.id }
             .orEmpty()
         if (entryIds.isEmpty()) return
+        // 批量切换选中集合
         val selectedIds = uiState.selectedLorebookEntryIds.toggleAll(entryIds)
         val groups = uiState.lorebookGroups.withEnabledIds(selectedIds)
         uiState.copy(
@@ -238,8 +270,8 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
+    /** 切换单个世界书条目的选中状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookEntry::class)
-    /** 切换创建表单中的单个世界书条目。 */
     private fun onToggleLorebookEntry(
         intent: GroupChatCreateUiIntent.ToggleLorebookEntry
     ) {
@@ -267,6 +299,7 @@ class GroupChatCreateViewModel :
     private suspend fun onCreate() {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         if (uiState.loadState != GroupChatCreateLoadState.None) return
+        // 校验参演成员数量至少为 2 人
         val characterIds = uiState.characters.filter { it.selected }.map { it.id }
         if (characterIds.size < 2) {
             AppViewEvent.PopupToastMessageByResId(
@@ -274,6 +307,7 @@ class GroupChatCreateViewModel :
             ).tryEmit()
             return
         }
+        // 校验开场白配置完整度
         if (!uiState.greetingState.canCreate) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.group_chat_greeting_incomplete
@@ -283,6 +317,7 @@ class GroupChatCreateViewModel :
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
         val userName = AppModel.userName.trim().ifBlank { "You" }
+        // 提取候选成员与开场白列表
         val greetingCandidates = uiState.greetingState.characters.map {
             GroupChatGreetingCandidate(
                 characterId = it.id,
@@ -290,11 +325,13 @@ class GroupChatCreateViewModel :
                 greetings = it.greetings
             )
         }
+        // 生成确定的初始开场消息序列
         val openingMessages = mGreetingPlanner.plan(
             candidates = greetingCandidates,
             selection = uiState.greetingState.toSelection(),
             userName = userName
         )
+        // 在 IO 线程原子创建群聊会话、成员关联与初始开场消息
         val sessionId = withContext(Dispatchers.IO) {
             mGroupChatRepository.createSession(
                 title = uiState.title.trim().ifBlank { createTime.toDefaultChatTitle() },
@@ -308,6 +345,7 @@ class GroupChatCreateViewModel :
                 createTime = createTime
             )
         }
+        // 启动群聊页面并等待返回
         AppViewEvent.StartActivity(
             activity = GroupChatActivity::class.java,
             extras = Bundle().apply {
@@ -317,6 +355,7 @@ class GroupChatCreateViewModel :
         GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 根据检索关键词过滤可见角色。 */
     private fun List<GroupChatCreateCharacterItem>.visibleFor(
         query: String
     ): List<GroupChatCreateCharacterItem> {
@@ -328,12 +367,14 @@ class GroupChatCreateViewModel :
         }
     }
 
+    /** 更新世界书分组列表中所有条目的勾选激活状态。 */
     private fun List<GroupChatLorebookGroupItem>.withEnabledIds(
         selectedIds: Set<Long>
     ): List<GroupChatLorebookGroupItem> = map { group ->
         group.copy(entries = group.entries.map { it.copy(enabled = it.id in selectedIds) })
     }
 
+    /** 根据检索关键词多字段过滤世界书分组与条目。 */
     private fun List<GroupChatLorebookGroupItem>.filterForQuery(
         query: String
     ): List<GroupChatLorebookGroupItem> {
@@ -358,10 +399,13 @@ class GroupChatCreateViewModel :
 
     /**
      * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。
+     *
+     * @param characters 当前全量角色项列表
      */
     private fun GroupChatCreateGreetingState.reconcile(
         characters: List<GroupChatCreateCharacterItem>
     ): GroupChatCreateGreetingState {
+        // 仅保留已勾选为群成员的角色作为开场白候选
         val candidates = characters.filter { it.selected }.map {
             GroupChatGreetingCharacterItem(
                 id = it.id,
@@ -370,12 +414,14 @@ class GroupChatCreateViewModel :
             )
         }
         val current = candidates.firstOrNull { it.id == selectedCharacterId }
+        // 按模式推导首选开场角色
         val preferred = when (mode) {
             GroupChatGreetingMode.Manual ->
                 current?.takeIf { it.greetings.isNotEmpty() }
                     ?: candidates.firstOrNull { it.greetings.isNotEmpty() }
             else -> current ?: candidates.firstOrNull()
         }
+        // 校验并收敛开场白索引
         val greetingIndex = selectedGreetingIndex
             ?.takeIf { it in preferred?.greetings.orEmpty().indices }
             ?: preferred?.greetings?.indices?.firstOrNull()
@@ -386,6 +432,7 @@ class GroupChatCreateViewModel :
         )
     }
 
+    /** 将开场白状态映射为领域层开场白选择实体。 */
     private fun GroupChatCreateGreetingState.toSelection(): GroupChatGreetingSelection {
         return when (mode) {
             GroupChatGreetingMode.RandomPerCharacter ->

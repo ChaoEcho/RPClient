@@ -18,18 +18,22 @@ class RegexScriptEngine {
         val hits = mutableListOf<RegexExecutionHit>()
         val errors = mutableListOf<RegexExecutionError>()
 
+        // 按作用域优先级（全局优先、角色次之）及自定义序号排序
         scripts.sortedWith(
             compareBy<ScopedRegexScript> { it.scope.priority() }
                 .thenBy { it.order }
         ).forEach { scoped ->
             val script = scoped.script
+            // 校验当前脚本是否满足启停状态、Placement、编辑标记及深度限制
             if (!script.shouldRun(context)) return@forEach
             val before = output
+            // 执行单条脚本的正则替换操作
             val result = runCatching {
                 applyScript(before, script, context.macros)
             }
             result.onSuccess { application ->
                 output = application.text
+                // 记录命中成功的脚本元数据
                 if (application.matched) {
                     hits += RegexExecutionHit(
                         scriptId = script.id,
@@ -42,6 +46,7 @@ class RegexScriptEngine {
                     )
                 }
             }.onFailure { throwable ->
+                // 捕获语法或替换异常，隔离错误以确保后续脚本继续执行
                 errors += RegexExecutionError(
                     scriptId = script.id,
                     scriptName = script.scriptName,

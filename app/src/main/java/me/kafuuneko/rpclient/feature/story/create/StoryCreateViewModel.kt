@@ -26,7 +26,15 @@ import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** 新建 Story 页状态持有者，负责初始角色、世界书配置和原子创建。 */
+/**
+ * 新建 Story 页状态持有者。
+ *
+ * 核心职责：
+ * - 异步加载所有候选角色与带有条目的世界书分组列表；
+ * - 维护故事标题输入、参演角色选择以及关联世界书条目的联动勾选；
+ * - 支持世界书名称、条目名称、内容与关键词的模糊检索过滤；
+ * - 保证故事实体、参演角色配置与绑定世界书条目的原子级事务创建，并在成功后导航至故事编辑器。
+ */
 class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCreateUiState>(
     StoryCreateUiState.None
 ), KoinComponent {
@@ -34,13 +42,16 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mStoryRepository by inject<StoryRepository>()
 
+    /** 初始化页面，拉取数据库中的角色列表与世界书条目候选数据。 */
     @UiIntentObserver(StoryCreateUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<StoryCreateUiState.None>()) return
         StoryCreateUiState.Normal().setup()
         try {
+            // 在 IO 线程并发拉取角色与世界书选项
             val data = withContext(Dispatchers.IO) { loadOptions() }
             val current = getOrNull<StoryCreateUiState.Normal>() ?: return
+            // 装载候选数据并迁移至 Ready 状态
             current.copy(
                 loadState = StoryCreateLoadState.Ready,
                 characters = data.characters,
@@ -56,6 +67,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         }
     }
 
+    /** 处理返回操作，创建进行中时禁止退出。 */
     @UiIntentObserver(StoryCreateUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<StoryCreateUiState.Normal>() ?: return
@@ -63,16 +75,23 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         StoryCreateUiState.finished(uiState).setup()
     }
 
+    /** 修改故事标题。 */
     @UiIntentObserver(StoryCreateUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: StoryCreateUiIntent.ChangeTitle) {
         updateReadyForm { copy(title = intent.value) }
     }
 
+    /**
+     * 切换角色的勾选状态，若新选中角色则自动联动选中其绑定的专属世界书条目。
+     *
+     * @param intent 包含目标角色 ID 的意图
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleCharacter::class)
     private fun onToggleCharacter(intent: StoryCreateUiIntent.ToggleCharacter) {
         val uiState = readyState() ?: return
         val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
         val selecting = character.id !in uiState.form.selectedCharacterIds
+        // 查找角色专属绑定的世界书条目集合
         val linkedEntryIds = character.linkedLorebookId
             ?.let { lorebookId ->
                 uiState.lorebookGroups
@@ -81,6 +100,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                     ?.mapTo(mutableSetOf()) { it.id }
             }
             .orEmpty()
+        // 切换角色选择状态并在初次选中时追加关联条目
         updateReadyForm {
             copy(
                 selectedCharacterIds = selectedCharacterIds.toggle(character.id),
@@ -93,6 +113,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         }
     }
 
+    /** 修改世界书检索关键词，实时过滤展示的分组与条目。 */
     @UiIntentObserver(StoryCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: StoryCreateUiIntent.ChangeLorebookQuery) {
         val uiState = readyState() ?: return
@@ -102,6 +123,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
+    /** 批量切换某一本世界书下所有条目的选中状态。 */
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: StoryCreateUiIntent.ToggleLorebook) {
         val uiState = readyState() ?: return
@@ -115,6 +137,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         }
     }
 
+    /** 切换单个世界书条目的选中状态。 */
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: StoryCreateUiIntent.ToggleLorebookEntry) {
         val uiState = readyState() ?: return
@@ -131,12 +154,15 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     private suspend fun onCreateStory() {
         val uiState = readyState() ?: return
         val title = uiState.form.title.trim()
+        // 校验标题非空
         if (title.isEmpty()) {
             AppViewEvent.PopupToastMessageByResId(R.string.story_title_required).tryEmit()
             return
         }
+        // 进入创建中状态
         uiState.copy(loadState = StoryCreateLoadState.Creating).setup()
         try {
+            // 在 IO 线程原子事务创建故事、参演角色与关联世界书条目
             val storyId = withContext(Dispatchers.IO) {
                 mStoryRepository.createStoryWithConfiguration(
                     title = title,
@@ -152,25 +178,30 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                         }
                 )
             }
+            // 启动故事编辑器页面并等待返回
             AppViewEvent.StartActivity(
                 activity = StoryEditorActivity::class.java,
                 extras = Bundle().apply {
                     putLong(StoryEditorActivity.EXTRA_STORY_ID, storyId)
                 }
             ).emitAndAwait()
+            // 退出当前新建页
             StoryCreateUiState.finished(uiStateFlow.value).setup()
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
+            // 创建失败恢复就绪状态并提示
             val current = getOrNull<StoryCreateUiState.Normal>() ?: return
             current.copy(loadState = StoryCreateLoadState.Ready).setup()
             AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed).tryEmit()
         }
     }
 
+    /** 从数据库拉取所有世界书及其有效条目，以及全量候选角色。 */
     private suspend fun loadOptions(): StoryCreateOptions {
         val lorebooks = mLorebookRepository.getAllLorebooks()
         val lorebookNames = lorebooks.associate { it.id to it.name }
+        // 构建包含条目列表的世界书分组项
         val groups = lorebooks.map { lorebook ->
             StoryCreateLorebookGroupItem(
                 lorebookId = lorebook.id,
@@ -191,6 +222,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                     }
             )
         }.filter { it.entries.isNotEmpty() }
+        // 构建候选角色列表项
         val characters = mCharacterRepository.getAllCharacters().map { character ->
             StoryCreateCharacterItem(
                 id = character.id,
@@ -204,16 +236,19 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         return StoryCreateOptions(characters, groups)
     }
 
+    /** 获取处于 Ready 就绪状态的 UI 状态。 */
     private fun readyState(): StoryCreateUiState.Normal? {
         return getOrNull<StoryCreateUiState.Normal>()
             ?.takeIf { it.loadState == StoryCreateLoadState.Ready }
     }
 
+    /** 辅助方法：在 Ready 状态下以不可变方式更新表单数据。 */
     private fun updateReadyForm(update: StoryCreateForm.() -> StoryCreateForm) {
         val uiState = readyState() ?: return
         uiState.copy(form = uiState.form.update()).setup()
     }
 
+    /** 根据检索文本对世界书分组及条目进行匹配过滤。 */
     private fun List<StoryCreateLorebookGroupItem>.filterForQuery(
         query: String
     ): List<StoryCreateLorebookGroupItem> {
@@ -234,6 +269,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         }
     }
 
+    /** 故事创建候选数据容器。 */
     private data class StoryCreateOptions(
         val characters: List<StoryCreateCharacterItem>,
         val lorebookGroups: List<StoryCreateLorebookGroupItem>

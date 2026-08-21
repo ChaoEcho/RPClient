@@ -26,7 +26,12 @@ class SummaryPromptBuilder(
     /**
      * 构建独立的总结请求。
      *
-     * 预算按最终 system 与 user 两条消息计算，已包含模板、已有总结、角色标签和格式开销。
+     * 核心步骤：
+     * - 校验上下文 Token 上限与回复预留；
+     * - 获取用于生成摘要的候选历史消息（排除最新的正在生成或编辑的消息）；
+     * - 对历史消息与已有摘要进行 Think 思考块剥离与清洗；
+     * - 从最早消息开始贪婪选择不超过 Prompt 预算的最大消息前缀；
+     * - 组装并渲染包含总结指令模板与格式化历史的请求对象。
      */
     fun buildWithSelection(
         userName: String,
@@ -37,6 +42,7 @@ class SummaryPromptBuilder(
         messages: List<ChatMessage>,
         provider: LLMProvider?
     ): SummaryPromptBuildResult {
+        // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = maxContextTokens - responseTokens
@@ -44,12 +50,13 @@ class SummaryPromptBuilder(
             "Summary response token reserve must be smaller than the context token limit."
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
-        // 最后一条消息仍可能处于编辑、续写或流式生成边界，不进入本轮摘要素材。
+        // 获取候选摘要消息（排除最后一条正在变动的消息并限制最大单次处理条数）
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitizedById = limited.associate { message ->
             message.id to message.copy(content = message.content.summarySafeContent())
         }
+        // 贪婪选择符合预算的最长消息连续前缀
         val selected = selectSummaryPrefix(
             items = limited,
             promptBudget = promptBudget
@@ -67,6 +74,7 @@ class SummaryPromptBuilder(
                 )
             )
         }
+        // 若存在候选消息但连单条都超出预算则抛出异常
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
                 renderRequestMessages(
@@ -82,6 +90,7 @@ class SummaryPromptBuilder(
             throw PromptBudgetExceededException(required, promptBudget)
         }
         val sanitizedSelected = selected.map { sanitizedById.getValue(it.id) }
+        // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
                 userName,
@@ -148,6 +157,7 @@ class SummaryPromptBuilder(
     }
 
     private companion object {
+        /** 默认上下文 Token 上限。 */
         const val DEFAULT_CONTEXT_TOKENS = 8192
     }
 }

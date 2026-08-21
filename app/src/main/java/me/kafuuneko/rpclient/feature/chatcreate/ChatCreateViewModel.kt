@@ -30,7 +30,17 @@ import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** 新建单角色会话页状态持有者，负责角色选择、世界书授权和初始会话落库。 */
+/**
+ * 新建单角色会话页状态持有者。
+ *
+ * 核心职责：
+ * - 异步加载所有候选角色与世界书条目分组；
+ * - 驱动角色选择及其多开场白（First Messages）切换；
+ * - 自动联动角色专属世界书条目的默认授权与切换同步；
+ * - 支持按条目名称、内容、主次关键词和分类进行多字段世界书过滤；
+ * - 结合用户画像与开场白 Prompt 宏（如 `{{user}}`, `{{char}}`）预解析初始消息；
+ * - 保证单聊会话与首条消息的原子事务创建，并导航跳转至聊天页。
+ */
 class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreateUiState>(
     ChatCreateUiState.None
 ), KoinComponent {
@@ -41,10 +51,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mMacroResolver by inject<PromptMacroResolver>()
     private var mCharactersById: Map<Long, Character> = emptyMap()
 
+    /** 初始化页面，并发拉取数据库中的全量角色与世界书条目。 */
     @UiIntentObserver(ChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<ChatCreateUiState.None>()) return
         ChatCreateUiState.Normal(loadState = ChatCreateLoadState.Loading).setup()
+        // 在 IO 线程并发查询角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
             val lorebooks = mLorebookRepository.getAllLorebooks()
@@ -75,11 +87,13 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             characters to groups
         }
         mCharactersById = data.first.associateBy { it.id }
+        // 默认选中第一个可用角色
         val selectedCharacter = data.first.firstOrNull()
         val selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty()
         val selectedLorebookEntryIds = selectedCharacter
             ?.defaultLorebookEntryIds(data.second)
             .orEmpty()
+        // 渲染初始就绪状态
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
             form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
@@ -102,21 +116,29 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
+    /** 处理返回操作，迁移至 Finished 状态。 */
     @UiIntentObserver(ChatCreateUiIntent.Back::class)
     private fun onBack() {
         if (isStateOf<ChatCreateUiState.Finished>()) return
         ChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
+    /**
+     * 选中不同角色，刷新其可用开场白列表并同步更新世界书联动勾选项。
+     *
+     * @param intent 包含目标角色 ID 的意图
+     */
     @UiIntentObserver(ChatCreateUiIntent.SelectCharacter::class)
     private fun onSelectCharacter(intent: ChatCreateUiIntent.SelectCharacter) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         val character = mCharactersById[intent.characterId] ?: return
         if (uiState.form.selectedCharacterId == character.id) return
+        // 记录上一个角色绑定的条目集合用于差量剔除
         val previousLinkedLorebookEntryIds = uiState.selectedCharacter()
             ?.defaultLorebookEntryIds(uiState.lorebookGroups)
             .orEmpty()
         val selectedCharacterFirstMessages = character.getChatFirstMessageList()
+        // 更新表单角色选择与世界书勾选集合
         uiState.copy(
             form = uiState.form.selectCharacter(
                 characterId = character.id,
@@ -128,6 +150,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
+    /** 选择角色预置的多条开场白中的某一条。 */
     @UiIntentObserver(ChatCreateUiIntent.SelectFirstMessage::class)
     private fun onSelectFirstMessage(intent: ChatCreateUiIntent.SelectFirstMessage) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -135,18 +158,21 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         updateForm { copy(selectedFirstMessageIndex = intent.index) }
     }
 
+    /** 修改会话自定义标题。 */
     @UiIntentObserver(ChatCreateUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: ChatCreateUiIntent.ChangeTitle) {
         if (!isStateOf<ChatCreateUiState.Normal>()) return
         updateForm { copy(title = intent.value) }
     }
 
+    /** 修改会话级 User Note 附加提示词。 */
     @UiIntentObserver(ChatCreateUiIntent.ChangeUserNote::class)
     private fun onChangeUserNote(intent: ChatCreateUiIntent.ChangeUserNote) {
         if (!isStateOf<ChatCreateUiState.Normal>()) return
         updateForm { copy(userNote = intent.value) }
     }
 
+    /** 修改世界书检索关键词，过滤展示的分组与条目。 */
     @UiIntentObserver(ChatCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: ChatCreateUiIntent.ChangeLorebookQuery) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -156,6 +182,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
+    /** 切换单个世界书条目的授权选中状态。 */
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: ChatCreateUiIntent.ToggleLorebookEntry) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -168,6 +195,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         }
     }
 
+    /** 批量切换某一本世界书下所有条目的授权选中状态。 */
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: ChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -192,10 +220,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private suspend fun onCreateChat() {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         if (uiState.loadState != ChatCreateLoadState.None) return
+        // 校验选中的角色
         val character = uiState.selectedCharacter() ?: run {
             AppViewEvent.PopupToastMessageByResId(R.string.no_character_selected).tryEmit()
             return
         }
+        // 校验开场白选择
         val firstMessageSelection = uiState.resolveFirstMessageSelection() ?: return
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
         val userName = AppModel.userName.trim().ifBlank { "You" }
@@ -203,6 +233,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val createTime = System.currentTimeMillis()
         val sessionTitle = uiState.form.normalizedTitle(createTime)
 
+        // 预解析开场白中的 Prompt 宏变量
         val firstMessageContent = firstMessageSelection.value?.let { rawFirstMessage ->
             val session = ChatSession(
                 id = 0L,
@@ -232,6 +263,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             mMacroResolver.resolve(rawFirstMessage, context)
         }
 
+        // 在 IO 线程原子入库单聊会话与首条角色消息
         val sessionId = withContext(Dispatchers.IO) {
             mChatRepository.createSessionWithFirstMessage(
                 characterId = character.id,
@@ -244,6 +276,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 createTime = createTime
             )
         }
+        // 导航至聊天页并等待返回
         AppViewEvent.StartActivity(
             activity = ChatActivity::class.java,
             extras = Bundle().apply {
@@ -253,16 +286,19 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 辅助方法：以不可变方式更新表单数据。 */
     private fun updateForm(block: ChatCreateForm.() -> ChatCreateForm) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         uiState.copy(form = uiState.form.block()).setup()
     }
 
+    /** 读取当前选中的角色实体。 */
     private fun ChatCreateUiState.Normal.selectedCharacter(): Character? {
         val characterId = form.selectedCharacterId ?: return null
         return mCharactersById[characterId]
     }
 
+    /** 解析当前开场白选择；若角色提供开场白但用户未选则给出 Toast 提示。 */
     private fun ChatCreateUiState.Normal.resolveFirstMessageSelection(): FirstMessageSelection? {
         if (selectedCharacterFirstMessages.isEmpty()) return FirstMessageSelection(null)
         val selectedIndex = form.selectedFirstMessageIndex
@@ -273,10 +309,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         return FirstMessageSelection(selectedCharacterFirstMessages[selectedIndex])
     }
 
+    /** 获取格式化后的会话标题，为空时生成默认日期标题。 */
     private fun ChatCreateForm.normalizedTitle(createTime: Long): String {
         return title.trim().ifBlank { createTime.toDefaultChatTitle() }
     }
 
+    /** 获取角色绑定的世界书条目 ID 集合。 */
     private fun Character.defaultLorebookEntryIds(
         lorebookGroups: List<ChatCreateLorebookGroupItem>
     ): Set<Long> {
@@ -288,6 +326,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             .orEmpty()
     }
 
+    /** 根据关键词多字段过滤世界书分组与条目。 */
     private fun List<ChatCreateLorebookGroupItem>.filterForQuery(
         query: String
     ): List<ChatCreateLorebookGroupItem> {
@@ -313,5 +352,6 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         }
     }
 
+    /** 开场白解析结果包装类。 */
     private data class FirstMessageSelection(val value: String?)
 }

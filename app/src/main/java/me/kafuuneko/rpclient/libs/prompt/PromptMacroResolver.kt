@@ -15,9 +15,12 @@ class PromptMacroResolver(
     private val mHistoryBuilder: FormattedHistoryBuilder
 ) {
     /**
-     * 替换 prompt 中的基础 SillyTavern 宏。
+     * 替换 prompt 中的基础 SillyTavern 宏标签。
      *
-     * 未识别的宏保持原样，方便调试用户自定义 prompt 中尚未支持的语法。
+     * 处理步骤：
+     * - 兼容旧式 `<USER>` / `<BOT>` / `<CHAR>` 标签并规范化；
+     * - 解析带参数宏：`{{newline::N}}`、`{{space::N}}`、`{{charFirstMessage::N}}` 与 `{{outlet::NAME}}`；
+     * - 装配并全局替换常用上下文宏（`{{user}}`、`{{char}}`、`{{description}}`、`{{personality}}`、`{{scenario}}`、`{{persona}}`、`{{history}}`、`{{summary}}`、`{{date}}`、`{{time}}` 等）。
      */
     fun resolve(
         template: String,
@@ -27,12 +30,13 @@ class PromptMacroResolver(
         outlets: Map<String, String>? = null
     ): String {
         val firstMessages = context.character.getChatFirstMessageList()
-        // 兼容旧式 <USER>/<BOT>/<CHAR> 写法，统一转换到 {{...}} 宏格式。
+        // 兼容旧式标签，统一转换至大括号宏格式
         var result = template
             .replace("<USER>", "{{user}}", ignoreCase = true)
             .replace("<BOT>", "{{char}}", ignoreCase = true)
             .replace("<CHAR>", "{{char}}", ignoreCase = true)
 
+        // 解析带参数的格式化宏与动态开场白宏
         result = result.replace(Regex("""\{\{\s*newline::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
             "\n".repeat(it.groupValues[1].toIntOrNull()?.coerceAtLeast(0) ?: 1)
         }
@@ -42,10 +46,12 @@ class PromptMacroResolver(
         result = result.replace(Regex("""\{\{\s*charFirstMessage::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
             firstMessages.getOrNull(it.groupValues[1].toIntOrNull() ?: -1).orEmpty()
         }
+        // 解析自定义插槽宏
         result = result.replace(Regex("""\{\{\s*outlet::([^}]+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
             outlets?.get(it.groupValues[1].trim()) ?: if (outlets == null) it.value else ""
         }
 
+        // 装配基础环境与上下文变量字典
         val now = LocalDateTime.now()
         val values = mapOf(
             "user" to context.userName,
@@ -88,6 +94,7 @@ class PromptMacroResolver(
             "noop" to ""
         )
 
+        // 正则替换所有已匹配宏，未识别宏保留原文
         return result.replace(Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")) {
             values[it.groupValues[1].lowercase()] ?: it.value
         }

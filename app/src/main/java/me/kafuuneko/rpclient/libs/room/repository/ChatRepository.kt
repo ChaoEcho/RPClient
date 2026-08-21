@@ -174,7 +174,13 @@ class ChatRepository(
     /**
      * 从已有会话复制一段消息前缀，创建一个新的独立会话作为分支。
      *
-     * 新分支只复制到指定消息为止的历史，并复制该位置有效的最新摘要快照。
+     * 处理步骤：
+     * - 加载源会话元数据与消息列表；
+     * - 截取至指定消息截止的连续前缀；
+     * - 提取指定消息位置有效的最新总结快照；
+     * - 插入新的分支会话记录（重置时序状态为 `{}`）；
+     * - 批量深拷贝历史消息并维护 ID 映射关系；
+     * - 若存在有效总结快照，将其覆盖边界 ID 映射至新会话对应消息并插入。
      */
     suspend fun createBranchSession(
         sourceSessionId: Long,
@@ -183,12 +189,14 @@ class ChatRepository(
         createTime: Long = System.currentTimeMillis()
     ): Long {
         return mAppDatabase.withTransaction {
+            // 加载源会话与截断消息
             val sourceSession = mChatSessionDao.getSessionById(sourceSessionId) ?: return@withTransaction 0L
             val sourceMessages = mChatMessageDao.getMessagesBySessionId(sourceSessionId)
             val branchMessages = sourceMessages.takeWhileInclusive { it.id != throughMessageId }
             if (branchMessages.none { it.id == throughMessageId }) return@withTransaction 0L
             val sourceSummary = mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
 
+            // 插入新的分支会话记录
             val branchSessionId = mChatSessionDao.insertOrReplace(
                 sourceSession.copy(
                     id = 0L,
@@ -198,6 +206,7 @@ class ChatRepository(
                     worldInfoStateJson = "{}"
                 ).withNormalizedCreatorNotes()
             )
+            // 复制前缀消息至新会话
             val copiedMessages = branchMessages.mapIndexed { index, message ->
                 message.copy(
                     id = 0L,
@@ -212,6 +221,7 @@ class ChatRepository(
                 emptyList()
             }
             val copiedIdBySourceId = branchMessages.map { it.id }.zip(insertedMessageIds).toMap()
+            // 复制并重映射总结快照边界
             if (sourceSummary != null) {
                 val copiedBoundaryId = sourceSummary.coveredMessageId
                     ?.takeIf { it != 0L }
@@ -591,8 +601,10 @@ class ChatRepository(
     /**
      * 原子提交一次生成结果的正文、摘要失效、活跃时间与世界书运行时状态。
      *
-     * [messageId] 为空时创建新消息；非空时更新已有消息并使覆盖它的总结失效。
-     * 空正文只会删除本次新建的占位消息，不推进会话元数据。
+     * 处理步骤：
+     * - 若生成内容为空，根据选项清理未使用的空占位消息并退出；
+     * - 若为新消息则插入记录，若为已有消息重新生成则更新正文并清理覆盖该位置的旧总结快照；
+     * - 更新会话最近活跃时间戳与世界书运行时状态快照（Sticky/Cooldown 时序）。
      *
      * @return 已提交消息 id；没有接受正文时返回 null。
      */
@@ -607,6 +619,7 @@ class ChatRepository(
     ): Long? {
         require(source != ChatMessage.Source.Summary) { "Generation output cannot be a summary" }
         return mAppDatabase.withTransaction {
+            // 空正文处理：按需清理占位消息并直接返回
             if (content.isBlank()) {
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
@@ -617,6 +630,7 @@ class ChatRepository(
                 return@withTransaction null
             }
 
+            // 插入新消息或更新已有消息并失效旧总结
             val committedMessageId = if (messageId == null) {
                 mChatMessageDao.insertOrReplace(
                     ChatMessage(
@@ -637,6 +651,7 @@ class ChatRepository(
                 mChatMessageDao.deleteSummariesCoveringMessage(sessionId, messageId)
                 messageId
             }
+            // 提交会话活跃时间与世界书运行时状态
             mChatSessionDao.updateGenerationMetadata(
                 id = sessionId,
                 latestTime = commitTime,

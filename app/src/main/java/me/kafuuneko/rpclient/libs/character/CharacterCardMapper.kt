@@ -58,7 +58,7 @@ class CharacterCardMapper(
         entries: List<LorebookEntry> = emptyList(),
         regexScripts: List<RegexScript> = emptyList()
     ): String {
-        // 导出统一使用 Character Card V2；角色绑定世界书会重新嵌入 data.character_book。
+        // 组装 V2 规范中的 data 节点基础字段
         val data = JsonObject()
         data.addProperty("name", character.name)
         data.addProperty("description", character.description)
@@ -73,6 +73,8 @@ class CharacterCardMapper(
         data.add("tags", parseArrayOrEmpty(character.characterTags))
         data.addProperty("creator", character.creator)
         data.addProperty("character_version", character.characterVersion)
+
+        // 注入角色作用域正则脚本与 Depth Prompt 扩展属性
         val extensionsWithRegex = mRegexCodec.injectIntoCharacterExtensions(
             character.extensionsJson,
             regexScripts
@@ -81,10 +83,13 @@ class CharacterCardMapper(
             "extensions",
             parseObjectOrEmpty(extensionsWithRegex).withDepthPrompt(character)
         )
+
+        // 嵌入绑定的专属世界书（若存在）
         if (lorebook != null) {
             data.add("character_book", lorebook.toCharacterBook(entries))
         }
 
+        // 包装根节点 spec 与 spec_version
         val root = JsonObject()
         root.addProperty("spec", "chara_card_v2")
         root.addProperty("spec_version", "2.0")
@@ -92,6 +97,7 @@ class CharacterCardMapper(
         return mGson.toJson(root)
     }
 
+    /** 将 V2 data 节点解析映射为本地 Character 实体。 */
     private fun JsonObject.toCharacter(
         avatar: String,
         characterLorebookId: Long
@@ -123,6 +129,7 @@ class CharacterCardMapper(
         )
     }
 
+    /** 将旧版 V1 根节点格式解析映射为本地 Character 实体。 */
     private fun JsonObject.toV1Character(
         avatar: String,
         characterLorebookId: Long
@@ -143,6 +150,7 @@ class CharacterCardMapper(
         )
     }
 
+    /** 将嵌入的 character_book 节点解析为独立的世界书导入模型。 */
     private fun JsonObject.toLorebookImport(): CharacterBookImport {
         val name = optString("name")
         val lorebook = Lorebook(
@@ -160,9 +168,10 @@ class CharacterCardMapper(
         return CharacterBookImport(lorebook, entries)
     }
 
+    /** 将单条 JSON 条目映射为本地 LorebookEntry 实体。 */
     private fun JsonObject.toLorebookEntry(index: Int): LorebookEntry {
         val extensions = optJsonObject("extensions") ?: JsonObject()
-        // ST 世界书条目的许多高级字段没有统一顶层字段，这里优先从 extensions 读取。
+        // 优先从 extensions 读取 SillyTavern 高级特性字段
         return LorebookEntry(
             lorebookId = 0L,
             name = optString("name").ifBlank { optString("comment") },
@@ -204,6 +213,7 @@ class CharacterCardMapper(
         )
     }
 
+    /** 将世界书实体转换为 V2 character_book 节点。 */
     private fun Lorebook.toCharacterBook(entries: List<LorebookEntry>): JsonObject {
         val book = JsonObject()
         book.addProperty("name", name)
@@ -219,6 +229,7 @@ class CharacterCardMapper(
         return book
     }
 
+    /** 将世界书条目实体转换为 character_book.entries 节点元素。 */
     private fun LorebookEntry.toCharacterBookEntry(): JsonObject {
         val entry = JsonObject()
         entry.add("keys", parseArrayOrEmpty(keywords))
@@ -238,6 +249,7 @@ class CharacterCardMapper(
         return entry
     }
 
+    /** 将条目的全量高级属性序列化为 extensions 节点。 */
     private fun LorebookEntry.toExtensions(): JsonObject {
         val extensions = parseObjectOrEmpty(extensionsJson)
         // 在保留原 extensions 的基础上覆盖当前 App 已支持的字段，避免导出旧值。

@@ -45,7 +45,21 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 
-/** 构建一次群聊生成请求所需的完整上下文。 */
+/**
+ * 构建一次群聊生成请求所需的完整上下文。
+ *
+ * @property session 群聊会话实体，包含群聊场景、主提示词覆盖与成员卡模式配置
+ * @property members 群聊全体成员数据列表（包含角色卡与群内关系状态）
+ * @property speaker 本轮被选中发言的目标角色实体
+ * @property messages 当前群聊历史消息列表
+ * @property provider 调用的 LLM 服务提供商配置
+ * @property summary 当前群聊会话的已有摘要内容
+ * @property candidateLorebookEntries 候选世界书条目全集
+ * @property candidateLorebooks 候选世界书字典映射
+ * @property recursiveScanningLorebookIds 开启递归扫描的世界书 ID 集合
+ * @property generationMode 群聊生成模式（普通、续写、重生成、扮演用户）
+ * @property regexScripts 生效的 Regex 脚本列表
+ */
 data class GroupChatPromptContext(
     val session: GroupChatSession,
     val members: List<GroupChatMemberData>,
@@ -62,9 +76,13 @@ data class GroupChatPromptContext(
 
 /** 群聊回复的生成模式。 */
 enum class GroupChatGenerationMode {
+    /** 普通群聊下一条角色回复。 */
     Normal,
+    /** 对最后一条角色回复继续生成（续写）。 */
     Continue,
+    /** 重新生成最后一条角色回复。 */
     Regenerate,
+    /** 扮演当前用户生成下一条回复。 */
     Impersonate
 }
 
@@ -75,16 +93,23 @@ private fun GroupChatGenerationMode.usesCharacterReplyTask(): Boolean {
 
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
 data class GroupChatPromptBuildResult(
+    /** 实际提交给模型的请求。 */
     val request: LLMGenerationRequest,
+    /** 本次构建推进后的世界书时序状态 JSON。 */
     val worldInfoStateJson: String,
+    /** 宏展开、后处理和最终预算完成后的可解释 Prompt 明细。 */
     val inspection: PromptInspection
 )
 
 /**
  * 群聊 Prompt 构建器。
  *
- * 将成员角色卡、群聊历史、世界书和 Regex 脚本组装为统一草稿，
- * 最终交由 PromptRequestFinalizer 执行协议后处理与上下文预算裁剪。
+ * 核心架构与职责：
+ * - 多成员角色卡合并：支持 Join（全员带名字拼接）与 Swap（仅保留当前发言角色）两种角色卡组织模式
+ * - 发言者格式化：自动为历史消息标注 `Speaker: Content` 发言前缀，并在 Prompt 层面隔离推理思考块
+ * - 群聊宏与 Regex 替换：支持 {{group}}、{{char}} 等占位符，支持用户输入与 AI 回复的分级正则清洗
+ * - 多角色关联世界书扫描：聚合全体可见成员与群场景共同触发世界书条目
+ * - 上下文预算与协议适配：统一交由 [PromptRequestFinalizer] 进行 Token 预算裁剪与格式后处理
  */
 class GroupChatPromptBuilder(
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
@@ -95,17 +120,38 @@ class GroupChatPromptBuilder(
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default }
 ) {
-    /** 构建可直接发送给模型的群聊生成请求。 */
+    /**
+     * 构建可直接发送给模型的群聊生成请求。
+     *
+     * @param context 群聊 Prompt 构建上下文
+     * @return 组装完成的生成请求体
+     */
     fun build(context: GroupChatPromptContext): LLMGenerationRequest {
         return buildWithMetadata(context).request
     }
 
-    /** 构建生成请求，并携带世界书激活后的下一状态。 */
+    /**
+     * 构建生成请求，并携带世界书激活后的下一状态与 Inspector 调试信息。
+     *
+     * 处理步骤：
+     * - 计算可用 Prompt Token 预算
+     * - 扫描多成员与历史消息，激活匹配的世界书条目并按预算裁剪
+     * - 构建历史前后的固定系统消息（主提示词、多角色卡合并、用户画像等）
+     * - 过滤历史消息中的思考块并执行 Prompt 阶段 Regex 替换
+     * - 将群聊历史与 At Depth 深度片段合并
+     * - 注入群聊任务提示（Group Nudge）与末尾触发轮次
+     * - 调用 Finalizer 执行协议后处理与 Token 预算裁剪
+     *
+     * @param context 群聊 Prompt 构建上下文
+     * @return 包含生成请求、世界书下一状态与 Inspector 明细的构建结果
+     */
     fun buildWithMetadata(context: GroupChatPromptContext): GroupChatPromptBuildResult {
         val exampleBehavior = mExampleDialogueBehaviorProvider.current()
+        // 计算可用 Prompt Token 预算（总上下文扣除最大响应 Token）
         val maxPromptTokens = (
             context.provider.contextTokens - context.provider.maxTokens
         ).coerceAtLeast(0)
+        // 解析世界书全局 Token 预算上限
         val worldBudget = resolveWorldInfoBudget(
             promptTokenBudget = maxPromptTokens,
             contextPercent = readWorldInfoBudgetPercent(),
@@ -113,6 +159,7 @@ class GroupChatPromptBuilder(
         )
         val regexHits = mutableListOf<RegexExecutionHit>()
         val regexErrors = mutableListOf<RegexExecutionError>()
+        // 构造供 Regex 运行环境使用的宏变量映射字典（包含 {{group}} 等）
         val regexMacros = RegexScriptRuntime.macros(
             userName = context.session.userName,
             characterName = context.speaker.name,
@@ -120,7 +167,9 @@ class GroupChatPromptBuilder(
             scenario = context.session.scenario,
             groupNames = context.memberNames()
         )
+        // 扫描群聊多成员与历史消息激活世界书条目
         val rawWorldInfo = activateWorldInfo(context)
+        // 执行世界书 Prompt 阶段 Regex 替换
         val activatedWorldInfo = rawWorldInfo
             .mapEntryContent { entry ->
                 val result = mRegexRuntime.execute(
@@ -135,6 +184,7 @@ class GroupChatPromptBuilder(
                 entry.copy(content = result.text)
             }
             .filterForExampleBehavior(exampleBehavior)
+        // 按预算比例裁剪世界书条目
         val worldSelection = fitWorldInfoToBudget(
             result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
@@ -142,8 +192,11 @@ class GroupChatPromptBuilder(
             tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
         )
         val worldInfo = worldSelection.result
+        // 构建固定系统消息区段（主提示词、多角色卡合并、用户画像等）
         val fixedMessages = buildFixedMessages(context, worldInfo, exampleBehavior)
+        // 构建待按深度插入的 In-Chat 注入项
         val inChatPieces = buildInChatPieces(context, worldInfo)
+        // 过滤推理块并对群聊历史消息执行 Regex 替换
         val history = sanitizeHistory(context.messages).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
@@ -172,6 +225,7 @@ class GroupChatPromptBuilder(
                 message.copy(content = result.text)
             }
         }
+        // 将历史消息转换为带发言者前缀的 Prompt 草稿
         val historyMessages = history.mapIndexed { index, message ->
             message.toPromptDraft(
                 userName = context.session.userName,
@@ -179,7 +233,9 @@ class GroupChatPromptBuilder(
                 canDrop = index != history.lastIndex
             )
         }.toMutableList()
+        // 将 In-Chat 片段按深度插入群聊历史
         insertInChatPieces(historyMessages, inChatPieces)
+        // 若处于 Continue 模式提取待续写的目标消息
         val continueTarget = if (context.generationMode == GroupChatGenerationMode.Continue) {
             val targetIndex = historyMessages.indexOfLast {
                 it.source.kind == PromptSourceKind.ChatHistory &&
@@ -189,6 +245,7 @@ class GroupChatPromptBuilder(
         } else {
             null
         }
+        // 注入群聊任务提示（Group Nudge）
         if (context.generationMode.usesCharacterReplyTask()) {
             context.groupNudgePrompt()
                 .resolve(context, context.memberNames())
@@ -198,6 +255,7 @@ class GroupChatPromptBuilder(
                 }
         }
 
+        // 串联所有分区消息草稿
         val rawDrafts = buildList {
             addAll(fixedMessages.beforeHistory)
             addAll(historyMessages)
@@ -205,6 +263,7 @@ class GroupChatPromptBuilder(
             continueTarget?.let(::add)
             buildGenerationControlDraft(context)?.let(::add)
         }
+        // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = mRequestFinalizer.finalize(
             drafts = ensureTerminalCharacterReplyTurn(rawDrafts, context),
             provider = context.provider,
@@ -226,11 +285,13 @@ class GroupChatPromptBuilder(
             ),
             preOmittedItems = worldSelection.omittedItems
         )
+        // 组装调试检查器元数据
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
             regexErrors = regexErrors
         )
         val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
+        // 推进世界书下一时序状态
         val stateResult = mWorldBookActivator.resolveNextState(
             rawWorldInfo
                 .filterEntries(selectedWorldInfoIds)
@@ -243,7 +304,12 @@ class GroupChatPromptBuilder(
         )
     }
 
-    /** 按群聊消息、成员卡和会话场景激活本轮世界书条目。 */
+    /**
+     * 按群聊消息、成员卡和会话场景激活本轮世界书条目。
+     *
+     * @param context 群聊构建上下文
+     * @return 激活的世界书分组结果
+     */
     private fun activateWorldInfo(context: GroupChatPromptContext): WorldBookActivationResult {
         val cardMembers = context.cardMembers()
         return mWorldBookActivator.activateStructured(
@@ -284,7 +350,14 @@ class GroupChatPromptBuilder(
         )
     }
 
-    /** 构建位于聊天历史前后、位置固定的系统消息。 */
+    /**
+     * 构建位于聊天历史前后、位置固定的系统消息。
+     *
+     * @param context 群聊构建上下文
+     * @param worldInfo 激活的世界书集合
+     * @param exampleBehavior 示例对话保留策略
+     * @return 包含 beforeHistory 与 afterHistory 的分区对象
+     */
     private fun buildFixedMessages(
         context: GroupChatPromptContext,
         worldInfo: WorldBookActivationResult,
@@ -295,6 +368,7 @@ class GroupChatPromptBuilder(
         val memberNames = context.memberNames()
         val summaryPosition = readSummaryInjectionPosition()
 
+        // 摘要注入（BeforeMain 模式）
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             summaryDraft(context)?.let { before += it }
         }
@@ -305,9 +379,11 @@ class GroupChatPromptBuilder(
                 PromptSourceKind.MainPrompt
             )
         }
+        // 摘要注入（AfterMain 模式）
         if (summaryPosition == SummaryInjectionPosition.AfterMain) {
             summaryDraft(context)?.let { before += it }
         }
+        // 注入 beforeCharacter 世界书条目
         worldInfo.beforeCharacter.forEach {
             before += prioritizedWorldInfo(
                 formatWorldInfo(it.content),
@@ -315,10 +391,13 @@ class GroupChatPromptBuilder(
                 canDrop = !it.ignoreBudget
             )
         }
+        // 注入用户形象设定（User persona）
         context.session.userDescription.takeIf { it.isNotBlank() }?.let {
             before += requiredSystem("User persona:\n$it", PromptSourceKind.UserPersona)
         }
+        // 注入合并后的成员角色卡
         before += buildCharacterCards(context)
+        // 注入辅助提示词
         readAuxiliaryPrompt().takeIf { it.isNotBlank() }?.let {
             before += optionalSystem(
                 it.resolve(context, memberNames),
@@ -326,6 +405,7 @@ class GroupChatPromptBuilder(
                 PRIORITY_AUXILIARY
             )
         }
+        // 注入 afterCharacter 世界书条目
         worldInfo.afterCharacter.forEach {
             before += prioritizedWorldInfo(
                 formatWorldInfo(it.content),
@@ -333,6 +413,7 @@ class GroupChatPromptBuilder(
                 canDrop = !it.ignoreBudget
             )
         }
+        // 注入示例对话与关联世界书条目
         val examplePriority = exampleBehavior
             .takeUnless { it == ExampleDialogueBehavior.Disabled }
             ?.let(PromptRetentionPolicy::examplePriority)
@@ -355,6 +436,7 @@ class GroupChatPromptBuilder(
                 )
             }
         }
+        // 注入新群聊分隔提示词
         context.newGroupChatPrompt().takeIf {
             it.isNotBlank() && context.messages.isNotEmpty()
         }?.let {
@@ -365,6 +447,7 @@ class GroupChatPromptBuilder(
             )
         }
 
+        // 注入历史后指令（Post-history instructions）
         if (context.generationMode.usesCharacterReplyTask()) {
             context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let {
                 after += requiredSystem(
@@ -383,6 +466,9 @@ class GroupChatPromptBuilder(
      * 按描述、性格、场景三个固定字段合并本轮可见角色卡。
      *
      * Join 模式在每段内容前保留角色名，Swap 模式直接使用当前发言者字段。
+     *
+     * @param context 群聊构建上下文
+     * @return 包含描述、性格与场景的系统消息草稿列表
      */
     private fun buildCharacterCards(context: GroupChatPromptContext): List<PromptMessageDraft> {
         val members = context.cardMembers()
@@ -411,7 +497,13 @@ class GroupChatPromptBuilder(
         }
     }
 
-    /** 合并角色字段，并在 Join 模式中标明每段内容所属角色。 */
+    /**
+     * 合并角色字段，并在 Join 模式中标明每段内容所属角色。
+     *
+     * @param cardMembers 本轮可见成员列表
+     * @param readField 读取指定角色卡字段的 lambda
+     * @return 格式化后的合并文本
+     */
     private fun GroupChatPromptContext.combineCharacterField(
         cardMembers: List<GroupChatMemberData>,
         readField: (Character) -> String
@@ -428,7 +520,13 @@ class GroupChatPromptBuilder(
         }.joinToString("\n")
     }
 
-    /** 将成员角色卡中的示例对话转换为模型消息。 */
+    /**
+     * 将成员角色卡中的示例对话转换为模型消息草稿。
+     *
+     * @param context 群聊构建上下文
+     * @param behavior 示例对话保留策略枚举
+     * @return 示例对话消息草稿列表
+     */
     private fun buildExamples(
         context: GroupChatPromptContext,
         behavior: ExampleDialogueBehavior
@@ -496,7 +594,13 @@ class GroupChatPromptBuilder(
         }
     }
 
-    /** 构建需要按深度插入聊天历史的作者注释和世界书片段。 */
+    /**
+     * 构建需要按深度插入聊天历史的作者注释和世界书片段。
+     *
+     * @param context 群聊构建上下文
+     * @param worldInfo 激活的世界书结果
+     * @return 待深度插入的片段列表
+     */
     private fun buildInChatPieces(
         context: GroupChatPromptContext,
         worldInfo: WorldBookActivationResult
@@ -592,11 +696,17 @@ class GroupChatPromptBuilder(
         return pieces
     }
 
-    /** 按深度、顺序和稳定键将动态片段插入聊天历史。 */
+    /**
+     * 按深度、顺序和稳定键将动态片段插入聊天历史。
+     *
+     * @param messages 历史消息草稿列表（将被就地更新）
+     * @param pieces 待按深度插入的片段列表
+     */
     private fun insertInChatPieces(
         messages: MutableList<PromptMessageDraft>,
         pieces: List<InChatPiece>
     ) {
+        // 计算各注入项在消息列表中的相对位置
         val injections = pieces
             .groupBy { (messages.size - it.depth).coerceIn(0, messages.size) }
             .mapValues { (_, group) ->
@@ -604,6 +714,7 @@ class GroupChatPromptBuilder(
                     compareBy<InChatPiece> { it.order }.thenBy { it.tieBreaker }
                 )
             }
+        // 按深度将各注入项流式合并到消息列表中
         val result = buildList {
             for (index in 0..messages.size) {
                 injections[index]?.forEach { add(it.message) }
@@ -614,6 +725,7 @@ class GroupChatPromptBuilder(
         messages.addAll(result)
     }
 
+    /** 过滤群聊历史消息中的 `<think>...</think>` 推理思考块。 */
     private fun sanitizeHistory(messages: List<GroupChatMessage>): List<GroupChatMessage> {
         return messages.mapNotNull { message ->
             val cleaned = if (readIncludeThinkInContext()) {
@@ -639,10 +751,12 @@ class GroupChatPromptBuilder(
         }
     }
 
+    /** 格式化群聊成员姓名逗号分隔字符串。 */
     private fun GroupChatPromptContext.memberNames(): String {
         return members.joinToString(", ") { it.character.name }
     }
 
+    /** 读取并解析群聊主提示词。 */
     private fun GroupChatPromptContext.mainPrompt(): String {
         val original = readMainPrompt()
         return session.systemPromptOverride.trim()
@@ -652,6 +766,7 @@ class GroupChatPromptBuilder(
             .resolve(this, memberNames(), original)
     }
 
+    /** 读取并解析群聊历史后指令。 */
     private fun GroupChatPromptContext.postHistoryInstructions(): String {
         val original = readPostHistoryInstructions()
         return speaker.postHistoryInstructions.trim()
@@ -659,16 +774,19 @@ class GroupChatPromptBuilder(
             .resolve(this, memberNames(), original)
     }
 
+    /** 读取群聊任务引导词（Group Nudge）。 */
     private fun GroupChatPromptContext.groupNudgePrompt(): String {
         return session.groupNudgePromptOverride.trim()
             .ifBlank { readGroupNudgePrompt() }
     }
 
+    /** 读取新群聊标记提示词。 */
     private fun GroupChatPromptContext.newGroupChatPrompt(): String {
         return session.newGroupChatPromptOverride.trim()
             .ifBlank { readNewGroupChatPrompt() }
     }
 
+    /** 将群聊消息实体转换为带发言者前缀的 Prompt 草稿。 */
     private fun GroupChatMessage.toPromptDraft(
         userName: String,
         retentionPriority: Int,
@@ -711,10 +829,12 @@ class GroupChatPromptBuilder(
             .replace("<USER>", context.session.userName, ignoreCase = true)
     }
 
+    /** 格式化世界书条目内容。 */
     private fun formatWorldInfo(content: String): String {
         return readWorldInfoFormat().replace("{0}", content)
     }
 
+    /** 格式化性格描述文本。 */
     private fun formatPersonality(content: String): String {
         return readPersonalityFormat().let { template ->
             if (template.contains("{{personality}}")) {
@@ -725,6 +845,7 @@ class GroupChatPromptBuilder(
         }
     }
 
+    /** 格式化场景描述文本。 */
     private fun formatScenario(content: String): String {
         return readScenarioFormat().let { template ->
             if (template.contains("{{scenario}}")) {
@@ -735,62 +856,78 @@ class GroupChatPromptBuilder(
         }
     }
 
+    /** 读取全局主提示词。 */
     private fun readMainPrompt(): String =
         runCatching { AppModel.mainPrompt }.getOrDefault(AppModel.DEFAULT_MAIN_PROMPT)
 
+    /** 读取历史后指令。 */
     private fun readPostHistoryInstructions(): String =
         runCatching { AppModel.postHistoryInstructions }.getOrDefault("")
 
+    /** 读取辅助提示词。 */
     private fun readAuxiliaryPrompt(): String =
         runCatching { AppModel.auxiliaryPrompt }
             .getOrDefault(AppModel.DEFAULT_AUXILIARY_PROMPT)
 
+    /** 读取扮演用户提示词。 */
     private fun readImpersonationPrompt(): String =
         runCatching { AppModel.impersonationPrompt }
             .getOrDefault(AppModel.DEFAULT_IMPERSONATION_PROMPT)
 
+    /** 读取续写引导提示词。 */
     private fun readContinueNudgePrompt(): String =
         runCatching { AppModel.continueNudgePrompt }
             .getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
 
+    /** 读取示例对话分隔标记提示词。 */
     private fun readNewExampleChatPrompt(): String =
         runCatching { AppModel.newExampleChatPrompt }
             .getOrDefault(AppModel.DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
 
+    /** 读取群聊任务引导提示词（Group Nudge）。 */
     private fun readGroupNudgePrompt(): String =
         runCatching { AppModel.groupNudgePrompt }
             .getOrDefault(AppModel.DEFAULT_GROUP_NUDGE_PROMPT)
 
+    /** 读取新群聊标记提示词。 */
     private fun readNewGroupChatPrompt(): String =
         runCatching { AppModel.newGroupChatPrompt }
             .getOrDefault(AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT)
 
+    /** 读取世界书包装模板。 */
     private fun readWorldInfoFormat(): String =
         runCatching { AppModel.worldInfoFormat }
             .getOrDefault(AppModel.DEFAULT_WORLD_INFO_FORMAT)
 
+    /** 读取性格包装模板。 */
     private fun readPersonalityFormat(): String =
         runCatching { AppModel.personalityFormat }
             .getOrDefault(AppModel.DEFAULT_PERSONALITY_FORMAT)
 
+    /** 读取场景包装模板。 */
     private fun readScenarioFormat(): String =
         runCatching { AppModel.scenarioFormat }
             .getOrDefault(AppModel.DEFAULT_SCENARIO_FORMAT)
 
+    /** 读取世界书预算百分比。 */
     private fun readWorldInfoBudgetPercent(): Int =
         runCatching { AppModel.worldInfoBudgetPercent }.getOrDefault(25)
 
+    /** 读取世界书绝对 Token 预算上限。 */
     private fun readWorldInfoBudgetCap(): Int =
         runCatching { AppModel.worldInfoBudgetCap }
             .getOrDefault(0)
 
+    /** 读取是否在上下文中保留推理思考块。 */
     private fun readIncludeThinkInContext(): Boolean =
         runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
 
+    /** 读取 Prompt 后处理模式。 */
     private fun readPostProcessingMode(provider: LLMProvider): PromptPostProcessingMode {
         return PromptPostProcessingMode.fromOrdinal(provider.promptPostProcessingMode)
     }
 
+    /** 读取摘要注入位置。 */
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
         return SummaryInjectionPosition.fromPersistedValue(
             runCatching { AppModel.summaryInjectionPosition }
@@ -798,18 +935,21 @@ class GroupChatPromptBuilder(
         )
     }
 
+    /** 读取摘要注入深度。 */
     private fun readSummaryInjectionDepth(): Int {
         return runCatching { AppModel.summaryInjectionDepth }
             .getOrDefault(2)
             .coerceAtLeast(0)
     }
 
+    /** 读取摘要注入角色。 */
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
         return SummaryInjectionRole.fromPersistedValue(
             runCatching { AppModel.summaryInjectionRole }.getOrDefault(0)
         )
     }
 
+    /** 构建群聊摘要消息草稿。 */
     private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         if (context.summary.isBlank()) return null
         val template = runCatching { AppModel.summaryInjectionTemplate }
@@ -864,6 +1004,7 @@ class GroupChatPromptBuilder(
         )
     }
 
+    /** 创建不可裁剪的 System 角色消息草稿。 */
     private fun requiredSystem(
         content: String,
         sourceKind: PromptSourceKind,
@@ -878,6 +1019,7 @@ class GroupChatPromptBuilder(
         )
     }
 
+    /** 创建不可裁剪的 User 角色消息草稿。 */
     private fun requiredUser(
         content: String,
         sourceKind: PromptSourceKind,
@@ -907,6 +1049,7 @@ class GroupChatPromptBuilder(
         )
     }
 
+    /** 创建可选系统消息草稿。 */
     private fun optionalSystem(
         content: String,
         source: PromptSource,
@@ -921,11 +1064,13 @@ class GroupChatPromptBuilder(
         )
     }
 
+    /** 包含历史前与历史后固定系统消息的分区容器。 */
     private data class PromptSections(
         val beforeHistory: List<PromptMessageDraft>,
         val afterHistory: List<PromptMessageDraft>
     )
 
+    /** 包含深度排序元数据的历史内部注入片段。 */
     private data class InChatPiece(
         val message: PromptMessageDraft,
         val depth: Int,
@@ -934,17 +1079,29 @@ class GroupChatPromptBuilder(
     )
 
     private companion object {
+        /** 辅助提示词（Auxiliary Prompt）的上下文保留优先级。 */
         const val PRIORITY_AUXILIARY = 20
+        /** 新群聊标记提示词（New Chat Marker）的上下文保留优先级。 */
         const val PRIORITY_NEW_CHAT = 30
+        /** 用户便签（User Note / AN）的上下文保留优先级。 */
         const val PRIORITY_USER_NOTE = 300
+        /** 角色深度提示（Character Note / Depth Prompt）的上下文保留优先级。 */
         const val PRIORITY_CHARACTER_NOTE = 310
+        /** 核心关键内容（如预算内世界书、摘要等）的上下文保留优先级。 */
         const val PRIORITY_ESSENTIAL = 1_000
+        /** 用户便签（User Note / AN）默认插入的群聊历史深度（倒数第 4 条）。 */
         const val USER_NOTE_DEPTH = 4
+        /** 摘要在同一深度插入时的内部排序序号（极小值保证排在最前）。 */
         const val SUMMARY_ORDER = Int.MIN_VALUE
+        /** AN Top 世界书条目在同一深度插入时的内部排序序号。 */
         const val AN_TOP_ORDER = Int.MIN_VALUE + 1
+        /** 用户便签在同一深度插入时的内部排序序号。 */
         const val USER_NOTE_ORDER = Int.MIN_VALUE + 2
+        /** AN Bottom 世界书条目在同一深度插入时的内部排序序号。 */
         const val AN_BOTTOM_ORDER = Int.MIN_VALUE + 3
+        /** 角色深度提示在同一深度插入时的内部排序序号。 */
         const val CHARACTER_NOTE_ORDER = Int.MIN_VALUE + 4
+        /** 兜底的角色回复触发引导词，当未开启指定 Nudge 时确保群聊末尾由 User 轮次触发目标角色生成。 */
         const val DEFAULT_CHARACTER_REPLY_NUDGE = "[Write {{char}}'s next reply.]"
     }
 }

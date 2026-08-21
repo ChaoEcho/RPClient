@@ -15,7 +15,11 @@ import org.json.JSONTokener
 /**
  * JSON 树查看器状态持有者。
  *
- * 完整解析树与路径保留在 ViewModel，UiState 只发布当前层级，避免大 JSON 在重组时反复复制。
+ * 核心职责：
+ * - 解析并维护内存中的 JSON 对象/数组语法树；
+ * - 跟踪由根至当前层级的导航路径栈（Path Stack）；
+ * - 仅将当前视口可见的层级节点映射为列表 UI 数据，避免大 JSON 树在重组时产生大量深拷贝开销；
+ * - 支持父子层级间逐级下钻浏览与逐级返回。
  */
 class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>(
     JsonViewerUiState.None
@@ -25,10 +29,12 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
     private var mRoot: Any? = null
     private var mPath: List<JsonPathStep> = emptyList()
 
+    /** 从载荷存储区拉取 JSON 原文并进行语法解析与初始展示。 */
     @UiIntentObserver(JsonViewerUiIntent.Init::class)
     private fun onInit(intent: JsonViewerUiIntent.Init) {
         if (!isStateOf<JsonViewerUiState.None>()) return
 
+        // 从内存暂存区检索 Payload
         val payload = JsonViewerPayloadStore.get(intent.payloadKey)
         if (payload == null) {
             JsonViewerUiState.Error(
@@ -40,6 +46,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
 
         mTitle = payload.title
+        // 解析 JSON 字符串
         val parsed = parseJson(payload.json)
         if (parsed.isFailure) {
             JsonViewerUiState.Error(
@@ -50,11 +57,13 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
             return
         }
 
+        // 保存根节点对象并构建顶层视图
         mRoot = parsed.getOrNull()
         mPath = emptyList()
         buildNormalState().setup()
     }
 
+    /** 处理返回操作，若处于子层级则返回上一层，处于根层级则退出查看器。 */
     @UiIntentObserver(JsonViewerUiIntent.Back::class)
     private fun onBack() {
         if (getOrNull<JsonViewerUiState.Normal>()?.canNavigateUp == true) {
@@ -65,6 +74,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         JsonViewerUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 选中包含子节点的条目，下钻进入其下属层级。 */
     @UiIntentObserver(JsonViewerUiIntent.EntrySelected::class)
     private fun onEntrySelected(intent: JsonViewerUiIntent.EntrySelected) {
         val uiState = getOrNull<JsonViewerUiState.Normal>() ?: return
@@ -79,6 +89,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         buildNormalState().setup()
     }
 
+    /** 使用 JSONTokener 安全解析 JSON 字符串为 JSONObject、JSONArray 或原始基本类型。 */
     private fun parseJson(json: String): Result<Any?> {
         return runCatching {
             val tokener = JSONTokener(json)
@@ -89,6 +100,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
+    /** 根据当前导航路径构建当前层级的 Normal 状态。 */
     private fun buildNormalState(): JsonViewerUiState.Normal {
         val current = currentNode()
         return JsonViewerUiState.Normal(
@@ -101,6 +113,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         )
     }
 
+    /** 沿路径栈下钻定位当前聚焦的 JSON 节点。 */
     private fun currentNode(): Any? {
         var current = mRoot
         for (step in mPath) {
@@ -113,6 +126,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         return current
     }
 
+    /** 将当前聚焦的 JSONObject 或 JSONArray 映射为子条目列表。 */
     private fun Any?.toEntries(): List<JsonViewerEntry> {
         return when (this) {
             is JSONObject -> keys().asSequence().toList().mapIndexed { index, key ->
@@ -139,6 +153,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
+    /** 将单个子值封装为列表项视图模型。 */
     private fun Any?.toEntry(
         id: Int,
         name: String,
@@ -156,6 +171,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         )
     }
 
+    /** 推断 JSON 节点类型枚举。 */
     private fun Any?.nodeType(): JsonViewerNodeType {
         return when (this) {
             is JSONObject -> JsonViewerNodeType.Object
@@ -167,6 +183,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
+    /** 计算节点的直接子元素数量。 */
     private fun Any?.childCount(): Int {
         return when (this) {
             is JSONObject -> length()
@@ -175,6 +192,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
+    /** 生成节点值的短文本摘要预览。 */
     private fun Any?.valuePreview(): String {
         return when (this) {
             is JSONObject -> toString().toPreview(180)
@@ -186,6 +204,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
+    /** JSON 导航路径栈单步描述（包含标签、对象 Key 或数组索引）。 */
     private data class JsonPathStep(
         val label: String,
         val objectKey: String?,

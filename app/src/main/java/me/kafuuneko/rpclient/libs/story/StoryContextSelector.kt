@@ -22,6 +22,17 @@ data class StoryContextSelection(
 
 /** 将连续正文临时拆成邻近目标的 Prompt 块，不改变正文持久化结构。 */
 class StoryContextSelector {
+    /**
+     * 根据当前编辑光标位置与 Prompt 预算，从故事正文中选取最优邻近段落分块。
+     *
+     * 处理步骤：
+     * - 校验编辑目标位于正文末尾；
+     * - 将正文解析为段落范围列表；
+     * - 计算各段落距编辑目标的物理距离并排序；
+     * - 提取用于世界书和角色激活判定的邻近扫描文本（前 N 个段落）；
+     * - 将段落按 Token 预算切分为细粒度候选 Chunk；
+     * - 从距目标最近的 Chunk 开始贪婪纳入预算，超出部分记录遗漏。
+     */
     fun select(
         content: String,
         target: StoryEditTarget,
@@ -33,13 +44,17 @@ class StoryContextSelector {
         require(target.end == content.length) {
             "Story continuation target must be at the end of the document"
         }
+        // 解析正文全量段落范围
         val paragraphs = paragraphRanges(content)
+        // 计算各段落与编辑目标的物理距离
         val neighboring = paragraphs
             .map { range ->
                 val distance = target.start - range.end
                 range to distance
             }
             .sortedWith(compareBy<Pair<TextRange, Int>> { it.second }.thenBy { it.first.start })
+
+        // 提取邻近段落文本用于世界书与角色激活匹配
         val activationRanges = neighboring.take(ACTIVATION_PARAGRAPH_COUNT).map { it.first }
         val worldBookScanText = buildList {
             activationRanges.sortedBy { it.start }.forEach { add(content.substring(it.start, it.end)) }
@@ -50,6 +65,7 @@ class StoryContextSelector {
             continuationGuidance.takeIf(String::isNotBlank)?.let(::add)
         }.joinToString("\n\n")
 
+        // 将段落按 Token 粒度拆解为候选上下文块
         val maxChunkTokens = (promptBudget / 4).coerceIn(MIN_CHUNK_TOKENS, MAX_CHUNK_TOKENS)
         val chunks = neighboring.flatMap { (range, _) ->
             splitRange(content, range, tokenizer, maxChunkTokens).map { chunk ->
@@ -60,6 +76,8 @@ class StoryContextSelector {
                 )
             }
         }.sortedWith(compareBy<CandidateChunk> { it.distance }.thenBy { it.range.start })
+
+        // 贪婪选择符合预算的邻近 Chunk
         val selected = mutableListOf<CandidateChunk>()
         val omitted = mutableListOf<CandidateChunk>()
         var usedTokens = 0
@@ -77,6 +95,8 @@ class StoryContextSelector {
             }
         }
         val nearest = selected.firstOrNull()
+
+        // 构造正文上下文选择结果（按正文原生顺序重排）
         return StoryContextSelection(
             activationScanText = activationScanText,
             worldBookScanText = worldBookScanText,
@@ -97,6 +117,7 @@ class StoryContextSelector {
         )
     }
 
+    /** 将连续文本按双换行符分割为段落文本区间列表。 */
     private fun paragraphRanges(content: String): List<TextRange> {
         if (content.isEmpty()) return emptyList()
         val result = mutableListOf<TextRange>()
@@ -110,6 +131,7 @@ class StoryContextSelector {
         return result.filter { content.substring(it.start, it.end).isNotBlank() }
     }
 
+    /** 将过长段落二分拆解为不超过 Token 上限的安全文本子区间。 */
     private fun splitRange(
         content: String,
         range: TextRange,
@@ -142,6 +164,7 @@ class StoryContextSelector {
         return result
     }
 
+    /** 确保切分位置不落入 UTF-16 代理对中间。 */
     private fun String.safeUtf16Boundary(index: Int, minimum: Int, maximum: Int): Int {
         var safe = index.coerceIn(minimum + 1, maximum)
         if (safe < maximum && safe > minimum && this[safe].isLowSurrogate() && this[safe - 1].isHighSurrogate()) {
@@ -150,8 +173,10 @@ class StoryContextSelector {
         return safe.coerceAtLeast(minimum + 1)
     }
 
+    /** 文本起止索引范围。 */
     private data class TextRange(val start: Int, val end: Int)
 
+    /** 候选正文切片模型。 */
     private data class CandidateChunk(
         val range: TextRange,
         val distance: Int,
@@ -159,10 +184,15 @@ class StoryContextSelector {
     )
 
     private companion object {
+        /** 段落分隔正则表达式（匹配连续换行）。 */
         val PARAGRAPH_SEPARATOR = Regex("(?:\\r?\\n){2,}")
+        /** 纳入激活匹配的邻近段落数量。 */
         const val ACTIVATION_PARAGRAPH_COUNT = 6
+        /** 单个 Chunk 最小 Token 数。 */
         const val MIN_CHUNK_TOKENS = 128
+        /** 单个 Chunk 最大 Token 数。 */
         const val MAX_CHUNK_TOKENS = 768
+        /** 最大允许纳入的 Chunk 数量上限。 */
         const val MAX_SELECTED_CHUNKS = 512
     }
 }

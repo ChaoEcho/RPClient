@@ -54,9 +54,11 @@ class OpenAICompatibleLLMClient(
         val model = request.model ?: mProvider.model
         return flow {
             var isThinking = false
+            // 构建带 stream=true 的 HTTP 请求与参数补丁
             val httpRequest = buildRequest(request, model, stream = true)
             val rawChunks = JSONArray()
             runCatching {
+                // 逐行消费 SSE 数据流
                 mOkHttpClient.streamLines(httpRequest.request).collect { line ->
                     rawChunks.put(line)
                     val event = line.toOpenAIStreamEvent(
@@ -66,12 +68,15 @@ class OpenAICompatibleLLMClient(
                     ) ?: return@collect
                     emit(event)
                 }
+                // 若流式结束时思考块未闭合，补充闭合标签
                 if (request.includeReasoningInContent && isThinking) {
                     emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
                 }
             }.onSuccess {
+                // 记录成功的请求与完整 SSE 原始块日志
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
+                // 记录失败日志并向上层抛出
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
                 throw it
             }
@@ -87,6 +92,7 @@ class OpenAICompatibleLLMClient(
         stream: Boolean
     ): LLMHttpRequest {
         val options = request.options.resolveFor(mProvider)
+        // 组装通用请求体字段
         val payload = JSONObject()
             .put("model", model)
             .put("messages", request.messages.toOpenAIMessages())
@@ -98,8 +104,10 @@ class OpenAICompatibleLLMClient(
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
         if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
+        // 应用针对 OpenRouter / 自定义 JSON Patch 的扩展补丁
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
 
+        // 构造 OkHttp 请求对象
         return LLMHttpRequest(
             request = Request.Builder()
             .url("${mProvider.normalizedBaseUrl()}/chat/completions")
@@ -181,6 +189,7 @@ class OpenAICompatibleLLMClient(
                 LLMStreamEvent.Finished(data, it, actualModel)
             }
         }
+        // 解析思考块增量
         val reasoningContent = deltaObject.optReasoningContent()
         if (reasoningContent.isNotBlank()) {
             if (!includeReasoningInContent) return null
@@ -188,6 +197,7 @@ class OpenAICompatibleLLMClient(
             onThinkingStateChange(true)
             return LLMStreamEvent.Delta(content = content, rawChunk = data)
         }
+        // 解析常规正文增量
         val content = deltaObject.optContentString("content").orEmpty()
         if (content.isBlank()) {
             return finishReason.takeIf { it.isNotBlank() }?.let {

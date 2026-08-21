@@ -79,7 +79,16 @@ class GroupChatRepository(
         }
     }
 
-    /** 创建群聊、成员关系、会话世界书选择，并写入已解析的开场消息。 */
+    /**
+     * 创建群聊、成员关系、会话世界书选择，并写入已解析的开场消息。
+     *
+     * 处理步骤：
+     * - 校验参演成员数量不少于 2 人；
+     * - 插入群聊会话基础记录；
+     * - 批量插入有序成员关联记录；
+     * - 批量插入已规划且非空的开场白消息；
+     * - 更新会话最新活跃时间戳为最后一条开场白时间。
+     */
     suspend fun createSession(
         title: String,
         userName: String,
@@ -95,6 +104,7 @@ class GroupChatRepository(
             "A group chat requires at least two characters"
         }
         return mAppDatabase.withTransaction {
+            // 插入群聊会话记录
             val sessionId = mSessionDao.insertOrReplace(
                 GroupChatSession(
                     title = title,
@@ -107,6 +117,7 @@ class GroupChatRepository(
                     allowSelfResponses = allowSelfResponses
                 )
             )
+            // 插入初始群成员列表
             mMemberDao.insertOrReplaceAll(
                 characterIds.distinct().mapIndexed { index, characterId ->
                     GroupChatMember(
@@ -116,6 +127,7 @@ class GroupChatRepository(
                     )
                 }
             )
+            // 写入开场白消息
             val selectedCharacterIds = characterIds.distinct().toSet()
             val validOpenings = openingMessages.filter {
                 it.characterId in selectedCharacterIds && it.content.isNotBlank()
@@ -132,6 +144,7 @@ class GroupChatRepository(
                     )
                 )
             }
+            // 同步会话最新活跃时间戳
             if (validOpenings.isNotEmpty()) {
                 mSessionDao.updateLatestTime(
                     sessionId,

@@ -12,8 +12,10 @@ internal data class WorldInfoSelection(
 /**
  * 按 SillyTavern 的规则计算本轮世界书预算。
  *
- * 先按扣除回复预留后的输入预算计算百分比，再应用可选的固定 Token 上限；上限为 0
- * 时不限制。百分比结果按四舍五入计算，并至少保留 1 Token。
+ * 计算逻辑：
+ * - 先按扣除回复预留后的输入预算计算百分比；
+ * - 再应用可选的固定 Token 上限（上限为 0 时不限制）；
+ * - 百分比结果按四舍五入计算，并至少保留 1 Token。
  */
 internal fun resolveWorldInfoBudget(
     promptTokenBudget: Int,
@@ -36,8 +38,9 @@ internal fun resolveWorldInfoBudget(
 /**
  * 同时应用全局世界书预算与每本世界书的独立预算。
  *
- * 常驻和高顺序条目优先选择；[LorebookEntry.ignoreBudget] 只跳过预算占用，
- * 不改变条目的激活和插入语义。
+ * 拟合规则：
+ * - 常驻和高顺序条目优先选择；
+ * - [LorebookEntry.ignoreBudget] 仅跳过预算占用计数，不改变条目的激活和插入语义。
  */
 internal fun fitWorldInfoToBudget(
     result: WorldBookActivationResult,
@@ -50,6 +53,7 @@ internal fun fitWorldInfoToBudget(
     val usedByLorebook = mutableMapOf<Long, Int>()
     var globalUsedTokens = 0
 
+    // 按常驻优先、Order 降序、ID 升序进行预算分配
     result.activatedEntries
         .sortedWith(
             compareByDescending<LorebookEntry> { it.constant }
@@ -61,11 +65,12 @@ internal fun fitWorldInfoToBudget(
             val lorebookBudget = lorebooks[entry.lorebookId]
                 ?.resolveTokenBudget()
             val lorebookUsedTokens = usedByLorebook[entry.lorebookId] ?: 0
-            // SillyTavern 在下一条目达到或超过全局预算时即停止纳入，因此这里使用 >=。
+            // 校验是否超出全局预算或单本世界书预算
             val exceedsGlobalBudget = globalUsedTokens + nextTokens >= globalTokenBudget
             val exceedsLorebookBudget = lorebookBudget != null &&
                 lorebookUsedTokens + nextTokens > lorebookBudget
 
+            // 超出预算且未忽略预算时记录遗漏并跳过
             if (!entry.ignoreBudget && (exceedsGlobalBudget || exceedsLorebookBudget)) {
                 omitted += PromptOmittedItem(
                     source = PromptSource(
@@ -79,6 +84,7 @@ internal fun fitWorldInfoToBudget(
                 return@forEach
             }
 
+            // 纳入当前条目并累加已用 Token
             selected += entry
             if (!entry.ignoreBudget) {
                 globalUsedTokens += nextTokens
@@ -86,6 +92,7 @@ internal fun fitWorldInfoToBudget(
             }
         }
 
+    // 重构按位置分组的裁剪结果
     val selectedIds = selected.map { it.id }.toSet()
     return WorldInfoSelection(
         result = result.filterEntries(selectedIds),
@@ -93,6 +100,7 @@ internal fun fitWorldInfoToBudget(
     )
 }
 
+/** 解析单本世界书配置的独立 Token 预算（<= 0 表示不限制）。 */
 private fun Lorebook.resolveTokenBudget(): Int? {
     // 0 表示跟随全局预算，不对这本世界书增加第二层限制。
     if (tokenBudget <= 0) return null

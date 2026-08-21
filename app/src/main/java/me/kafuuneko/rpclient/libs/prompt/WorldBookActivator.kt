@@ -12,21 +12,25 @@ import kotlin.random.Random
 /**
  * SillyTavern 兼容的世界书激活器。
  *
- * 实现关键词、附加扫描源、递归、包含组、概率以及 sticky/cooldown/delay；
- * 激活只决定候选内容，最终是否进入请求仍由世界书和 Prompt 预算器裁剪。
+ * 核心功能：
+ * - 支持主关键词、次要选择性关键词（AND_ANY / AND_ALL / NOT_ANY / NOT_ALL）与正则表达式匹配；
+ * - 支持附加静态扫描源（角色描述、用户人设、性格设定、场景设定、深度提示词、创作者备注等）；
+ * - 支持多轮递归激活（Recursive Scanning）与递归阻断；
+ * - 支持包含互斥组（Inclusion Groups）的组评分淘汰、强制覆盖与按权重加权随机选择；
+ * - 支持概率触发（Probability 0-100%）；
+ * - 支持时序控制：延迟激活（Delay）、生效常驻（Sticky）、冷却轮次（Cooldown）及历史回滚自动丢弃；
+ * - 按照 SillyTavern 规范将激活结果分类汇总至不同插入位置（Before/After Character、Example Top/Bottom、Author's Note Top/Bottom、Depth 深度插入、Outlet 自定义插槽）。
  */
 class WorldBookActivator {
     private val mGson = Gson()
 
-    /**
-     * 仅返回最终激活条目的兼容入口。
-     */
+    /** 仅返回最终激活条目列表的兼容入口。 */
     fun activate(context: PromptBuildContext): List<LorebookEntry> {
         return activateStructured(context).activatedEntries
     }
 
     /**
-     * 计算世界书触发结果，并同时返回按 ST 插入位置分组后的结构。
+     * 计算世界书触发结果，并同时返回按 SillyTavern 插入位置分组后的完整结构。
      *
      * 注意：会话开启的条目只是候选集，真正进入上下文前仍必须经过关键词、常驻、
      * 概率、sticky/cooldown、递归等规则判断。
@@ -64,9 +68,10 @@ class WorldBookActivator {
         )
     }
 
-    /** 使用与具体聊天实体解耦的扫描上下文激活世界书。 */
+    /** 使用与具体聊天实体解耦的扫描上下文执行世界书激活流水线。 */
     fun activateStructured(context: WorldBookScanContext): WorldBookActivationResult {
         val messageCount = context.totalMessageCount
+        // 加载并校验时序状态，若聊天发生回滚则自动重置时钟
         val state = TimedWorldInfoState.fromJson(context.worldInfoStateJson, mGson)
             .discardIfChatRewound(messageCount)
         val activated = linkedMapOf<Long, LorebookEntry>()
@@ -74,7 +79,7 @@ class WorldBookActivator {
         val failedProbabilityIds = mutableSetOf<Long>()
         var recursionBuffer = ""
 
-        // sticky 条目在有效期内可不重新命中关键词，但签名变化后会自动失效。
+        // 收集仍处于 Sticky 有效期内的时序条目
         context.candidateLorebookEntries
             .filter { it.allowsGenerationType(context.generationType) }
             .filter { it.isStickyActive(state, messageCount) }
@@ -84,10 +89,11 @@ class WorldBookActivator {
                 timedStickyIds += it.id
             }
 
+        // 多轮递归扫描匹配（第 0 轮扫描上下文文本；后续轮次扫描递归缓冲区）
         var step = 0
         while (step <= MAX_RECURSION_STEPS) {
             if (step > 0 && recursionBuffer.isBlank()) break
-            // 第 0 轮扫描聊天；后续轮次只在对应世界书启用 recursiveScanning 时扫描已激活条目内容。
+            // 过滤并评分当前轮次命中的候选条目
             val matchedEntries = context.candidateLorebookEntries
                 .filter { it.id !in activated }
                 .filter { it.id !in failedProbabilityIds }
@@ -116,6 +122,7 @@ class WorldBookActivator {
 
             if (matchedEntries.isEmpty()) break
             val activationScores = matchedEntries.associate { it.entry.id to it.score }
+            // 执行包含互斥组裁决与概率判定
             val newlyActivated = matchedEntries
                 .map { it.entry }
                 .applyInclusionGroups(
@@ -130,6 +137,7 @@ class WorldBookActivator {
                 }
             if (newlyActivated.isEmpty()) break
 
+            // 将新激活条目并入结果并填充下一轮递归缓冲区
             newlyActivated.forEach { activation ->
                 activated[activation.id] = activation
             }
@@ -137,6 +145,7 @@ class WorldBookActivator {
             step += 1
         }
 
+        // 推进并生成下一轮的时序状态快照
         val nextState = state.next(
             messageCount = messageCount,
             entries = activated.values.toList(),
@@ -147,6 +156,7 @@ class WorldBookActivator {
                 .toSet()
         )
 
+        // 转换为按位置结构化分组的激活结果对象
         return activated.values.toList().toActivationResult(
             nextStateJson = nextState.toJson(mGson),
             previousStateJson = context.worldInfoStateJson,
@@ -177,6 +187,7 @@ class WorldBookActivator {
         return result.copy(nextStateJson = nextState.toJson(mGson))
     }
 
+    /** 计算单个条目在当前扫描文本中的匹配命中得分，未命中时返回 null。 */
     private fun LorebookEntry.activationScore(
         context: WorldBookScanContext,
         recursionBuffer: String,
@@ -186,15 +197,17 @@ class WorldBookActivator {
         if ((delay ?: 0) > messageCount) return null
         if (constant) return 0
 
-        // triggers 是生成类型过滤器，不参与关键词扫描。
+        // 构建当前条目的扫描文本缓冲（包含指定深度的历史消息与声明的静态扫描源）
         val scanBuffer = buildScanBuffer(context, this, recursionBuffer)
         if (scanBuffer.isBlank()) return null
         val primaryKeywords = getKeywordList().map { it.trim() }.filter { it.isEffectiveKeyword() }
         if (primaryKeywords.isEmpty()) return null
 
+        // 校验主关键词命中数
         val primaryHits = primaryKeywords.count { scanBuffer.matchesKeyword(it, this) }
         if (primaryHits == 0) return null
 
+        // 校验次要关键词逻辑（AND_ANY, AND_ALL, NOT_ANY, NOT_ALL）
         val secondaryKeywords = getSecondaryKeywordList().map { it.trim() }.filter { it.isEffectiveKeyword() }
         val secondaryHits = secondaryKeywords.count { scanBuffer.matchesKeyword(it, this) }
         val secondaryMatches = when {
@@ -213,6 +226,7 @@ class WorldBookActivator {
         }
     }
 
+    /** 判定条目是否通过概率掷骰测试。 */
     private fun LorebookEntry.passesProbability(): Boolean {
         return probability >= 100 || (
             probability > 0 &&
@@ -220,11 +234,13 @@ class WorldBookActivator {
             )
     }
 
+    /** 组合并构建当前条目的全量待扫描文本缓冲区。 */
     private fun buildScanBuffer(
         context: WorldBookScanContext,
         entry: LorebookEntry,
         recursionBuffer: String
     ): String {
+        // 解析生效的扫描消息深度
         val depth = entry.scanDepth
             ?: context.candidateLorebooks[entry.lorebookId]?.scanDepth
             ?: DEFAULT_SCAN_DEPTH
@@ -235,7 +251,7 @@ class WorldBookActivator {
             .takeLast(depth.coerceAtLeast(0))
             .asReversed()
             .map { it.toScanText(context.includeNames) }
-        // 附加扫描源默认关闭，只在条目显式声明时扫描角色描述、场景等静态字段。
+        // 拼接附加扫描源（静态属性与递归文本）
         return buildList {
             addAll(recentMessages.filter { it.isNotBlank() })
             if (entry.matchCharacterDescription) add(context.characterDescription)
@@ -248,6 +264,7 @@ class WorldBookActivator {
         }.filter { it.isNotBlank() }.joinToString("\n\u0001", prefix = "\u0001")
     }
 
+    /** 检查扫描文本是否匹配指定关键词（支持 `/pattern/flags` 正则、全词匹配与大小写敏感）。 */
     private fun String.matchesKeyword(keyword: String, entry: LorebookEntry): Boolean {
         parseRegexKeyword(keyword)?.let { parsed ->
             val match = parsed.regex.find(this)
@@ -264,6 +281,7 @@ class WorldBookActivator {
         return contains(keyword, ignoreCase = ignoreCase)
     }
 
+    /** 校验关键词是否为非空有效字符串。 */
     private fun String.isEffectiveKeyword(): Boolean {
         return isNotBlank()
     }
@@ -284,12 +302,14 @@ class WorldBookActivator {
         val activatedGroups = alreadyActivated
             .flatMap { it.inclusionGroups() }
             .toSet()
+        // 按组名聚合条目
         forEach { entry ->
             entry.inclusionGroups().forEach { group ->
                 groups.getOrPut(group) { mutableListOf() } += entry
             }
         }
 
+        // 针对每个互斥组执行裁决
         groups.forEach { (groupName, originalEntries) ->
             var entries = originalEntries.filter { it.id in selectedIds }
             if (entries.isEmpty()) return@forEach
@@ -299,12 +319,14 @@ class WorldBookActivator {
             }
             if (entries.size <= 1) return@forEach
 
+            // 优先保留 Sticky 条目
             val stickyEntries = entries.filter { it.id in stickyIds }
             if (stickyEntries.isNotEmpty()) {
                 entries.filterNot { it.id in stickyIds }.forEach { selectedIds -= it.id }
                 return@forEach
             }
 
+            // 组内评分机制（淘汰最高分以下的条目）
             if (entries.any { it.useGroupScoring }) {
                 val maxScore = entries.maxOf { activationScores[it.id] ?: 0 }
                 entries.filter {
@@ -314,6 +336,7 @@ class WorldBookActivator {
             }
             if (entries.size <= 1) return@forEach
 
+            // 强制覆盖优先，否则按权重加权随机决出唯一赢家
             val prioritized = entries
                 .filter { it.groupOverride }
                 .sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
@@ -325,6 +348,7 @@ class WorldBookActivator {
         return filter { it.id in selectedIds }.sortedForActivation()
     }
 
+    /** 依权重从条目列表中按轮盘赌加权随机选取一个条目。 */
     private fun List<LorebookEntry>.weightedRandom(): LorebookEntry? {
         if (isEmpty()) return null
         val weighted = map { it to (it.groupWeight ?: 100).coerceAtLeast(1) }
@@ -337,6 +361,7 @@ class WorldBookActivator {
         return last()
     }
 
+    /** 提取条目声明的所有互斥包含组名称列表。 */
     private fun LorebookEntry.inclusionGroups(): List<String> {
         return group.split(',')
             .map { it.trim() }
@@ -344,6 +369,7 @@ class WorldBookActivator {
             .distinct()
     }
 
+    /** 校验条目是否允许在当前生成类型（如 Normal / Continue / Impersonate 等）下激活。 */
     private fun LorebookEntry.allowsGenerationType(
         generationType: WorldBookGenerationType
     ): Boolean {
@@ -353,11 +379,13 @@ class WorldBookActivator {
         return filters.isEmpty() || generationType.value in filters
     }
 
+    /** 判定指定世界书是否开启了递归扫描模式。 */
     private fun WorldBookScanContext.isRecursiveScanningEnabled(lorebookId: Long): Boolean {
         return candidateLorebooks[lorebookId]?.recursiveScanning
             ?: (lorebookId in recursiveScanningLorebookIds)
     }
 
+    /** 将扫描消息格式化为待匹配文本。 */
     private fun WorldBookScanMessage.toScanText(includeNames: Boolean): String {
         if (!includeNames || speakerName.isBlank()) return content
         return "$speakerName: $content"
@@ -392,6 +420,7 @@ class WorldBookActivator {
         return ParsedRegexKeyword(regex = regex, sticky = 'y' in flags)
     }
 
+    /** 检查字符串中是否存在未转义的斜杠字符。 */
     private fun String.hasUnescapedSlash(): Boolean {
         forEachIndexed { index, character ->
             if (character != '/') return@forEachIndexed
@@ -426,6 +455,7 @@ class WorldBookActivator {
         val depth = mutableListOf<WorldBookDepthEntry>()
         val outlet = linkedMapOf<String, MutableList<LorebookEntry>>()
 
+        // 按 order 降序遍历并头插以保留同位置同顺序的稳定升序
         sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id }).forEach { entry ->
             when (entry.position) {
                 LorebookEntry.POSITION_BEFORE -> before.add(0, entry)
@@ -466,6 +496,7 @@ class WorldBookActivator {
         )
     }
 
+    /** 检查条目是否处于 Sticky 保持生效期内。 */
     private fun LorebookEntry.isStickyActive(state: TimedWorldInfoState, messageCount: Int): Boolean {
         if (disabled) return false
         val item = state.entries[id.toString()] ?: return false
@@ -473,12 +504,14 @@ class WorldBookActivator {
         return messageCount < item.stickyUntil
     }
 
+    /** 检查条目是否处于 Cooldown 冷却期内。 */
     private fun LorebookEntry.isOnCooldown(state: TimedWorldInfoState, messageCount: Int): Boolean {
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
         return messageCount >= item.stickyUntil && messageCount < item.cooldownUntil
     }
 
+    /** 检查条目是否配置了时序效果（Sticky 或 Cooldown 大于 0）。 */
     private fun LorebookEntry.hasTimedEffect(): Boolean {
         return (sticky ?: 0) > 0 || (cooldown ?: 0) > 0
     }
@@ -527,6 +560,7 @@ class WorldBookActivator {
         ).joinToString("\u001F").hashCode().toString()
     }
 
+    /** 按常驻优先、Order 降序、ID 升序对条目进行激活排序。 */
     private fun List<LorebookEntry>.sortedForActivation(): List<LorebookEntry> {
         return sortedWith(
             compareByDescending<LorebookEntry> { it.constant }
@@ -535,6 +569,7 @@ class WorldBookActivator {
         )
     }
 
+    /** 将条目的持久化角色数值映射为 LLMMessageRole。 */
     private fun LorebookEntry.toMessageRole(): LLMMessageRole {
         return when (role) {
             LorebookEntry.ROLE_USER -> LLMMessageRole.User
@@ -543,6 +578,7 @@ class WorldBookActivator {
         }
     }
 
+    /** 检查会话是否回滚，若当前消息轮数小于最后记录轮数则丢弃旧时序状态。 */
     private fun TimedWorldInfoState.discardIfChatRewound(messageCount: Int): TimedWorldInfoState {
         if (lastMessageCount <= messageCount) return this
         return TimedWorldInfoState(lastMessageCount = messageCount)
@@ -560,10 +596,12 @@ class WorldBookActivator {
         stickyIds: Set<Long>,
         freshTimedIds: Set<Long>
     ): TimedWorldInfoState {
+        // 清理已过期的时序记录
         val nextEntries = this.entries
             .filterValues { it.cooldownUntil > messageCount || it.stickyUntil > messageCount }
             .toMutableMap()
 
+        // 推进生效与新触发条目的期限
         entries.forEach { entry ->
             val key = entry.id.toString()
             when {
@@ -588,21 +626,24 @@ class WorldBookActivator {
     }
 
     private companion object {
-        // 条目未指定扫描深度时使用的默认消息数。
+        /** 条目未指定扫描深度时使用的默认历史消息条数。 */
         const val DEFAULT_SCAN_DEPTH = 2
-        // ST 文档定义 Match Whole Words 默认开启，条目 null 时继承该默认值。
+        /** SillyTavern 规范默认开启全词匹配。 */
         const val DEFAULT_MATCH_WHOLE_WORDS = true
-        // 递归扫描上限，避免世界书条目之间形成无限激活。
+        /** 递归扫描最大步数上限，避免循环相互引用导致死循环。 */
         const val MAX_RECURSION_STEPS = 5
+        /** 正则表达式关键词支持的修饰标志集合。 */
         val SUPPORTED_REGEX_FLAGS = setOf('g', 'i', 'm', 's', 'u', 'y')
     }
 }
 
+/** 封装条目及其匹配命中得分。 */
 private data class EntryActivation(
     val entry: LorebookEntry,
     val score: Int
 )
 
+/** 正则表达式关键词解析结果（包含编译后的 Regex 及是否为 sticky 匹配）。 */
 private data class ParsedRegexKeyword(
     val regex: Regex,
     val sticky: Boolean
@@ -633,7 +674,7 @@ data class WorldBookScanMessage(
     val content: String
 )
 
-/** 世界书 triggers 可过滤的生成操作类型。 */
+/** 世界书 triggers 可过滤的生成操作类型枚举。 */
 enum class WorldBookGenerationType(val value: String) {
     Normal("normal"),
     Continue("continue"),
@@ -643,6 +684,7 @@ enum class WorldBookGenerationType(val value: String) {
     Quiet("quiet")
 }
 
+/** 将 Prompt 生成模式映射为世界书生成类型。 */
 private fun PromptGenerationMode.toWorldBookGenerationType(): WorldBookGenerationType {
     return when (this) {
         PromptGenerationMode.Normal -> WorldBookGenerationType.Normal
@@ -675,6 +717,7 @@ data class WorldBookDepthEntry(
     val entries: MutableList<LorebookEntry>
 )
 
+/** 世界书时序控制持久化状态模型。 */
 private data class TimedWorldInfoState(
     val lastMessageCount: Int = 0,
     val entries: Map<String, TimedEntryState> = emptyMap()
@@ -693,9 +736,11 @@ private data class TimedWorldInfoState(
     }
 }
 
+/** 单个条目的时序状态（激活轮次、Sticky 截止轮次、Cooldown 截止轮次与行为签名）。 */
 private data class TimedEntryState(
     val activatedAt: Int = 0,
     val stickyUntil: Int = 0,
     val cooldownUntil: Int = 0,
     val signature: String = ""
 )
+

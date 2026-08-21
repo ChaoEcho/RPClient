@@ -41,7 +41,12 @@ class PromptRequestFinalizer(
     /**
      * 将消息草稿收敛为不超过上下文预算的最终请求。
      *
-     * 每次移除草稿后都重新执行后处理和统计，因为消息合并会改变最终 Token 数量。
+     * 核心步骤：
+     * - 校验上下文上限与回复 Token 预留的合法性；
+     * - 过滤空消息并循环执行“消息后处理 -> Token 统计 -> 超额判定”；
+     * - 若满足预算则封装并返回 [PromptFinalizationResult] 及详细检查报告；
+     * - 若超额则按保留优先级（[PromptMessageDraft.retentionPriority]）最低者淘汰一条非必需消息并重新计算；
+     * - 若所有可丢弃消息均淘汰后依然超限，则抛出 [PromptBudgetExceededException]。
      */
     fun finalize(
         drafts: List<PromptMessageDraft>,
@@ -56,6 +61,7 @@ class PromptRequestFinalizer(
         postProcessingNames: PromptPostProcessingNames = PromptPostProcessingNames(),
         preOmittedItems: List<PromptOmittedItem> = emptyList()
     ): PromptFinalizationResult {
+        // 计算扣除回复预留后的输入 Prompt 预算
         val promptBudget = maxContextTokens - maxResponseTokens
         require(maxContextTokens > 0) { "Context token limit must be greater than zero." }
         require(maxResponseTokens > 0) { "Response token reserve must be greater than zero." }
@@ -67,6 +73,7 @@ class PromptRequestFinalizer(
         val kept = drafts.filter { it.content.isNotBlank() }.toMutableList()
         val omitted = preOmittedItems.toMutableList()
 
+        // 迭代裁剪循环：每次淘汰消息后重新执行后处理与统计（因合并可能改变 Token 总数）
         while (true) {
             val processed = kept.postProcess(
                 postProcessingMode,
@@ -75,6 +82,7 @@ class PromptRequestFinalizer(
             )
             val messages = processed.map { LLMMessage(it.role, it.content) }
             val finalTokenCount = tokenizer.countMessages(messages)
+            // 满足输入预算，构建最终请求与检查报告
             if (finalTokenCount <= promptBudget) {
                 return PromptFinalizationResult(
                     request = LLMGenerationRequest(
@@ -109,15 +117,18 @@ class PromptRequestFinalizer(
                 )
             }
 
+            // 超出预算：查找优先级最低的可丢弃消息
             val removable = kept.withIndex()
                 .filter { it.value.canDrop }
                 .minWithOrNull(
                     compareBy<IndexedValue<PromptMessageDraft>> { it.value.retentionPriority }
                         .thenBy { it.index }
                 )
+            // 无可丢弃消息，终止并抛出异常
             if (removable == null) {
                 throw PromptBudgetExceededException(finalTokenCount, promptBudget)
             }
+            // 移除消息并记录遗漏明细
             val removed = kept.removeAt(removable.index)
             removed.sources.forEach { source ->
                 omitted += PromptOmittedItem(
@@ -129,6 +140,7 @@ class PromptRequestFinalizer(
         }
     }
 
+    /** 内部扩展：将草稿列表执行带来源追踪的消息后处理。 */
     private fun List<PromptMessageDraft>.postProcess(
         mode: PromptPostProcessingMode,
         strictPromptPlaceholder: String,

@@ -87,12 +87,20 @@ import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 连续空白字符匹配正则，用于故事内容摘要的空白压缩与规整。 */
 private val WHITESPACE_REGEX = Regex("\\s+")
 
 /**
- * 主页面状态持有者。
+ * 应用主页面状态持有者。
  *
- * 聚合最近会话、故事与资源入口，并将全局设置和当前模型配置映射为可编辑状态。
+ * 核心职责：
+ * - 聚合展示首页数据：单聊分组列表、群聊会话列表、故事列表及资产统计（角色数、世界书数）；
+ * - 驱动首页多选管理模式，支持批量删除单聊、群聊与故事数据；
+ * - 驱动单聊存档（ChatArchive）的解析导入流程（角色自动匹配建议与导入落库）；
+ * - 管理全局设置：用户身份（头像/昵称/人设）、当前 LLM 供应商参数（温度/TopP/上下文/最大生成Token）、Prompt 后处理模式与流式输出；
+ * - 管理世界书 Token 预算分配与溢出提醒；
+ * - 管理自动会话总结（Auto Summary）配置与注入策略（System/User/Assistant/深度）；
+ * - 调度所有二级功能模块页面的跳转。
  */
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
@@ -112,6 +120,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
     private var mChatImportJob: Job? = null
 
+    /** 初始化主页与设置页全量状态。 */
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
@@ -125,6 +134,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 页面从后台恢复可见时触发，增量刷新首页列表与设置项。 */
     @UiIntentObserver(MainUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -141,6 +151,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 处理返回键操作：若在多选状态则退出多选；若在设置页则返回首页；若在首页则退出应用。 */
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -159,6 +170,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         MainUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 长按首页列表项进入多选模式并选中当前长按的条目。 */
     @UiIntentObserver(MainUiIntent.EnterMultiSelect::class)
     private fun onEnterMultiSelect(intent: MainUiIntent.EnterMultiSelect) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -172,6 +184,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换指定列表项在多选状态下的勾选/反选。 */
     @UiIntentObserver(MainUiIntent.ToggleItemSelection::class)
     private fun onToggleItemSelection(intent: MainUiIntent.ToggleItemSelection) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -185,6 +198,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 展开/折叠指定角色下的单聊会话分组折叠面板。 */
     @UiIntentObserver(MainUiIntent.ToggleSessionGroup::class)
     private fun onToggleSessionGroup(intent: MainUiIntent.ToggleSessionGroup) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -207,6 +221,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 退出首页多选模式并清空已选项。 */
     @UiIntentObserver(MainUiIntent.ExitMultiSelect::class)
     private fun onExitMultiSelect() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -218,6 +233,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 点击批量删除按钮，弹出二次确认弹窗。 */
     @UiIntentObserver(MainUiIntent.ShowDeleteSelectedDialog::class)
     private fun onShowDeleteSelectedDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -232,6 +248,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 确认批量删除选中的单聊、群聊或故事会话。 */
     @UiIntentObserver(MainUiIntent.ConfirmDeleteSelected::class)
     private suspend fun onConfirmDeleteSelected() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -243,6 +260,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (selections.isEmpty()) return
         uiState.copy(dialogState = dialog.copy(isDeleting = true)).setup()
         try {
+            // 在 IO 线程遍历删除选中的各项会话
             withContext(Dispatchers.IO) {
                 selections.forEach { selection ->
                     val itemId = selection.itemId.toLongOrNull() ?: return@forEach
@@ -253,6 +271,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     }
                 }
             }
+            // 重新拉取首页数据并继承折叠状态
             val homeState = buildHomeState()
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
@@ -268,6 +287,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 弹出故事重命名弹窗。 */
     @UiIntentObserver(MainUiIntent.ShowRenameStoryDialog::class)
     private fun onShowRenameStoryDialog(intent: MainUiIntent.ShowRenameStoryDialog) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -281,6 +301,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改故事重命名弹窗中的标题草稿。 */
     @UiIntentObserver(MainUiIntent.ChangeStoryTitleDraft::class)
     private fun onChangeStoryTitleDraft(intent: MainUiIntent.ChangeStoryTitleDraft) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -289,6 +310,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(dialogState = dialog.copy(title = intent.value)).setup()
     }
 
+    /** 确认保存故事重命名并刷新首页故事列表。 */
     @UiIntentObserver(MainUiIntent.ConfirmStoryRename::class)
     private suspend fun onConfirmStoryRename() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -297,10 +319,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (title.isEmpty() || dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
+            // 在 IO 线程更新故事标题
             val renamed = withContext(Dispatchers.IO) {
                 mStoryRepository.renameStory(dialog.storyId, title)
             }
             check(renamed) { "Story no longer exists" }
+            // 重新构建首页状态并恢复折叠分组
             val homeState = buildHomeState()
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
@@ -316,6 +340,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 关闭当前活跃的弹窗并清理临时暂存对象。 */
     @UiIntentObserver(MainUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -331,6 +356,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(dialogState = MainDialogState.None).setup()
     }
 
+    /** 触发系统文件选择器以导入聊天存档文件。 */
     @UiIntentObserver(MainUiIntent.ImportChatClick::class)
     private fun onImportChatClick() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -338,6 +364,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         MainViewEvent.OpenChatImporter.tryEmit()
     }
 
+    /** 读取并解析导入的聊天存档 JSON 文件，匹配候选角色并弹出角色绑定弹窗。 */
     @UiIntentObserver(MainUiIntent.ImportChatResult::class)
     private fun onImportChatResult(intent: MainUiIntent.ImportChatResult) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -349,11 +376,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
         mChatImportJob = viewModelScope.launch {
             try {
+                // 在 IO 线程解析聊天存档并检索全量候选角色
                 val archive = mChatArchiveRepository.readImportFromUri(intent.uri)
                 val characters = mCharacterRepository.getAllCharacters()
                 mPendingChatImport = archive
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 val items = characters.map { it.toImportCharacterItem() }
+                // 推荐最佳匹配角色并展示角色绑定选择弹窗
                 current.copy(
                     settingsState = current.settingsState.copy(
                         chatDataManagementState = MainChatDataManagementState.Idle
@@ -389,6 +418,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 过滤导入角色绑定弹窗中的候选角色列表。 */
     @UiIntentObserver(MainUiIntent.ChangeImportCharacterQuery::class)
     private fun onChangeImportCharacterQuery(
         intent: MainUiIntent.ChangeImportCharacterQuery
@@ -413,6 +443,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择导入聊天记录所归属的目标角色。 */
     @UiIntentObserver(MainUiIntent.SelectImportCharacter::class)
     private fun onSelectImportCharacter(intent: MainUiIntent.SelectImportCharacter) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -423,6 +454,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 确认将暂存的聊天存档与选定角色绑定并原子事务落库，导入成功后立即进入聊天页。 */
     @UiIntentObserver(MainUiIntent.ConfirmImportChat::class)
     private fun onConfirmImportChat() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -433,10 +465,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
         mChatImportJob = viewModelScope.launch {
             try {
+                // 在 IO 线程事务保存会话与全量导入消息
                 val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
                 mPendingChatImport = null
                 val homeState = buildHomeState()
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                // 更新首页会话列表并关闭导入弹窗
                 current.copy(
                     homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
                     dialogState = if (
@@ -448,6 +482,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     }
                 ).setup()
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
+                // 导航进入新导入的会话页
                 AppViewEvent.StartActivity(
                     activity = ChatActivity::class.java,
                     extras = Bundle().apply {
@@ -471,12 +506,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 切换主页底部导航标签页（首页 / 设置）。 */
     @UiIntentObserver(MainUiIntent.SelectPage::class)
     private fun onSelectPage(intent: MainUiIntent.SelectPage) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         uiState.copy(selectedPage = intent.page).setup()
     }
 
+    /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
     @UiIntentObserver(MainUiIntent.SelectHomeContentTab::class)
     private fun onSelectHomeContentTab(intent: MainUiIntent.SelectHomeContentTab) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -486,6 +523,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 打开指定的单聊会话页面。 */
     @UiIntentObserver(MainUiIntent.OpenChat::class)
     private fun onOpenChat(intent: MainUiIntent.OpenChat) {
         if (!isStateOf<MainUiState.Normal>()) return
@@ -495,12 +533,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).tryEmit()
     }
 
+    /** 打开新建单聊会话页。 */
     @UiIntentObserver(MainUiIntent.OpenCreateChat::class)
     private fun onOpenCreateChat() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(ChatCreateActivity::class.java).tryEmit()
     }
 
+    /** 打开指定的群聊会话页面。 */
     @UiIntentObserver(MainUiIntent.OpenGroupChat::class)
     private fun onOpenGroupChat(intent: MainUiIntent.OpenGroupChat) {
         if (!isStateOf<MainUiState.Normal>()) return
@@ -512,12 +552,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).tryEmit()
     }
 
+    /** 打开新建群聊会话页。 */
     @UiIntentObserver(MainUiIntent.OpenCreateGroupChat::class)
     private fun onOpenCreateGroupChat() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(GroupChatCreateActivity::class.java).tryEmit()
     }
 
+    /** 打开指定的故事编辑器页面。 */
     @UiIntentObserver(MainUiIntent.OpenStory::class)
     private fun onOpenStory(intent: MainUiIntent.OpenStory) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -530,30 +572,35 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).tryEmit()
     }
 
+    /** 打开新建故事页面。 */
     @UiIntentObserver(MainUiIntent.OpenCreateStory::class)
     private fun onOpenCreateStory() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(StoryCreateActivity::class.java).tryEmit()
     }
 
+    /** 打开角色管理列表页。 */
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
     private fun onOpenCharacterManager() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(CharacterListActivity::class.java).tryEmit()
     }
 
+    /** 打开世界书管理列表页。 */
     @UiIntentObserver(MainUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
+    /** 打开模型供应商管理列表页。 */
     @UiIntentObserver(MainUiIntent.OpenProviderManager::class)
     private fun onOpenProviderManager() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
+    /** 打开当前选中的模型供应商详情编辑页。 */
     @UiIntentObserver(MainUiIntent.OpenSelectedProviderEdit::class)
     private fun onOpenSelectedProviderEdit() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -568,6 +615,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).tryEmit()
     }
 
+    /** 弹出模型生成参数（温度 / TopP / MaxTokens / ContextTokens）快速编辑弹窗。 */
     @UiIntentObserver(MainUiIntent.ShowGenerationParameterDialog::class)
     private suspend fun onShowGenerationParameterDialog(
         intent: MainUiIntent.ShowGenerationParameterDialog
@@ -577,6 +625,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val providerState = uiState.settingsState.providerState
             as? MainProviderSettingsState.Available
             ?: return
+        // 在 IO 线程加载当前供应商最新参数
         val provider = withContext(Dispatchers.IO) {
             mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
@@ -586,6 +635,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             as? MainProviderSettingsState.Available
             ?: return
         if (currentProviderState.selectedProviderId != provider.id) return
+        // 装填当前参数草稿并弹出对话框
         current.copy(
             dialogState = MainDialogState.EditGenerationParameter(
                 parameter = intent.parameter,
@@ -594,6 +644,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改模型生成参数编辑弹窗中的草稿数值。 */
     @UiIntentObserver(MainUiIntent.ChangeGenerationParameterDraft::class)
     private fun onChangeGenerationParameterDraft(
         intent: MainUiIntent.ChangeGenerationParameterDraft
@@ -605,6 +656,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 确认并持久化修改后的模型生成参数。 */
     @UiIntentObserver(MainUiIntent.ConfirmGenerationParameter::class)
     private suspend fun onConfirmGenerationParameter() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -615,6 +667,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val provider = withContext(Dispatchers.IO) {
             mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
+        // 校验输入数值合法性与 Token 上限约束关系
         val updatedProvider = dialog.parameter.updateProviderOrNull(provider, dialog.draftValue)
         if (updatedProvider == null) {
             val messageRes = if (dialog.hasInvalidTokenRelationship(provider)) {
@@ -625,6 +678,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             AppViewEvent.PopupToastMessageByResId(messageRes).tryEmit()
             return
         }
+        // 持久化更新到数据库
         withContext(Dispatchers.IO) {
             mLLMRepository.saveProvider(updatedProvider)
         }
@@ -633,6 +687,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             as? MainProviderSettingsState.Available
             ?: return
         if (currentProviderState.selectedProviderId != updatedProvider.id) return
+        // 关闭弹窗并同步更新模型设置面板
         current.copy(
             dialogState = if (
                 current.dialogState is MainDialogState.EditGenerationParameter
@@ -649,6 +704,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
     private fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
         provider: LLMProvider
     ): Boolean {
@@ -660,16 +716,19 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 触发系统图片选择器选择用户自定义头像。 */
     @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
     private fun onPickUserAvatarClick() {
         if (!isStateOf<MainUiState.Normal>()) return
         MainViewEvent.OpenUserAvatarPicker.tryEmit()
     }
 
+    /** 接收用户选择的新头像 URI，完成文件持久化并替换旧头像。 */
     @UiIntentObserver(MainUiIntent.UserAvatarSelected::class)
     private suspend fun onUserAvatarSelected(intent: MainUiIntent.UserAvatarSelected) {
         if (!isStateOf<MainUiState.Normal>()) return
         val oldAvatar = AppModel.userAvatar
+        // 在 IO 线程保存新头像文件
         val avatarUuid = runCatching {
             withContext(Dispatchers.IO) {
                 mFileRepository.saveFile(intent.uri)
@@ -679,6 +738,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             return
         }
         AppModel.userAvatar = avatarUuid
+        // 清理旧头像物理文件
         if (oldAvatar.isNotBlank() && oldAvatar != avatarUuid) {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -686,6 +746,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             }
         }
+        // 解析新头像 Bitmap 并更新 UI 状态
         val avatarImage = resolveUserAvatarImage()
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.copy(
@@ -697,11 +758,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 清空用户自定义头像并删除对应本地文件。 */
     @UiIntentObserver(MainUiIntent.ClearUserAvatar::class)
     private suspend fun onClearUserAvatar() {
         if (!isStateOf<MainUiState.Normal>()) return
         val oldAvatar = AppModel.userAvatar
         AppModel.userAvatar = ""
+        // 在 IO 线程删除旧头像物理文件
         if (oldAvatar.isNotBlank()) {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -709,6 +772,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             }
         }
+        // 重置为无头像状态
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.copy(
             settingsState = current.settingsState.copy(
@@ -719,30 +783,35 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 打开全局 Prompt 提示词预设页。 */
     @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
     private fun onOpenPromptPreset() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
     }
 
+    /** 打开正则脚本管理器页面。 */
     @UiIntentObserver(MainUiIntent.OpenRegexScripts::class)
     private fun onOpenRegexScripts() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RegexScriptActivity::class.java).tryEmit()
     }
 
+    /** 打开 LLM 请求与调试日志列表页。 */
     @UiIntentObserver(MainUiIntent.OpenRequestLogs::class)
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
     }
 
+    /** 打开关于软件页面。 */
     @UiIntentObserver(MainUiIntent.OpenAbout::class)
     private fun onOpenAbout() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(AboutActivity::class.java).tryEmit()
     }
 
+    /** 修改用户默认显示名称并持久化。 */
     @UiIntentObserver(MainUiIntent.ChangeUserName::class)
     private fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -757,6 +826,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改用户人设设定描述并持久化。 */
     @UiIntentObserver(MainUiIntent.ChangeUserDescription::class)
     private fun onChangeUserDescription(intent: MainUiIntent.ChangeUserDescription) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -770,14 +840,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换全局默认使用的 LLM 供应商。 */
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
     private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
         if (!isStateOf<MainUiState.Normal>()) return
+        // 更新数据库中的当前首选供应商
         mLLMRepository.updateCurrentProvider(intent.providerId)
         val providers = mLLMRepository.getEnabledProviders()
         val selectedProvider = providers.firstOrNull { it.id == intent.providerId } ?: return
         val current = getOrNull<MainUiState.Normal>() ?: return
         val promptBehaviorState = current.settingsState.promptBehaviorState
+        // 刷新模型供应商面板及后处理能力状态
         current.copy(
             selectedPage = MainPage.Settings,
             settingsState = current.settingsState.copy(
@@ -791,6 +864,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换是否启用长对话自动总结功能。 */
     @UiIntentObserver(MainUiIntent.ToggleAutoSummaryEnabled::class)
     private fun onToggleAutoSummaryEnabled(intent: MainUiIntent.ToggleAutoSummaryEnabled) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -804,6 +878,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择用于执行会话总结的专用 LLM 供应商（ID 为 0 时继承当前主供应商）。 */
     @UiIntentObserver(MainUiIntent.SelectSummaryProvider::class)
     private fun onSelectSummaryProvider(intent: MainUiIntent.SelectSummaryProvider) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -824,6 +899,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改自动总结的触发消息轮数阈值。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
     private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
         updateSettingsInt(intent.value, minimum = 1) {
@@ -834,6 +910,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 修改总结生成的目标字数限制。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryWordsLimit::class)
     private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
         updateSettingsInt(intent.value, minimum = 50) {
@@ -844,6 +921,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 修改单次总结请求包含的最大历史消息条数。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryMaxMessagesPerRequest::class)
     private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
         updateSettingsInt(intent.value, minimum = 0) {
@@ -854,6 +932,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 修改总结生成请求的最大 Token 限制。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
     private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
         updateSettingsInt(intent.value, minimum = 128) {
@@ -864,6 +943,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 切换会话总结设置页内的子标签页。 */
     @UiIntentObserver(MainUiIntent.SelectSummarySettingsTab::class)
     private fun onSelectSummarySettingsTab(intent: MainUiIntent.SelectSummarySettingsTab) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -876,6 +956,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择总结内容在 Prompt 上下文中的注入位置（系统提示词 / 对话历史中）。 */
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
     private fun onSelectSummaryInjectionPosition(
         intent: MainUiIntent.SelectSummaryInjectionPosition
@@ -891,6 +972,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改总结在对话历史中注入的倒数消息深度（Depth）。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionDepth::class)
     private fun onChangeSummaryInjectionDepth(intent: MainUiIntent.ChangeSummaryInjectionDepth) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -908,6 +990,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择总结注入为消息时的角色标识（System / User / Assistant）。 */
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionRole::class)
     private fun onSelectSummaryInjectionRole(intent: MainUiIntent.SelectSummaryInjectionRole) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -924,6 +1007,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换是否启用全局流式响应输出（SSE Stream）。 */
     @UiIntentObserver(MainUiIntent.ToggleStreamEnabled::class)
     private fun onToggleStreamEnabled(intent: MainUiIntent.ToggleStreamEnabled) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -937,16 +1021,19 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择模型特定的 Prompt 后处理模式（如 Raw、Claude 强化、DeepSeek 优化等）。 */
     @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
     private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providerState = uiState.settingsState.providerState
             as? MainProviderSettingsState.Available
             ?: return
+        // 在 IO 线程加载当前供应商
         val provider = withContext(Dispatchers.IO) {
             mLLMRepository.getProviderById(providerState.selectedProviderId)
         } ?: return
         val updatedProvider = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
+        // 保存后处理模式更新
         withContext(Dispatchers.IO) {
             mLLMRepository.saveProvider(updatedProvider)
         }
@@ -955,6 +1042,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             as? MainProviderSettingsState.Available
             ?: return
         if (currentProviderState.selectedProviderId != updatedProvider.id) return
+        // 同步刷新后处理状态
         current.copy(
             settingsState = current.settingsState.copy(
                 promptBehaviorState = current.settingsState.promptBehaviorState.copy(
@@ -966,6 +1054,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换历史消息中的思考过程（Think Blocks）是否回传给模型作为上下文。 */
     @UiIntentObserver(MainUiIntent.ToggleIncludeThinkInContext::class)
     private fun onToggleIncludeThinkInContext(intent: MainUiIntent.ToggleIncludeThinkInContext) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -979,6 +1068,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改世界书占上下文总量的百分比上限预算。 */
     @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetPercent::class)
     private fun onChangeWorldInfoBudgetPercent(intent: MainUiIntent.ChangeWorldInfoBudgetPercent) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -993,6 +1083,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改世界书硬性 Token 上限预算（Cap）。 */
     @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetCap::class)
     private fun onChangeWorldInfoBudgetCap(intent: MainUiIntent.ChangeWorldInfoBudgetCap) {
         updateSettingsInt(intent.value, minimum = 0) {
@@ -1003,6 +1094,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 切换当世界书条目超出预算被裁切时是否弹出 Toast 警报。 */
     @UiIntentObserver(MainUiIntent.ToggleWorldInfoOverflowAlert::class)
     private fun onToggleWorldInfoOverflowAlert(intent: MainUiIntent.ToggleWorldInfoOverflowAlert) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -1016,6 +1108,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换当历史消息因超限被裁切时是否弹出 Toast 警报。 */
     @UiIntentObserver(MainUiIntent.ToggleContextTrimmingAlert::class)
     private fun onToggleContextTrimmingAlert(intent: MainUiIntent.ToggleContextTrimmingAlert) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -1029,6 +1122,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 选择示例对话（MES / Example Dialogue）的注入与展示行为。 */
     @UiIntentObserver(MainUiIntent.SelectExampleDialogueBehavior::class)
     private fun onSelectExampleDialogueBehavior(
         intent: MainUiIntent.SelectExampleDialogueBehavior
@@ -1044,6 +1138,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换是否开启全局 Debug 调试模式（影响日志捕获与详细错误输出）。 */
     @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
     private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -1055,13 +1150,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /**
+     * 在 IO 线程并发装配首页各组件数据。
+     *
+     * 包括：角色总数、世界书总数、按角色聚合的单聊分组、群聊摘要列表及故事概览列表。
+     */
     private suspend fun buildHomeState(): MainHomeState {
         return withContext(Dispatchers.IO) {
+            // 并发拉取基础实体与会话概览
             val characters = mCharacterRepository.getAllCharacters()
             val characterMap = characters.associateBy { it.id }
             val sessions = mChatRepository.getSessionOverviews()
             val groupSessions = mGroupChatRepository.getSessionOverviews()
             val storyOverviews = mStoryRepository.getStoryOverviews()
+            // 将单聊会话按角色聚合分组
             val sessionItems = sessions.map { session ->
                 session.toUiModel(characterMap[session.characterId])
             }
@@ -1072,6 +1174,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     sessions = items
                 )
             }
+            // 格式化群聊会话列表项
             val groupChatItems = groupSessions.map { session ->
                 MainGroupChatSessionItem(
                     id = session.id.toString(),
@@ -1085,6 +1188,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
                 )
             }
+            // 格式化故事列表项
             val storyItems = storyOverviews.map { story ->
                 MainStoryItem(
                     id = story.id,
@@ -1094,6 +1198,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm")
                 )
             }
+            // 装配完整的首页状态模型
             MainHomeState(
                 resourceState = MainHomeResourceState(
                     totalCharacters = characters.size,
@@ -1118,6 +1223,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 装配设置页全量子状态（用户身份、供应商模型参数、提示词行为、预算、总结与调试）。 */
     private suspend fun buildSettingsState(
         providers: List<LLMProvider>,
         selectedProvider: LLMProvider?,
@@ -1166,6 +1272,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
     private fun buildProviderSettingsState(
         providers: List<LLMProvider>,
         selectedProvider: LLMProvider?
@@ -1178,6 +1285,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 构建总结注入配置子状态（根据注入位置分别构建 System 或 InChat 配置）。 */
     private fun buildSummaryInjectionState(
         position: SummaryInjectionPosition
     ): MainSummaryInjectionState {
@@ -1187,10 +1295,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
     private fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
         return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
     }
 
+    /** 将 LLMProvider 映射为主页供应商下拉列表展示项。 */
     private fun LLMProvider.toMainProviderItem(): MainProviderItem {
         return MainProviderItem(
             id = id,
@@ -1201,6 +1311,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 将 Character 实体映射为导入角色绑定弹窗中的条目。 */
     private fun Character.toImportCharacterItem(): MainImportCharacterItem {
         return MainImportCharacterItem(
             id = id,
@@ -1210,6 +1321,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
     private fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
         return MainGenerationParametersState(
             temperature = temperature,
@@ -1219,28 +1331,34 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
+    /** 读取持久化的总结注入位置枚举。 */
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
         return SummaryInjectionPosition.fromPersistedValue(AppModel.summaryInjectionPosition)
     }
 
+    /** 读取持久化的示例对话行为枚举。 */
     private fun readExampleDialogueBehavior(): ExampleDialogueBehavior {
         return ExampleDialogueBehavior.fromPersistedValue(AppModel.exampleDialogueBehavior)
     }
 
+    /** 读取持久化的总结注入角色枚举。 */
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
         return SummaryInjectionRole.fromPersistedValue(AppModel.summaryInjectionRole)
     }
 
+    /** 异步加载用户自定义头像 Bitmap 并转换为 Compose 的 ImageBitmap。 */
     private suspend fun resolveUserAvatarImage() =
         AppModel.userAvatar
             .takeIf { it.isNotBlank() }
             ?.let { withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() } }
 
+    /** 从当前首页状态中按 ID 查找故事。 */
     private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
         val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
         return content.stories.firstOrNull { it.id == storyId }
     }
 
+    /** 辅助函数：安全解析整数设置项并应用更新。 */
     private fun updateSettingsInt(
         value: String,
         minimum: Int,
@@ -1253,6 +1371,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */
     private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
         return MainChatSessionItem(
             id = id.toString(),

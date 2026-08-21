@@ -77,6 +77,7 @@ internal fun postProcessTrackedMessages(
     }
 }
 
+/** 将连续相同角色的消息合并为单条消息，使用双换行符拼接。 */
 private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedPromptMessage> {
     return fold(mutableListOf()) { merged, message ->
         val previous = merged.lastOrNull()
@@ -94,8 +95,12 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
     }
 }
 
+/**
+ * 将消息转为 Semi-Strict 半严格模式。
+ *
+ * 仅保留首条 System 消息，后续 System 消息转为 User 消息并合并连续相同角色。
+ */
 private fun List<TrackedPromptMessage>.toSemiStrictMessages(): List<TrackedPromptMessage> {
-    // Semi-strict 保留首条 system，后续 system 在原索引转为 user。
     return mergeConsecutiveRoles()
         .mapIndexed { index, message ->
             if (index > 0 && message.role == LLMMessageRole.System) {
@@ -107,6 +112,11 @@ private fun List<TrackedPromptMessage>.toSemiStrictMessages(): List<TrackedPromp
         .mergeConsecutiveRoles()
 }
 
+/**
+ * 将消息转为 Strict 严格模式（Anthropic / Gemini 等要求起始 User 消息的模型协议）。
+ *
+ * 在首条 System 之后或以 Assistant 开头时补入占位 User 消息。
+ */
 private fun List<TrackedPromptMessage>.toStrictMessages(
     strictPromptPlaceholder: String
 ): List<TrackedPromptMessage> {
@@ -118,7 +128,7 @@ private fun List<TrackedPromptMessage>.toStrictMessages(
     )
     val strict = semiStrict.toMutableList()
 
-    // Strict 为 system -> assistant 和仅 system 的起始序列补入 user 占位消息。
+    // 为起始无 User 消息的序列补入占位符
     when {
         strict.isEmpty() -> strict += placeholder
         strict.first().role == LLMMessageRole.System &&
@@ -130,6 +140,11 @@ private fun List<TrackedPromptMessage>.toStrictMessages(
     return strict.mergeConsecutiveRoles()
 }
 
+/**
+ * 将所有消息扁平化压缩为单条 User 消息（Single User Message 模式）。
+ *
+ * 自动为不同角色的文本附加发言者前缀以保持对话结构。
+ */
 private fun List<TrackedPromptMessage>.toSingleUserMessage(
     names: PromptPostProcessingNames
 ): List<TrackedPromptMessage> {
@@ -152,14 +167,18 @@ private fun List<TrackedPromptMessage>.toSingleUserMessage(
     return flattened.mergeConsecutiveRoles()
 }
 
+/** 辅助扩展：为 Assistant 消息附加角色发言者前缀。 */
 private fun String.withAssistantPrefix(names: PromptPostProcessingNames): String {
     if (names.groupNames.any { startsWith("$it: ") }) return this
     return withSpeakerPrefix(names.characterName)
 }
 
+/** 辅助扩展：若无前缀则添加冒号发言者前缀。 */
 private fun String.withSpeakerPrefix(name: String): String {
     if (name.isBlank() || startsWith("$name: ")) return this
     return "$name: $this"
 }
 
+/** 默认严格模式占位提示词内容。 */
 const val DEFAULT_STRICT_PROMPT_PLACEHOLDER = "Let's get started."
+
