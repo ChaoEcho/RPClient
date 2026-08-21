@@ -17,7 +17,6 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
-import me.kafuuneko.rpclient.libs.groupchat.GroupChatNavigation
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
@@ -65,7 +64,6 @@ class GroupChatActivity : CoreActivityWithEvent() {
     }
 
     companion object {
-        // 启动群聊页面时传递会话 ID 的参数名。
-        const val EXTRA_SESSION_ID = GroupChatNavigation.EXTRA_SESSION_ID
+        const val EXTRA_SESSION_ID = "extra_group_chat_session_id"
     }
 }

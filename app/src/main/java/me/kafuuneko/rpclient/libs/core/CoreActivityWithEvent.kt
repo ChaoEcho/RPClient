@@ -84,10 +84,6 @@ abstract class CoreActivityWithEvent : CoreActivity() {
                 startActivity(intent)
             }
 
-            is AppViewEvent.StartActivityByIntent -> {
-                startActivity(viewEvent.intent)
-            }
-
             is AppViewEvent.SetResult -> {
                 if (viewEvent.intent == null) {
                     setResult(viewEvent.resultCode)

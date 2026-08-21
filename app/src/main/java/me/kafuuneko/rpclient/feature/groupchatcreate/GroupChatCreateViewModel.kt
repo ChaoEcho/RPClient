@@ -1,8 +1,10 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate
 
+import android.os.Bundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingCharacterItem
@@ -17,7 +19,6 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingSelection
-import me.kafuuneko.rpclient.libs.groupchat.GroupChatNavigation
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
@@ -307,8 +308,11 @@ class GroupChatCreateViewModel :
                 createTime = createTime
             )
         }
-        AppViewEvent.StartActivityByIntent(
-            GroupChatNavigation.createIntent(sessionId)
+        AppViewEvent.StartActivity(
+            activity = GroupChatActivity::class.java,
+            extras = Bundle().apply {
+                putString(GroupChatActivity.EXTRA_SESSION_ID, sessionId.toString())
+            }
         ).emitAndAwait()
         GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }

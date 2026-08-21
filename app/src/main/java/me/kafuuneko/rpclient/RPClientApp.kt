@@ -83,8 +83,6 @@ class RPClientApp : Application() {
  * 业务对象保持无 Activity 引用；页面 ViewModel 通过 KoinComponent 按需获取这些实例。
  */
 internal val appModules = module {
-    singleOf(::AppLibs)
-
     single {
         OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)

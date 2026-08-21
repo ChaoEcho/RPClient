@@ -73,8 +73,8 @@ import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.Character
-import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -1059,8 +1059,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
             val characterMap = characters.associateBy { it.id }
-            val sessions = mChatRepository.getAllSessions()
-            val groupSessions = mGroupChatRepository.getAllSessions()
+            val sessions = mChatRepository.getSessionOverviews()
+            val groupSessions = mGroupChatRepository.getSessionOverviews()
             val storyOverviews = mStoryRepository.getStoryOverviews()
             val sessionItems = sessions.map { session ->
                 session.toUiModel(characterMap[session.characterId])
@@ -1073,18 +1073,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 )
             }
             val groupChatItems = groupSessions.map { session ->
-                val data = mGroupChatRepository.getGroupChatData(session.id)
                 MainGroupChatSessionItem(
                     id = session.id.toString(),
                     title = session.title,
-                    memberNames = data?.members
-                        ?.joinToString(", ") { it.character.name }
-                        .orEmpty(),
-                    preview = data?.messages?.lastOrNull()?.content
+                    memberNames = session.memberNames,
+                    preview = session.latestMessageContent
                         ?.stripThinkBlocks()
                         ?.takeIf { it.isNotBlank() }
                         ?: mContext.getString(R.string.no_messages_yet),
-                    messageCount = data?.messages?.size ?: 0,
+                    messageCount = session.messageCount,
                     updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
                 )
             }
@@ -1256,15 +1253,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    private suspend fun ChatSession.toUiModel(character: Character?): MainChatSessionItem {
-        val latestMessage = mChatRepository.getLatestMessageBySessionId(id)
+    private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
         return MainChatSessionItem(
             id = id.toString(),
             characterId = characterId.toString(),
             characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
-            preview = latestMessage?.content?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
-            messageCount = mChatRepository.getMessageCountBySessionId(id),
+            preview = latestMessageContent?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
+            messageCount = messageCount,
             updatedAt = latestTime.formatTimestamp("MM-dd HH:mm")
         )
     }

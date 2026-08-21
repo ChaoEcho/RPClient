@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.model.GroupChatSessionOverview
 
 /** 群成员关系及其对应角色卡的聚合数据。 */
 data class GroupChatMemberData(
@@ -48,6 +49,11 @@ class GroupChatRepository(
     /** 按最近活跃时间读取全部群聊会话。 */
     suspend fun getAllSessions(): List<GroupChatSession> {
         return mSessionDao.getAllSessions()
+    }
+
+    /** 一次读取首页群聊列表需要的轻量会话概览。 */
+    suspend fun getSessionOverviews(): List<GroupChatSessionOverview> {
+        return mSessionDao.getSessionOverviews()
     }
 
     /** 根据主键读取群聊会话。 */

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
 
 /** 单聊会话元数据访问接口；消息写入和世界书运行时状态不得在此处单独编排。 */
 @Dao
@@ -15,6 +16,37 @@ interface ChatSessionDao : MutableDao<ChatSession> {
      */
     @Query("SELECT * FROM chat_sessions ORDER BY latestTime DESC, id DESC")
     suspend fun getAllSessions(): List<ChatSession>
+
+    /**
+     * 一次读取首页所需的会话、最后一条普通消息和消息数。
+     *
+     * 只投影最后一条消息正文，避免首页按会话重复访问数据库。
+     */
+    @Query(
+        """
+        SELECT sessions.id,
+               sessions.characterId,
+               sessions.title,
+               sessions.latestTime,
+               (
+                   SELECT messages.content
+                   FROM chat_messages AS messages
+                   WHERE messages.sessionId = sessions.id
+                     AND messages.source != 'Summary'
+                   ORDER BY messages.createTime DESC, messages.id DESC
+                   LIMIT 1
+               ) AS latestMessageContent,
+               (
+                   SELECT COUNT(*)
+                   FROM chat_messages AS messages
+                   WHERE messages.sessionId = sessions.id
+                     AND messages.source != 'Summary'
+               ) AS messageCount
+        FROM chat_sessions AS sessions
+        ORDER BY sessions.latestTime DESC, sessions.id DESC
+        """
+    )
+    suspend fun getSessionOverviews(): List<ChatSessionOverview>
 
     /**
      * 根据角色 id 获取该角色下的所有会话。

@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
 import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
 /**
@@ -54,6 +55,11 @@ class ChatRepository(
      */
     suspend fun getAllSessions(): List<ChatSession> {
         return mChatSessionDao.getAllSessions()
+    }
+
+    /** 一次读取首页单聊列表需要的轻量会话概览。 */
+    suspend fun getSessionOverviews(): List<ChatSessionOverview> {
+        return mChatSessionDao.getSessionOverviews()
     }
 
     /**
