@@ -951,6 +951,14 @@
     <string name="entry_matching_scope">검색 범위</string>
     <string name="entry_matching_scope_desc">이 항목을 트리거할 프롬프트 섹션을 선택하세요</string>
     <string name="entry_timing_recursion">타이밍 및 재귀</string>
+    <string name="entry_inclusion_group">상호 배타 그룹</string>
+    <string name="entry_group_name">그룹 이름</string>
+    <string name="entry_group_weight">그룹 가중치</string>
+    <string name="entry_use_group_scoring">그룹 점수 사용</string>
+    <string name="entry_use_group_scoring_desc">같은 그룹에서 키워드 일치 수가 더 많은 후보를 우선합니다.</string>
+    <string name="entry_group_override">그룹 내 우선</string>
+    <string name="entry_group_override_desc">같은 그룹의 다른 후보보다 이 항목을 우선합니다.</string>
+    <string name="entry_match_creator_notes">제작자 노트 매칭</string>
     <string name="tab_character_profile">프로필</string>
     <string name="tab_character_dialogue">대화</string>
     <string name="tab_character_advanced">고급</string>

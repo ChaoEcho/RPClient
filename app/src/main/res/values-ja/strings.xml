@@ -952,6 +952,14 @@
     <string name="entry_matching_scope">一致対象</string>
     <string name="entry_matching_scope_desc">このエントリをトリガーするプロンプトセクションを選択します</string>
     <string name="entry_timing_recursion">タイミングと再帰</string>
+    <string name="entry_inclusion_group">排他グループ</string>
+    <string name="entry_group_name">グループ名</string>
+    <string name="entry_group_weight">グループの重み</string>
+    <string name="entry_use_group_scoring">グループスコアを使用</string>
+    <string name="entry_use_group_scoring_desc">同じグループ内でキーワード一致数が多い候補を優先します。</string>
+    <string name="entry_group_override">グループ内で優先</string>
+    <string name="entry_group_override_desc">同じグループの他の候補よりこの項目を優先します。</string>
+    <string name="entry_match_creator_notes">クリエイターノートと照合</string>
     <string name="tab_character_profile">プロフィール</string>
     <string name="tab_character_dialogue">会話</string>
     <string name="tab_character_advanced">詳細設定</string>

@@ -419,6 +419,14 @@
     <string name="entry_matching_scope">Matching Scope</string>
     <string name="entry_matching_scope_desc">Choose which prompt sections trigger this entry</string>
     <string name="entry_timing_recursion">Timing &amp; Recursion</string>
+    <string name="entry_inclusion_group">Inclusion Group</string>
+    <string name="entry_group_name">Group names</string>
+    <string name="entry_group_weight">Group weight</string>
+    <string name="entry_use_group_scoring">Use group scoring</string>
+    <string name="entry_use_group_scoring_desc">Prefer candidates with more keyword matches in the same group.</string>
+    <string name="entry_group_override">Group override</string>
+    <string name="entry_group_override_desc">Prefer this entry over other candidates in the same group.</string>
+    <string name="entry_match_creator_notes">Match creator notes</string>
     <string name="tab_character_profile">Profile</string>
     <string name="tab_character_dialogue">Dialogue</string>
     <string name="tab_character_advanced">Advanced</string>

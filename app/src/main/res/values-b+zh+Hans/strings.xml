@@ -418,6 +418,14 @@
     <string name="entry_matching_scope">扫描匹配范围</string>
     <string name="entry_matching_scope_desc">选择参与关键词扫描的提示词上下文来源</string>
     <string name="entry_timing_recursion">时序与递归控制</string>
+    <string name="entry_inclusion_group">互斥包含组</string>
+    <string name="entry_group_name">包含组名称</string>
+    <string name="entry_group_weight">组权重</string>
+    <string name="entry_use_group_scoring">启用组内评分</string>
+    <string name="entry_use_group_scoring_desc">优先保留关键词命中数更多的同组候选。</string>
+    <string name="entry_group_override">组内强制优先</string>
+    <string name="entry_group_override_desc">与同组条目竞争时优先选择当前条目。</string>
+    <string name="entry_match_creator_notes">匹配创建者备注</string>
     <string name="tab_character_profile">设定</string>
     <string name="tab_character_dialogue">人设与台词</string>
     <string name="tab_character_advanced">高级注入</string>

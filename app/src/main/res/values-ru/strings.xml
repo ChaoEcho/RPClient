@@ -958,6 +958,14 @@
     <string name="entry_matching_scope">Область поиска совпадений</string>
     <string name="entry_matching_scope_desc">Выберите разделы промпта, которые могут активировать эту запись</string>
     <string name="entry_timing_recursion">Время и рекурсия</string>
+    <string name="entry_inclusion_group">Взаимоисключающая группа</string>
+    <string name="entry_group_name">Названия групп</string>
+    <string name="entry_group_weight">Вес в группе</string>
+    <string name="entry_use_group_scoring">Использовать оценку группы</string>
+    <string name="entry_use_group_scoring_desc">Отдаёт предпочтение кандидатам группы с большим числом совпавших ключевых слов.</string>
+    <string name="entry_group_override">Приоритет в группе</string>
+    <string name="entry_group_override_desc">Отдаёт предпочтение этой записи перед другими кандидатами той же группы.</string>
+    <string name="entry_match_creator_notes">Искать в заметках создателя</string>
     <string name="tab_character_profile">Профиль</string>
     <string name="tab_character_dialogue">Диалог</string>
     <string name="tab_character_advanced">Дополнительно</string>

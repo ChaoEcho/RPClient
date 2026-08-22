@@ -955,6 +955,14 @@
     <string name="entry_matching_scope">Portée de la correspondance</string>
     <string name="entry_matching_scope_desc">Choisissez les sections du prompt qui déclenchent cette entrée</string>
     <string name="entry_timing_recursion">Déclenchement et récursion</string>
+    <string name="entry_inclusion_group">Groupe exclusif</string>
+    <string name="entry_group_name">Noms du groupe</string>
+    <string name="entry_group_weight">Poids du groupe</string>
+    <string name="entry_use_group_scoring">Utiliser le score de groupe</string>
+    <string name="entry_use_group_scoring_desc">Privilégie les candidats du même groupe ayant plus de mots-clés correspondants.</string>
+    <string name="entry_group_override">Priorité de groupe</string>
+    <string name="entry_group_override_desc">Privilégie cette entrée face aux autres candidats du même groupe.</string>
+    <string name="entry_match_creator_notes">Rechercher dans les notes du créateur</string>
     <string name="tab_character_profile">Profil</string>
     <string name="tab_character_dialogue">Dialogue</string>
     <string name="tab_character_advanced">Avancé</string>

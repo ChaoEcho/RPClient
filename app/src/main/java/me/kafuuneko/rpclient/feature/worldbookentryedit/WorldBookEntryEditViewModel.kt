@@ -196,6 +196,26 @@ class WorldBookEntryEditViewModel :
     private fun onChangeCaseSensitive(intent: WorldBookEntryEditUiIntent.ChangeCaseSensitive) =
         updateForm { copy(caseSensitive = intent.value) }
 
+    /** 修改条目所属的互斥包含组，多个组名以逗号分隔。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeGroup::class)
+    private fun onChangeGroup(intent: WorldBookEntryEditUiIntent.ChangeGroup) =
+        updateForm { copy(group = intent.value) }
+
+    /** 修改条目在组内加权随机选择时使用的权重。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeGroupWeight::class)
+    private fun onChangeGroupWeight(intent: WorldBookEntryEditUiIntent.ChangeGroupWeight) =
+        updateForm { copy(groupWeight = intent.value) }
+
+    /** 修改是否根据关键词命中数执行组内评分淘汰。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeUseGroupScoring::class)
+    private fun onChangeUseGroupScoring(intent: WorldBookEntryEditUiIntent.ChangeUseGroupScoring) =
+        updateForm { copy(useGroupScoring = intent.value) }
+
+    /** 修改是否在同组候选中优先选择当前条目。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeGroupOverride::class)
+    private fun onChangeGroupOverride(intent: WorldBookEntryEditUiIntent.ChangeGroupOverride) =
+        updateForm { copy(groupOverride = intent.value) }
+
     /** 修改是否防止递归触发（Prevent Recursion）。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangePreventRecursion::class)
     private fun onChangePreventRecursion(intent: WorldBookEntryEditUiIntent.ChangePreventRecursion) =
@@ -250,6 +270,11 @@ class WorldBookEntryEditViewModel :
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchScenario::class)
     private fun onChangeMatchScenario(intent: WorldBookEntryEditUiIntent.ChangeMatchScenario) =
         updateForm { copy(matchScenario = intent.value) }
+
+    /** 修改是否扫描角色卡创建者备注。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes::class)
+    private fun onChangeMatchCreatorNotes(intent: WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes) =
+        updateForm { copy(matchCreatorNotes = intent.value) }
 
     /** 修改扩展 JSON 字符串。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeExtensionsJson::class)

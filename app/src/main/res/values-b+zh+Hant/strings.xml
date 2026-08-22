@@ -951,6 +951,14 @@
     <string name="entry_matching_scope">比對範圍</string>
     <string name="entry_matching_scope_desc">選擇哪些提示詞區段可觸發此條目</string>
     <string name="entry_timing_recursion">時機與遞迴</string>
+    <string name="entry_inclusion_group">互斥包含群組</string>
+    <string name="entry_group_name">包含群組名稱</string>
+    <string name="entry_group_weight">群組權重</string>
+    <string name="entry_use_group_scoring">啟用群組內評分</string>
+    <string name="entry_use_group_scoring_desc">優先保留關鍵詞命中數更多的同組候選。</string>
+    <string name="entry_group_override">群組內強制優先</string>
+    <string name="entry_group_override_desc">與同組條目競爭時優先選擇目前條目。</string>
+    <string name="entry_match_creator_notes">比對建立者備註</string>
     <string name="tab_character_profile">設定</string>
     <string name="tab_character_dialogue">對話</string>
     <string name="tab_character_advanced">進階</string>

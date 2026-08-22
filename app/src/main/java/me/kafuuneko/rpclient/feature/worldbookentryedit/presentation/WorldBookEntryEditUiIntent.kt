@@ -60,6 +60,14 @@ sealed class WorldBookEntryEditUiIntent {
 
     data class ChangeCaseSensitive(val value: Boolean) : WorldBookEntryEditUiIntent()
 
+    data class ChangeGroup(val value: String) : WorldBookEntryEditUiIntent()
+
+    data class ChangeGroupWeight(val value: String) : WorldBookEntryEditUiIntent()
+
+    data class ChangeUseGroupScoring(val value: Boolean) : WorldBookEntryEditUiIntent()
+
+    data class ChangeGroupOverride(val value: Boolean) : WorldBookEntryEditUiIntent()
+
     data class ChangePreventRecursion(val value: Boolean) : WorldBookEntryEditUiIntent()
 
     data class ChangeDelayUntilRecursion(val value: Boolean) : WorldBookEntryEditUiIntent()
@@ -81,6 +89,8 @@ sealed class WorldBookEntryEditUiIntent {
     data class ChangeMatchCharacterDepthPrompt(val value: Boolean) : WorldBookEntryEditUiIntent()
 
     data class ChangeMatchScenario(val value: Boolean) : WorldBookEntryEditUiIntent()
+
+    data class ChangeMatchCreatorNotes(val value: Boolean) : WorldBookEntryEditUiIntent()
 
     data class ChangeExtensionsJson(val value: String) : WorldBookEntryEditUiIntent()
 

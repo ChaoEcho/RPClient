@@ -58,6 +58,10 @@ class LorebookCodecTest {
                   "automationId": "third-party-automation",
                   "depth": 2,
                   "role": 0,
+                  "group": "campus",
+                  "groupOverride": true,
+                  "groupWeight": 250,
+                  "useGroupScoring": true,
                   "triggers": ["continue"],
                   "matchWholeWords": null,
                   "custom_top_level": {
@@ -75,7 +79,13 @@ class LorebookCodecTest {
         val editedBook = WorldBookEditForm.from(imported.lorebook, imported.entries)
             .copy(name = "Renamed")
             .toLorebook()
-        val editedEntry = WorldBookEntryEditForm.from(imported.entries.single())
+        val entryForm = WorldBookEntryEditForm.from(imported.entries.single())
+        assertEquals("campus", entryForm.group)
+        assertEquals("250", entryForm.groupWeight)
+        assertTrue(entryForm.useGroupScoring)
+        assertTrue(entryForm.groupOverride)
+        assertTrue(entryForm.matchCreatorNotes)
+        val editedEntry = entryForm
             .copy(content = "Updated content")
             .toLorebookEntryOrNull()
             ?: error("Entry form should be valid")
@@ -102,6 +112,10 @@ class LorebookCodecTest {
         assertTrue(exportedEntry.get("matchWholeWords")?.isJsonNull != false)
         assertFalse(exportedEntry.has("caseSensitive"))
         assertEquals("continue", exportedEntry.getAsJsonArray("triggers")[0].asString)
+        assertEquals("campus", exportedEntry.get("group").asString)
+        assertEquals(250, exportedEntry.get("groupWeight").asInt)
+        assertTrue(exportedEntry.get("useGroupScoring").asBoolean)
+        assertTrue(exportedEntry.get("groupOverride").asBoolean)
         assertTrue(exportedEntry.get("vectorized").asBoolean)
         assertFalse(exportedEntry.get("addMemo").asBoolean)
         assertTrue(exportedEntry.get("excludeRecursion").asBoolean)

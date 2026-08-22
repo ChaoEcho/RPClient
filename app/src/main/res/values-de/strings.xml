@@ -955,6 +955,14 @@
     <string name="entry_matching_scope">Übereinstimmungsbereich</string>
     <string name="entry_matching_scope_desc">Wähle aus, welche Prompt-Abschnitte diesen Eintrag auslösen</string>
     <string name="entry_timing_recursion">Zeitpunkt &amp; Rekursion</string>
+    <string name="entry_inclusion_group">Ausschlussgruppe</string>
+    <string name="entry_group_name">Gruppennamen</string>
+    <string name="entry_group_weight">Gruppengewicht</string>
+    <string name="entry_use_group_scoring">Gruppenwertung verwenden</string>
+    <string name="entry_use_group_scoring_desc">Bevorzugt Kandidaten derselben Gruppe mit mehr Schlüsselworttreffern.</string>
+    <string name="entry_group_override">Gruppenpriorität</string>
+    <string name="entry_group_override_desc">Bevorzugt diesen Eintrag gegenüber anderen Kandidaten derselben Gruppe.</string>
+    <string name="entry_match_creator_notes">Erstellernotizen durchsuchen</string>
     <string name="tab_character_profile">Profil</string>
     <string name="tab_character_dialogue">Dialog</string>
     <string name="tab_character_advanced">Erweitert</string>

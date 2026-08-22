@@ -312,6 +312,32 @@ class WorldBookActivatorTest {
     }
 
     @Test
+    fun unsetCaseSensitiveMatchingUsesIgnoreCaseToMatchEditorState() {
+        val entry = lorebookEntry(id = 1L, keywords = """["School"]""")
+
+        val activated = activator.activate(
+            context(emptyList(), "Back to school.", listOf(entry))
+        )
+
+        assertEquals(listOf(entry), activated)
+    }
+
+    @Test
+    fun explicitCaseSensitiveMatchingRejectsDifferentCase() {
+        val entry = lorebookEntry(
+            id = 1L,
+            keywords = """["School"]""",
+            caseSensitive = true
+        )
+
+        val activated = activator.activate(
+            context(emptyList(), "Back to school.", listOf(entry))
+        )
+
+        assertEquals(emptyList<LorebookEntry>(), activated)
+    }
+
+    @Test
     fun scanBufferIncludesSpeakerNamesByDefault() {
         val entry = lorebookEntry(id = 1L, keywords = """["User"]""")
 
@@ -675,7 +701,8 @@ class WorldBookActivatorTest {
         groupOverride: Boolean = false,
         useGroupScoring: Boolean = false,
         triggers: String = "[]",
-        matchWholeWords: Boolean? = null
+        matchWholeWords: Boolean? = null,
+        caseSensitive: Boolean? = null
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -697,7 +724,8 @@ class WorldBookActivatorTest {
             groupOverride = groupOverride,
             useGroupScoring = useGroupScoring,
             triggers = triggers,
-            matchWholeWords = matchWholeWords
+            matchWholeWords = matchWholeWords,
+            caseSensitive = caseSensitive
         )
     }
 }

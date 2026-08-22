@@ -344,6 +344,42 @@ private fun AdvancedPanel(
             onValueChange = { WorldBookEntryEditUiIntent.ChangeProbability(it.toString()).emit() }
         )
 
+        // 互斥包含组配置；同名组中的候选最终只保留一个。
+        RpSectionHeader(title = stringResource(R.string.entry_inclusion_group))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.entry_group_name),
+                value = form.group,
+                modifier = Modifier.weight(2f),
+                onChange = { WorldBookEntryEditUiIntent.ChangeGroup(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_group_weight),
+                value = form.groupWeight,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeGroupWeight(it).emit() }
+            )
+        }
+        RpSettingsGroup {
+            val groupOptionsEnabled = enabled && form.group.isNotBlank()
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_use_group_scoring),
+                subtitle = stringResource(R.string.entry_use_group_scoring_desc),
+                checked = form.useGroupScoring,
+                enabled = groupOptionsEnabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeUseGroupScoring(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_group_override),
+                subtitle = stringResource(R.string.entry_group_override_desc),
+                checked = form.groupOverride,
+                enabled = groupOptionsEnabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeGroupOverride(it).emit() }
+            )
+        }
+
         // 扫描深度与粘滞/冷却/延迟
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
@@ -415,6 +451,13 @@ private fun AdvancedPanel(
                 checked = form.matchPersonaDescription,
                 enabled = enabled,
                 onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit() }
+            )
+            RpSettingsDivider(startIndent = false)
+            RpSettingsSwitchTile(
+                title = stringResource(R.string.entry_match_creator_notes),
+                checked = form.matchCreatorNotes,
+                enabled = enabled,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes(it).emit() }
             )
         }
 
