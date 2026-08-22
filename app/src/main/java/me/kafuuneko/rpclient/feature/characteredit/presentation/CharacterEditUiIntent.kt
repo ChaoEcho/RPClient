@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
-import android.net.Uri
-
 /** 角色创建/编辑页面的字段变更、文件选择、保存与删除意图。 */
 sealed class CharacterEditUiIntent {
     data class Init(val characterId: Long?) : CharacterEditUiIntent()
@@ -12,7 +10,7 @@ sealed class CharacterEditUiIntent {
 
     data object PickAvatarClick : CharacterEditUiIntent()
 
-    data class AvatarSelected(val uri: Uri) : CharacterEditUiIntent()
+    data class AvatarCropped(val fileUuid: String) : CharacterEditUiIntent()
 
     data class UpdateCharacterLorebook(val lorebookId: Long) : CharacterEditUiIntent()
 

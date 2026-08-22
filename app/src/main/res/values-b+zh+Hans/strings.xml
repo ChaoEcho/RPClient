@@ -1,5 +1,13 @@
 <resources>
     <string name="back">返回</string>
+    <string name="image_crop_title">裁剪头像</string>
+    <string name="image_crop_helper">双指缩放或拖拽调整头像区域</string>
+    <string name="image_crop_load_failed">无法打开所选图片</string>
+    <string name="image_crop_save_failed">保存裁剪图片失败</string>
+    <string name="image_crop_rotate">旋转</string>
+    <string name="image_crop_flip">翻转</string>
+    <string name="image_crop_shape_squircle">方圆</string>
+    <string name="image_crop_shape_circle">圆形</string>
     <string name="about">关于</string>
     <string name="about_desc">应用版本、联系邮箱与开源仓库</string>
     <string name="unknown_version">未知版本</string>

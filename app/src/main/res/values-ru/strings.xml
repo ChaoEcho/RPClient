@@ -1,5 +1,13 @@
 <resources>
     <string name="back">Назад</string>
+    <string name="image_crop_title">Кадрировать аватар</string>
+    <string name="image_crop_helper">Масштабируйте и перетаскивайте для настройки</string>
+    <string name="image_crop_load_failed">Не удалось открыть это изображение.</string>
+    <string name="image_crop_save_failed">Не удалось сохранить изображение.</string>
+    <string name="image_crop_rotate">Поворот</string>
+    <string name="image_crop_flip">Отразить</string>
+    <string name="image_crop_shape_squircle">Скруглённый</string>
+    <string name="image_crop_shape_circle">Круг</string>
     <string name="about">О приложении</string>
     <string name="about_desc">Версия приложения, эл. почта и репозиторий</string>
     <string name="unknown_version">Неизвестная версия</string>

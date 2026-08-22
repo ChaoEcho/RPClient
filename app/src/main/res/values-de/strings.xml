@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="back">Zurück</string>
+    <string name="image_crop_title">Avatar zuschneiden</string>
+    <string name="image_crop_helper">Zoomen und ziehen, um den Bereich anzupassen</string>
+    <string name="image_crop_load_failed">Dieses Bild konnte nicht geöffnet werden.</string>
+    <string name="image_crop_save_failed">Das zugeschnittene Bild konnte nicht gespeichert werden.</string>
+    <string name="image_crop_rotate">Drehen</string>
+    <string name="image_crop_flip">Spiegeln</string>
+    <string name="image_crop_shape_squircle">Abgerundet</string>
+    <string name="image_crop_shape_circle">Kreis</string>
     <string name="about">Über</string>
     <string name="about_desc">App-Version, E-Mail und Repository</string>
     <string name="unknown_version">Unbekannte Version</string>

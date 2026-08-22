@@ -1,0 +1,92 @@
+package me.kafuuneko.rpclient.feature.imagecrop.model
+
+import me.kafuuneko.rpclient.libs.image.SquareCropSelection
+
+/** 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。 */
+data class ImageCropTransform(
+    val sourceAspectRatio: Float,
+    val zoom: Float = MIN_ZOOM,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+    val rotationDegrees: Int = 0,
+    val isFlippedHorizontal: Boolean = false
+) {
+    val isRotated90: Boolean
+        get() = rotationDegrees % 180 != 0
+
+    val effectiveAspectRatio: Float
+        get() = if (isRotated90) 1f / sourceAspectRatio else sourceAspectRatio
+
+    val isDefault: Boolean
+        get() = zoom == MIN_ZOOM &&
+            offsetX == 0f &&
+            offsetY == 0f &&
+            rotationDegrees == 0 &&
+            !isFlippedHorizontal
+
+    fun update(panX: Float, panY: Float, zoomChange: Float): ImageCropTransform {
+        val newZoom = (zoom * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
+        val appliedZoomChange = newZoom / zoom
+        val baseWidth = maxOf(effectiveAspectRatio, 1f)
+        val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
+        val maxOffsetX = ((baseWidth * newZoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetY = ((baseHeight * newZoom - 1f) / 2f).coerceAtLeast(0f)
+        return copy(
+            zoom = newZoom,
+            offsetX = (offsetX * appliedZoomChange + panX).coerceIn(-maxOffsetX, maxOffsetX),
+            offsetY = (offsetY * appliedZoomChange + panY).coerceIn(-maxOffsetY, maxOffsetY)
+        )
+    }
+
+    fun rotateRight(): ImageCropTransform {
+        val nextRotation = (rotationDegrees + 90) % 360
+        val isNextRotated90 = nextRotation % 180 != 0
+        val nextEffectiveAspect = if (isNextRotated90) 1f / sourceAspectRatio else sourceAspectRatio
+        val nextBaseW = maxOf(nextEffectiveAspect, 1f)
+        val nextBaseH = maxOf(1f / nextEffectiveAspect, 1f)
+        val maxOffsetX = ((nextBaseW * zoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetY = ((nextBaseH * zoom - 1f) / 2f).coerceAtLeast(0f)
+        return copy(
+            rotationDegrees = nextRotation,
+            offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX),
+            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY)
+        )
+    }
+
+    fun flipHorizontal(): ImageCropTransform {
+        val baseWidth = maxOf(effectiveAspectRatio, 1f)
+        val maxOffsetX = ((baseWidth * zoom - 1f) / 2f).coerceAtLeast(0f)
+        return copy(
+            isFlippedHorizontal = !isFlippedHorizontal,
+            offsetX = (-offsetX).coerceIn(-maxOffsetX, maxOffsetX)
+        )
+    }
+
+    fun reset(): ImageCropTransform = copy(
+        zoom = MIN_ZOOM,
+        offsetX = 0f,
+        offsetY = 0f,
+        rotationDegrees = 0,
+        isFlippedHorizontal = false
+    )
+
+    fun toSelection(): SquareCropSelection {
+        val baseWidth = maxOf(effectiveAspectRatio, 1f)
+        val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
+        val displayedWidth = baseWidth * zoom
+        val displayedHeight = baseHeight * zoom
+        return SquareCropSelection(
+            centerX = 0.5f - offsetX / displayedWidth,
+            centerY = 0.5f - offsetY / displayedHeight,
+            sizeFractionOfShortEdge = 1f / zoom,
+            rotationDegrees = rotationDegrees,
+            isFlippedHorizontal = isFlippedHorizontal
+        )
+    }
+
+    companion object {
+        const val MIN_ZOOM = 1f
+        const val MAX_ZOOM = 8f
+    }
+}
+

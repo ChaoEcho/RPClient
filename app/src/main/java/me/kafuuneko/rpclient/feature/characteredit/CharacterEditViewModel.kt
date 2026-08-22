@@ -171,29 +171,25 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     }
 
     /**
-     * 将选择结果复制到应用私有文件，并替换表单持有的临时头像。
+     * 接收裁剪页生成的文件，并替换表单持有的临时头像。
      *
      * 连续选择时只删除尚未提交的上一份临时文件；数据库仍引用的原头像必须等角色保存
      * 成功或用户确认删除后才能清理。
-     *
-     * @param intent 包含选取图片 URI 的意图
      */
-    @UiIntentObserver(CharacterEditUiIntent.AvatarSelected::class)
-    private suspend fun onAvatarSelected(intent: CharacterEditUiIntent.AvatarSelected) {
+    @UiIntentObserver(CharacterEditUiIntent.AvatarCropped::class)
+    private suspend fun onAvatarCropped(intent: CharacterEditUiIntent.AvatarCropped) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         uiState.copy(loadState = CharacterEditLoadState.Saving).setup()
-        // 在 IO 线程保存图片文件并清理上一份未提交的临时头像
-        val avatarUuid = runCatching {
+        // 裁剪页已保存新文件；这里只清理当前表单不再引用的上一份临时头像。
+        runCatching {
             withContext(Dispatchers.IO) {
-                val uuid = mFileRepository.saveFile(intent.uri)
                 if (
                     uiState.form.avatar.isNotBlank() &&
                     uiState.form.avatar != uiState.form.originalAvatar &&
-                    uiState.form.avatar != uuid
+                    uiState.form.avatar != intent.fileUuid
                 ) {
                     mFileRepository.deleteFile(uiState.form.avatar)
                 }
-                uuid
             }
         }.getOrElse {
             val latestState = getOrNull<CharacterEditUiState.Normal>() ?: return
@@ -203,7 +199,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         }
         // 更新表单头像 UUID 并重新解码位图渲染
         val latestState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        val form = latestState.form.copy(avatar = avatarUuid)
+        val form = latestState.form.copy(avatar = intent.fileUuid)
         latestState.copy(
             form = form,
             avatarImage = form.resolveAvatarImage(),

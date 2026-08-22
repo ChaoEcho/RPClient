@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
@@ -16,6 +17,7 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiI
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
 import me.kafuuneko.rpclient.feature.characteredit.ui.CharacterEditLayout
+import me.kafuuneko.rpclient.feature.imagecrop.ImageCropActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -23,9 +25,16 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 class CharacterEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterEditViewModel>()
 
-    /** 头像 URI 只作为一次性选择结果交回 ViewModel，文件复制由数据层完成。 */
+    /** 系统选择结果只用于打开裁剪页，不直接进入角色表单。 */
     private val mAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { mViewModel.emit(CharacterEditUiIntent.AvatarSelected(it)) }
+        uri?.let { mImageCropLauncher.launch(ImageCropActivity.createIntent(this, it)) }
+    }
+
+    /** 裁剪页返回已持久化的方形头像 UUID，再交由角色表单管理其临时生命周期。 */
+    private val mImageCropLauncher = registerForActivityResult(StartActivityForResult()) { result ->
+        ImageCropActivity.getResultFileUuid(result.data)?.let {
+            mViewModel.emit(CharacterEditUiIntent.AvatarCropped(it))
+        }
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow

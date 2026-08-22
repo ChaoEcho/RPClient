@@ -1,6 +1,14 @@
 <resources>
     <string name="app_name" translatable="false">RPClient</string>
     <string name="back">Back</string>
+    <string name="image_crop_title">Crop Avatar</string>
+    <string name="image_crop_helper">Pinch to zoom and drag to adjust avatar area</string>
+    <string name="image_crop_load_failed">This image could not be opened.</string>
+    <string name="image_crop_save_failed">Could not save the adjusted image.</string>
+    <string name="image_crop_rotate">Rotate</string>
+    <string name="image_crop_flip">Flip</string>
+    <string name="image_crop_shape_squircle">Squircle</string>
+    <string name="image_crop_shape_circle">Circle</string>
     <string name="about">About</string>
     <string name="about_desc">App version, email and repository</string>
     <string name="unknown_version">Unknown version</string>

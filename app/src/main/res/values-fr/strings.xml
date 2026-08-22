@@ -1,5 +1,13 @@
 <resources>
     <string name="back">Retour</string>
+    <string name="image_crop_title">Rogner l’avatar</string>
+    <string name="image_crop_helper">Pincez pour zoomer et faites glisser pour ajuster</string>
+    <string name="image_crop_load_failed">Impossible d’ouvrir cette image.</string>
+    <string name="image_crop_save_failed">Impossible d’enregistrer l’image rognée.</string>
+    <string name="image_crop_rotate">Pivoter</string>
+    <string name="image_crop_flip">Retourner</string>
+    <string name="image_crop_shape_squircle">Carré arrondi</string>
+    <string name="image_crop_shape_circle">Cercle</string>
     <string name="about">À propos</string>
     <string name="about_desc">Version de l\'application, e-mail et dépôt</string>
     <string name="unknown_version">Version inconnue</string>

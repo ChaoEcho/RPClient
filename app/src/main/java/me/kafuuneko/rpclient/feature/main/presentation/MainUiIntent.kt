@@ -56,7 +56,7 @@ sealed class MainUiIntent {
 
     data object PickUserAvatarClick : MainUiIntent()
 
-    data class UserAvatarSelected(val uri: Uri) : MainUiIntent()
+    data class UserAvatarCropped(val fileUuid: String) : MainUiIntent()
 
     data object ClearUserAvatar : MainUiIntent()
 

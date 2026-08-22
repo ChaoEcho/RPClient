@@ -36,6 +36,10 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.imagecrop.ImageCropActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.llmprovideredit.LLMProviderEditActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />

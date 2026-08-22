@@ -722,23 +722,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         MainViewEvent.OpenUserAvatarPicker.tryEmit()
     }
 
-    /** 接收用户选择的新头像 URI，完成文件持久化并替换旧头像。 */
-    @UiIntentObserver(MainUiIntent.UserAvatarSelected::class)
-    private suspend fun onUserAvatarSelected(intent: MainUiIntent.UserAvatarSelected) {
+    /** 接收裁剪页生成的方形头像文件并替换旧头像。 */
+    @UiIntentObserver(MainUiIntent.UserAvatarCropped::class)
+    private suspend fun onUserAvatarCropped(intent: MainUiIntent.UserAvatarCropped) {
         if (!isStateOf<MainUiState.Normal>()) return
         val oldAvatar = AppModel.userAvatar
-        // 在 IO 线程保存新头像文件
-        val avatarUuid = runCatching {
-            withContext(Dispatchers.IO) {
-                mFileRepository.saveFile(intent.uri)
-            }
-        }.getOrElse {
-            AppViewEvent.PopupToastMessageByResId(R.string.user_avatar_save_failed).tryEmit()
-            return
-        }
-        AppModel.userAvatar = avatarUuid
+        AppModel.userAvatar = intent.fileUuid
         // 清理旧头像物理文件
-        if (oldAvatar.isNotBlank() && oldAvatar != avatarUuid) {
+        if (oldAvatar.isNotBlank() && oldAvatar != intent.fileUuid) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     mFileRepository.deleteFile(oldAvatar)

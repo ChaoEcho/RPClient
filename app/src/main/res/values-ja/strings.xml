@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="back">戻る</string>
+    <string name="image_crop_title">アバターを切り抜く</string>
+    <string name="image_crop_helper">ピンチで拡大縮小、ドラッグで位置を調整</string>
+    <string name="image_crop_load_failed">選択した画像を開けませんでした。</string>
+    <string name="image_crop_save_failed">切り抜いた画像を保存できませんでした。</string>
+    <string name="image_crop_rotate">回転</string>
+    <string name="image_crop_flip">反転</string>
+    <string name="image_crop_shape_squircle">角丸四角</string>
+    <string name="image_crop_shape_circle">円形</string>
     <string name="about">アプリについて</string>
     <string name="about_desc">アプリのバージョン、メール、およびリポジトリ</string>
     <string name="unknown_version">不明なバージョン</string>
