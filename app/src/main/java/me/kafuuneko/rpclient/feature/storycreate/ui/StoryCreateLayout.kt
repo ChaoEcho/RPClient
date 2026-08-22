@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.create.ui
+package me.kafuuneko.rpclient.feature.storycreate.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -44,18 +44,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateCharacterItem
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateForm
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateLorebookEntryItem
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateLorebookGroupItem
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateLoadState
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateUiIntent
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateUiState
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookEntryItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadState
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -523,7 +524,7 @@ private fun LoadingRow() {
 
 @Composable
 private fun EmptyCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     text: String
 ) {
     Card(

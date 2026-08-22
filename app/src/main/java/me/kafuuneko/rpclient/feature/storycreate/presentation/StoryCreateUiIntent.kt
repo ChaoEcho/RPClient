@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.create.presentation
+package me.kafuuneko.rpclient.feature.storycreate.presentation
 
 /** 新建 Story 页面的表单操作和提交意图。 */
 sealed class StoryCreateUiIntent {

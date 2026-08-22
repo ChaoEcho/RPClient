@@ -1,18 +1,18 @@
-package me.kafuuneko.rpclient.feature.story.create
+package me.kafuuneko.rpclient.feature.storycreate
 
 import android.os.Bundle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateCharacterItem
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateForm
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateLorebookEntryItem
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateLorebookGroupItem
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateLoadState
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateUiIntent
-import me.kafuuneko.rpclient.feature.story.create.presentation.StoryCreateUiState
-import me.kafuuneko.rpclient.feature.story.editor.StoryEditorActivity
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookEntryItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadState
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
+import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
+import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver

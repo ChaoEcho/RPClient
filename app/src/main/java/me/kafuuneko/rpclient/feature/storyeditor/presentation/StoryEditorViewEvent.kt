@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.editor.presentation
+package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 

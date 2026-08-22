@@ -43,7 +43,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -58,8 +57,8 @@ import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionSta
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
-import me.kafuuneko.rpclient.feature.story.create.StoryCreateActivity
-import me.kafuuneko.rpclient.feature.story.editor.StoryEditorActivity
+import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
+import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchive

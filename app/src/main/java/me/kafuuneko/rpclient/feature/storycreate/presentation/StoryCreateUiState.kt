@@ -1,8 +1,8 @@
-package me.kafuuneko.rpclient.feature.story.create.presentation
+package me.kafuuneko.rpclient.feature.storycreate.presentation
 
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateCharacterItem
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateForm
-import me.kafuuneko.rpclient.feature.story.create.model.StoryCreateLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupItem
 
 /** 新建 Story 页面状态树。 */
 sealed class StoryCreateUiState {

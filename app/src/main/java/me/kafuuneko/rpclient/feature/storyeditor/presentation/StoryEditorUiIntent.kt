@@ -1,8 +1,8 @@
-package me.kafuuneko.rpclient.feature.story.editor.presentation
+package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorSnapshot
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterActivationMode
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryTextExportFormat
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import android.net.Uri
 
 /** 连续正文编辑器可接收的用户行为和生命周期意图。 */

@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.editor.model
+package me.kafuuneko.rpclient.feature.storyeditor.model
 
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 

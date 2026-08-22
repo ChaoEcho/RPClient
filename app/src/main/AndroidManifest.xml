@@ -72,11 +72,11 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
-            android:name=".feature.story.create.StoryCreateActivity"
+            android:name=".feature.storycreate.StoryCreateActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
-            android:name=".feature.story.editor.StoryEditorActivity"
+            android:name=".feature.storyeditor.StoryEditorActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity

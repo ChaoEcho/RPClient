@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.create.model
+package me.kafuuneko.rpclient.feature.storycreate.model
 
 /** 创建 Story 时尚未持久化的角色与世界书选择。 */
 data class StoryCreateForm(

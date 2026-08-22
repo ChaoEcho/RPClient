@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.editor.model
+package me.kafuuneko.rpclient.feature.storyeditor.model
 
 /**
  * 保存当前编辑器会话中的正文修改历史。

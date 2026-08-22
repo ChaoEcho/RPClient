@@ -1,8 +1,7 @@
-package me.kafuuneko.rpclient.feature.story.editor
+package me.kafuuneko.rpclient.feature.storyeditor
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,10 +11,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorUiIntent
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorUiState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorViewEvent
-import me.kafuuneko.rpclient.feature.story.editor.ui.StoryEditorLayout
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEvent
+import me.kafuuneko.rpclient.feature.storyeditor.ui.StoryEditorLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -75,13 +74,13 @@ class StoryEditorActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             is StoryEditorViewEvent.CopyDraft -> {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(getString(R.string.story_draft_clip_label), viewEvent.content)
                 )
             }
             is StoryEditorViewEvent.CopyGeneratedText -> {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         getString(R.string.story_generated_text_clip_label),
@@ -90,7 +89,7 @@ class StoryEditorActivity : CoreActivityWithEvent() {
                 )
             }
             is StoryEditorViewEvent.CopyPromptText -> {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         getString(R.string.prompt_inspector_title),

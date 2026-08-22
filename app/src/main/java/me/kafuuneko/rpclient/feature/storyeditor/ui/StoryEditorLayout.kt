@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.story.editor.ui
+package me.kafuuneko.rpclient.feature.storyeditor.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,7 +68,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,6 +79,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -92,25 +93,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterOptionItem
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterActivationMode
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorDocument
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryEditorSnapshot
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryLorebookEntryItem
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryLorebookGroupItem
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorDialogState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorContentState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryContinuationInputState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorPageState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorReferenceState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorTopBarState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorUiIntent
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryEditorUiState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StorySaveState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationFailure
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StoryGenerationState
-import me.kafuuneko.rpclient.feature.story.editor.presentation.StorySettingsSection
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryTextExportFormat
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookEntryItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryContinuationInputState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySettingsSection
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
@@ -1024,7 +1025,7 @@ private fun CharacterSettings(
     val selectedCount = state.characters.count { it.selected }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -1188,7 +1189,7 @@ private fun LorebookSettings(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -1353,7 +1354,7 @@ private fun LorebookEntryRow(
 
 @Composable
 private fun SettingIntro(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String
 ) {

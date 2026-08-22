@@ -1,8 +1,8 @@
-package me.kafuuneko.rpclient.feature.story.editor.presentation
+package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryCharacterOptionItem
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryLorebookGroupItem
-import me.kafuuneko.rpclient.feature.story.editor.model.StoryImportPreview
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 
 /** 连续正文编辑器页面状态树；完整正文由独立文档状态桥接，不复制到此处。 */
