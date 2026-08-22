@@ -30,6 +30,7 @@ import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
+import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
@@ -392,9 +393,15 @@ class GroupChatPromptBuilder(
             )
         }
         // 注入用户形象设定（User persona）
-        context.session.userDescription.takeIf { it.isNotBlank() }?.let {
-            before += requiredSystem("User persona:\n$it", PromptSourceKind.UserPersona)
-        }
+        before += requiredSystem(
+            renderUserPersonaTemplate(
+                template = readUserPersonaFormat(),
+                userName = context.session.userName,
+                userDescription = context.session.userDescription,
+                characterName = context.speaker.name
+            ),
+            PromptSourceKind.UserPersona
+        )
         // 注入合并后的成员角色卡
         before += buildCharacterCards(context)
         // 注入辅助提示词
@@ -908,6 +915,11 @@ class GroupChatPromptBuilder(
     private fun readScenarioFormat(): String =
         runCatching { AppModel.scenarioFormat }
             .getOrDefault(AppModel.DEFAULT_SCENARIO_FORMAT)
+
+    /** 读取统一用户人设包装模板。 */
+    private fun readUserPersonaFormat(): String =
+        runCatching { AppModel.userPersonaFormat }
+            .getOrDefault(AppModel.DEFAULT_USER_PERSONA_FORMAT)
 
     /** 读取世界书预算百分比。 */
     private fun readWorldInfoBudgetPercent(): Int =

@@ -516,6 +516,8 @@
     <string name="prompt_scenario_format_desc">Vorlage für das Charakterszenario; verwende {{scenario}} als Platzhalter</string>
     <string name="prompt_personality_format_title">Persönlichkeitsformat</string>
     <string name="prompt_personality_format_desc">Vorlage für die Charakterpersönlichkeit; verwende {{personality}} als Platzhalter</string>
+    <string name="prompt_user_persona_format_title">Benutzerpersona-Format</string>
+    <string name="prompt_user_persona_format_desc">Vorlage für die Benutzerpersona; verwende {{persona}} und {{user}} als Platzhalter</string>
     <string name="prompt_empty_hint">Tippe, um einen Prompt festzulegen…</string>
     <string name="prompt_edit_hint">Tippe zum Bearbeiten</string>
     <string name="prompt_editor_label">Prompt-Inhalt</string>

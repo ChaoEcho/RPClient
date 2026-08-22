@@ -30,6 +30,33 @@ import org.junit.Test
 
 class GroupChatPromptBuilderTest {
     @Test
+    fun userPersonaUsesSharedFormatAndCurrentSpeakerMacros() {
+        val lyra = character(1, "Lyra")
+        val request = GroupChatPromptBuilder().build(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = "{{user}} trusts {{char}}."
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = emptyList(),
+                provider = provider()
+            )
+        )
+
+        assertTrue(
+            request.messages.any {
+                it.content == "User Persona (Alex):\nAlex trusts Lyra."
+            }
+        )
+    }
+
+    @Test
     fun disabledExampleBehaviorOmitsAllMemberExamples() {
         val lyra = character(1, "Lyra").copy(
             examplesOfDialogue = "<START>\nUser: Example question\nLyra: Example answer"

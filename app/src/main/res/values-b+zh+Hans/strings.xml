@@ -571,6 +571,8 @@
     <string name="prompt_scenario_format_desc">角色场景的包装模板；使用 {{scenario}} 作为占位符</string>
     <string name="prompt_personality_format_title">性格格式</string>
     <string name="prompt_personality_format_desc">角色性格的包装模板；使用 {{personality}} 作为占位符</string>
+    <string name="prompt_user_persona_format_title">用户人设格式</string>
+    <string name="prompt_user_persona_format_desc">用户人设的包装模板；使用 {{persona}} 和 {{user}} 作为占位符</string>
     <string name="prompt_empty_hint">点击设置提示词...</string>
     <string name="prompt_edit_hint">点击编辑</string>
     <string name="prompt_editor_label">提示词内容</string>

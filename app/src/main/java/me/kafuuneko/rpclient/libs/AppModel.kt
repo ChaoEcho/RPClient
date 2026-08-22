@@ -75,6 +75,9 @@ Story memory:
     // 默认性格格式模板，{{personality}} 会替换为角色性格。
     const val DEFAULT_PERSONALITY_FORMAT = "{{personality}}"
 
+    // 默认用户人设格式模板，统一包装单聊、群聊与故事中的用户人设描述。
+    const val DEFAULT_USER_PERSONA_FORMAT = "User Persona ({{user}}):\n{{persona}}"
+
     // 群聊生成尾部提示词，约束模型只输出当前角色的回复。
     const val DEFAULT_GROUP_NUDGE_PROMPT = """
 Write only {{char}}'s next reply.
@@ -195,6 +198,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 
     // 性格格式模板，使用 {{personality}} 包装角色性格文本。
     var personalityFormat by stringPref(default = DEFAULT_PERSONALITY_FORMAT)
+
+    // 用户人设格式模板，使用 {{persona}} 包装人设正文，并可用 {{user}} 引用用户名。
+    var userPersonaFormat by stringPref(default = DEFAULT_USER_PERSONA_FORMAT)
 
     // 全局群聊生成尾部提示词，可由具体群聊会话覆盖。
     var groupNudgePrompt by stringPref(default = DEFAULT_GROUP_NUDGE_PROMPT)

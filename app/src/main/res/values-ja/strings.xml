@@ -516,6 +516,8 @@
     <string name="prompt_scenario_format_desc">キャラクターシナリオのテンプレート。マーカーとして {{scenario}} を使用します</string>
     <string name="prompt_personality_format_title">性格フォーマット</string>
     <string name="prompt_personality_format_desc">キャラクター性格のテンプレート。マーカーとして {{personality}} を使用します</string>
+    <string name="prompt_user_persona_format_title">ユーザーペルソナ形式</string>
+    <string name="prompt_user_persona_format_desc">ユーザーペルソナのテンプレート。{{persona}} と {{user}} を使用します</string>
     <string name="prompt_empty_hint">タップしてプロンプトを設定…</string>
     <string name="prompt_edit_hint">タップして編集</string>
     <string name="prompt_editor_label">プロンプト内容</string>

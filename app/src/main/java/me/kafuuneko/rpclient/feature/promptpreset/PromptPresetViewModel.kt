@@ -109,6 +109,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> AppModel.DEFAULT_WORLD_INFO_FORMAT
             PromptType.ScenarioFormat -> AppModel.DEFAULT_SCENARIO_FORMAT
             PromptType.PersonalityFormat -> AppModel.DEFAULT_PERSONALITY_FORMAT
+            PromptType.UserPersonaFormat -> AppModel.DEFAULT_USER_PERSONA_FORMAT
             PromptType.GroupNudge -> AppModel.DEFAULT_GROUP_NUDGE_PROMPT
             PromptType.NewGroupChat -> AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT
             PromptType.GroupSummarize -> AppModel.DEFAULT_GROUP_SUMMARIZE_PROMPT
@@ -141,6 +142,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> listOf("{0}")
             PromptType.ScenarioFormat -> listOf("{{scenario}}")
             PromptType.PersonalityFormat -> listOf("{{personality}}")
+            PromptType.UserPersonaFormat -> listOf("{{persona}}", "{{user}}")
             else -> listOf("{{char}}", "{{user}}")
         }
     }
@@ -161,6 +163,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> AppModel.worldInfoFormat
             PromptType.ScenarioFormat -> AppModel.scenarioFormat
             PromptType.PersonalityFormat -> AppModel.personalityFormat
+            PromptType.UserPersonaFormat -> AppModel.userPersonaFormat
             PromptType.GroupNudge -> AppModel.groupNudgePrompt
             PromptType.NewGroupChat -> AppModel.newGroupChatPrompt
             PromptType.GroupSummarize -> AppModel.groupSummarizePrompt
@@ -189,6 +192,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> AppModel.worldInfoFormat = text
             PromptType.ScenarioFormat -> AppModel.scenarioFormat = text
             PromptType.PersonalityFormat -> AppModel.personalityFormat = text
+            PromptType.UserPersonaFormat -> AppModel.userPersonaFormat = text
             PromptType.GroupNudge -> AppModel.groupNudgePrompt = text
             PromptType.NewGroupChat -> AppModel.newGroupChatPrompt = text
             PromptType.GroupSummarize -> AppModel.groupSummarizePrompt = text

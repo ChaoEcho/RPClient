@@ -515,6 +515,8 @@
     <string name="prompt_scenario_format_desc">Шаблон для сценария персонажа; используйте {{scenario}} в качестве маркера</string>
     <string name="prompt_personality_format_title">Формат личности</string>
     <string name="prompt_personality_format_desc">Шаблон для личности персонажа; используйте {{personality}} в качестве маркера</string>
+    <string name="prompt_user_persona_format_title">Формат персоны пользователя</string>
+    <string name="prompt_user_persona_format_desc">Шаблон персоны пользователя; используйте {{persona}} и {{user}} как маркеры</string>
     <string name="prompt_empty_hint">Нажмите, чтобы задать промпт…</string>
     <string name="prompt_edit_hint">Нажмите для редактирования</string>
     <string name="prompt_editor_label">Содержимое промпта</string>

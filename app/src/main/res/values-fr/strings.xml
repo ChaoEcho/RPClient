@@ -515,6 +515,8 @@
     <string name="prompt_scenario_format_desc">Modèle pour le scénario du personnage ; utilisez {{scenario}} comme marqueur</string>
     <string name="prompt_personality_format_title">Format de personnalité</string>
     <string name="prompt_personality_format_desc">Modèle pour la personnalité du personnage ; utilisez {{personality}} comme marqueur</string>
+    <string name="prompt_user_persona_format_title">Format du persona utilisateur</string>
+    <string name="prompt_user_persona_format_desc">Modèle du persona utilisateur ; utilisez {{persona}} et {{user}} comme marqueurs</string>
     <string name="prompt_empty_hint">Appuyez pour définir un prompt…</string>
     <string name="prompt_edit_hint">Appuyez pour modifier</string>
     <string name="prompt_editor_label">Contenu du prompt</string>

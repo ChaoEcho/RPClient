@@ -515,6 +515,8 @@
     <string name="prompt_scenario_format_desc">캐릭터 시나리오 템플릿; 마커로 {{scenario}}을(를) 사용합니다</string>
     <string name="prompt_personality_format_title">성격 형식</string>
     <string name="prompt_personality_format_desc">캐릭터 성격 템플릿; 마커로 {{personality}}을(를) 사용합니다</string>
+    <string name="prompt_user_persona_format_title">사용자 페르소나 형식</string>
+    <string name="prompt_user_persona_format_desc">사용자 페르소나 템플릿; {{persona}}와 {{user}}를 사용합니다</string>
     <string name="prompt_empty_hint">프롬프트를 설정하려면 탭하세요…</string>
     <string name="prompt_edit_hint">탭하여 편집</string>
     <string name="prompt_editor_label">프롬프트 내용</string>

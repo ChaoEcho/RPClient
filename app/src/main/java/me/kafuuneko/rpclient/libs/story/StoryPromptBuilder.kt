@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.prompt.filterEntries
 import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -260,7 +261,12 @@ class StoryPromptBuilder(
         if (context.story.includeUserPersona) {
             addRequired(
                 LLMMessageRole.System,
-                renderStoryUserPersona(context.userName, context.userDescription),
+                renderUserPersonaTemplate(
+                    template = AppModel.userPersonaFormat,
+                    userName = context.userName,
+                    userDescription = context.userDescription,
+                    characterName = null
+                ),
                 PromptSourceKind.UserPersona
             )
         }
@@ -566,17 +572,6 @@ internal fun ActiveStoryCharacter.resolveForPrompt(userName: String): ResolvedSt
         personality = candidate.character.personality.resolve(),
         scenario = candidate.character.scenario.resolve()
     )
-}
-
-/** 仅在 Story 显式启用用户人设时，将全局 Persona 描述包装为独立系统参考。 */
-internal fun renderStoryUserPersona(userName: String, userDescription: String): String {
-    if (userDescription.isBlank()) return ""
-    val resolved = resolveCharacterUserMacros(
-        template = userDescription,
-        characterName = null,
-        userName = userName
-    )
-    return "User Persona ($userName):\n$resolved"
 }
 
 /** 尚未插入连续正文上下文的 At Depth 消息。 */

@@ -528,6 +528,8 @@
     <string name="prompt_scenario_format_desc">角色場景的包裝範本；使用 {{scenario}} 作為佔位符</string>
     <string name="prompt_personality_format_title">性格格式</string>
     <string name="prompt_personality_format_desc">角色性格的包裝範本；使用 {{personality}} 作為佔位符</string>
+    <string name="prompt_user_persona_format_title">使用者人設格式</string>
+    <string name="prompt_user_persona_format_desc">使用者人設的包裝範本；使用 {{persona}} 和 {{user}} 作為佔位符</string>
     <string name="prompt_empty_hint">點選設定提示詞...</string>
     <string name="prompt_edit_hint">點選編輯</string>
     <string name="prompt_editor_label">提示詞內容</string>

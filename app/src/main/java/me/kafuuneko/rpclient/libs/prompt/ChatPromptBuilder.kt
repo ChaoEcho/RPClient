@@ -295,7 +295,12 @@ class ChatPromptBuilder(
         // 插入用户设定、角色定义、性格与场景
         beforeHistory += PromptPiece.required(
             LLMMessageRole.System,
-            context.userDescription,
+            renderUserPersonaTemplate(
+                template = readUserPersonaFormat(),
+                userName = context.userName,
+                userDescription = context.userDescription,
+                characterName = context.character.name
+            ),
             PromptSourceKind.UserPersona
         )
         beforeHistory += PromptPiece.required(
@@ -920,6 +925,11 @@ class ChatPromptBuilder(
     /** 读取性格包装模板。 */
     private fun readPersonalityFormat(): String {
         return runCatching { AppModel.personalityFormat }.getOrDefault(AppModel.DEFAULT_PERSONALITY_FORMAT)
+    }
+
+    /** 读取统一用户人设包装模板。 */
+    private fun readUserPersonaFormat(): String {
+        return runCatching { AppModel.userPersonaFormat }.getOrDefault(AppModel.DEFAULT_USER_PERSONA_FORMAT)
     }
 
     /** 读取世界书占可用 Prompt 预算百分比。 */

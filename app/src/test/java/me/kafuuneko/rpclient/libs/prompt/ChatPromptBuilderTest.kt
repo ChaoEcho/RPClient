@@ -27,6 +27,19 @@ class ChatPromptBuilderTest {
     )
 
     @Test
+    fun userPersonaUsesSharedFormatAndChatMacros() {
+        val result = builder.buildWithMetadata(
+            context(userDescription = "{{user}} trusts {{char}}.")
+        )
+
+        assertTrue(
+            result.request.messages.any {
+                it.content == "User Persona (User):\nUser trusts Char."
+            }
+        )
+    }
+
+    @Test
     fun promptOnlyRegexChangesOutboundHistoryAndIsInspected() {
         val script = ScopedRegexScript(
             script = RegexScript(

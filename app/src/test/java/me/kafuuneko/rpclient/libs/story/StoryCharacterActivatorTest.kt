@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.story
 
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
@@ -92,9 +93,17 @@ class StoryCharacterActivatorTest {
     fun userPersonaResolvesUserButKeepsAmbiguousCharacterMacro() {
         assertEquals(
             "User Persona (Reader):\nReader observes {{char}}.",
-            renderStoryUserPersona("Reader", "{{user}} observes {{char}}.")
+            renderUserPersonaTemplate(
+                template = "User Persona ({{user}}):\n{{persona}}",
+                userName = "Reader",
+                userDescription = "{{user}} observes {{char}}.",
+                characterName = null
+            )
         )
-        assertEquals("", renderStoryUserPersona("Reader", ""))
+        assertEquals(
+            "",
+            renderUserPersonaTemplate("{{persona}}", "Reader", "", characterName = null)
+        )
     }
 
     @Test
