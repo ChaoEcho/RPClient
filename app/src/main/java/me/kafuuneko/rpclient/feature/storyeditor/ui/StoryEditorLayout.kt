@@ -122,6 +122,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 
 /** 连续正文编辑器及 Story 设置的 Compose 入口。 */
 @Composable
@@ -994,39 +995,13 @@ private fun UserPersonaSetting(
     enabled: Boolean,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) {
-                StoryEditorUiIntent.SetIncludeUserPersona(!state.includeUserPersona).emit()
-            },
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.story_include_user_persona),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = stringResource(R.string.story_include_user_persona_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(
-                checked = state.includeUserPersona,
-                onCheckedChange = {
-                    StoryEditorUiIntent.SetIncludeUserPersona(it).emit()
-                },
-                enabled = enabled
-            )
-        }
-    }
+    StoryUserPersonaCard(
+        checked = state.includeUserPersona,
+        onCheckedChange = {
+            StoryEditorUiIntent.SetIncludeUserPersona(it).emit()
+        },
+        enabled = enabled
+    )
 }
 
 @Composable
