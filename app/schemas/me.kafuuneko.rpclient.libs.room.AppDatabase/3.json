@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "c40c5a0100cbfcafaf53504a6f814941",
+    "identityHash": "137e27b9e150f0239543cf6f017c76fe",
     "entities": [
       {
         "tableName": "character",
@@ -1445,7 +1445,7 @@
       },
       {
         "tableName": "stories",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `memory` TEXT NOT NULL, `summary` TEXT NOT NULL, `authorNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `worldInfoGenerationStep` INTEGER NOT NULL, `contentRevision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `memory` TEXT NOT NULL, `summary` TEXT NOT NULL, `authorNote` TEXT NOT NULL, `includeUserPersona` INTEGER NOT NULL DEFAULT 0, `worldInfoGenerationStep` INTEGER NOT NULL, `contentRevision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1484,16 +1484,11 @@
             "notNull": true
           },
           {
-            "fieldPath": "lorebookEntrySet",
-            "columnName": "lorebookEntrySet",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "worldInfoStateJson",
-            "columnName": "worldInfoStateJson",
-            "affinity": "TEXT",
-            "notNull": true
+            "fieldPath": "includeUserPersona",
+            "columnName": "includeUserPersona",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           },
           {
             "fieldPath": "worldInfoGenerationStep",
@@ -1529,7 +1524,7 @@
       },
       {
         "tableName": "story_characters",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storyId` INTEGER NOT NULL, `characterId` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `activationMode` INTEGER NOT NULL, `activationKeysJson` TEXT NOT NULL, PRIMARY KEY(`storyId`, `characterId`), FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storyId` INTEGER NOT NULL, `characterId` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `activationMode` INTEGER NOT NULL, PRIMARY KEY(`storyId`, `characterId`), FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "storyId",
@@ -1553,12 +1548,6 @@
             "fieldPath": "activationMode",
             "columnName": "activationMode",
             "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "activationKeysJson",
-            "columnName": "activationKeysJson",
-            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -1614,11 +1603,95 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "story_lorebook_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storyId` INTEGER NOT NULL, `lorebookEntryId` INTEGER NOT NULL, `activatedAtStep` INTEGER DEFAULT NULL, `stickyUntilStep` INTEGER DEFAULT NULL, `cooldownUntilStep` INTEGER DEFAULT NULL, `stateSignature` TEXT DEFAULT NULL, PRIMARY KEY(`storyId`, `lorebookEntryId`), FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`lorebookEntryId`) REFERENCES `lorebook_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "storyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lorebookEntryId",
+            "columnName": "lorebookEntryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activatedAtStep",
+            "columnName": "activatedAtStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "stickyUntilStep",
+            "columnName": "stickyUntilStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "cooldownUntilStep",
+            "columnName": "cooldownUntilStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "stateSignature",
+            "columnName": "stateSignature",
+            "affinity": "TEXT",
+            "defaultValue": "NULL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "storyId",
+            "lorebookEntryId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_lorebook_entries_lorebookEntryId",
+            "unique": false,
+            "columnNames": [
+              "lorebookEntryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_lorebook_entries_lorebookEntryId` ON `${TABLE_NAME}` (`lorebookEntryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "storyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "lorebook_entries",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lorebookEntryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c40c5a0100cbfcafaf53504a6f814941')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '137e27b9e150f0239543cf6f017c76fe')"
     ]
   }
 }

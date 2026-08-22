@@ -42,7 +42,7 @@ interface StoryDao : MutableDao<Story> {
         SET memory = :memory,
             summary = :summary,
             authorNote = :authorNote,
-            lorebookEntrySet = :lorebookEntrySet,
+            includeUserPersona = :includeUserPersona,
             latestTime = :latestTime
         WHERE id = :id
         """
@@ -52,7 +52,7 @@ interface StoryDao : MutableDao<Story> {
         memory: String,
         summary: String,
         authorNote: String,
-        lorebookEntrySet: String,
+        includeUserPersona: Boolean,
         latestTime: Long
     ): Int
 
@@ -94,7 +94,6 @@ interface StoryDao : MutableDao<Story> {
         UPDATE stories
         SET content = :content,
             contentRevision = contentRevision + 1,
-            worldInfoStateJson = :worldInfoStateJson,
             worldInfoGenerationStep = :worldInfoGenerationStep,
             latestTime = :latestTime
         WHERE id = :storyId
@@ -105,7 +104,6 @@ interface StoryDao : MutableDao<Story> {
         storyId: Long,
         expectedRevision: Long,
         content: String,
-        worldInfoStateJson: String,
         worldInfoGenerationStep: Int,
         latestTime: Long
     ): Int

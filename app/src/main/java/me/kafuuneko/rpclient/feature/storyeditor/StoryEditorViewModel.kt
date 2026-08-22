@@ -48,6 +48,8 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -88,7 +90,7 @@ import org.koin.core.component.inject
  * - 精细化撤销/重做（Undo/Redo）：
  *   - 通过 [StoryEditHistory] 记录手动编辑与 AI 生成编辑的差异及世界书时序快照，支持精准回退与重做。
  * - 故事设置与摘要：
- *   - 支持故事设定（Memory、Summary、Author Note）、角色绑定、世界书分配与顺序排序；
+ *   - 支持故事设定（Memory、Summary、Author Note）、角色配置、世界书分配与顺序排序；
  *   - 支持针对长文本故事的增量/全量摘要生成与二次确认写入。
  * - 导入与导出：
  *   - 支持纯文本（TXT/Markdown）与 RPStory 打包文件（.rpstory.json）的双向导入导出。
@@ -141,6 +143,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private var mLastPromptInspection: PromptInspection? = null
     /** 故事正文编辑历史记录器（支持 Undo/Redo）。 */
     private val mEditHistory = StoryEditHistory()
+    /** 当前故事各世界书条目的关联与时序运行态快照。 */
+    private var mWorldInfoStates: List<StoryLorebookRuntimeState> = emptyList()
 
     /**
      * 初始化故事编辑器。
@@ -165,18 +169,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val loaded = withContext(Dispatchers.IO) {
             val story = mStoryRepository.getStory(intent.storyId) ?: return@withContext null
             val characterCount = mStoryRepository.getStoryCharacterCandidates(story.id).size
-            val lorebookEntryCount = mStoryRepository.getLorebookEntryIds(story).size
-            Triple(story, characterCount, lorebookEntryCount)
+            val worldInfoStates = mStoryRepository.getStoryLorebookRuntimeStates(story.id)
+            LoadedStory(story, characterCount, worldInfoStates)
         } ?: run {
             finishMissingStory()
             return
         }
-        val (story, characterCount, lorebookEntryCount) = loaded
+        val story = loaded.story
+        val characterCount = loaded.characterCount
+        val lorebookEntryCount = loaded.worldInfoStates.size
         // 初始化本地状态快照与版本号
         mStory = story
         mDraftContent = story.content
         mPersistedContent = story.content
         mRevision = story.contentRevision
+        mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
         publishDocument(story.content)
         // 建立初始 UI 状态
@@ -243,7 +250,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mEditHistory.recordManualEdit(
             previousContent = mDraftContent,
             currentContent = snapshot.content,
-            worldInfoStateJson = story.worldInfoStateJson,
+            worldInfoStates = mWorldInfoStates,
             worldInfoGenerationStep = story.worldInfoGenerationStep
         )
         mDraftContent = snapshot.content
@@ -467,6 +474,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         updateSettings { copy(authorNote = intent.value) }
     }
 
+    /** 修改当前 Story 是否注入全局用户人设的设置草稿。 */
+    @UiIntentObserver(StoryEditorUiIntent.SetIncludeUserPersona::class)
+    private fun onSetIncludeUserPersona(intent: StoryEditorUiIntent.SetIncludeUserPersona) {
+        updateSettings { copy(includeUserPersona = intent.enabled) }
+    }
+
     /**
      * 触发故事正文自动总结。
      *
@@ -590,6 +603,14 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     characters.map { item ->
                         if (item.id != target.id) item else item.copy(
                             selected = !item.selected,
+                            activationMode = if (
+                                !selecting &&
+                                item.activationMode == StoryCharacterActivationMode.Primary
+                            ) {
+                                StoryCharacterActivationMode.Auto
+                            } else {
+                                item.activationMode
+                            },
                             sortOrder = if (item.selected) Int.MAX_VALUE else nextOrder
                         )
                     }
@@ -616,30 +637,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         updateSettings {
             copy(
                 characters = characters.map { item ->
-                    if (item.id == intent.characterId && item.selected) {
+                    if (
+                        intent.activationMode == StoryCharacterActivationMode.Primary &&
+                        item.selected
+                    ) {
+                        item.copy(
+                            activationMode = if (item.id == intent.characterId) {
+                                StoryCharacterActivationMode.Primary
+                            } else if (item.activationMode == StoryCharacterActivationMode.Primary) {
+                                StoryCharacterActivationMode.Auto
+                            } else {
+                                item.activationMode
+                            }
+                        )
+                    } else if (item.id == intent.characterId && item.selected) {
                         item.copy(activationMode = intent.activationMode)
-                    } else {
-                        item
-                    }
-                }
-            )
-        }
-    }
-
-    /**
-     * 修改角色的激活关键字草稿。
-     *
-     * @param intent 包含角色 ID 与关键字草稿的意图
-     */
-    @UiIntentObserver(StoryEditorUiIntent.ChangeCharacterActivationKeys::class)
-    private fun onChangeCharacterActivationKeys(
-        intent: StoryEditorUiIntent.ChangeCharacterActivationKeys
-    ) {
-        updateSettings {
-            copy(
-                characters = characters.map { item ->
-                    if (item.id == intent.characterId && item.selected) {
-                        item.copy(activationKeysDraft = intent.value)
                     } else {
                         item
                     }
@@ -725,7 +737,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      * 持久化内容：
      * - 设定、摘要、作者注释；
      * - 启用的世界书条目 ID 列表；
-     * - 关联角色列表（包含排序顺序、激活模式与解析后的激活关键字）；
+     * - 关联角色列表（包含排序顺序与激活模式）；
      * - 重新拉取故事实体并更新参考区状态栏。
      */
     @UiIntentObserver(StoryEditorUiIntent.SaveStorySettings::class)
@@ -743,25 +755,30 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     memory = settings.memory,
                     summary = settings.summary,
                     authorNote = settings.authorNote,
-                    lorebookEntryIds = settings.lorebookGroups
+                    includeUserPersona = settings.includeUserPersona,
+                    lorebookSelections = settings.lorebookGroups
                         .flatMap { it.entries }
                         .filter { it.selected }
-                        .map { it.id },
+                        .map { item ->
+                            StoryLorebookEntrySelection(item.id)
+                        },
                     characterSelections = settings.characters
                         .filter { it.selected }
                         .sortedBy { it.sortOrder }
                         .map { item ->
                             StoryCharacterSelection(
                                 characterId = item.id,
-                                activationMode = item.activationMode.toStorageValue(),
-                                activationKeys = parseActivationKeys(item.activationKeysDraft)
+                                activationMode = item.activationMode.toStorageValue()
                             )
                         }
                 )
-                mStoryRepository.getStory(uiState.storyId)
+                val story = mStoryRepository.getStory(uiState.storyId)
                     ?: error("Story does not exist")
+                story to mStoryRepository.getStoryLorebookRuntimeStates(uiState.storyId)
             }
-            mStory = refreshedStory
+            mStory = refreshedStory.first
+            mWorldInfoStates = refreshedStory.second
+            clearEditHistory()
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
             // 切回编辑器页面并更新参考区统计
             current.copy(
@@ -1276,9 +1293,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             baseRevision = mRevision,
             sourceContent = mDraftContent,
             previousEditedRange = mDocumentFlow.value?.latestEditedRange,
-            previousWorldInfoStateJson = story.worldInfoStateJson,
+            previousWorldInfoStates = mWorldInfoStates.toList(),
             previousWorldInfoGenerationStep = story.worldInfoGenerationStep,
-            nextWorldInfoStateJson = promptBuildResult.nextWorldInfoStateJson
+            nextWorldInfoStates = promptBuildResult.nextWorldInfoStates
         )
         mRecoverableGeneration = null
         mActiveGeneration = active
@@ -1494,7 +1511,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                         active.target.originalText(active.sourceContent)
                     ),
                     result = result,
-                    nextWorldInfoStateJson = active.nextWorldInfoStateJson
+                    nextWorldInfoStates = active.nextWorldInfoStates
                 )
             )
         }
@@ -1520,9 +1537,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             start = active.target.start,
             insertedText = result,
             replacedText = active.target.originalText(active.sourceContent),
-            previousWorldInfoStateJson = active.previousWorldInfoStateJson,
+            previousWorldInfoStates = active.previousWorldInfoStates,
             previousWorldInfoGenerationStep = active.previousWorldInfoGenerationStep,
-            nextWorldInfoStateJson = active.nextWorldInfoStateJson,
+            nextWorldInfoStates = active.nextWorldInfoStates,
             nextWorldInfoGenerationStep = applied.worldInfoGenerationStep
         )
         mEditHistory.record(undoEntry)
@@ -1531,10 +1548,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = applied.revision
         mDraftContent = applied.content
         mPersistedContent = applied.content
+        mWorldInfoStates = applied.worldInfoStates
         mStory = mStory?.copy(
             content = applied.content,
             contentRevision = applied.revision,
-            worldInfoStateJson = active.nextWorldInfoStateJson,
             worldInfoGenerationStep = applied.worldInfoGenerationStep
         )
         // 发布新正文与高亮范围到文档流
@@ -1578,7 +1595,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 start = entry.start,
                 insertedText = entry.insertedText,
                 replacedText = entry.replacedText,
-                previousWorldInfoStateJson = entry.previousWorldInfoStateJson,
+                previousWorldInfoStates = entry.previousWorldInfoStates,
                 previousWorldInfoGenerationStep = entry.previousWorldInfoGenerationStep
             )
         }
@@ -1596,10 +1613,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = reverted.revision
         mDraftContent = reverted.content
         mPersistedContent = reverted.content
+        mWorldInfoStates = reverted.worldInfoStates
         mStory = mStory?.copy(
             content = reverted.content,
             contentRevision = reverted.revision,
-            worldInfoStateJson = entry.previousWorldInfoStateJson,
             worldInfoGenerationStep = entry.previousWorldInfoGenerationStep
         )
         // 确认撤销并移动历史指针
@@ -1649,7 +1666,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     end = entry.start + entry.replacedText.length,
                     originalTextHash = storyTextHash(entry.replacedText),
                     result = entry.insertedText,
-                    nextWorldInfoStateJson = entry.nextWorldInfoStateJson,
+                    nextWorldInfoStates = entry.nextWorldInfoStates,
                     nextWorldInfoGenerationStep = entry.nextWorldInfoGenerationStep
                 )
             )
@@ -1668,10 +1685,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = applied.revision
         mDraftContent = applied.content
         mPersistedContent = applied.content
+        mWorldInfoStates = applied.worldInfoStates
         mStory = mStory?.copy(
             content = applied.content,
             contentRevision = applied.revision,
-            worldInfoStateJson = entry.nextWorldInfoStateJson,
             worldInfoGenerationStep = applied.worldInfoGenerationStep
         )
         // 确认重做并移动历史指针
@@ -1714,10 +1731,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 加载故事候选角色
         val characterCandidates = mStoryRepository.getStoryCharacterCandidates(story.id)
         // 加载故事关联的世界书条目与世界书映射字典
-        val explicitEntryIds = mStoryRepository.getLorebookEntryIds(story).toSet()
+        val entries = mStoryRepository.getStoryLorebookEntryCandidates(story.id)
         val lorebooks = mLorebookRepository.getAllLorebooks()
-        val entries = explicitEntryIds.mapNotNull { mLorebookRepository.getEntryById(it) }
-        val candidateLorebookIds = entries.mapTo(mutableSetOf()) { it.lorebookId }
+        val candidateLorebookIds = entries.mapTo(mutableSetOf()) { it.entry.lorebookId }
         val candidateLorebooks = lorebooks
             .filter { it.id in candidateLorebookIds }
             .associateBy { it.id }
@@ -1733,6 +1749,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             recursiveScanningLorebookIds = candidateLorebooks.values
                 .filter { it.recursiveScanning }
                 .mapTo(mutableSetOf()) { it.id },
+            userName = AppModel.userName.trim().ifBlank { "You" },
+            userDescription = AppModel.userDescription,
             continuationGuidance = continuationGuidance
         )
     }
@@ -1882,7 +1900,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      *
      * 加载内容：
      * - 故事记忆、摘要、作者注释；
-     * - 全量角色列表及其在当前故事中的选中状态、激活模式、关键字草稿与排序序号；
+     * - 全量角色列表及其在当前故事中的选中状态、激活模式与排序序号；
      * - 全量世界书及其条目列表，还原故事的选中状态。
      */
     private suspend fun buildSettingsState(): StoryEditorPageState.Settings {
@@ -1892,7 +1910,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             .associateBy { it.character.id }
         val lorebooks = mLorebookRepository.getAllLorebooks()
         val lorebookNames = lorebooks.associate { it.id to it.name }
-        val selectedEntryIds = mStoryRepository.getLorebookEntryIds(story).toSet()
+        val selectedEntries = mStoryRepository.getStoryLorebookEntryCandidates(story.id)
+            .associateBy { it.entry.id }
         // 映射角色选项条目
         val characters = mCharacterRepository.getAllCharacters().map { character ->
             val relation = relations[character.id]
@@ -1903,7 +1922,6 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 selected = relation != null,
                 activationMode = relation?.relation?.activationMode
                     .toStoryCharacterActivationMode(),
-                activationKeysDraft = relation?.activationKeys.orEmpty().joinToString(", "),
                 sortOrder = relation?.relation?.sortOrder ?: Int.MAX_VALUE,
                 linkedLorebookId = character.characterLorebookId.takeIf { it > 0L },
                 linkedLorebookName = lorebookNames[character.characterLorebookId]
@@ -1914,6 +1932,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             memory = story.memory,
             summary = story.summary,
             authorNote = story.authorNote,
+            includeUserPersona = story.includeUserPersona,
             characters = normalizeCharacterOrder(characters),
             lorebookGroups = lorebooks.map { lorebook ->
                 StoryLorebookGroupItem(
@@ -1930,7 +1949,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                         )
                     }
                 )
-            }.restoreLorebookSelection(selectedEntryIds)
+            }.restoreLorebookSelection(
+                selectedEntries.keys
+            )
         )
     }
 
@@ -1965,10 +1986,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      * 数据库存储的激活模式 Int 转 UI 枚举 [StoryCharacterActivationMode]。
      */
     private fun Int?.toStoryCharacterActivationMode(): StoryCharacterActivationMode {
-        return if (this == StoryCharacter.ACTIVATION_ALWAYS) {
-            StoryCharacterActivationMode.Always
-        } else {
-            StoryCharacterActivationMode.Auto
+        return when (this) {
+            StoryCharacter.ACTIVATION_PRIMARY -> StoryCharacterActivationMode.Primary
+            StoryCharacter.ACTIVATION_ALWAYS -> StoryCharacterActivationMode.Always
+            else -> StoryCharacterActivationMode.Auto
         }
     }
 
@@ -1977,19 +1998,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun StoryCharacterActivationMode.toStorageValue(): Int {
         return when (this) {
+            StoryCharacterActivationMode.Primary -> StoryCharacter.ACTIVATION_PRIMARY
             StoryCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
             StoryCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
         }
-    }
-
-    /**
-     * 解析用户输入的角色激活关键字字符串（支持中英文逗号与换行分隔并去重）。
-     */
-    private fun parseActivationKeys(value: String): List<String> {
-        return value.split(',', '，', '\n')
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
     }
 
     /**
@@ -2044,9 +2056,9 @@ private data class ActiveStoryGeneration(
     val baseRevision: Long,
     val sourceContent: String,
     val previousEditedRange: StoryEditedTextRange?,
-    val previousWorldInfoStateJson: String,
+    val previousWorldInfoStates: List<StoryLorebookRuntimeState>,
     val previousWorldInfoGenerationStep: Int,
-    val nextWorldInfoStateJson: String,
+    val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
     val partialText: String = ""
 ) {
     /** 生成拼接了增量续写预览文本的完整正文。 */
@@ -2064,6 +2076,13 @@ private data class ActiveStoryGeneration(
         )
     }
 }
+
+/** 编辑器初始化时一次性读取的 Story 与关联状态。 */
+private data class LoadedStory(
+    val story: Story,
+    val characterCount: Int,
+    val worldInfoStates: List<StoryLorebookRuntimeState>
+)
 
 /** 计算撤销条目中插入文本所覆盖的范围。 */
 private fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {

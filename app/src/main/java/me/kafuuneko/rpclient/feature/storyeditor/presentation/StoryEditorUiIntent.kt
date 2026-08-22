@@ -20,6 +20,7 @@ sealed class StoryEditorUiIntent {
     data class ChangeMemory(val value: String) : StoryEditorUiIntent()
     data class ChangeSummary(val value: String) : StoryEditorUiIntent()
     data class ChangeAuthorNote(val value: String) : StoryEditorUiIntent()
+    data class SetIncludeUserPersona(val enabled: Boolean) : StoryEditorUiIntent()
     data object SummarizeStory : StoryEditorUiIntent()
     data object CancelStorySummary : StoryEditorUiIntent()
     data object ConfirmStorySummary : StoryEditorUiIntent()
@@ -27,10 +28,6 @@ sealed class StoryEditorUiIntent {
     data class SetCharacterActivationMode(
         val characterId: Long,
         val activationMode: StoryCharacterActivationMode
-    ) : StoryEditorUiIntent()
-    data class ChangeCharacterActivationKeys(
-        val characterId: Long,
-        val value: String
     ) : StoryEditorUiIntent()
     data class MoveStoryCharacter(val characterId: Long, val offset: Int) : StoryEditorUiIntent()
     data class ToggleLorebook(val lorebookId: Long) : StoryEditorUiIntent()

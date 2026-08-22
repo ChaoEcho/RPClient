@@ -32,18 +32,18 @@ class StoryArchiveCodec(private val mGson: Gson) {
                 content = story.requiredString("content"),
                 memory = story.optionalString("memory"),
                 summary = story.optionalString("summary"),
-                authorNote = story.optionalString("authorNote")
+                authorNote = story.optionalString("authorNote"),
+                includeUserPersona = story.optionalBoolean("includeUserPersona")
             ),
             characterHints = root.arrayObjects("characterHints").map { hint ->
                 val mode = hint.requiredString("activationMode").lowercase()
-                require(mode == MODE_ALWAYS || mode == MODE_AUTO) {
+                require(mode == MODE_ALWAYS || mode == MODE_AUTO || mode == MODE_PRIMARY) {
                     "Unsupported character activation mode"
                 }
                 StoryCharacterHint(
                     name = hint.requiredString("name"),
                     fingerprint = hint.requiredString("fingerprint"),
-                    activationMode = mode,
-                    activationKeys = hint.stringArray("activationKeys")
+                    activationMode = mode
                 )
             },
             lorebookHints = root.arrayObjects("lorebookHints").map { hint ->
@@ -56,6 +56,9 @@ class StoryArchiveCodec(private val mGson: Gson) {
         )
         require(archive.characterHints.size <= MAX_HINTS && archive.lorebookHints.size <= MAX_HINTS) {
             "Story archive contains too many references"
+        }
+        require(archive.characterHints.count { it.activationMode == MODE_PRIMARY } <= 1) {
+            "Story archive contains multiple primary characters"
         }
         return archive
     }
@@ -86,6 +89,14 @@ class StoryArchiveCodec(private val mGson: Gson) {
         } ?: throw IllegalArgumentException("Story archive is missing $key")
     }
 
+    private fun JsonObject.optionalBoolean(key: String): Boolean {
+        val value = get(key) ?: return false
+        require(value.isJsonPrimitive && value.asJsonPrimitive.isBoolean) {
+            "Story archive contains invalid $key"
+        }
+        return value.asBoolean
+    }
+
     private fun JsonObject.arrayObjects(key: String): List<JsonObject> {
         val value = get(key) ?: return emptyList()
         require(value.isJsonArray) { "Story archive contains invalid $key" }
@@ -95,20 +106,10 @@ class StoryArchiveCodec(private val mGson: Gson) {
         }
     }
 
-    private fun JsonObject.stringArray(key: String): List<String> {
-        val value = get(key) ?: return emptyList()
-        require(value.isJsonArray) { "Story archive contains invalid $key" }
-        return value.asJsonArray.map {
-            require(it.isJsonPrimitive && it.asJsonPrimitive.isString) {
-                "Story archive contains invalid $key"
-            }
-            it.asString
-        }
-    }
-
     companion object {
         const val MODE_ALWAYS = "always"
         const val MODE_AUTO = "auto"
+        const val MODE_PRIMARY = "primary"
         private const val DEFAULT_TITLE = "Imported story"
         private const val MAX_HINTS = 10_000
     }

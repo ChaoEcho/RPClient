@@ -15,15 +15,32 @@ class StoryArchiveCodecTest {
                 content = "正文😀",
                 memory = "Memory",
                 authorNote = "Note",
-                summary = "Summary"
+                summary = "Summary",
+                includeUserPersona = true
             ),
             characterHints = listOf(
-                StoryCharacterHint("Alice", "abc", "always", listOf("Ally"))
+                StoryCharacterHint("Alice", "abc", "primary")
             ),
-            lorebookHints = listOf(StoryLorebookHint("City", "Station", "def"))
+            lorebookHints = listOf(
+                StoryLorebookHint(
+                    "City",
+                    "Station",
+                    "def"
+                )
+            )
         )
 
         assertEquals(source, mCodec.decode(mCodec.encode(source)))
+    }
+
+    @Test
+    fun olderV1ArchiveIgnoresLegacyBindingFields() {
+        val archive = mCodec.decode(
+            """{"format":"rpclient_story","version":1,"story":{"title":"x","content":"y"},"characterHints":[{"name":"Alice","fingerprint":"abc","activationMode":"auto"}],"lorebookHints":[{"lorebookName":"City","entryName":"Station","fingerprint":"def","boundCharacterName":"Alice","boundCharacterFingerprint":"abc"}]}"""
+        )
+
+        assertEquals("auto", archive.characterHints.single().activationMode)
+        assertEquals(StoryLorebookHint("City", "Station", "def"), archive.lorebookHints.single())
     }
 
     @Test(expected = IllegalArgumentException::class)

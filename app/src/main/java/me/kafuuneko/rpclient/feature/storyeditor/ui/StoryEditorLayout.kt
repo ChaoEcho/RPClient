@@ -949,6 +949,7 @@ private fun ContextSettings(
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
+        UserPersonaSetting(state, controlsEnabled, emit)
         SettingIntro(
             icon = Icons.AutoMirrored.Rounded.MenuBook,
             title = stringResource(R.string.story_memory),
@@ -984,6 +985,47 @@ private fun ContextSettings(
             shape = RoundedCornerShape(16.dp)
         )
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun UserPersonaSetting(
+    state: StoryEditorPageState.Settings,
+    enabled: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                StoryEditorUiIntent.SetIncludeUserPersona(!state.includeUserPersona).emit()
+            },
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.story_include_user_persona),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.story_include_user_persona_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = state.includeUserPersona,
+                onCheckedChange = {
+                    StoryEditorUiIntent.SetIncludeUserPersona(it).emit()
+                },
+                enabled = enabled
+            )
+        }
     }
 }
 
@@ -1105,10 +1147,22 @@ private fun CharacterSettingCard(
             }
             if (character.selected) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    FilterChip(
+                        selected = character.activationMode == StoryCharacterActivationMode.Primary,
+                        onClick = {
+                            StoryEditorUiIntent.SetCharacterActivationMode(
+                                character.id,
+                                StoryCharacterActivationMode.Primary
+                            ).emit()
+                        },
+                        label = { Text(stringResource(R.string.story_character_primary)) }
+                    )
                     FilterChip(
                         selected = character.activationMode == StoryCharacterActivationMode.Always,
                         onClick = {
@@ -1129,7 +1183,11 @@ private fun CharacterSettingCard(
                         },
                         label = { Text(stringResource(R.string.story_character_auto)) }
                     )
-                    Spacer(Modifier.weight(1f))
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
                     IconButton(
                         onClick = {
                             StoryEditorUiIntent.MoveStoryCharacter(character.id, -1).emit()
@@ -1153,19 +1211,6 @@ private fun CharacterSettingCard(
                         )
                     }
                 }
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = character.activationKeysDraft,
-                    onValueChange = {
-                        StoryEditorUiIntent.ChangeCharacterActivationKeys(character.id, it).emit()
-                    },
-                    label = { Text(stringResource(R.string.story_character_aliases)) },
-                    supportingText = {
-                        Text(stringResource(R.string.story_character_aliases_desc))
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
-                )
                 character.linkedLorebookName?.let { lorebookName ->
                     RpTagRow(
                         tags = listOf(
@@ -1200,7 +1245,10 @@ private fun LorebookSettings(
             )
         }
         items(state.lorebookGroups, key = { it.id }) { group ->
-            LorebookGroupCard(group, emit)
+            LorebookGroupCard(
+                group = group,
+                emit = emit
+            )
         }
     }
 }
@@ -1308,10 +1356,8 @@ private fun LorebookEntryRow(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
         }
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             RpIconBubble(Icons.Rounded.Book)
             Spacer(Modifier.width(10.dp))
             Column(
@@ -1348,6 +1394,7 @@ private fun LorebookEntryRow(
                     StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit()
                 }
             )
+            }
         }
     }
 }

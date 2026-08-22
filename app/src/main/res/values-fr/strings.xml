@@ -796,8 +796,9 @@
     <string name="move_up">Monter</string>
     <string name="story_author_note">Note d’auteur</string>
     <string name="story_author_note_desc">Une consigne brève et forte sur le style, le point de vue et la prochaine scène.</string>
-    <string name="story_character_aliases">Alias de l’histoire</string>
-    <string name="story_character_aliases_desc">Séparez les alias par des virgules. Ils ne concernent que cette histoire.</string>
+    <string name="story_include_user_persona">Inclure le persona utilisateur</string>
+    <string name="story_include_user_persona_desc">Ajoute la description globale actuelle de l’utilisateur au contexte d’écriture de l’IA.</string>
+    <string name="story_character_primary">Protagoniste</string>
     <string name="story_character_always">Toujours</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_character_count">%1$d caractères</string>

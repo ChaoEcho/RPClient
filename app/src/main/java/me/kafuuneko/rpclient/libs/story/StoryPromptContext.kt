@@ -2,9 +2,9 @@ package me.kafuuneko.rpclient.libs.story
 
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
-import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterCandidate
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntryCandidate
 import java.security.MessageDigest
 
 /** 一次续写要插入的 UTF-16 正文位置。 */
@@ -29,9 +29,11 @@ data class StoryPromptContext(
     val target: StoryEditTarget,
     val sourceContent: String,
     val provider: LLMProvider,
-    val candidateLorebookEntries: List<LorebookEntry>,
+    val candidateLorebookEntries: List<StoryLorebookEntryCandidate>,
     val candidateLorebooks: Map<Long, Lorebook>,
     val recursiveScanningLorebookIds: Set<Long>,
+    val userName: String,
+    val userDescription: String,
     val continuationGuidance: String = ""
 )
 

@@ -4,6 +4,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.libs.llm.model.OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -167,7 +168,8 @@ class AppDatabaseMigrationTest {
                 'regex_scripts',
                 'regex_character_authorizations',
                 'stories',
-                'story_characters'
+                'story_characters',
+                'story_lorebook_entries'
             )
             ORDER BY name
             """.trimIndent()
@@ -181,7 +183,8 @@ class AppDatabaseMigrationTest {
                     "regex_character_authorizations",
                     "regex_scripts",
                     "stories",
-                    "story_characters"
+                    "story_characters",
+                    "story_lorebook_entries"
                 ),
                 tableNames
             )
@@ -210,23 +213,23 @@ class AppDatabaseMigrationTest {
         migrated.execSQL(
             """
             INSERT INTO stories (
-                id, title, content, memory, summary, authorNote, lorebookEntrySet,
-                worldInfoStateJson, worldInfoGenerationStep, contentRevision,
+                id, title, content, memory, summary, authorNote,
+                worldInfoGenerationStep, contentRevision,
                 createTime, latestTime
-            ) VALUES (202, 'draft', 'body', 'memory', 'summary', 'note', '[]', '{}', 3, 4, 5, 6)
+            ) VALUES (202, 'draft', 'body', 'memory', 'summary', 'note', 3, 4, 5, 6)
             """.trimIndent()
         )
         migrated.execSQL(
             """
             INSERT INTO story_characters (
-                storyId, characterId, sortOrder, activationMode, activationKeysJson
-            ) VALUES (202, 101, 0, 1, '["alias"]')
+                storyId, characterId, sortOrder, activationMode
+            ) VALUES (202, 101, 0, ${StoryCharacter.ACTIVATION_PRIMARY})
             """.trimIndent()
         )
         migrated.query(
             """
             SELECT title, content, memory, summary, authorNote,
-                   worldInfoGenerationStep, contentRevision
+                   worldInfoGenerationStep, contentRevision, includeUserPersona
             FROM stories WHERE id = 202
             """.trimIndent()
         ).use { cursor ->
@@ -238,16 +241,17 @@ class AppDatabaseMigrationTest {
             assertEquals("note", cursor.getString(4))
             assertEquals(3, cursor.getInt(5))
             assertEquals(4L, cursor.getLong(6))
+            assertEquals(0, cursor.getInt(7))
         }
         migrated.query(
             """
-            SELECT characterId, activationKeysJson
+            SELECT characterId, activationMode
             FROM story_characters WHERE storyId = 202
             """.trimIndent()
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(101L, cursor.getLong(0))
-            assertEquals("[\"alias\"]", cursor.getString(1))
+            assertEquals(StoryCharacter.ACTIVATION_PRIMARY, cursor.getInt(1))
         }
     }
 

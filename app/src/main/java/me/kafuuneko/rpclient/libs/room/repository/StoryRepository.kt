@@ -1,31 +1,48 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
-import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.model.StoryOverview
 import me.kafuuneko.rpclient.libs.story.storyTextHash
-import me.kafuuneko.rpclient.utils.toJsonString
-import me.kafuuneko.rpclient.utils.toStringList
 
 /** Story 角色关联的领域聚合数据。 */
 data class StoryCharacterCandidate(
     val relation: StoryCharacter,
-    val character: Character,
-    val activationKeys: List<String>
+    val character: Character
+)
+
+/** Story 世界书条目关联与原始条目的领域聚合数据。 */
+data class StoryLorebookEntryCandidate(
+    val relation: StoryLorebookEntry,
+    val entry: LorebookEntry
 )
 
 /** 用户保存的一条 Story 角色关联配置。 */
 data class StoryCharacterSelection(
     val characterId: Long,
-    val activationMode: Int,
-    val activationKeys: List<String>
+    val activationMode: Int
 )
 
-/** 等待通过 revision 和原文哈希校验后原子应用的 AI 正文修改。 */
+/** 用户保存的一条 Story 世界书关联配置。 */
+data class StoryLorebookEntrySelection(
+    val lorebookEntryId: Long
+)
+
+/** 可用于生成提交、撤销和恢复的 Story 条目级世界书状态快照。 */
+data class StoryLorebookRuntimeState(
+    val lorebookEntryId: Long,
+    val activatedAtStep: Int? = null,
+    val stickyUntilStep: Int? = null,
+    val cooldownUntilStep: Int? = null,
+    val stateSignature: String? = null
+)
+
+/** 等待通过 revision、原文哈希和世界书配置校验后原子应用的 AI 正文修改。 */
 data class StoryGeneratedEdit(
     val storyId: Long,
     val baseRevision: Long,
@@ -33,92 +50,100 @@ data class StoryGeneratedEdit(
     val end: Int,
     val originalTextHash: String,
     val result: String,
-    val nextWorldInfoStateJson: String,
+    val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
     val nextWorldInfoGenerationStep: Int? = null
 )
 
-/** 已原子应用的正文及其新 revision、世界书生成步数。 */
+/** 已原子应用的正文、新 revision、世界书生成步数和条目状态。 */
 data class StoryAppliedEdit(
     val content: String,
     val revision: Long,
-    val worldInfoGenerationStep: Int
+    val worldInfoGenerationStep: Int,
+    val worldInfoStates: List<StoryLorebookRuntimeState>
 )
 
 /**
  * 连续文档 Story 的业务仓库。
  *
- * 负责正文 revision 写入、角色关联替换和设置事务；不构建页面状态或 AI Prompt。
+ * 负责正文 revision、角色和世界书关联、条目级时序状态以及设置事务；不构建页面状态或
+ * AI Prompt。世界书配置与生成结果必须在同一快照上提交，避免旧 Prompt 覆盖新配置。
  */
 class StoryRepository(
-    private val mAppDatabase: AppDatabase,
-    private val mGson: Gson
+    private val mAppDatabase: AppDatabase
 ) {
     private val mStoryDao = mAppDatabase.getStoryDao()
     private val mStoryCharacterDao = mAppDatabase.getStoryCharacterDao()
+    private val mStoryLorebookEntryDao = mAppDatabase.getStoryLorebookEntryDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
 
-    suspend fun getStoryOverviews(): List<StoryOverview> {
-        return mStoryDao.getStoryOverviews()
-    }
+    suspend fun getStoryOverviews(): List<StoryOverview> = mStoryDao.getStoryOverviews()
 
-    suspend fun getStory(id: Long): Story? {
-        return mStoryDao.getStory(id)
-    }
+    suspend fun getStory(id: Long): Story? = mStoryDao.getStory(id)
 
-    /** 读取候选角色并容忍单条旧别名 JSON 损坏，避免整篇 Story 无法打开。 */
     suspend fun getStoryCharacterCandidates(
         storyId: Long
     ): List<StoryCharacterCandidate> = mAppDatabase.withTransaction {
         mStoryCharacterDao.getByStoryId(storyId).mapNotNull { relation ->
             mCharacterDao.getCharacterById(relation.characterId)?.let { character ->
-                StoryCharacterCandidate(
+                StoryCharacterCandidate(relation, character)
+            }
+        }
+    }
+
+    suspend fun getStoryLorebookEntryCandidates(
+        storyId: Long
+    ): List<StoryLorebookEntryCandidate> = mAppDatabase.withTransaction {
+        mStoryLorebookEntryDao.getByStoryId(storyId).mapNotNull { relation ->
+            mLorebookEntryDao.getEntryById(relation.lorebookEntryId)?.let { entry ->
+                StoryLorebookEntryCandidate(
                     relation = relation,
-                    character = character,
-                    activationKeys = mGson.toStringList(relation.activationKeysJson)
+                    entry = entry
                 )
             }
         }
     }
 
+    suspend fun getStoryLorebookRuntimeStates(
+        storyId: Long
+    ): List<StoryLorebookRuntimeState> {
+        return mStoryLorebookEntryDao.getByStoryId(storyId).map { it.toRuntimeState() }
+    }
+
     suspend fun createStory(
         title: String,
         createTime: Long = System.currentTimeMillis()
-    ): Long {
-        return createStoryWithConfiguration(
-            title = title,
-            lorebookEntryIds = emptyList(),
-            characterSelections = emptyList(),
-            createTime = createTime
-        )
-    }
+    ): Long = createStoryWithConfiguration(
+        title = title,
+        lorebookSelections = emptyList(),
+        characterSelections = emptyList(),
+        createTime = createTime
+    )
 
-    /**
-     * 在一个事务中创建 Story，并写入初始世界书选择与候选角色配置。
-     *
-     * 所有外键引用会在写入前校验；任一配置无效时不会留下只有 Story 主记录的半成品。
-     */
+    /** 创建 Story，并在一个事务中写入角色和世界书关联。 */
     suspend fun createStoryWithConfiguration(
         title: String,
-        lorebookEntryIds: List<Long>,
+        lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
+        includeUserPersona: Boolean = false,
         createTime: Long = System.currentTimeMillis()
     ): Long = mAppDatabase.withTransaction {
         val normalizedTitle = title.trim()
         require(normalizedTitle.isNotEmpty()) { "Story title cannot be blank" }
         val configuration = normalizeAndValidateConfiguration(
-            lorebookEntryIds = lorebookEntryIds,
-            characterSelections = characterSelections
+            lorebookSelections,
+            characterSelections
         )
         val storyId = mStoryDao.insertOrReplace(
             Story(
                 title = normalizedTitle,
-                lorebookEntrySet = mGson.toJson(configuration.lorebookEntryIds),
+                includeUserPersona = includeUserPersona,
                 createTime = createTime,
                 latestTime = createTime
             )
         )
         insertStoryCharacters(storyId, configuration.characterSelections)
+        insertStoryLorebookEntries(storyId, configuration.lorebookSelections)
         storyId
     }
 
@@ -132,26 +157,19 @@ class StoryRepository(
         return mStoryDao.renameStory(id, normalizedTitle, latestTime) == 1
     }
 
-    /**
-     * 用预期 revision 保存正文。
-     *
-     * 返回 false 表示正文已由其他状态路径修改；调用方必须保留草稿且不能覆盖数据库内容。
-     */
     suspend fun updateContent(
         storyId: Long,
         expectedRevision: Long,
         content: String,
         latestTime: Long = System.currentTimeMillis()
-    ): Boolean {
-        return mStoryDao.updateContent(
-            storyId = storyId,
-            expectedRevision = expectedRevision,
-            content = content,
-            latestTime = latestTime
-        ) == 1
-    }
+    ): Boolean = mStoryDao.updateContent(
+        storyId = storyId,
+        expectedRevision = expectedRevision,
+        content = content,
+        latestTime = latestTime
+    ) == 1
 
-    /** 校验 revision 与目标正文后，原子提交 AI 结果和世界书时序状态。 */
+    /** 校验正文和世界书配置快照后，原子提交 AI 结果与条目级时序状态。 */
     suspend fun applyGeneratedEdit(edit: StoryGeneratedEdit): StoryAppliedEdit? {
         return mAppDatabase.withTransaction {
             val story = mStoryDao.getStory(edit.storyId) ?: return@withTransaction null
@@ -159,32 +177,42 @@ class StoryRepository(
             if (edit.start !in 0..edit.end || edit.end > story.content.length) {
                 return@withTransaction null
             }
-            val originalText = story.content.substring(edit.start, edit.end)
-            if (storyTextHash(originalText) != edit.originalTextHash) return@withTransaction null
+            if (storyTextHash(story.content.substring(edit.start, edit.end)) != edit.originalTextHash) {
+                return@withTransaction null
+            }
+            val currentRelations = mStoryLorebookEntryDao.getByStoryId(edit.storyId)
+            if (!currentRelations.matches(edit.nextWorldInfoStates)) return@withTransaction null
             val content = story.content.replaceRange(edit.start, edit.end, edit.result)
             val nextStep = edit.nextWorldInfoGenerationStep
                 ?: (story.worldInfoGenerationStep + 1)
-            val updated = mStoryDao.updateGeneratedContent(
-                storyId = story.id,
-                expectedRevision = story.contentRevision,
+            if (
+                mStoryDao.updateGeneratedContent(
+                    storyId = story.id,
+                    expectedRevision = story.contentRevision,
+                    content = content,
+                    worldInfoGenerationStep = nextStep,
+                    latestTime = System.currentTimeMillis()
+                ) != 1
+            ) return@withTransaction null
+            val nextRelations = currentRelations.withRuntimeStates(edit.nextWorldInfoStates)
+            updateLorebookRuntimeStates(nextRelations)
+            StoryAppliedEdit(
                 content = content,
-                worldInfoStateJson = edit.nextWorldInfoStateJson,
+                revision = story.contentRevision + 1L,
                 worldInfoGenerationStep = nextStep,
-                latestTime = System.currentTimeMillis()
+                worldInfoStates = nextRelations.map { it.toRuntimeState() }
             )
-            if (updated != 1) return@withTransaction null
-            StoryAppliedEdit(content, story.contentRevision + 1L, nextStep)
         }
     }
 
-    /** 会话内撤销 AI 修改，并恢复应用前的世界书状态。 */
+    /** 会话内撤销 AI 修改，并恢复应用前的条目级世界书状态。 */
     suspend fun revertGeneratedEdit(
         storyId: Long,
         expectedRevision: Long,
         start: Int,
         insertedText: String,
         replacedText: String,
-        previousWorldInfoStateJson: String,
+        previousWorldInfoStates: List<StoryLorebookRuntimeState>,
         previousWorldInfoGenerationStep: Int
     ): StoryAppliedEdit? = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction null
@@ -194,33 +222,43 @@ class StoryRepository(
         if (storyTextHash(story.content.substring(start, end)) != storyTextHash(insertedText)) {
             return@withTransaction null
         }
+        val currentRelations = mStoryLorebookEntryDao.getByStoryId(storyId)
+        if (!currentRelations.matches(previousWorldInfoStates)) return@withTransaction null
         val content = story.content.replaceRange(start, end, replacedText)
-        val updated = mStoryDao.updateGeneratedContent(
-            storyId = story.id,
-            expectedRevision = story.contentRevision,
+        if (
+            mStoryDao.updateGeneratedContent(
+                storyId = story.id,
+                expectedRevision = story.contentRevision,
+                content = content,
+                worldInfoGenerationStep = previousWorldInfoGenerationStep,
+                latestTime = System.currentTimeMillis()
+            ) != 1
+        ) return@withTransaction null
+        val previousRelations = currentRelations.withRuntimeStates(previousWorldInfoStates)
+        updateLorebookRuntimeStates(previousRelations)
+        StoryAppliedEdit(
             content = content,
-            worldInfoStateJson = previousWorldInfoStateJson,
+            revision = story.contentRevision + 1L,
             worldInfoGenerationStep = previousWorldInfoGenerationStep,
-            latestTime = System.currentTimeMillis()
+            worldInfoStates = previousRelations.map { it.toRuntimeState() }
         )
-        if (updated != 1) return@withTransaction null
-        StoryAppliedEdit(content, story.contentRevision + 1L, previousWorldInfoGenerationStep)
     }
 
-    /** 在一个事务中保存长期上下文、世界书选择和完整候选角色配置。 */
+    /** 保存长期上下文，并保留仍启用条目的时序状态。 */
     suspend fun updateStoryConfiguration(
         storyId: Long,
         memory: String,
         summary: String,
         authorNote: String,
-        lorebookEntryIds: List<Long>,
+        includeUserPersona: Boolean = false,
+        lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
         latestTime: Long = System.currentTimeMillis()
     ) = mAppDatabase.withTransaction {
         requireNotNull(mStoryDao.getStory(storyId)) { "Story does not exist" }
         val configuration = normalizeAndValidateConfiguration(
-            lorebookEntryIds = lorebookEntryIds,
-            characterSelections = characterSelections
+            lorebookSelections,
+            characterSelections
         )
         check(
             mStoryDao.updateStorySettings(
@@ -228,15 +266,29 @@ class StoryRepository(
                 memory = memory,
                 summary = summary,
                 authorNote = authorNote,
-                lorebookEntrySet = mGson.toJson(configuration.lorebookEntryIds),
+                includeUserPersona = includeUserPersona,
                 latestTime = latestTime
             ) == 1
         ) { "Story settings update failed" }
+        val previousLorebookEntries = mStoryLorebookEntryDao.getByStoryId(storyId)
+            .associateBy { it.lorebookEntryId }
         mStoryCharacterDao.deleteByStoryId(storyId)
         insertStoryCharacters(storyId, configuration.characterSelections)
+        mStoryLorebookEntryDao.deleteByStoryId(storyId)
+        val nextLorebookEntries = configuration.lorebookSelections.map { selection ->
+            val previous = previousLorebookEntries[selection.lorebookEntryId]
+            previous ?: run {
+                StoryLorebookEntry(
+                    storyId = storyId,
+                    lorebookEntryId = selection.lorebookEntryId
+                )
+            }
+        }
+        if (nextLorebookEntries.isNotEmpty()) {
+            mStoryLorebookEntryDao.insertAll(nextLorebookEntries)
+        }
     }
 
-    /** 仅在正文仍是生成时快照时保存摘要，避免旧响应覆盖新正文。 */
     suspend fun saveGeneratedSummary(
         storyId: Long,
         expectedContentRevision: Long,
@@ -252,78 +304,120 @@ class StoryRepository(
         ) == 1
     }
 
-    suspend fun getLorebookEntryIds(story: Story): List<Long> {
-        return runCatching {
-            mGson.fromJson(story.lorebookEntrySet, Array<Long>::class.java)
-                ?.toList()
-                .orEmpty()
-        }.getOrDefault(emptyList())
-    }
-
     suspend fun deleteStory(id: Long) {
         mStoryDao.deleteStory(id)
     }
 
-    private fun normalizeSelections(
-        selections: List<StoryCharacterSelection>
-    ): List<StoryCharacterSelection> {
-        require(selections.distinctBy { it.characterId }.size == selections.size) {
+    private suspend fun normalizeAndValidateConfiguration(
+        lorebookSelections: List<StoryLorebookEntrySelection>,
+        characterSelections: List<StoryCharacterSelection>
+    ): NormalizedStoryConfiguration {
+        require(characterSelections.distinctBy { it.characterId }.size == characterSelections.size) {
             "Story character selections must be unique"
         }
-        return selections.map { selection ->
+        require(
+            characterSelections.count {
+                it.activationMode == StoryCharacter.ACTIVATION_PRIMARY
+            } <= 1
+        ) {
+            "Story can only have one primary character"
+        }
+        characterSelections.forEach { selection ->
             require(StoryCharacter.isValidActivationMode(selection.activationMode)) {
                 "Unsupported character activation mode"
             }
-            selection.copy(
-                activationKeys = selection.activationKeys
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .distinct()
-            )
-        }
-    }
-
-    private suspend fun normalizeAndValidateConfiguration(
-        lorebookEntryIds: List<Long>,
-        characterSelections: List<StoryCharacterSelection>
-    ): NormalizedStoryConfiguration {
-        val distinctLorebookEntryIds = lorebookEntryIds.distinct()
-        distinctLorebookEntryIds.forEach { entryId ->
-            requireNotNull(mLorebookEntryDao.getEntryById(entryId)) {
-                "Lorebook entry does not exist"
-            }
-        }
-        val normalizedSelections = normalizeSelections(characterSelections)
-        normalizedSelections.forEach { selection ->
             requireNotNull(mCharacterDao.getCharacterById(selection.characterId)) {
                 "Character does not exist"
             }
         }
-        return NormalizedStoryConfiguration(
-            lorebookEntryIds = distinctLorebookEntryIds,
-            characterSelections = normalizedSelections
-        )
+        require(lorebookSelections.distinctBy { it.lorebookEntryId }.size == lorebookSelections.size) {
+            "Story lorebook entry selections must be unique"
+        }
+        lorebookSelections.forEach { selection ->
+            requireNotNull(mLorebookEntryDao.getEntryById(selection.lorebookEntryId)) {
+                "Lorebook entry does not exist"
+            }
+        }
+        return NormalizedStoryConfiguration(lorebookSelections, characterSelections)
     }
 
     private suspend fun insertStoryCharacters(
         storyId: Long,
         selections: List<StoryCharacterSelection>
     ) {
-        mStoryCharacterDao.insertOrReplaceAll(
+        if (selections.isEmpty()) return
+        mStoryCharacterDao.insertAll(
             selections.mapIndexed { index, selection ->
                 StoryCharacter(
                     storyId = storyId,
                     characterId = selection.characterId,
                     sortOrder = index,
-                    activationMode = selection.activationMode,
-                    activationKeysJson = mGson.toJsonString(selection.activationKeys)
+                    activationMode = selection.activationMode
                 )
             }
         )
     }
 
+    private suspend fun insertStoryLorebookEntries(
+        storyId: Long,
+        selections: List<StoryLorebookEntrySelection>
+    ) {
+        if (selections.isEmpty()) return
+        mStoryLorebookEntryDao.insertAll(
+            selections.map { selection ->
+                StoryLorebookEntry(
+                    storyId = storyId,
+                    lorebookEntryId = selection.lorebookEntryId
+                )
+            }
+        )
+    }
+
+    private suspend fun updateLorebookRuntimeStates(entries: List<StoryLorebookEntry>) {
+        if (entries.isEmpty()) return
+        check(mStoryLorebookEntryDao.updateAll(entries) == entries.size) {
+            "Story lorebook runtime state update failed"
+        }
+    }
+
     private data class NormalizedStoryConfiguration(
-        val lorebookEntryIds: List<Long>,
+        val lorebookSelections: List<StoryLorebookEntrySelection>,
         val characterSelections: List<StoryCharacterSelection>
     )
+}
+
+private fun StoryLorebookEntry.toRuntimeState(): StoryLorebookRuntimeState {
+    return StoryLorebookRuntimeState(
+        lorebookEntryId = lorebookEntryId,
+        activatedAtStep = activatedAtStep,
+        stickyUntilStep = stickyUntilStep,
+        cooldownUntilStep = cooldownUntilStep,
+        stateSignature = stateSignature
+    )
+}
+
+private fun List<StoryLorebookEntry>.matches(
+    states: List<StoryLorebookRuntimeState>
+): Boolean {
+    if (size != states.size) return false
+    val stateById = states.associateBy { it.lorebookEntryId }
+    if (stateById.size != states.size) return false
+    return all { relation ->
+        stateById.containsKey(relation.lorebookEntryId)
+    }
+}
+
+private fun List<StoryLorebookEntry>.withRuntimeStates(
+    states: List<StoryLorebookRuntimeState>
+): List<StoryLorebookEntry> {
+    val stateById = states.associateBy { it.lorebookEntryId }
+    return map { relation ->
+        val state = requireNotNull(stateById[relation.lorebookEntryId])
+        relation.copy(
+            activatedAtStep = state.activatedAtStep,
+            stickyUntilStep = state.stickyUntilStep,
+            cooldownUntilStep = state.cooldownUntilStep,
+            stateSignature = state.stateSignature
+        )
+    }
 }

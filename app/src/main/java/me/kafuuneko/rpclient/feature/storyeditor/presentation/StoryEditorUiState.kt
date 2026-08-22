@@ -108,6 +108,7 @@ sealed class StoryEditorPageState {
         val memory: String,
         val summary: String,
         val authorNote: String,
+        val includeUserPersona: Boolean,
         val characters: List<StoryCharacterOptionItem>,
         val lorebookGroups: List<StoryLorebookGroupItem>,
         val isSaving: Boolean = false

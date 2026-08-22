@@ -30,11 +30,12 @@ class PromptMacroResolver(
         outlets: Map<String, String>? = null
     ): String {
         val firstMessages = context.character.getChatFirstMessageList()
-        // 兼容旧式标签，统一转换至大括号宏格式
-        var result = template
-            .replace("<USER>", "{{user}}", ignoreCase = true)
-            .replace("<BOT>", "{{char}}", ignoreCase = true)
-            .replace("<CHAR>", "{{char}}", ignoreCase = true)
+        // 先展开跨聊天与故事共用的名称宏，避免不同 Prompt 构建器产生兼容差异。
+        var result = resolveCharacterUserMacros(
+            template = template,
+            characterName = context.character.name,
+            userName = context.userName
+        )
 
         // 解析带参数的格式化宏与动态开场白宏
         result = result.replace(Regex("""\{\{\s*newline::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
@@ -97,6 +98,32 @@ class PromptMacroResolver(
         // 正则替换所有已匹配宏，未识别宏保留原文
         return result.replace(Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")) {
             values[it.groupValues[1].lowercase()] ?: it.value
+        }
+    }
+}
+
+/**
+ * 展开角色卡与 Prompt 模板中共用的角色名、用户名宏。
+ *
+ * 传入 null 的名称保持对应宏原文，供没有唯一当前角色的多角色故事上下文继续诊断；
+ * 旧式 `<BOT>`、`<CHAR>`、`<USER>` 标签会先规范化，再按相同规则解析。
+ */
+fun resolveCharacterUserMacros(
+    template: String,
+    characterName: String?,
+    userName: String?
+): String {
+    val normalized = template
+        .replace("<USER>", "{{user}}", ignoreCase = true)
+        .replace("<BOT>", "{{char}}", ignoreCase = true)
+        .replace("<CHAR>", "{{char}}", ignoreCase = true)
+    return normalized.replace(
+        Regex("""\{\{\s*(char|user)\s*\}\}""", RegexOption.IGNORE_CASE)
+    ) { match ->
+        when (match.groupValues[1].lowercase()) {
+            "char" -> characterName ?: match.value
+            "user" -> userName ?: match.value
+            else -> match.value
         }
     }
 }

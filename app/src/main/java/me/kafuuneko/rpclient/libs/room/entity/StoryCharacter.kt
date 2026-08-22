@@ -7,7 +7,7 @@ import androidx.room.Index
 /**
  * Story 与候选角色卡的关联。
  *
- * 关联只保存 Story 专属的激活方式、别名和顺序，不复制角色卡正文。
+ * 关联只保存 Story 专属的激活方式和顺序，不复制角色卡正文；角色名称始终以角色卡为准。
  */
 @Entity(
     tableName = "story_characters",
@@ -35,15 +35,18 @@ data class StoryCharacter(
     val storyId: Long,
     val characterId: Long,
     val sortOrder: Int,
-    val activationMode: Int = ACTIVATION_AUTO,
-    val activationKeysJson: String = "[]"
+    val activationMode: Int = ACTIVATION_AUTO
 ) {
     companion object {
-        const val ACTIVATION_ALWAYS = 0
-        const val ACTIVATION_AUTO = 1
+        const val ACTIVATION_PRIMARY = 0
+        const val ACTIVATION_ALWAYS = 1
+        const val ACTIVATION_AUTO = 2
+
 
         fun isValidActivationMode(value: Int): Boolean {
-            return value == ACTIVATION_ALWAYS || value == ACTIVATION_AUTO
+            return value == ACTIVATION_ALWAYS ||
+                value == ACTIVATION_AUTO ||
+                value == ACTIVATION_PRIMARY
         }
     }
 }

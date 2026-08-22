@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.story
 
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -17,27 +18,43 @@ import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldInfoEntryRuntimeState
+import me.kafuuneko.rpclient.libs.prompt.WorldInfoRuntimeState
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.prompt.filterEntries
 import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterCandidate
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntryCandidate
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 
 /**
  * 已完成预算裁剪的故事生成请求及其可检查元数据。
  *
  * @property request 组装并裁剪完成的大模型生成请求体
  * @property inspection 包含分段 Token 消耗与裁剪明细的 Prompt 检查器元数据
- * @property nextWorldInfoStateJson 本次生成推进后的世界书时序状态 JSON
+ * @property nextWorldInfoStates 本次生成推进后的条目级世界书时序状态
  * @property activeCharacters 本轮正文上下文触发并激活的角色卡列表
  */
 data class StoryPromptBuildResult(
     val request: LLMGenerationRequest,
     val inspection: PromptInspection,
-    val nextWorldInfoStateJson: String,
+    val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
     val activeCharacters: List<ActiveStoryCharacter>
+)
+
+/** 一张激活角色卡在当前 Story 作用域内完成名称宏展开后的 Prompt 快照。 */
+internal data class ResolvedStoryCharacter(
+    val active: ActiveStoryCharacter,
+    val name: String,
+    val description: String,
+    val personality: String,
+    val scenario: String
 )
 
 /**
@@ -58,7 +75,7 @@ class StoryPromptBudgetException(
  *
  * 核心架构与职责：
  * - 动态正文分块与距离衰减：基于 Token 预算自光标位置向头部动态截取正文片段，越靠近光标权重越高；
- * - 动态角色卡激活：扫描正文激活词，支持「始终激活」、「名称命中」与「别名命中」三种激活策略；
+ * - 动态角色卡激活：扫描正文中的角色卡名称，并支持主要角色始终激活；
  * - 世界书结构化扫描与预算裁剪：支持 before/after character、AN、At Depth 以及 Outlet 自定义占位符；
  * - 精细化 Token 预算防护：若必需项超限，提取占用最大的角色卡抛出 [StoryPromptBudgetException] 供诊断。
  */
@@ -68,6 +85,8 @@ class StoryPromptBuilder(
     private val mWorldBookActivator: WorldBookActivator,
     private val mRequestFinalizer: PromptRequestFinalizer
 ) {
+    private val mGson = Gson()
+
     /**
      * 构建故事连续正文 AI 续写的生成请求及元数据。
      *
@@ -104,9 +123,31 @@ class StoryPromptBuilder(
             candidates = context.characterCandidates,
             scanText = selection.activationScanText
         )
+        val resolvedCharacters = activeCharacters.map { active ->
+            active.resolveForPrompt(context.userName)
+        }
+        val primaryCharacterName = context.characterCandidates
+            .singleOrNull {
+                it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY
+            }
+            ?.character
+            ?.name
+        val lorebookCharacterNames = context.characterCandidates.lorebookCharacterNames()
+        val resolvedLorebookEntries = context.candidateLorebookEntries.map { candidate ->
+            candidate.resolveForPrompt(
+                characterName = lorebookCharacterNames[candidate.entry.lorebookId]
+                    ?: primaryCharacterName,
+                userName = context.userName,
+                gson = mGson
+            )
+        }
         // 扫描并激活世界书条目
         val rawWorldInfo = mWorldBookActivator.activateStructured(
-            context.toWorldBookScanContext(selection.worldBookScanText, activeCharacters)
+            context.toWorldBookScanContext(
+                scanText = selection.worldBookScanText,
+                activeCharacters = resolvedCharacters,
+                resolvedLorebookEntries = resolvedLorebookEntries
+            )
         )
         // 解析世界书 Token 预算并执行裁剪
         val worldBudget = resolveWorldInfoBudget(
@@ -126,7 +167,7 @@ class StoryPromptBuilder(
             entries.joinToString("\n") { formatWorldInfo(it) }
         }
         // 组装全部分区消息草稿列表
-        val drafts = buildDrafts(context, selection, activeCharacters, worldInfo, outlets)
+        val drafts = buildDrafts(context, selection, resolvedCharacters, worldInfo, outlets)
         // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = try {
             mRequestFinalizer.finalize(
@@ -149,10 +190,10 @@ class StoryPromptBuilder(
             )
         } catch (error: PromptBudgetExceededException) {
             // 捕获预算超限异常并提取占用最大的角色卡以供诊断
-            val largestCharacters = activeCharacters
+            val largestCharacters = resolvedCharacters
                 .sortedByDescending { tokenizer.countText(formatCharacterReference(it)) }
                 .take(3)
-                .map { it.candidate.character.name }
+                .map { it.name }
             throw StoryPromptBudgetException(
                 requiredTokens = error.requiredTokens,
                 promptBudget = error.promptBudget,
@@ -169,7 +210,9 @@ class StoryPromptBuilder(
         return StoryPromptBuildResult(
             request = finalized.request,
             inspection = finalized.inspection,
-            nextWorldInfoStateJson = nextState.nextStateJson,
+            nextWorldInfoStates = context.candidateLorebookEntries.toRuntimeStates(
+                nextState.nextState
+            ),
             activeCharacters = activeCharacters
         )
     }
@@ -187,7 +230,7 @@ class StoryPromptBuilder(
     private fun buildDrafts(
         context: StoryPromptContext,
         selection: StoryContextSelection,
-        activeCharacters: List<ActiveStoryCharacter>,
+        activeCharacters: List<ResolvedStoryCharacter>,
         worldInfo: WorldBookActivationResult,
         outlets: Map<String, String>
     ): List<PromptMessageDraft> = buildList {
@@ -214,16 +257,23 @@ class StoryPromptBuilder(
             ),
             PromptSourceKind.StorySummary
         )
+        if (context.story.includeUserPersona) {
+            addRequired(
+                LLMMessageRole.System,
+                renderStoryUserPersona(context.userName, context.userDescription),
+                PromptSourceKind.UserPersona
+            )
+        }
         // 注入 beforeCharacter 世界书条目
         addWorldInfo(worldInfo.beforeCharacter)
         // 注入激活的角色参考卡
         activeCharacters.forEach { active ->
-            val character = active.candidate.character
+            val character = active.active.candidate.character
             addRequired(
                 role = LLMMessageRole.System,
                 content = formatCharacterReference(active),
                 sourceKind = PromptSourceKind.StoryCharacter,
-                detail = buildCharacterDetail(active),
+                detail = buildCharacterDetail(active.active),
                 referenceId = character.id
             )
         }
@@ -356,27 +406,31 @@ class StoryPromptBuilder(
     /** 将故事构建上下文转换为世界书扫描器上下文。 */
     private fun StoryPromptContext.toWorldBookScanContext(
         scanText: String,
-        activeCharacters: List<ActiveStoryCharacter>
+        activeCharacters: List<ResolvedStoryCharacter>,
+        resolvedLorebookEntries: List<LorebookEntry>
     ): WorldBookScanContext {
         return WorldBookScanContext(
             messages = listOf(WorldBookScanMessage("", scanText)),
             currentUserMessage = null,
             totalMessageCount = story.worldInfoGenerationStep + 1,
-            worldInfoStateJson = story.worldInfoStateJson,
-            candidateLorebookEntries = candidateLorebookEntries,
+            worldInfoStateJson = "{}",
+            candidateLorebookEntries = resolvedLorebookEntries,
             candidateLorebooks = candidateLorebooks,
             recursiveScanningLorebookIds = recursiveScanningLorebookIds,
             generationType = WorldBookGenerationType.Continue,
             includeNames = false,
             characterDescription = activeCharacters.joinToString("\n") {
-                it.candidate.character.description
+                it.description
             },
             characterPersonality = activeCharacters.joinToString("\n") {
-                it.candidate.character.personality
+                it.personality
             },
             scenario = activeCharacters.joinToString("\n") {
-                it.candidate.character.scenario
-            }
+                it.scenario
+            },
+            worldInfoState = candidateLorebookEntries.toWorldInfoRuntimeState(
+                story.worldInfoGenerationStep
+            )
         )
     }
 
@@ -390,22 +444,21 @@ class StoryPromptBuilder(
     /** 组装角色激活原因与详细诊断描述文本。 */
     private fun buildCharacterDetail(active: ActiveStoryCharacter): String {
         val reason = when (active.reason) {
+            StoryCharacterActivationReason.Primary -> "Primary"
             StoryCharacterActivationReason.Always -> "Always"
             StoryCharacterActivationReason.Name -> "Name: ${active.matchedKey}"
-            StoryCharacterActivationReason.Alias -> "Alias: ${active.matchedKey}"
         }
         return "${active.candidate.character.name} · $reason · name/description/personality/scenario"
     }
 
     /** 格式化故事上下文中的角色卡参考结构。 */
-    private fun formatCharacterReference(active: ActiveStoryCharacter): String {
-        val character = active.candidate.character
+    private fun formatCharacterReference(active: ResolvedStoryCharacter): String {
         return buildString {
             appendLine("[Character Reference]")
-            appendLine("Name: ${character.name}")
-            appendLine("Description: ${character.description}")
-            appendLine("Personality: ${character.personality}")
-            append("Scenario: ${character.scenario}")
+            appendLine("Name: ${active.name}")
+            appendLine("Description: ${active.description}")
+            appendLine("Personality: ${active.personality}")
+            append("Scenario: ${active.scenario}")
         }
     }
 
@@ -436,6 +489,94 @@ class StoryPromptBuilder(
         /** 不可裁剪的必需核心内容（主提示词、设定、角色卡等）的最高保留优先级。 */
         const val PRIORITY_REQUIRED = 10_000
     }
+}
+
+/** 按 Story 角色顺序为角色关联世界书建立唯一、稳定的名称作用域。 */
+internal fun List<StoryCharacterCandidate>.lorebookCharacterNames(): Map<Long, String> {
+    return buildMap {
+        this@lorebookCharacterNames.forEach { candidate ->
+            val lorebookId = candidate.character.characterLorebookId
+            if (lorebookId > 0L) putIfAbsent(lorebookId, candidate.character.name)
+        }
+    }
+}
+
+/** 在条目自己的角色作用域中展开名称宏，避免多角色 Story 发生串名。 */
+internal fun StoryLorebookEntryCandidate.resolveForPrompt(
+    characterName: String?,
+    userName: String,
+    gson: Gson
+): LorebookEntry {
+    fun String.resolve(): String {
+        return resolveCharacterUserMacros(this, characterName, userName)
+    }
+    return entry.copy(
+        content = entry.content.resolve(),
+        keywords = gson.toJson(entry.getKeywordList().map { it.resolve() }),
+        secondaryKeywords = gson.toJson(entry.getSecondaryKeywordList().map { it.resolve() })
+    )
+}
+
+/** 将 Room 关联行上的可空状态还原为世界书激活器的结构化状态。 */
+private fun List<StoryLorebookEntryCandidate>.toWorldInfoRuntimeState(
+    generationStep: Int
+): WorldInfoRuntimeState {
+    val entries = mapNotNull { candidate ->
+        val relation = candidate.relation
+        val activatedAt = relation.activatedAtStep ?: return@mapNotNull null
+        val stickyUntil = relation.stickyUntilStep ?: return@mapNotNull null
+        val cooldownUntil = relation.cooldownUntilStep ?: return@mapNotNull null
+        val signature = relation.stateSignature ?: return@mapNotNull null
+        relation.lorebookEntryId.toString() to WorldInfoEntryRuntimeState(
+            activatedAt = activatedAt,
+            stickyUntil = stickyUntil,
+            cooldownUntil = cooldownUntil,
+            signature = signature
+        )
+    }.toMap()
+    return WorldInfoRuntimeState(lastMessageCount = generationStep, entries = entries)
+}
+
+/** 将激活器下一状态映射回每一条 Story 关联，缺失项显式清空旧状态。 */
+private fun List<StoryLorebookEntryCandidate>.toRuntimeStates(
+    state: WorldInfoRuntimeState
+): List<StoryLorebookRuntimeState> {
+    return map { candidate ->
+        val runtime = state.entries[candidate.relation.lorebookEntryId.toString()]
+        StoryLorebookRuntimeState(
+            lorebookEntryId = candidate.relation.lorebookEntryId,
+            activatedAtStep = runtime?.activatedAt,
+            stickyUntilStep = runtime?.stickyUntil,
+            cooldownUntilStep = runtime?.cooldownUntil,
+            stateSignature = runtime?.signature
+        )
+    }
+}
+
+/** 在单张角色卡作用域中展开名称宏，确保多角色同时激活时不会串用角色名称。 */
+internal fun ActiveStoryCharacter.resolveForPrompt(userName: String): ResolvedStoryCharacter {
+    val name = candidate.character.name
+    fun String.resolve(): String {
+        return resolveCharacterUserMacros(this, characterName = name, userName = userName)
+    }
+    return ResolvedStoryCharacter(
+        active = this,
+        name = name,
+        description = candidate.character.description.resolve(),
+        personality = candidate.character.personality.resolve(),
+        scenario = candidate.character.scenario.resolve()
+    )
+}
+
+/** 仅在 Story 显式启用用户人设时，将全局 Persona 描述包装为独立系统参考。 */
+internal fun renderStoryUserPersona(userName: String, userDescription: String): String {
+    if (userDescription.isBlank()) return ""
+    val resolved = resolveCharacterUserMacros(
+        template = userDescription,
+        characterName = null,
+        userName = userName
+    )
+    return "User Persona ($userName):\n$resolved"
 }
 
 /** 尚未插入连续正文上下文的 At Depth 消息。 */

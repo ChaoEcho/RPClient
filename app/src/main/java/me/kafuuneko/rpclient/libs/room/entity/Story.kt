@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -18,8 +19,8 @@ data class Story(
     val memory: String = "",
     val summary: String = "",
     val authorNote: String = "",
-    val lorebookEntrySet: String = "[]",
-    val worldInfoStateJson: String = "{}",
+    @ColumnInfo(defaultValue = "0")
+    val includeUserPersona: Boolean = false,
     val worldInfoGenerationStep: Int = 0,
     val contentRevision: Long = 0L,
     val createTime: Long,

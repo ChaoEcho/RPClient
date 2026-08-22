@@ -5,9 +5,9 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterCandidate
 
 /** Story 候选角色在本轮被激活的原因。 */
 enum class StoryCharacterActivationReason {
+    Primary,
     Always,
-    Name,
-    Alias
+    Name
 }
 
 /** 已激活的角色卡及其匹配依据。 */
@@ -32,6 +32,9 @@ class StoryCharacterActivator {
         candidate: StoryCharacterCandidate,
         scanText: String
     ): ActiveStoryCharacter? {
+        if (candidate.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY) {
+            return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Primary)
+        }
         if (candidate.relation.activationMode == StoryCharacter.ACTIVATION_ALWAYS) {
             return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Always)
         }
@@ -39,13 +42,7 @@ class StoryCharacterActivator {
         if (name.isNotEmpty() && scanText.matchesStoryKey(name)) {
             return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Name, name)
         }
-        val alias = candidate.activationKeys
-            .asSequence()
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-            .firstOrNull { scanText.matchesStoryKey(it) }
-            ?: return null
-        return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Alias, alias)
+        return null
     }
 
     private fun String.matchesStoryKey(key: String): Boolean {

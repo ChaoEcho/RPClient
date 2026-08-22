@@ -843,8 +843,9 @@
     <string name="story_no_characters">Создайте карточку персонажа, прежде чем добавлять ссылки.</string>
     <string name="story_character_always">Всегда</string>
     <string name="story_character_auto">Авто</string>
-    <string name="story_character_aliases">Псевдонимы истории</string>
-    <string name="story_character_aliases_desc">Разделяйте псевдонимы запятыми. Они действуют только в этой истории.</string>
+    <string name="story_include_user_persona">Включить персону пользователя</string>
+    <string name="story_include_user_persona_desc">Добавляет текущее глобальное описание персоны пользователя в контекст для ИИ.</string>
+    <string name="story_character_primary">Протагонист</string>
     <string name="story_linked_lorebook">Связанный лорбук: %1$s</string>
     <string name="story_lorebook_desc">Выберите доступные записи. Активация по ключевым словам и постоянные записи применяются при работе ИИ.</string>
     <string name="story_lorebook_empty">В этом лорбуке нет записей.</string>

@@ -792,8 +792,9 @@
     <string name="move_up">上移</string>
     <string name="story_author_note">作者備註</string>
     <string name="story_author_note_desc">用簡短而明確的指令約束文風、視角和下一幕方向。</string>
-    <string name="story_character_aliases">故事專屬別名</string>
-    <string name="story_character_aliases_desc">用逗號分隔多個別名，僅對目前故事生效。</string>
+    <string name="story_include_user_persona">注入使用者人設</string>
+    <string name="story_include_user_persona_desc">將目前全域使用者人設描述加入 AI 編寫上下文。</string>
+    <string name="story_character_primary">主角</string>
     <string name="story_character_always">常駐</string>
     <string name="story_character_auto">自動</string>
     <string name="story_character_count">%1$d 字</string>

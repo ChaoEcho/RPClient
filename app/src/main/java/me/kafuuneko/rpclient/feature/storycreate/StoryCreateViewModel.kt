@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookEntryItem
@@ -20,10 +21,10 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.libs.utils.toggle
-import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -34,7 +35,7 @@ import org.koin.core.component.inject
  * - 异步加载所有候选角色与带有条目的世界书分组列表；
  * - 维护故事标题输入、参演角色选择以及关联世界书条目的联动勾选；
  * - 支持角色名称、简介、标签以及世界书内容的模糊检索过滤；
- * - 保证故事实体、参演角色配置与绑定世界书条目的原子级事务创建，并在成功后导航至故事编辑器。
+ * - 保证故事实体、参演角色配置与世界书条目的原子级事务创建，并在成功后导航至故事编辑器。
  */
 class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCreateUiState>(
     StoryCreateUiState.None
@@ -83,6 +84,12 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         updateReadyForm { copy(title = intent.value) }
     }
 
+    /** 设置新故事是否在生成 Prompt 中注入当前全局用户人设。 */
+    @UiIntentObserver(StoryCreateUiIntent.SetIncludeUserPersona::class)
+    private fun onSetIncludeUserPersona(intent: StoryCreateUiIntent.SetIncludeUserPersona) {
+        updateReadyForm { copy(includeUserPersona = intent.enabled) }
+    }
+
     /** 修改角色检索关键词，实时按名称、简介和标签过滤候选角色。 */
     @UiIntentObserver(StoryCreateUiIntent.ChangeCharacterQuery::class)
     private fun onChangeCharacterQuery(intent: StoryCreateUiIntent.ChangeCharacterQuery) {
@@ -115,13 +122,30 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         // 切换角色选择状态并在初次选中时追加关联条目
         updateReadyForm {
             copy(
-                selectedCharacterIds = selectedCharacterIds.toggle(character.id),
+                characterActivationModes = if (selecting) {
+                    characterActivationModes +
+                        (character.id to StoryCreateCharacterActivationMode.Auto)
+                } else {
+                    characterActivationModes - character.id
+                },
                 selectedLorebookEntryIds = if (selecting) {
                     selectedLorebookEntryIds + linkedEntryIds
                 } else {
                     selectedLorebookEntryIds
                 }
             )
+        }
+    }
+
+    /** 设置已选角色的激活模式，并在设置新主角时自动清除旧主角。 */
+    @UiIntentObserver(StoryCreateUiIntent.SetCharacterActivationMode::class)
+    private fun onSetCharacterActivationMode(
+        intent: StoryCreateUiIntent.SetCharacterActivationMode
+    ) {
+        val uiState = readyState() ?: return
+        if (intent.characterId !in uiState.form.selectedCharacterIds) return
+        updateReadyForm {
+            setCharacterActivationMode(intent.characterId, intent.activationMode)
         }
     }
 
@@ -145,7 +169,14 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val entryIds = group.entries.mapTo(mutableSetOf()) { it.id }
         if (entryIds.isEmpty()) return
         updateReadyForm {
-            copy(selectedLorebookEntryIds = selectedLorebookEntryIds.toggleAll(entryIds))
+            val selectAll = entryIds.any { it !in selectedLorebookEntryIds }
+            copy(
+                selectedLorebookEntryIds = if (selectAll) {
+                    selectedLorebookEntryIds + entryIds
+                } else {
+                    selectedLorebookEntryIds - entryIds
+                }
+            )
         }
     }
 
@@ -157,7 +188,9 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             return
         }
         updateReadyForm {
-            copy(selectedLorebookEntryIds = selectedLorebookEntryIds.toggle(intent.entryId))
+            copy(
+                selectedLorebookEntryIds = selectedLorebookEntryIds.toggle(intent.entryId)
+            )
         }
     }
 
@@ -174,14 +207,18 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             val storyId = withContext(Dispatchers.IO) {
                 mStoryRepository.createStoryWithConfiguration(
                     title = title,
-                    lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
+                    includeUserPersona = uiState.form.includeUserPersona,
+                    lorebookSelections = uiState.form.selectedLorebookEntryIds
+                        .sorted()
+                        .map(::StoryLorebookEntrySelection),
                     characterSelections = uiState.characters
                         .filter { it.id in uiState.form.selectedCharacterIds }
                         .map { character ->
                             StoryCharacterSelection(
                                 characterId = character.id,
-                                activationMode = StoryCharacter.ACTIVATION_AUTO,
-                                activationKeys = emptyList()
+                                activationMode = uiState.form
+                                    .activationModeOf(character.id)
+                                    .toStorageValue()
                             )
                         }
                 )
@@ -295,4 +332,12 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val characters: List<StoryCreateCharacterItem>,
         val lorebookGroups: List<StoryCreateLorebookGroupItem>
     )
+}
+
+private fun StoryCreateCharacterActivationMode.toStorageValue(): Int {
+    return when (this) {
+        StoryCreateCharacterActivationMode.Primary -> StoryCharacter.ACTIVATION_PRIMARY
+        StoryCreateCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
+        StoryCreateCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
+    }
 }

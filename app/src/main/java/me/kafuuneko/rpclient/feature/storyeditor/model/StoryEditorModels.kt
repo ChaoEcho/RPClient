@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 
 /** Compose 文本编辑状态与 ViewModel 草稿之间的轻量同步快照。 */
 data class StoryEditorDocument(
@@ -34,7 +35,6 @@ data class StoryCharacterOptionItem(
     val description: String,
     val selected: Boolean,
     val activationMode: StoryCharacterActivationMode = StoryCharacterActivationMode.Auto,
-    val activationKeysDraft: String = "",
     val sortOrder: Int = Int.MAX_VALUE,
     val linkedLorebookId: Long? = null,
     val linkedLorebookName: String? = null
@@ -42,6 +42,7 @@ data class StoryCharacterOptionItem(
 
 /** Story 设置页可选择的角色激活方式，不暴露 Room 的持久化取值。 */
 enum class StoryCharacterActivationMode {
+    Primary,
     Always,
     Auto
 }
@@ -75,7 +76,11 @@ fun List<StoryLorebookGroupItem>.enableLorebook(
 ): List<StoryLorebookGroupItem> {
     return map { group ->
         if (group.id == lorebookId) {
-            group.copy(entries = group.entries.map { it.copy(selected = true) })
+            group.copy(
+                entries = group.entries.map { entry ->
+                    if (entry.selected) entry else entry.copy(selected = true)
+                }
+            )
         } else {
             group
         }
@@ -108,7 +113,11 @@ fun List<StoryLorebookGroupItem>.toggleLorebook(
     val selectAll = !target.isAllSelected
     return map { group ->
         if (group.id == lorebookId) {
-            group.copy(entries = group.entries.map { it.copy(selected = selectAll) })
+            group.copy(
+                entries = group.entries.map {
+                    it.copy(selected = selectAll)
+                }
+            )
         } else {
             group
         }
@@ -126,9 +135,9 @@ data class StoryUndoEntry(
     val start: Int,
     val insertedText: String,
     val replacedText: String,
-    val previousWorldInfoStateJson: String,
+    val previousWorldInfoStates: List<StoryLorebookRuntimeState>,
     val previousWorldInfoGenerationStep: Int,
-    val nextWorldInfoStateJson: String,
+    val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
     val nextWorldInfoGenerationStep: Int = previousWorldInfoGenerationStep + 1,
     val source: StoryEditSource = StoryEditSource.Ai
 )

@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.storycreate.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,12 +35,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookEntryItem
@@ -128,6 +133,7 @@ private fun StoryCreateNormal(
                 item { LoadingRow() }
             } else {
                 item { StoryTitleField(state.form, controlsEnabled, emit) }
+                item { UserPersonaOption(state.form, controlsEnabled, emit) }
                 item {
                     RpSectionHeader(
                         title = stringResource(R.string.story_character_references),
@@ -164,8 +170,15 @@ private fun StoryCreateNormal(
                     CharacterOption(
                         character = character,
                         selected = character.id in state.form.selectedCharacterIds,
+                        activationMode = state.form.activationModeOf(character.id),
                         enabled = controlsEnabled,
-                        onClick = { StoryCreateUiIntent.ToggleCharacter(character.id).emit() }
+                        onClick = { StoryCreateUiIntent.ToggleCharacter(character.id).emit() },
+                        onActivationModeClick = { activationMode ->
+                            StoryCreateUiIntent.SetCharacterActivationMode(
+                                character.id,
+                                activationMode
+                            ).emit()
+                        }
                     )
                 }
                 item {
@@ -249,8 +262,10 @@ private fun StoryTitleField(
 private fun CharacterOption(
     character: StoryCreateCharacterItem,
     selected: Boolean,
+    activationMode: StoryCreateCharacterActivationMode,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onActivationModeClick: (StoryCreateCharacterActivationMode) -> Unit
 ) {
     val accent = getMacaronColor(character.name)
     Card(
@@ -274,10 +289,8 @@ private fun CharacterOption(
             }
         )
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             RpAvatar(
                 text = character.name.firstOrNull()?.uppercase() ?: "?",
                 color = accent
@@ -325,6 +338,81 @@ private fun CharacterOption(
                     }
                 }
             }
+            }
+            if (selected) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = activationMode == StoryCreateCharacterActivationMode.Primary,
+                        onClick = {
+                            onActivationModeClick(StoryCreateCharacterActivationMode.Primary)
+                        },
+                        enabled = enabled,
+                        label = { Text(stringResource(R.string.story_character_primary)) }
+                    )
+                    FilterChip(
+                        selected = activationMode == StoryCreateCharacterActivationMode.Always,
+                        onClick = {
+                            onActivationModeClick(StoryCreateCharacterActivationMode.Always)
+                        },
+                        enabled = enabled,
+                        label = { Text(stringResource(R.string.story_character_always)) }
+                    )
+                    FilterChip(
+                        selected = activationMode == StoryCreateCharacterActivationMode.Auto,
+                        onClick = {
+                            onActivationModeClick(StoryCreateCharacterActivationMode.Auto)
+                        },
+                        enabled = enabled,
+                        label = { Text(stringResource(R.string.story_character_auto)) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserPersonaOption(
+    form: StoryCreateForm,
+    enabled: Boolean,
+    emit: StoryCreateUiIntent.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                StoryCreateUiIntent.SetIncludeUserPersona(!form.includeUserPersona).emit()
+            },
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.story_include_user_persona),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.story_include_user_persona_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = form.includeUserPersona,
+                onCheckedChange = {
+                    StoryCreateUiIntent.SetIncludeUserPersona(it).emit()
+                },
+                enabled = enabled
+            )
         }
     }
 }
@@ -483,10 +571,8 @@ private fun LorebookEntryOption(
         ),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = selected,
                 enabled = enabled,
@@ -519,6 +605,7 @@ private fun LorebookEntryOption(
                         add(orderDepthLabel)
                     }
                 )
+            }
             }
         }
     }
@@ -664,7 +751,9 @@ private fun StoryCreateLayoutPreview() {
                 loadState = StoryCreateLoadState.Ready,
                 form = StoryCreateForm(
                     title = "Rain over the old city",
-                    selectedCharacterIds = setOf(1L),
+                    characterActivationModes = mapOf(
+                        1L to StoryCreateCharacterActivationMode.Auto
+                    ),
                     selectedLorebookEntryIds = setOf(10L)
                 ),
                 characters = listOf(

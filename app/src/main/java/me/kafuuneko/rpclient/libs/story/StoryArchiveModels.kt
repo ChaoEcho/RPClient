@@ -20,15 +20,15 @@ data class ArchivedStory(
     val content: String,
     val memory: String = "",
     val authorNote: String = "",
-    val summary: String = ""
+    val summary: String = "",
+    val includeUserPersona: Boolean = false
 )
 
 /** 归档中的角色匹配提示，不包含完整角色卡内容。 */
 data class StoryCharacterHint(
     val name: String,
     val fingerprint: String,
-    val activationMode: String,
-    val activationKeys: List<String> = emptyList()
+    val activationMode: String
 )
 
 /** 归档中的世界书条目匹配提示，不包含条目正文。 */
@@ -51,6 +51,7 @@ data class StoryImportDraft(
     val memory: String = "",
     val authorNote: String = "",
     val summary: String = "",
+    val includeUserPersona: Boolean = false,
     val characterHints: List<StoryCharacterHint> = emptyList(),
     val lorebookHints: List<StoryLorebookHint> = emptyList(),
     val type: StoryImportType

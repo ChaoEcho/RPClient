@@ -792,8 +792,9 @@
     <string name="move_up">위로 이동</string>
     <string name="story_author_note">작가 노트</string>
     <string name="story_author_note_desc">문체, 시점과 다음 장면에 대한 짧고 강한 지침입니다.</string>
-    <string name="story_character_aliases">이야기 별칭</string>
-    <string name="story_character_aliases_desc">별칭은 쉼표로 구분합니다. 이 이야기에만 적용됩니다.</string>
+    <string name="story_include_user_persona">사용자 페르소나 포함</string>
+    <string name="story_include_user_persona_desc">현재 전역 사용자 페르소나 설명을 AI 작성 컨텍스트에 추가합니다.</string>
+    <string name="story_character_primary">주인공</string>
     <string name="story_character_always">항상</string>
     <string name="story_character_auto">자동</string>
     <string name="story_character_count">%1$d자</string>

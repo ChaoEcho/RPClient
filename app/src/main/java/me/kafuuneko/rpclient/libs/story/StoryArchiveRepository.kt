@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.room.withTransaction
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
@@ -14,7 +13,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
-import me.kafuuneko.rpclient.utils.toJsonString
+import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import java.io.FilterInputStream
 import java.io.InputStream
 
@@ -22,11 +21,11 @@ import java.io.InputStream
 class StoryArchiveRepository(
     private val mContext: Context,
     private val mAppDatabase: AppDatabase,
-    private val mGson: Gson,
     private val mCodec: StoryArchiveCodec
 ) {
     private val mStoryDao = mAppDatabase.getStoryDao()
     private val mStoryCharacterDao = mAppDatabase.getStoryCharacterDao()
+    private val mStoryLorebookEntryDao = mAppDatabase.getStoryLorebookEntryDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mLorebookDao = mAppDatabase.getLorebookDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
@@ -64,6 +63,7 @@ class StoryArchiveRepository(
             memory = archive.story.memory,
             summary = archive.story.summary,
             authorNote = archive.story.authorNote,
+            includeUserPersona = archive.story.includeUserPersona,
             characterHints = archive.characterHints,
             lorebookHints = archive.lorebookHints,
             type = StoryImportType.Archive
@@ -79,7 +79,11 @@ class StoryArchiveRepository(
             val lorebooks = mLorebookDao.getAllLorebooks()
             val entries = lorebooks.flatMap { mLorebookEntryDao.getEntriesByLorebookId(it.id) }
             val matchedCharacters = matchCharacters(draft.characterHints, characters)
-            val matchedEntryIds = matchLorebookEntries(draft.lorebookHints, entries, lorebooks)
+            val matchedEntries = matchLorebookEntries(
+                hints = draft.lorebookHints,
+                entries = entries,
+                lorebooks = lorebooks
+            )
             val now = System.currentTimeMillis()
             val storyId = mStoryDao.insertOrReplace(
                 Story(
@@ -88,28 +92,33 @@ class StoryArchiveRepository(
                     memory = draft.memory,
                     summary = draft.summary,
                     authorNote = draft.authorNote,
-                    lorebookEntrySet = mGson.toJson(matchedEntryIds),
+                    includeUserPersona = draft.includeUserPersona,
                     createTime = now,
                     latestTime = now
                 )
             )
-            mStoryCharacterDao.insertOrReplaceAll(
-                matchedCharacters.mapIndexed { index, (characterId, hint) ->
-                    StoryCharacter(
-                        storyId = storyId,
-                        characterId = characterId,
-                        sortOrder = index,
-                        activationMode = if (hint.activationMode == StoryArchiveCodec.MODE_ALWAYS) {
-                            StoryCharacter.ACTIVATION_ALWAYS
-                        } else {
-                            StoryCharacter.ACTIVATION_AUTO
-                        },
-                        activationKeysJson = mGson.toJsonString(
-                            hint.activationKeys.map(String::trim).filter(String::isNotEmpty).distinct()
-                        )
-                    )
-                }
-            )
+            val storyCharacters = matchedCharacters.mapIndexed { index, (characterId, hint) ->
+                StoryCharacter(
+                    storyId = storyId,
+                    characterId = characterId,
+                    sortOrder = index,
+                    activationMode = when (hint.activationMode) {
+                        StoryArchiveCodec.MODE_PRIMARY -> StoryCharacter.ACTIVATION_PRIMARY
+                        StoryArchiveCodec.MODE_ALWAYS -> StoryCharacter.ACTIVATION_ALWAYS
+                        else -> StoryCharacter.ACTIVATION_AUTO
+                    }
+                )
+            }
+            if (storyCharacters.isNotEmpty()) mStoryCharacterDao.insertAll(storyCharacters)
+            val storyLorebookEntries = matchedEntries.map { entryId ->
+                StoryLorebookEntry(
+                    storyId = storyId,
+                    lorebookEntryId = entryId
+                )
+            }
+            if (storyLorebookEntries.isNotEmpty()) {
+                mStoryLorebookEntryDao.insertAll(storyLorebookEntries)
+            }
             storyId
         }
     }
@@ -121,36 +130,32 @@ class StoryArchiveRepository(
             mCharacterDao.getCharacterById(relation.characterId)?.let { relation to it }
         }
         val lorebooks = mLorebookDao.getAllLorebooks().associateBy { it.id }
-        val selectedEntries = runCatching {
-            mGson.fromJson(story.lorebookEntrySet, Array<Long>::class.java).orEmpty().toList()
-        }.getOrDefault(emptyList()).mapNotNull { mLorebookEntryDao.getEntryById(it) }
+        val selectedEntries = mStoryLorebookEntryDao.getByStoryId(storyId).mapNotNull { relation ->
+            mLorebookEntryDao.getEntryById(relation.lorebookEntryId)?.let { entry ->
+                relation to entry
+            }
+        }
         return StoryArchive(
             story = ArchivedStory(
                 title = story.title,
                 content = story.content,
                 memory = story.memory,
                 summary = story.summary,
-                authorNote = story.authorNote
+                authorNote = story.authorNote,
+                includeUserPersona = story.includeUserPersona
             ),
             characterHints = characters.map { (relation, character) ->
                 StoryCharacterHint(
                     name = character.name,
                     fingerprint = ChatCharacterMatcher.fingerprintOf(character),
-                    activationMode = if (
-                        relation.activationMode == StoryCharacter.ACTIVATION_ALWAYS
-                    ) {
-                        StoryArchiveCodec.MODE_ALWAYS
-                    } else {
-                        StoryArchiveCodec.MODE_AUTO
-                    },
-                    activationKeys = runCatching {
-                        mGson.fromJson(relation.activationKeysJson, Array<String>::class.java)
-                            .orEmpty()
-                            .toList()
-                    }.getOrDefault(emptyList())
+                    activationMode = when (relation.activationMode) {
+                        StoryCharacter.ACTIVATION_PRIMARY -> StoryArchiveCodec.MODE_PRIMARY
+                        StoryCharacter.ACTIVATION_ALWAYS -> StoryArchiveCodec.MODE_ALWAYS
+                        else -> StoryArchiveCodec.MODE_AUTO
+                    }
                 )
             },
-            lorebookHints = selectedEntries.map { entry ->
+            lorebookHints = selectedEntries.map { (_, entry) ->
                 StoryLorebookHint(
                     lorebookName = lorebooks[entry.lorebookId]?.name.orEmpty(),
                     entryName = entry.name,
@@ -182,6 +187,7 @@ class StoryArchiveRepository(
         lorebooks: List<Lorebook>
     ): List<Long> {
         val lorebookNames = lorebooks.associate { it.id to it.name }
+        val selectedEntryIds = mutableSetOf<Long>()
         return hints.mapNotNull { hint ->
             val fingerprintMatches = entries.filter {
                 hint.fingerprint.equals(fingerprintOf(it), ignoreCase = true)
@@ -193,8 +199,8 @@ class StoryArchiveRepository(
                             ?.trim()
                             ?.equals(hint.lorebookName.trim(), ignoreCase = true) == true
                 }.singleOrNull()
-            match?.id
-        }.distinct()
+            match?.takeIf { selectedEntryIds.add(it.id) }?.id
+        }
     }
 
     private fun fingerprintOf(entry: LorebookEntry): String {

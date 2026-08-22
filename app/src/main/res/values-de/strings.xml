@@ -840,8 +840,9 @@
     <string name="story_no_characters">Erstelle zuerst eine Figurenkarte, um Referenzen hinzuzufügen.</string>
     <string name="story_character_always">Immer</string>
     <string name="story_character_auto">Auto</string>
-    <string name="story_character_aliases">Geschichtsaliase</string>
-    <string name="story_character_aliases_desc">Aliase durch Kommas trennen. Sie gelten nur für diese Geschichte.</string>
+    <string name="story_include_user_persona">Benutzerpersona einbeziehen</string>
+    <string name="story_include_user_persona_desc">Fügt die aktuelle globale Benutzerbeschreibung zum KI-Schreibkontext hinzu.</string>
+    <string name="story_character_primary">Protagonist</string>
     <string name="story_linked_lorebook">Verknüpftes Weltenbuch: %1$s</string>
     <string name="story_lorebook_desc">Wähle verfügbare Einträge. Schlüsselwort- und Daueraktivierung werden beim KI-Schreiben angewendet.</string>
     <string name="story_lorebook_empty">Dieses Weltenbuch enthält keine Einträge.</string>

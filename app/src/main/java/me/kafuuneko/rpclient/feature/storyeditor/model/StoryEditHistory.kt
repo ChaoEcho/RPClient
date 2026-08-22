@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
+
 /**
  * 保存当前编辑器会话中的正文修改历史。
  *
@@ -55,7 +57,7 @@ internal class StoryEditHistory(
     fun recordManualEdit(
         previousContent: String,
         currentContent: String,
-        worldInfoStateJson: String,
+        worldInfoStates: List<StoryLorebookRuntimeState>,
         worldInfoGenerationStep: Int,
         eventTimeMillis: Long = System.currentTimeMillis()
     ) {
@@ -97,9 +99,9 @@ internal class StoryEditHistory(
                     combinedChange.start,
                     combinedChange.previousEnd
                 ),
-                previousWorldInfoStateJson = worldInfoStateJson,
+                previousWorldInfoStates = worldInfoStates.toList(),
                 previousWorldInfoGenerationStep = worldInfoGenerationStep,
-                nextWorldInfoStateJson = worldInfoStateJson,
+                nextWorldInfoStates = worldInfoStates.toList(),
                 nextWorldInfoGenerationStep = worldInfoGenerationStep,
                 source = StoryEditSource.User
             )

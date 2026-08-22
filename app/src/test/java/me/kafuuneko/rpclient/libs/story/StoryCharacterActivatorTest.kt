@@ -1,8 +1,12 @@
 package me.kafuuneko.rpclient.libs.story
 
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterCandidate
+import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntryCandidate
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -14,14 +18,14 @@ class StoryCharacterActivatorTest {
         val candidates = listOf(
             candidate(2L, "Alice", 2, StoryCharacter.ACTIVATION_AUTO),
             candidate(1L, "Bob", 0, StoryCharacter.ACTIVATION_ALWAYS),
-            candidate(3L, "林月", 1, StoryCharacter.ACTIVATION_AUTO, listOf("月姐"))
+            candidate(3L, "林月", 1, StoryCharacter.ACTIVATION_AUTO)
         )
 
-        val result = mActivator.activate(candidates, "ALICE met 月姐 beside the gate.")
+        val result = mActivator.activate(candidates, "ALICE met 林月 beside the gate.")
 
         assertEquals(listOf(1L, 3L, 2L), result.map { it.candidate.character.id })
         assertEquals(StoryCharacterActivationReason.Always, result[0].reason)
-        assertEquals(StoryCharacterActivationReason.Alias, result[1].reason)
+        assertEquals(StoryCharacterActivationReason.Name, result[1].reason)
         assertEquals(StoryCharacterActivationReason.Name, result[2].reason)
     }
 
@@ -37,12 +41,88 @@ class StoryCharacterActivatorTest {
         assertEquals(listOf(2L), result.map { it.candidate.character.id })
     }
 
+    @Test
+    fun primaryCharacterAlwaysActivatesBeforeOtherCharacters() {
+        val result = mActivator.activate(
+            candidates = listOf(
+                candidate(1L, "Alice", 1, StoryCharacter.ACTIVATION_AUTO),
+                candidate(
+                    2L,
+                    "Bob",
+                    0,
+                    StoryCharacter.ACTIVATION_PRIMARY
+                )
+            ),
+            scanText = "No character name appears here."
+        )
+
+        assertEquals(listOf(2L), result.map { it.candidate.character.id })
+        assertEquals(StoryCharacterActivationReason.Primary, result.single().reason)
+    }
+
+    @Test
+    fun promptFieldsResolveEachCharactersCardNameAndSharedUserIndependently() {
+        val alice = mActivator.activate(
+            listOf(
+                candidate(
+                    id = 1L,
+                    name = "Alice",
+                    order = 0,
+                    mode = StoryCharacter.ACTIVATION_ALWAYS,
+                    description = "{{char}} protects {{ user }} and <USER>.",
+                    personality = "<BOT> stays calm.",
+                    scenario = "{{CHAR}} waits."
+                )
+            ),
+            ""
+        ).single().resolveForPrompt("Reader")
+        val bob = mActivator.activate(
+            listOf(candidate(2L, "Bob", 0, StoryCharacter.ACTIVATION_ALWAYS)),
+            ""
+        ).single().resolveForPrompt("Reader")
+
+        assertEquals("Alice", alice.name)
+        assertEquals("Alice protects Reader and Reader.", alice.description)
+        assertEquals("Alice stays calm.", alice.personality)
+        assertEquals("Alice waits.", alice.scenario)
+        assertEquals("Bob", bob.name)
+    }
+
+    @Test
+    fun userPersonaResolvesUserButKeepsAmbiguousCharacterMacro() {
+        assertEquals(
+            "User Persona (Reader):\nReader observes {{char}}.",
+            renderStoryUserPersona("Reader", "{{user}} observes {{char}}.")
+        )
+        assertEquals("", renderStoryUserPersona("Reader", ""))
+    }
+
+    @Test
+    fun lorebookMacrosPreferFirstCharacterLinkedToLorebookThenPrimaryFallback() {
+        val characterNames = listOf(
+            candidate(1L, "Alice", 0, StoryCharacter.ACTIVATION_ALWAYS, lorebookId = 3L),
+            candidate(2L, "Bob", 1, StoryCharacter.ACTIVATION_ALWAYS, lorebookId = 3L)
+        ).lorebookCharacterNames()
+        val linked = lorebookCandidate().resolveForPrompt(characterNames[3L], "Reader", Gson())
+        val primary = lorebookCandidate().resolveForPrompt("Primary", "Reader", Gson())
+        val unresolved = lorebookCandidate().resolveForPrompt(null, "Reader", Gson())
+
+        assertEquals("Alice met Reader.", linked.content)
+        assertEquals(listOf("Alice", "Reader"), linked.getKeywordList())
+        assertEquals("Primary met Reader.", primary.content)
+        assertEquals("{{char}} met Reader.", unresolved.content)
+        assertEquals(listOf("{{char}}", "Reader"), unresolved.getKeywordList())
+    }
+
     private fun candidate(
         id: Long,
         name: String,
         order: Int,
         mode: Int,
-        aliases: List<String> = emptyList()
+        description: String = "Description",
+        personality: String = "Personality",
+        scenario: String = "Scenario",
+        lorebookId: Long = 0L
     ): StoryCharacterCandidate {
         return StoryCharacterCandidate(
             relation = StoryCharacter(1L, id, order, mode),
@@ -51,14 +131,34 @@ class StoryCharacterActivatorTest {
                 name = name,
                 avatar = "",
                 characterTags = "[]",
-                description = "Description",
-                personality = "Personality",
-                scenario = "Scenario",
+                description = description,
+                personality = personality,
+                scenario = scenario,
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
+                postHistoryInstructions = "",
+                characterLorebookId = lorebookId
+            )
+        )
+    }
+
+    private fun lorebookCandidate(): StoryLorebookEntryCandidate {
+        return StoryLorebookEntryCandidate(
+            relation = StoryLorebookEntry(
+                storyId = 1L,
+                lorebookEntryId = 2L
             ),
-            activationKeys = aliases
+            entry = LorebookEntry(
+                id = 2L,
+                lorebookId = 3L,
+                name = "Entry",
+                keywords = "[\"{{char}}\",\"{{user}}\"]",
+                secondaryKeywords = "[\"<BOT>\"]",
+                order = 0,
+                depth = 0,
+                category = "[]",
+                content = "{{char}} met {{user}}."
+            )
         )
     }
 }

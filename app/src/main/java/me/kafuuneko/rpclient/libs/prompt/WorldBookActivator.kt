@@ -72,7 +72,8 @@ class WorldBookActivator {
     fun activateStructured(context: WorldBookScanContext): WorldBookActivationResult {
         val messageCount = context.totalMessageCount
         // 加载并校验时序状态，若聊天发生回滚则自动重置时钟
-        val state = TimedWorldInfoState.fromJson(context.worldInfoStateJson, mGson)
+        val state = (context.worldInfoState
+            ?: WorldInfoRuntimeState.fromJson(context.worldInfoStateJson, mGson))
             .discardIfChatRewound(messageCount)
         val activated = linkedMapOf<Long, LorebookEntry>()
         val timedStickyIds = mutableSetOf<Long>()
@@ -158,8 +159,8 @@ class WorldBookActivator {
 
         // 转换为按位置结构化分组的激活结果对象
         return activated.values.toList().toActivationResult(
-            nextStateJson = nextState.toJson(mGson),
-            previousStateJson = context.worldInfoStateJson,
+            nextState = nextState,
+            previousState = state,
             messageCount = messageCount
         )
     }
@@ -168,7 +169,7 @@ class WorldBookActivator {
      * 预算裁剪后重新生成时序状态，避免未实际注入 Prompt 的条目进入 sticky/cooldown。
      */
     fun resolveNextState(result: WorldBookActivationResult): WorldBookActivationResult {
-        val state = TimedWorldInfoState.fromJson(result.previousStateJson, mGson)
+        val state = result.previousState
             .discardIfChatRewound(result.messageCount)
         val stickyIds = result.activatedEntries
             .filter { it.isStickyActive(state, result.messageCount) }
@@ -184,7 +185,10 @@ class WorldBookActivator {
             stickyIds = stickyIds,
             freshTimedIds = freshTimedIds
         )
-        return result.copy(nextStateJson = nextState.toJson(mGson))
+        return result.copy(
+            nextStateJson = nextState.toJson(mGson),
+            nextState = nextState
+        )
     }
 
     /** 计算单个条目在当前扫描文本中的匹配命中得分，未命中时返回 null。 */
@@ -442,8 +446,8 @@ class WorldBookActivator {
      * 合并为一条消息，避免协议后处理改变条目之间的相对顺序。
      */
     private fun List<LorebookEntry>.toActivationResult(
-        nextStateJson: String,
-        previousStateJson: String,
+        nextState: WorldInfoRuntimeState,
+        previousState: WorldInfoRuntimeState,
         messageCount: Int
     ): WorldBookActivationResult {
         val before = mutableListOf<LorebookEntry>()
@@ -490,14 +494,19 @@ class WorldBookActivator {
             anBottom = anBottom,
             depthEntries = depth,
             outletEntries = outlet,
-            nextStateJson = nextStateJson,
-            previousStateJson = previousStateJson,
-            messageCount = messageCount
+            nextStateJson = nextState.toJson(mGson),
+            previousStateJson = previousState.toJson(mGson),
+            messageCount = messageCount,
+            nextState = nextState,
+            previousState = previousState
         )
     }
 
     /** 检查条目是否处于 Sticky 保持生效期内。 */
-    private fun LorebookEntry.isStickyActive(state: TimedWorldInfoState, messageCount: Int): Boolean {
+    private fun LorebookEntry.isStickyActive(
+        state: WorldInfoRuntimeState,
+        messageCount: Int
+    ): Boolean {
         if (disabled) return false
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
@@ -505,7 +514,10 @@ class WorldBookActivator {
     }
 
     /** 检查条目是否处于 Cooldown 冷却期内。 */
-    private fun LorebookEntry.isOnCooldown(state: TimedWorldInfoState, messageCount: Int): Boolean {
+    private fun LorebookEntry.isOnCooldown(
+        state: WorldInfoRuntimeState,
+        messageCount: Int
+    ): Boolean {
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
         return messageCount >= item.stickyUntil && messageCount < item.cooldownUntil
@@ -579,9 +591,11 @@ class WorldBookActivator {
     }
 
     /** 检查会话是否回滚，若当前消息轮数小于最后记录轮数则丢弃旧时序状态。 */
-    private fun TimedWorldInfoState.discardIfChatRewound(messageCount: Int): TimedWorldInfoState {
+    private fun WorldInfoRuntimeState.discardIfChatRewound(
+        messageCount: Int
+    ): WorldInfoRuntimeState {
         if (lastMessageCount <= messageCount) return this
-        return TimedWorldInfoState(lastMessageCount = messageCount)
+        return WorldInfoRuntimeState(lastMessageCount = messageCount)
     }
 
     /**
@@ -590,12 +604,12 @@ class WorldBookActivator {
      * 仍处于 sticky 的条目复用原期限，新触发条目从当前消息数开始计算；已过期记录
      * 会先清理，防止状态 JSON 随会话轮次无限增长。
      */
-    private fun TimedWorldInfoState.next(
+    private fun WorldInfoRuntimeState.next(
         messageCount: Int,
         entries: List<LorebookEntry>,
         stickyIds: Set<Long>,
         freshTimedIds: Set<Long>
-    ): TimedWorldInfoState {
+    ): WorldInfoRuntimeState {
         // 清理已过期的时序记录
         val nextEntries = this.entries
             .filterValues { it.cooldownUntil > messageCount || it.stickyUntil > messageCount }
@@ -609,7 +623,7 @@ class WorldBookActivator {
                 entry.id in freshTimedIds -> {
                     val stickyUntil = messageCount + (entry.sticky ?: 0).coerceAtLeast(0)
                     val cooldownUntil = stickyUntil + (entry.cooldown ?: 0).coerceAtLeast(0)
-                    nextEntries[key] = TimedEntryState(
+                    nextEntries[key] = WorldInfoEntryRuntimeState(
                         activatedAt = messageCount,
                         stickyUntil = stickyUntil,
                         cooldownUntil = cooldownUntil,
@@ -619,7 +633,7 @@ class WorldBookActivator {
             }
         }
 
-        return TimedWorldInfoState(
+        return WorldInfoRuntimeState(
             lastMessageCount = messageCount,
             entries = nextEntries
         )
@@ -665,7 +679,8 @@ data class WorldBookScanContext(
     val characterPersonality: String = "",
     val characterDepthPrompt: String = "",
     val scenario: String = "",
-    val creatorNotes: String = ""
+    val creatorNotes: String = "",
+    val worldInfoState: WorldInfoRuntimeState? = null
 )
 
 /** 世界书扫描使用的轻量消息，显式保留发言者名称。 */
@@ -707,7 +722,9 @@ data class WorldBookActivationResult(
     val outletEntries: Map<String, List<LorebookEntry>> = emptyMap(),
     val nextStateJson: String = "{}",
     val previousStateJson: String = "{}",
-    val messageCount: Int = 0
+    val messageCount: Int = 0,
+    val nextState: WorldInfoRuntimeState = WorldInfoRuntimeState(),
+    val previousState: WorldInfoRuntimeState = WorldInfoRuntimeState()
 )
 
 /** 在聊天历史指定深度插入的一组同角色世界书条目。 */
@@ -717,27 +734,27 @@ data class WorldBookDepthEntry(
     val entries: MutableList<LorebookEntry>
 )
 
-/** 世界书时序控制持久化状态模型。 */
-private data class TimedWorldInfoState(
+/** 世界书激活器使用的结构化时序状态；具体持久化形式由调用方决定。 */
+data class WorldInfoRuntimeState(
     val lastMessageCount: Int = 0,
-    val entries: Map<String, TimedEntryState> = emptyMap()
+    val entries: Map<String, WorldInfoEntryRuntimeState> = emptyMap()
 ) {
     fun toJson(gson: Gson): String {
         return gson.toJson(this)
     }
 
     companion object {
-        fun fromJson(json: String, gson: Gson): TimedWorldInfoState {
-            if (json.isBlank()) return TimedWorldInfoState()
+        fun fromJson(json: String, gson: Gson): WorldInfoRuntimeState {
+            if (json.isBlank()) return WorldInfoRuntimeState()
             return runCatching {
-                gson.fromJson(JsonParser.parseString(json), TimedWorldInfoState::class.java)
-            }.getOrNull() ?: TimedWorldInfoState()
+                gson.fromJson(JsonParser.parseString(json), WorldInfoRuntimeState::class.java)
+            }.getOrNull() ?: WorldInfoRuntimeState()
         }
     }
 }
 
 /** 单个条目的时序状态（激活轮次、Sticky 截止轮次、Cooldown 截止轮次与行为签名）。 */
-private data class TimedEntryState(
+data class WorldInfoEntryRuntimeState(
     val activatedAt: Int = 0,
     val stickyUntil: Int = 0,
     val cooldownUntil: Int = 0,
