@@ -64,6 +64,10 @@ sealed class MainDialogState {
         val draftValue: String
     ) : MainDialogState()
 
+    data class EditUserDescription(
+        val draftText: String
+    ) : MainDialogState()
+
     data class ImportChatCharacterSelection(
         val title: String,
         val sourceCharacterName: String,

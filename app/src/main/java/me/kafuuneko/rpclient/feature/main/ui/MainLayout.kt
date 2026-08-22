@@ -85,6 +85,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,6 +101,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -142,6 +145,7 @@ import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
+import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
@@ -153,6 +157,7 @@ import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
+import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
@@ -162,7 +167,10 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import androidx.compose.material.icons.rounded.Image as ImageIcon
+
+private val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
 
 /** 主页面 Compose 入口，承载首页聊天与故事列表以及全局设置。 */
 @Composable
@@ -355,6 +363,17 @@ private fun DialogSwitch(
             onValueChange = { MainUiIntent.ChangeGenerationParameterDraft(it).emit() },
             onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
             onDismiss = { MainUiIntent.DismissDialog.emit() }
+        )
+
+        is MainDialogState.EditUserDescription -> AppPromptEditorDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.user_persona_description),
+            value = dialogState.draftText,
+            availableMacros = USER_PERSONA_MACROS,
+            onValueChange = {
+                MainUiIntent.ChangeUserDescriptionEditorDraft(it).emit()
+            },
+            onConfirm = { MainUiIntent.ConfirmUserDescriptionEditor.emit() }
         )
 
         is MainDialogState.ImportChatCharacterSelection -> ImportChatCharacterDialog(
@@ -1485,14 +1504,12 @@ private fun UserIdentityPanel(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                UserPersonaDescriptionField(
                     value = state.userDescription,
                     onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
-                    label = { Text(stringResource(R.string.user_persona_description)) },
-                    minLines = 2,
-                    maxLines = 4,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    onExpandFullscreen = {
+                        MainUiIntent.ShowUserDescriptionEditor.emit()
+                    }
                 )
                 if (state.avatarState is MainUserAvatarState.Configured) {
                     Row(
@@ -1518,6 +1535,65 @@ private fun UserIdentityPanel(
                 }
             }
         }
+    }
+}
+
+/** 带宏高亮、光标插入快捷栏和全屏编辑入口的用户人设描述输入框。 */
+@Composable
+private fun UserPersonaDescriptionField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onExpandFullscreen: () -> Unit
+) {
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(value, selection = TextRange(value.length)))
+    }
+    LaunchedEffect(value) {
+        if (value != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(
+                text = value,
+                selection = TextRange(
+                    textFieldValue.selection.start.coerceIn(0, value.length),
+                    textFieldValue.selection.end.coerceIn(0, value.length)
+                )
+            )
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedTextField(
+            value = textFieldValue,
+            onValueChange = {
+                textFieldValue = it
+                onValueChange(it.text)
+            },
+            label = { Text(stringResource(R.string.user_persona_description)) },
+            minLines = 2,
+            maxLines = 4,
+            shape = RoundedCornerShape(14.dp),
+            visualTransformation = rememberPromptMacroVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+        RpMacroActionBar(
+            onInsertMacro = { macro ->
+                val start = minOf(
+                    textFieldValue.selection.start,
+                    textFieldValue.selection.end
+                )
+                val end = maxOf(
+                    textFieldValue.selection.start,
+                    textFieldValue.selection.end
+                )
+                val updatedText = textFieldValue.text.replaceRange(start, end, macro)
+                textFieldValue = TextFieldValue(
+                    text = updatedText,
+                    selection = TextRange(start + macro.length)
+                )
+                onValueChange(updatedText)
+            },
+            onFullscreenClick = onExpandFullscreen,
+            macros = USER_PERSONA_MACROS
+        )
     }
 }
 

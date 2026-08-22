@@ -74,6 +74,7 @@ sealed class CharacterEditDialogState {
 
 /** 可通过全屏 Prompt 编辑器修改的角色字段。 */
 sealed class CharacterPromptField {
+    data object Description : CharacterPromptField()
     data object Personality : CharacterPromptField()
     data object Scenario : CharacterPromptField()
     data class FirstMessage(val index: Int) : CharacterPromptField()

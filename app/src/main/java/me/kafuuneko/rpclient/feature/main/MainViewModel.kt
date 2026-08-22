@@ -839,6 +839,44 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 在全屏 Prompt 编辑器中打开用户人设描述。 */
+    @UiIntentObserver(MainUiIntent.ShowUserDescriptionEditor::class)
+    private fun onShowUserDescriptionEditor() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (!uiState.canOpenDialog()) return
+        uiState.copy(
+            dialogState = MainDialogState.EditUserDescription(
+                draftText = uiState.settingsState.identityState.userDescription
+            )
+        ).setup()
+    }
+
+    /** 修改全屏用户人设描述的暂存文本，确认前不写入偏好设置。 */
+    @UiIntentObserver(MainUiIntent.ChangeUserDescriptionEditorDraft::class)
+    private fun onChangeUserDescriptionEditorDraft(
+        intent: MainUiIntent.ChangeUserDescriptionEditorDraft
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.EditUserDescription ?: return
+        uiState.copy(dialogState = dialog.copy(draftText = intent.value)).setup()
+    }
+
+    /** 保存全屏编辑器中的用户人设描述并关闭弹窗。 */
+    @UiIntentObserver(MainUiIntent.ConfirmUserDescriptionEditor::class)
+    private fun onConfirmUserDescriptionEditor() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.EditUserDescription ?: return
+        AppModel.userDescription = dialog.draftText.trim()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                identityState = uiState.settingsState.identityState.copy(
+                    userDescription = dialog.draftText
+                )
+            ),
+            dialogState = MainDialogState.None
+        ).setup()
+    }
+
     /** 切换全局默认使用的 LLM 供应商。 */
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
     private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {

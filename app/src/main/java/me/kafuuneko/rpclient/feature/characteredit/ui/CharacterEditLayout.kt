@@ -11,14 +11,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -26,12 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material3.Button
@@ -44,7 +39,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -484,7 +478,10 @@ private fun ProfileBasicPanel(
             label = stringResource(R.string.character_description),
             value = form.description,
             minLines = 3,
-            leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
+            showMacroBar = true,
+            onExpandFullscreen = {
+                CharacterEditUiIntent.ShowPromptEditor(CharacterPromptField.Description).emit()
+            },
             onChange = { CharacterEditUiIntent.ChangeDescription(it).emit() }
         )
         FormTextField(
@@ -561,7 +558,6 @@ private fun FirstMessagesPanel(
                 label = label,
                 value = message,
                 minLines = 3,
-                leadingIcon = { Icon(Icons.Rounded.ChatBubble, contentDescription = null) },
                 showMacroBar = true,
                 onExpandFullscreen = {
                     CharacterEditUiIntent.ShowPromptEditor(
@@ -868,6 +864,7 @@ private fun DialogSwitch(
 @Composable
 private fun CharacterPromptField.editorTitle(): String {
     return when (this) {
+        CharacterPromptField.Description -> stringResource(R.string.character_description)
         CharacterPromptField.Personality -> stringResource(R.string.character_personality)
         CharacterPromptField.Scenario -> stringResource(R.string.character_scenario)
         is CharacterPromptField.FirstMessage -> stringResource(
@@ -903,7 +900,6 @@ private fun FormTextField(
     minLines: Int = 1,
     maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     keyboardType: KeyboardType = KeyboardType.Text,
-    leadingIcon: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
     showMacroBar: Boolean = false,
     macros: List<String> = DEFAULT_PROMPT_MACROS,
@@ -945,7 +941,6 @@ private fun FormTextField(
             minLines = minLines,
             maxLines = maxLines.coerceAtLeast(minLines),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            leadingIcon = leadingIcon,
             visualTransformation = visualTransformation,
             shape = RoundedCornerShape(12.dp)
         )
@@ -1027,7 +1022,6 @@ private fun ListTextField(
                 label = { Text(label) },
                 minLines = minLines,
                 maxLines = maxLines.coerceAtLeast(minLines),
-                leadingIcon = leadingIcon,
                 visualTransformation = visualTransformation,
                 shape = RoundedCornerShape(12.dp)
             )
@@ -1211,15 +1205,6 @@ private fun CharacterNoteRoleSelector(
                 selected = currentRole == roleValue,
                 onClick = { onRoleSelected(roleValue.toString()) },
                 shape = RoundedCornerShape(10.dp),
-                leadingIcon = if (currentRole == roleValue) {
-                    {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                } else null,
                 label = {
                     Text(
                         text = label,

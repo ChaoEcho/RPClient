@@ -567,6 +567,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 根据目标枚举字段读取对应的 Prompt 文本内容。 */
     private fun CharacterEditForm.promptText(field: CharacterPromptField): String? {
         return when (field) {
+            CharacterPromptField.Description -> description
             CharacterPromptField.Personality -> personality
             CharacterPromptField.Scenario -> scenario
             is CharacterPromptField.FirstMessage -> firstMessages.getOrNull(field.index)
@@ -584,6 +585,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         text: String
     ): CharacterEditForm {
         return when (field) {
+            CharacterPromptField.Description -> copy(description = text)
             CharacterPromptField.Personality -> copy(personality = text)
             CharacterPromptField.Scenario -> copy(scenario = text)
             is CharacterPromptField.FirstMessage -> copy(

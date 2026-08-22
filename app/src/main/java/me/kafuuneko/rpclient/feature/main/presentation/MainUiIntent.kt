@@ -74,6 +74,12 @@ sealed class MainUiIntent {
 
     data class ChangeUserDescription(val value: String) : MainUiIntent()
 
+    data object ShowUserDescriptionEditor : MainUiIntent()
+
+    data class ChangeUserDescriptionEditorDraft(val value: String) : MainUiIntent()
+
+    data object ConfirmUserDescriptionEditor : MainUiIntent()
+
     data class SelectProvider(val providerId: Long) : MainUiIntent()
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
