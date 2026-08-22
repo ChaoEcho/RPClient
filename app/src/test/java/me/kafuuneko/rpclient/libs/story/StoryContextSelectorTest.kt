@@ -34,7 +34,7 @@ class StoryContextSelectorTest {
     }
 
     @Test
-    fun continuationGuidanceParticipatesInCharacterActivationButNotWorldBookScanning() {
+    fun continuationGuidanceParticipatesInCharacterAndWorldBookScanning() {
         val content = "The empty station fell silent."
         val guidance = "Switch to Alice's point of view."
 
@@ -48,7 +48,7 @@ class StoryContextSelectorTest {
         )
 
         assertTrue(result.activationScanText.contains(guidance))
-        assertFalse(result.worldBookScanText.contains(guidance))
+        assertTrue(result.worldBookScanText.contains(guidance))
     }
 
     @Test

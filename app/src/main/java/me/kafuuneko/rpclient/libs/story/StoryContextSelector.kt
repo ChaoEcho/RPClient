@@ -56,13 +56,16 @@ class StoryContextSelector {
 
         // 提取邻近段落文本用于世界书与角色激活匹配
         val activationRanges = neighboring.take(ACTIVATION_PARAGRAPH_COUNT).map { it.first }
-        val worldBookScanText = buildList {
+        val documentScanText = buildList {
             activationRanges.sortedBy { it.start }.forEach { add(content.substring(it.start, it.end)) }
+        }.joinToString("\n\n")
+        val worldBookScanText = buildList {
+            documentScanText.takeIf(String::isNotBlank)?.let(::add)
+            continuationGuidance.takeIf(String::isNotBlank)?.let(::add)
         }.joinToString("\n\n")
         val activationScanText = buildList {
             worldBookScanText.takeIf(String::isNotBlank)?.let(::add)
             authorNote.takeIf(String::isNotBlank)?.let(::add)
-            continuationGuidance.takeIf(String::isNotBlank)?.let(::add)
         }.joinToString("\n\n")
 
         // 将段落按 Token 粒度拆解为候选上下文块
