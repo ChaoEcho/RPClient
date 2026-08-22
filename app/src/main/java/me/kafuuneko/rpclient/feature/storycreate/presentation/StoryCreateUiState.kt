@@ -12,10 +12,15 @@ sealed class StoryCreateUiState {
         val loadState: StoryCreateLoadState = StoryCreateLoadState.Loading,
         val form: StoryCreateForm = StoryCreateForm(),
         val characters: List<StoryCreateCharacterItem> = emptyList(),
+        val characterQuery: String = "",
+        val visibleCharacters: List<StoryCreateCharacterItem> = characters,
         val lorebookQuery: String = "",
         val lorebookGroups: List<StoryCreateLorebookGroupItem> = emptyList(),
         val visibleLorebookGroups: List<StoryCreateLorebookGroupItem> = lorebookGroups
-    ) : StoryCreateUiState()
+    ) : StoryCreateUiState() {
+        val selectedCharacterCount: Int
+            get() = form.selectedCharacterIds.size
+    }
 
     data class Finished(val previous: StoryCreateUiState) : StoryCreateUiState()
 

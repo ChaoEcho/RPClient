@@ -2,20 +2,22 @@ package me.kafuuneko.rpclient.feature.storycreate.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -35,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,7 +63,9 @@ import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiInten
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -90,18 +96,24 @@ private fun StoryCreateNormal(
     val searchingLorebooks = state.lorebookQuery.isNotBlank()
     val controlsEnabled = state.loadState == StoryCreateLoadState.Ready
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        AppTopBar(
-            title = stringResource(R.string.story_create_story),
-            onBack = { StoryCreateUiIntent.Back.emit() }
-        )
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.story_create_story),
+                onBack = { StoryCreateUiIntent.Back.emit() }
+            )
+        },
+        bottomBar = {
+            CreateBottomBar(
+                loadState = state.loadState,
+                emit = emit
+            )
+        }
+    ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .padding(horizontal = 18.dp),
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -117,14 +129,24 @@ private fun StoryCreateNormal(
             } else {
                 item { StoryTitleField(state.form, controlsEnabled, emit) }
                 item {
-                    RpSectionHeader(title = stringResource(R.string.story_character_references))
-                }
-                item {
-                    Text(
-                        text = stringResource(R.string.story_character_references_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    RpSectionHeader(
+                        title = stringResource(R.string.story_character_references),
+                        action = stringResource(
+                            R.string.selected_count,
+                            state.selectedCharacterCount
+                        )
                     )
+                }
+                if (state.characters.isNotEmpty()) {
+                    item {
+                        CharacterSearchField(
+                            query = state.characterQuery,
+                            enabled = controlsEnabled,
+                            onQueryChange = {
+                                StoryCreateUiIntent.ChangeCharacterQuery(it).emit()
+                            }
+                        )
+                    }
                 }
                 if (state.characters.isEmpty()) {
                     item {
@@ -133,8 +155,12 @@ private fun StoryCreateNormal(
                             text = stringResource(R.string.story_no_characters)
                         )
                     }
+                } else if (state.visibleCharacters.isEmpty()) {
+                    item {
+                        EmptyCharacterSearchCard()
+                    }
                 }
-                items(state.characters, key = { "character-${it.id}" }) { character ->
+                items(state.visibleCharacters, key = { "character-${it.id}" }) { character ->
                     CharacterOption(
                         character = character,
                         selected = character.id in state.form.selectedCharacterIds,
@@ -196,13 +222,6 @@ private fun StoryCreateNormal(
                         emit = emit
                     )
                 }
-                item {
-                    CreateButton(
-                        title = state.form.title,
-                        loadState = state.loadState,
-                        emit = emit
-                    )
-                }
             }
         }
     }
@@ -233,50 +252,46 @@ private fun CharacterOption(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    val autoLabel = stringResource(R.string.story_character_auto)
-    val linkedLorebookLabel = character.linkedLorebookName?.let { name ->
-        stringResource(R.string.story_linked_lorebook, name)
-    }
+    val accent = getMacaronColor(character.name)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             width = if (selected) 2.dp else 1.dp,
             color = if (selected) {
                 MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             }
         ),
-        colors = CardDefaults.cardColors(
+        colors = CardDefaults.elevatedCardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.32f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
         )
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = selected,
-                enabled = enabled,
-                onCheckedChange = { onClick() }
+            RpAvatar(
+                text = character.name.firstOrNull()?.uppercase() ?: "?",
+                color = accent
             )
-            Spacer(Modifier.width(8.dp))
-            RpIconBubble(Icons.Rounded.Person)
-            Spacer(Modifier.width(12.dp))
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = character.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -289,13 +304,74 @@ private fun CharacterOption(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val tags = buildList {
-                    if (selected) add(autoLabel)
-                    linkedLorebookLabel?.let(::add)
-                    addAll(character.tags)
-                }
-                RpTagRow(tags = tags, maxCount = 4)
             }
+            Surface(
+                modifier = Modifier.size(30.dp),
+                shape = CircleShape,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+            ) {
+                if (selected) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterSearchField(
+    query: String,
+    enabled: Boolean,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        modifier = Modifier.fillMaxWidth(),
+        value = query,
+        onValueChange = onQueryChange,
+        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        placeholder = {
+            Text(
+                text = stringResource(R.string.search_characters),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        enabled = enabled,
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun EmptyCharacterSearchCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Column(
+            modifier = Modifier.padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Rounded.Person,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(stringResource(R.string.no_matching_characters))
         }
     }
 }
@@ -486,26 +562,40 @@ private fun LorebookSearchField(
 }
 
 @Composable
-private fun CreateButton(
-    title: String,
+private fun CreateBottomBar(
     loadState: StoryCreateLoadState,
     emit: StoryCreateUiIntent.() -> Unit
 ) {
     val creating = loadState == StoryCreateLoadState.Creating
-    Button(
-        modifier = Modifier.fillMaxWidth(),
-        enabled = title.isNotBlank() && !creating,
-        onClick = { StoryCreateUiIntent.CreateStory.emit() }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        shadowElevation = 8.dp,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
+        )
     ) {
-        if (creating) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                strokeWidth = 2.dp
-            )
-        } else {
-            Icon(Icons.Rounded.Check, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.story_create_story))
+        Button(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            enabled = loadState == StoryCreateLoadState.Ready,
+            shape = RoundedCornerShape(14.dp),
+            contentPadding = PaddingValues(vertical = 13.dp),
+            onClick = { StoryCreateUiIntent.CreateStory.emit() }
+        ) {
+            if (creating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(Icons.Rounded.Check, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.story_create_story))
+            }
         }
     }
 }

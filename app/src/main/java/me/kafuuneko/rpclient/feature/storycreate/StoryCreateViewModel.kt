@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
@@ -32,7 +33,7 @@ import org.koin.core.component.inject
  * 核心职责：
  * - 异步加载所有候选角色与带有条目的世界书分组列表；
  * - 维护故事标题输入、参演角色选择以及关联世界书条目的联动勾选；
- * - 支持世界书名称、条目名称、内容与关键词的模糊检索过滤；
+ * - 支持角色名称、简介、标签以及世界书内容的模糊检索过滤；
  * - 保证故事实体、参演角色配置与绑定世界书条目的原子级事务创建，并在成功后导航至故事编辑器。
  */
 class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCreateUiState>(
@@ -55,6 +56,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             current.copy(
                 loadState = StoryCreateLoadState.Ready,
                 characters = data.characters,
+                visibleCharacters = data.characters,
                 lorebookGroups = data.lorebookGroups,
                 visibleLorebookGroups = data.lorebookGroups
             ).setup()
@@ -79,6 +81,16 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     @UiIntentObserver(StoryCreateUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: StoryCreateUiIntent.ChangeTitle) {
         updateReadyForm { copy(title = intent.value) }
+    }
+
+    /** 修改角色检索关键词，实时按名称、简介和标签过滤候选角色。 */
+    @UiIntentObserver(StoryCreateUiIntent.ChangeCharacterQuery::class)
+    private fun onChangeCharacterQuery(intent: StoryCreateUiIntent.ChangeCharacterQuery) {
+        val uiState = readyState() ?: return
+        uiState.copy(
+            characterQuery = intent.value,
+            visibleCharacters = uiState.characters.filterCharactersForQuery(intent.value)
+        ).setup()
     }
 
     /**
@@ -153,12 +165,8 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     @UiIntentObserver(StoryCreateUiIntent.CreateStory::class)
     private suspend fun onCreateStory() {
         val uiState = readyState() ?: return
-        val title = uiState.form.title.trim()
-        // 校验标题非空
-        if (title.isEmpty()) {
-            AppViewEvent.PopupToastMessageByResId(R.string.story_title_required).tryEmit()
-            return
-        }
+        val createTime = System.currentTimeMillis()
+        val title = uiState.form.title.trim().ifBlank { createTime.toDefaultChatTitle() }
         // 进入创建中状态
         uiState.copy(loadState = StoryCreateLoadState.Creating).setup()
         try {
@@ -266,6 +274,19 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                 entries.isNotEmpty() -> group.copy(entries = entries)
                 else -> null
             }
+        }
+    }
+
+    /** 根据检索文本匹配角色名称、简介或标签。 */
+    private fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
+        query: String
+    ): List<StoryCreateCharacterItem> {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.isBlank()) return this
+        return filter { character ->
+            character.name.contains(normalizedQuery, ignoreCase = true) ||
+                character.description.contains(normalizedQuery, ignoreCase = true) ||
+                character.tags.any { it.contains(normalizedQuery, ignoreCase = true) }
         }
     }
 
