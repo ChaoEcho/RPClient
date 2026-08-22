@@ -3,6 +3,12 @@ package me.kafuuneko.rpclient.libs.story
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,6 +55,46 @@ class StoryContextSelectorTest {
 
         assertTrue(result.activationScanText.contains(guidance))
         assertTrue(result.worldBookScanText.contains(guidance))
+    }
+
+    @Test
+    fun continuationGuidanceActivatesUnsetWholeWordCjkWorldInfo() {
+        val content = "她站在门口。"
+        val selection = mSelector.select(
+            content = content,
+            target = StoryEditTarget(content.length, content.length),
+            authorNote = "",
+            tokenizer = mTokenizer,
+            promptBudget = 2048,
+            continuationGuidance = "接下来回学校。"
+        )
+        val entry = LorebookEntry(
+            id = 1,
+            lorebookId = 1,
+            name = "School",
+            keywords = """["学校"]""",
+            secondaryKeywords = "[]",
+            constant = false,
+            order = 100,
+            depth = 0,
+            category = "[]",
+            content = "School lore",
+            matchWholeWords = null
+        )
+
+        val activated = WorldBookActivator().activateStructured(
+            WorldBookScanContext(
+                messages = listOf(WorldBookScanMessage("", selection.worldBookScanText)),
+                currentUserMessage = null,
+                totalMessageCount = 1,
+                worldInfoStateJson = "{}",
+                candidateLorebookEntries = listOf(entry),
+                generationType = WorldBookGenerationType.Continue,
+                includeNames = false
+            )
+        )
+
+        assertEquals(listOf(entry), activated.activatedEntries)
     }
 
     @Test

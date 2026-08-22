@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.groupchat
 
 import com.google.gson.JsonParser
 import kotlin.random.Random
+import me.kafuuneko.rpclient.libs.prompt.matchesPlainTextKey
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
@@ -154,11 +155,7 @@ class GroupChatSpeakerSelector {
 
     /** 按完整词边界判断用户是否点名，避免命中名称子串。 */
     private fun String.containsWholeToken(token: String): Boolean {
-        val escaped = Regex.escape(token)
-        return Regex(
-            pattern = """(?<![\p{L}\p{N}_])$escaped(?![\p{L}\p{N}_])""",
-            option = RegexOption.IGNORE_CASE
-        ).containsMatchIn(this)
+        return matchesPlainTextKey(token, ignoreCase = true, matchWholeWords = true)
     }
 
     private companion object {

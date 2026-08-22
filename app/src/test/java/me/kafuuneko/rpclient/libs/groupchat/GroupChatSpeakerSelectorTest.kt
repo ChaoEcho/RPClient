@@ -98,6 +98,26 @@ class GroupChatSpeakerSelectorTest {
     }
 
     @Test
+    fun naturalStrategyRecognizesCjkNameInsideSentence() {
+        val members = listOf(
+            member(1, "小洛", order = 0, talkativeness = 0.0),
+            member(2, "大列巴", order = 1, talkativeness = 1.0)
+        )
+
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Natural),
+            members = members,
+            messages = emptyList(),
+            activationText = "让小洛回答这个问题。",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(9)
+        )
+
+        assertEquals(true, selected.any { it.character.id == 1L })
+    }
+
+    @Test
     fun manualStrategyWithUserInputRequiresAnExplicitActiveSpeaker() {
         val members = listOf(
             member(1, "Lyra", order = 0),
@@ -201,7 +221,8 @@ class GroupChatSpeakerSelectorTest {
         id: Long,
         name: String,
         order: Int,
-        muted: Boolean = false
+        muted: Boolean = false,
+        talkativeness: Double? = null
     ): GroupChatMemberData {
         return GroupChatMemberData(
             relation = GroupChatMember(
@@ -210,11 +231,15 @@ class GroupChatSpeakerSelectorTest {
                 sortOrder = order,
                 muted = muted
             ),
-            character = character(id, name)
+            character = character(id, name, talkativeness)
         )
     }
 
-    private fun character(id: Long, name: String): Character {
+    private fun character(
+        id: Long,
+        name: String,
+        talkativeness: Double? = null
+    ): Character {
         return Character(
             id = id,
             name = name,
@@ -225,7 +250,10 @@ class GroupChatSpeakerSelectorTest {
             scenario = "",
             firstMessages = "",
             examplesOfDialogue = "",
-            postHistoryInstructions = ""
+            postHistoryInstructions = "",
+            extensionsJson = talkativeness
+                ?.let { """{"talkativeness":$it}""" }
+                ?: "{}"
         )
     }
 

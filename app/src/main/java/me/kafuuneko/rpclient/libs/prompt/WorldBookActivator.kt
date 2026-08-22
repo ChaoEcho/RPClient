@@ -275,14 +275,12 @@ class WorldBookActivator {
             return match != null && (!parsed.sticky || match.range.first == 0)
         }
 
-        val ignoreCase = entry.caseSensitive != true
-        val matchWholeWords = entry.matchWholeWords ?: DEFAULT_MATCH_WHOLE_WORDS
-        if (matchWholeWords && keyword.trim().split(Regex("""\s+""")).size == 1) {
-            val escaped = Regex.escape(keyword)
-            val options = if (ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
-            return Regex("""(?<![\p{L}\p{N}_])$escaped(?![\p{L}\p{N}_])""", options).containsMatchIn(this)
-        }
-        return contains(keyword, ignoreCase = ignoreCase)
+        return matchesPlainTextKey(
+            key = keyword,
+            ignoreCase = entry.caseSensitive != true,
+            // 当前编辑器是二态开关；未设置值必须与 UI 的关闭状态保持一致。
+            matchWholeWords = entry.matchWholeWords == true
+        )
     }
 
     /** 校验关键词是否为非空有效字符串。 */
@@ -642,8 +640,6 @@ class WorldBookActivator {
     private companion object {
         /** 条目未指定扫描深度时使用的默认历史消息条数。 */
         const val DEFAULT_SCAN_DEPTH = 2
-        /** SillyTavern 规范默认开启全词匹配。 */
-        const val DEFAULT_MATCH_WHOLE_WORDS = true
         /** 递归扫描最大步数上限，避免循环相互引用导致死循环。 */
         const val MAX_RECURSION_STEPS = 5
         /** 正则表达式关键词支持的修饰标志集合。 */

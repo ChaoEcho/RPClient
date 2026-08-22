@@ -267,8 +267,23 @@ class WorldBookActivatorTest {
     }
 
     @Test
-    fun wholeWordMatchingIsEnabledByDefault() {
+    fun unsetWholeWordMatchingUsesSubstringToMatchEditorState() {
         val entry = lorebookEntry(id = 1L, keywords = """["king"]""")
+
+        val substring = activator.activate(
+            context(listOf(chatMessage("This is not to my liking.")), null, listOf(entry))
+        )
+
+        assertEquals(listOf(entry), substring)
+    }
+
+    @Test
+    fun explicitWholeWordMatchingRejectsLatinSubstring() {
+        val entry = lorebookEntry(
+            id = 1L,
+            keywords = """["king"]""",
+            matchWholeWords = true
+        )
 
         val substring = activator.activate(
             context(listOf(chatMessage("This is not to my liking.")), null, listOf(entry))
@@ -279,6 +294,21 @@ class WorldBookActivatorTest {
 
         assertEquals(emptyList<LorebookEntry>(), substring)
         assertEquals(listOf(entry), wholeWord)
+    }
+
+    @Test
+    fun cjkKeywordUsesSubstringEvenWhenWholeWordMatchingIsEnabled() {
+        val entry = lorebookEntry(
+            id = 1L,
+            keywords = """["学校"]""",
+            matchWholeWords = true
+        )
+
+        val activated = activator.activate(
+            context(emptyList(), "回学校了吗", listOf(entry))
+        )
+
+        assertEquals(listOf(entry), activated)
     }
 
     @Test
@@ -644,7 +674,8 @@ class WorldBookActivatorTest {
         group: String = "",
         groupOverride: Boolean = false,
         useGroupScoring: Boolean = false,
-        triggers: String = "[]"
+        triggers: String = "[]",
+        matchWholeWords: Boolean? = null
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -665,7 +696,8 @@ class WorldBookActivatorTest {
             group = group,
             groupOverride = groupOverride,
             useGroupScoring = useGroupScoring,
-            triggers = triggers
+            triggers = triggers,
+            matchWholeWords = matchWholeWords
         )
     }
 }

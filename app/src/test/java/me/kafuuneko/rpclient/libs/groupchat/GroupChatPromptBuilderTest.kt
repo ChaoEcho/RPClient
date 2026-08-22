@@ -607,6 +607,46 @@ class GroupChatPromptBuilderTest {
         assertTrue(regenerated.messages.any { it.content.contains(entry.content) })
     }
 
+    @Test
+    fun groupMessageActivatesUnsetWholeWordCjkWorldInfo() {
+        val lyra = character(1, "Lyra")
+        val entry = LorebookEntry(
+            id = 2,
+            lorebookId = 1,
+            name = "School",
+            keywords = """["学校"]""",
+            secondaryKeywords = "[]",
+            constant = false,
+            order = 100,
+            depth = 0,
+            category = "[]",
+            content = "School lore",
+            position = LorebookEntry.POSITION_BEFORE,
+            matchWholeWords = null
+        )
+        val context = GroupChatPromptContext(
+            session = GroupChatSession(
+                id = 1,
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex",
+                userDescription = ""
+            ),
+            members = listOf(member(lyra, 0)),
+            speaker = lyra,
+            messages = listOf(
+                message(GroupChatMessage.Source.User, "Alex", "我们回学校吧。")
+            ),
+            provider = provider(),
+            candidateLorebookEntries = listOf(entry)
+        )
+
+        val request = GroupChatPromptBuilder().build(context)
+
+        assertTrue(request.messages.any { it.content.contains(entry.content) })
+    }
+
     private fun character(id: Long, name: String): Character {
         return Character(
             id = id,
