@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 
 /** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
@@ -53,8 +54,8 @@ sealed class MainDialogState {
         val isDeleting: Boolean = false
     ) : MainDialogState()
 
-    data class RenameStory(
-        val storyId: Long,
+    data class RenameItem(
+        val item: MainHomeItemSelection,
         val title: String,
         val isSaving: Boolean = false
     ) : MainDialogState()

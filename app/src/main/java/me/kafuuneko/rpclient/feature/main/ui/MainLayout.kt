@@ -339,17 +339,17 @@ private fun DialogSwitch(
             onConfirm = { MainUiIntent.ConfirmDeleteSelected.emit() },
         )
 
-        is MainDialogState.RenameStory -> AppInputDialog(
+        is MainDialogState.RenameItem -> AppInputDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
-            title = stringResource(R.string.story_rename_story),
+            title = stringResource(R.string.rename),
             value = dialogState.title,
-            onValueChange = { MainUiIntent.ChangeStoryTitleDraft(it).emit() },
-            label = stringResource(R.string.story_title),
+            onValueChange = { MainUiIntent.ChangeItemTitleDraft(it).emit() },
+            label = stringResource(R.string.title),
             confirmText = stringResource(R.string.confirm),
             dismissText = stringResource(R.string.cancel),
             confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
             isConfirmLoading = dialogState.isSaving,
-            onConfirm = { MainUiIntent.ConfirmStoryRename.emit() }
+            onConfirm = { MainUiIntent.ConfirmItemRename.emit() }
         )
 
         is MainDialogState.EditGenerationParameter -> NumericEditDialog(
@@ -1078,6 +1078,17 @@ private fun LazyItemScope.RecentChatSessionCard(
         },
         onLongClick = {
             if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+        },
+        trailingContent = {
+            HomeItemMenu(
+                onRename = {
+                    MainUiIntent.ShowRenameItemDialog(selection).emit()
+                },
+                onDelete = {
+                    MainUiIntent.EnterMultiSelect(selection).emit()
+                    MainUiIntent.ShowDeleteSelectedDialog.emit()
+                }
+            )
         }
     )
 }
@@ -1112,6 +1123,17 @@ private fun LazyItemScope.RecentGroupChatSessionCard(
         },
         onLongClick = {
             if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
+        },
+        trailingContent = {
+            HomeItemMenu(
+                onRename = {
+                    MainUiIntent.ShowRenameItemDialog(selection).emit()
+                },
+                onDelete = {
+                    MainUiIntent.EnterMultiSelect(selection).emit()
+                    MainUiIntent.ShowDeleteSelectedDialog.emit()
+                }
+            )
         }
     )
 }
@@ -1155,9 +1177,9 @@ private fun LazyItemScope.RecentStoryCard(
             if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
         },
         trailingContent = {
-            StoryItemMenu(
+            HomeItemMenu(
                 onRename = {
-                    MainUiIntent.ShowRenameStoryDialog(story.id).emit()
+                    MainUiIntent.ShowRenameItemDialog(selection).emit()
                 },
                 onDelete = {
                     MainUiIntent.EnterMultiSelect(selection).emit()
@@ -1290,7 +1312,7 @@ private fun HomeContentCard(
 }
 
 @Composable
-private fun StoryItemMenu(
+private fun HomeItemMenu(
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {

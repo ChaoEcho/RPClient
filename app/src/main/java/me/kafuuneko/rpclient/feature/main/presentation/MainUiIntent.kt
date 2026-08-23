@@ -32,11 +32,11 @@ sealed class MainUiIntent {
 
     data object OpenCreateStory : MainUiIntent()
 
-    data class ShowRenameStoryDialog(val storyId: Long) : MainUiIntent()
+    data class ShowRenameItemDialog(val item: MainHomeItemSelection) : MainUiIntent()
 
-    data class ChangeStoryTitleDraft(val value: String) : MainUiIntent()
+    data class ChangeItemTitleDraft(val value: String) : MainUiIntent()
 
-    data object ConfirmStoryRename : MainUiIntent()
+    data object ConfirmItemRename : MainUiIntent()
 
     data object OpenCharacterManager : MainUiIntent()
 

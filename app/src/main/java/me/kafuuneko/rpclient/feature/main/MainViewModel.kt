@@ -22,6 +22,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
@@ -288,44 +289,56 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
-    /** 弹出故事重命名弹窗。 */
-    @UiIntentObserver(MainUiIntent.ShowRenameStoryDialog::class)
-    private fun onShowRenameStoryDialog(intent: MainUiIntent.ShowRenameStoryDialog) {
+    /** 弹出首页内容重命名弹窗。 */
+    @UiIntentObserver(MainUiIntent.ShowRenameItemDialog::class)
+    private fun onShowRenameItemDialog(intent: MainUiIntent.ShowRenameItemDialog) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.canOpenDialog()) return
-        val story = uiState.homeState.findStory(intent.storyId) ?: return
+        val title = uiState.homeState.findItemTitle(intent.item) ?: return
         uiState.copy(
-            dialogState = MainDialogState.RenameStory(
-                storyId = story.id,
-                title = story.title
+            dialogState = MainDialogState.RenameItem(
+                item = intent.item,
+                title = title
             )
         ).setup()
     }
 
-    /** 修改故事重命名弹窗中的标题草稿。 */
-    @UiIntentObserver(MainUiIntent.ChangeStoryTitleDraft::class)
-    private fun onChangeStoryTitleDraft(intent: MainUiIntent.ChangeStoryTitleDraft) {
+    /** 修改首页内容重命名弹窗中的标题草稿。 */
+    @UiIntentObserver(MainUiIntent.ChangeItemTitleDraft::class)
+    private fun onChangeItemTitleDraft(intent: MainUiIntent.ChangeItemTitleDraft) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.RenameStory ?: return
+        val dialog = uiState.dialogState as? MainDialogState.RenameItem ?: return
         if (dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(title = intent.value)).setup()
     }
 
-    /** 确认保存故事重命名并刷新首页故事列表。 */
-    @UiIntentObserver(MainUiIntent.ConfirmStoryRename::class)
-    private suspend fun onConfirmStoryRename() {
+    /** 确认保存首页内容的新标题并刷新列表。 */
+    @UiIntentObserver(MainUiIntent.ConfirmItemRename::class)
+    private suspend fun onConfirmItemRename() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.RenameStory ?: return
+        val dialog = uiState.dialogState as? MainDialogState.RenameItem ?: return
         val title = dialog.title.trim()
         if (title.isEmpty() || dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
-            // 在 IO 线程更新故事标题
-            val renamed = withContext(Dispatchers.IO) {
-                mStoryRepository.renameStory(dialog.storyId, title)
+            withContext(Dispatchers.IO) {
+                val itemId = checkNotNull(dialog.item.itemId.toLongOrNull())
+                when (dialog.item.type) {
+                    MainHomeItemType.Chat -> {
+                        checkNotNull(mChatRepository.getSessionById(itemId))
+                        mChatRepository.updateSessionTitle(itemId, title)
+                    }
+
+                    MainHomeItemType.GroupChat -> {
+                        val session = checkNotNull(mGroupChatRepository.getSessionById(itemId))
+                        mGroupChatRepository.updateSession(session.copy(title = title))
+                    }
+
+                    MainHomeItemType.Story -> {
+                        check(mStoryRepository.renameStory(itemId, title))
+                    }
+                }
             }
-            check(renamed) { "Story no longer exists" }
-            // 重新构建首页状态并恢复折叠分组
             val homeState = buildHomeState()
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
@@ -334,9 +347,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
-            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
             val current = getOrNull<MainUiState.Normal>() ?: return
-            val currentDialog = current.dialogState as? MainDialogState.RenameStory ?: return
+            val currentDialog = current.dialogState as? MainDialogState.RenameItem ?: return
             current.copy(dialogState = currentDialog.copy(isSaving = false)).setup()
         }
     }
@@ -349,7 +362,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (importDialog?.isImporting == true) return
         val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
         if (deleteDialog?.isDeleting == true) return
-        val renameDialog = uiState.dialogState as? MainDialogState.RenameStory
+        val renameDialog = uiState.dialogState as? MainDialogState.RenameItem
         if (renameDialog?.isSaving == true) return
         if (importDialog != null) {
             mPendingChatImport = null
@@ -1416,6 +1429,23 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
         val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
         return content.stories.firstOrNull { it.id == storyId }
+    }
+
+    /** 从当前首页快照中读取可重命名内容的标题。 */
+    private fun MainHomeState.findItemTitle(item: MainHomeItemSelection): String? {
+        return when (item.type) {
+            MainHomeItemType.Chat -> allRecentItems
+                .filterIsInstance<MainChatSessionItem>()
+                .firstOrNull { it.id == item.itemId }
+                ?.title
+            MainHomeItemType.GroupChat -> allRecentItems
+                .filterIsInstance<MainGroupChatSessionItem>()
+                .firstOrNull { it.id == item.itemId }
+                ?.title
+            MainHomeItemType.Story -> item.itemId.toLongOrNull()
+                ?.let { storyId -> findStory(storyId) }
+                ?.title
+        }
     }
 
     /** 辅助函数：安全解析整数设置项并应用更新。 */
