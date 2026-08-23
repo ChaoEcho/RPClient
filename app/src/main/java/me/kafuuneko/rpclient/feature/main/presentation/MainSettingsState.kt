@@ -22,6 +22,7 @@ data class MainSettingsState(
 data class MainUserIdentityState(
     val userName: String,
     val userDescription: String,
+    val userDescriptionPreview: String,
     val avatarState: MainUserAvatarState
 )
 

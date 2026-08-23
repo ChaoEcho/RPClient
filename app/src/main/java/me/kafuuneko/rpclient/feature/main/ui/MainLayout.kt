@@ -1515,9 +1515,7 @@ private fun UserIdentityPanel(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (state.userDescription.isNotBlank()) {
-                            state.userDescription
-                        } else {
+                        text = state.userDescriptionPreview.ifBlank {
                             stringResource(R.string.user_persona_description)
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -2586,6 +2584,7 @@ private fun MainLayoutPreview() {
                     identityState = MainUserIdentityState(
                         userName = "You",
                         userDescription = "",
+                        userDescriptionPreview = "",
                         avatarState = MainUserAvatarState.None
                     ),
                     providerState = MainProviderSettingsState.Empty,
@@ -2637,6 +2636,7 @@ private fun MainSettingsLayoutPreview() {
                     identityState = MainUserIdentityState(
                         userName = "KafuuNeko",
                         userDescription = "A traveler exploring AI worlds.",
+                        userDescriptionPreview = "A traveler exploring AI worlds.",
                         avatarState = MainUserAvatarState.None
                     ),
                     providerState = MainProviderSettingsState.Available(

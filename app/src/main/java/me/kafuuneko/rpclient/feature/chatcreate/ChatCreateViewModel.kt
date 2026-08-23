@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -94,6 +95,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             ?.defaultLorebookEntryIds(data.second)
             .orEmpty()
         // 渲染初始就绪状态
+        val userName = AppModel.userName.trim().ifBlank { "You" }
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
             form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
@@ -106,7 +108,11 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 ChatCreateCharacterItem(
                     id = character.id,
                     name = character.name,
-                    description = character.description,
+                    description = resolveCharacterUserMacros(
+                        template = character.description,
+                        characterName = character.name,
+                        userName = userName
+                    ),
                     tags = character.getCharacterTagList()
                 )
             },

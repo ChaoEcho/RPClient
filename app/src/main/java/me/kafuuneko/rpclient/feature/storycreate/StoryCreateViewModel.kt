@@ -14,9 +14,11 @@ import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadSta
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -238,6 +240,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
 
     /** 从数据库拉取所有世界书及其有效条目，以及全量候选角色。 */
     private suspend fun loadOptions(): StoryCreateOptions {
+        val userName = AppModel.userName.trim().ifBlank { "You" }
         val lorebooks = mLorebookRepository.getAllLorebooks()
         val lorebookNames = lorebooks.associate { it.id to it.name }
         // 构建包含条目列表的世界书分组项
@@ -266,7 +269,11 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             StoryCreateCharacterItem(
                 id = character.id,
                 name = character.name,
-                description = character.description,
+                description = resolveCharacterUserMacros(
+                    template = character.description,
+                    characterName = character.name,
+                    userName = userName
+                ),
                 tags = character.getCharacterTagList(),
                 linkedLorebookId = character.characterLorebookId.takeIf { it > 0L },
                 linkedLorebookName = lorebookNames[character.characterLorebookId]

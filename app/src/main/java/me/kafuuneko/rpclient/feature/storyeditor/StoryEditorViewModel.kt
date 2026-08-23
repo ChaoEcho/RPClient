@@ -72,6 +72,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -1927,7 +1928,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             StoryCharacterOptionItem(
                 id = character.id,
                 name = character.name,
-                description = character.description,
+                description = resolveCharacterUserMacros(
+                    template = character.description,
+                    characterName = character.name,
+                    userName = AppModel.userName.trim().ifBlank { "You" }
+                ),
                 selected = relation != null,
                 activationMode = relation?.relation?.activationMode
                     .toStoryCharacterActivationMode(),

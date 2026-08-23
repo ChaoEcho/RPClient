@@ -48,6 +48,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
@@ -1600,7 +1601,11 @@ class GroupChatViewModel :
             GroupChatMemberItem(
                 id = it.character.id,
                 name = it.character.name,
-                description = it.character.description,
+                description = resolveCharacterUserMacros(
+                    template = it.character.description,
+                    characterName = it.character.name,
+                    userName = data.session.userName
+                ),
                 muted = it.relation.muted
             )
         }

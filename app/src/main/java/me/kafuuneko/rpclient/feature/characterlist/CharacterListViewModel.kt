@@ -18,12 +18,14 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiI
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
 import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
@@ -336,12 +338,17 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val characters = withContext(Dispatchers.IO) {
             mCharacterRepository.getAllCharacters()
         }
+        val userName = AppModel.userName.trim().ifBlank { "You" }
         // 构建 UI 渲染列表项
         val allCharacterItems = characters.map { character ->
             CharacterListItem(
                 id = character.id,
                 name = character.name,
-                description = character.description,
+                description = resolveCharacterUserMacros(
+                    template = character.description,
+                    characterName = character.name,
+                    userName = userName
+                ),
                 tags = character.getCharacterTagList(),
                 avatarText = character.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                 avatarColor = CharacterAccentColors[

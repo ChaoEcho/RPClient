@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.message.toMessageContentParts
@@ -44,11 +45,18 @@ fun ChatSession.toChatSessionItem(
 }
 
 /** 将角色实体转换为聊天页展示模型。 */
-fun Character.toChatCharacterItem(avatarImage: ImageBitmap? = null): ChatCharacterItem {
+fun Character.toChatCharacterItem(
+    userName: String,
+    avatarImage: ImageBitmap? = null
+): ChatCharacterItem {
     return ChatCharacterItem(
         id = id,
         name = name,
-        description = description,
+        description = resolveCharacterUserMacros(
+            template = description,
+            characterName = name,
+            userName = userName
+        ),
         personality = personality,
         scenario = scenario,
         examplesOfDialogue = examplesOfDialogue,

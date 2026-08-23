@@ -23,6 +23,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -58,13 +59,18 @@ class GroupChatCreateViewModel :
         GroupChatCreateUiState.Normal(
             loadState = GroupChatCreateLoadState.Loading
         ).setup()
+        val userName = AppModel.userName.trim().ifBlank { "You" }
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters().map {
                 GroupChatCreateCharacterItem(
                     id = it.id,
                     name = it.name,
-                    description = it.description,
+                    description = resolveCharacterUserMacros(
+                        template = it.description,
+                        characterName = it.name,
+                        userName = userName
+                    ),
                     selected = false,
                     characterLorebookId = it.characterLorebookId,
                     greetings = it.getChatFirstMessageList()

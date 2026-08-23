@@ -70,6 +70,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -808,10 +809,16 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val value = intent.value.trim()
         AppModel.userName = value.ifBlank { "You" }
+        val identityState = uiState.settingsState.identityState
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                identityState = uiState.settingsState.identityState.copy(
-                    userName = intent.value
+                identityState = identityState.copy(
+                    userName = intent.value,
+                    userDescriptionPreview = resolveCharacterUserMacros(
+                        template = identityState.userDescription,
+                        characterName = null,
+                        userName = value.ifBlank { "You" }
+                    )
                 )
             )
         ).setup()
@@ -825,7 +832,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = uiState.settingsState.identityState.copy(
-                    userDescription = intent.value
+                    userDescription = intent.value,
+                    userDescriptionPreview = resolveCharacterUserMacros(
+                        template = intent.value,
+                        characterName = null,
+                        userName = uiState.settingsState.identityState.userName
+                            .trim().ifBlank { "You" }
+                    )
                 )
             )
         ).setup()
@@ -862,7 +875,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = uiState.settingsState.identityState.copy(
-                    userDescription = dialog.draftText
+                    userDescription = dialog.draftText,
+                    userDescriptionPreview = resolveCharacterUserMacros(
+                        template = dialog.draftText,
+                        characterName = null,
+                        userName = uiState.settingsState.identityState.userName
+                            .trim().ifBlank { "You" }
+                    )
                 )
             ),
             dialogState = MainDialogState.None
@@ -1269,6 +1288,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             identityState = MainUserIdentityState(
                 userName = AppModel.userName,
                 userDescription = AppModel.userDescription,
+                userDescriptionPreview = resolveCharacterUserMacros(
+                    template = AppModel.userDescription,
+                    characterName = null,
+                    userName = AppModel.userName.trim().ifBlank { "You" }
+                ),
                 avatarState = if (AppModel.userAvatar.isBlank()) {
                     MainUserAvatarState.None
                 } else {

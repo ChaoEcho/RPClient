@@ -1795,7 +1795,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messageCount = messages.size,
                 enabledIds = enabledIds
             ),
-            character = character.toChatCharacterItem(avatarImage),
+            character = character.toChatCharacterItem(
+                userName = session.userName,
+                avatarImage = avatarImage
+            ),
             conversationState = ChatConversationState(
                 messages = displayMessages.toChatMessageItems(
                     characterName = character.name,
