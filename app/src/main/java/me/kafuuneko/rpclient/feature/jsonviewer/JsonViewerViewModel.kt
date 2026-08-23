@@ -1,5 +1,9 @@
 package me.kafuuneko.rpclient.feature.jsonviewer
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerEntry
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerErrorReason
@@ -35,7 +39,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         if (!isStateOf<JsonViewerUiState.None>()) return
 
         // 从内存暂存区检索 Payload
-        val payload = JsonViewerPayloadStore.get(intent.payloadKey)
+        val payload = JsonViewerPayloadStore.take(intent.payloadKey)
         if (payload == null) {
             JsonViewerUiState.Error(
                 title = "",
@@ -46,29 +50,34 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
 
         mTitle = payload.title
-        // 解析 JSON 字符串
-        val parsed = parseJson(payload.json)
-        if (parsed.isFailure) {
-            JsonViewerUiState.Error(
-                title = mTitle,
-                reason = JsonViewerErrorReason.InvalidJson,
-                rawPreview = payload.json.toPreview()
-            ).setup()
-            return
-        }
+        JsonViewerUiState.Loading(title = mTitle).setup()
+        viewModelScope.launch {
+            val parsed = withContext(Dispatchers.Default) {
+                parseJson(payload.json)
+            }
+            if (!isStateOf<JsonViewerUiState.Loading>()) return@launch
+            if (parsed.isFailure) {
+                JsonViewerUiState.Error(
+                    title = mTitle,
+                    reason = JsonViewerErrorReason.InvalidJson,
+                    rawPreview = payload.json.toPreview(RAW_PREVIEW_LENGTH)
+                ).setup()
+                return@launch
+            }
 
-        // 保存根节点对象并构建顶层视图
-        mRoot = parsed.getOrNull()
-        mPath = emptyList()
-        buildNormalState().setup()
+            mRoot = parsed.getOrNull()
+            mPath = emptyList()
+            val normalState = withContext(Dispatchers.Default) { buildNormalState() }
+            if (isStateOf<JsonViewerUiState.Loading>()) normalState.setup()
+        }
     }
 
     /** 处理返回操作，若处于子层级则返回上一层，处于根层级则退出查看器。 */
     @UiIntentObserver(JsonViewerUiIntent.Back::class)
-    private fun onBack() {
+    private suspend fun onBack() {
         if (getOrNull<JsonViewerUiState.Normal>()?.canNavigateUp == true) {
             mPath = mPath.dropLast(1)
-            buildNormalState().setup()
+            withContext(Dispatchers.Default) { buildNormalState() }.setup()
             return
         }
         JsonViewerUiState.finished(uiStateFlow.value).setup()
@@ -76,7 +85,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
 
     /** 选中包含子节点的条目，下钻进入其下属层级。 */
     @UiIntentObserver(JsonViewerUiIntent.EntrySelected::class)
-    private fun onEntrySelected(intent: JsonViewerUiIntent.EntrySelected) {
+    private suspend fun onEntrySelected(intent: JsonViewerUiIntent.EntrySelected) {
         val uiState = getOrNull<JsonViewerUiState.Normal>() ?: return
         val entry = uiState.entries.firstOrNull { it.id == intent.entryId } ?: return
         if (!entry.hasChildren) return
@@ -86,7 +95,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
             objectKey = entry.sourceKey,
             arrayIndex = entry.sourceIndex
         )
-        buildNormalState().setup()
+        withContext(Dispatchers.Default) { buildNormalState() }.setup()
     }
 
     /** 使用 JSONTokener 安全解析 JSON 字符串为 JSONObject、JSONArray 或原始基本类型。 */
@@ -195,13 +204,18 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
     /** 生成节点值的短文本摘要预览。 */
     private fun Any?.valuePreview(): String {
         return when (this) {
-            is JSONObject -> toString().toPreview(180)
-            is JSONArray -> toString().toPreview(180)
-            is String -> toPreview()
+            is JSONObject -> "{…}"
+            is JSONArray -> "[…]"
+            is String -> toPreview(VALUE_PREVIEW_LENGTH)
             is Boolean, is Number -> toString()
             JSONObject.NULL, null -> "null"
-            else -> toString().toPreview()
+            else -> toString().toPreview(VALUE_PREVIEW_LENGTH)
         }
+    }
+
+    private companion object {
+        const val VALUE_PREVIEW_LENGTH = 180
+        const val RAW_PREVIEW_LENGTH = 2_000
     }
 
     /** JSON 导航路径栈单步描述（包含标签、对象 Key 或数组索引）。 */

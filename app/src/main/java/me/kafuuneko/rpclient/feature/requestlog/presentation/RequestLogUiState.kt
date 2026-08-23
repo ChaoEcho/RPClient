@@ -14,6 +14,8 @@ sealed class RequestLogUiState {
 
     data class Normal(
         val logs: List<RequestLogItem>,
+        val canLoadMore: Boolean = false,
+        val isLoadingMore: Boolean = false,
         val dialogState: RequestLogDialogState = RequestLogDialogState.None
     ) : RequestLogUiState()
 

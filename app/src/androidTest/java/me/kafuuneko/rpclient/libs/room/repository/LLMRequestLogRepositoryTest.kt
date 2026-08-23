@@ -58,14 +58,18 @@ class LLMRequestLogRepositoryTest {
             responseJson = responseJson
         )
 
-        val logs = repository.getAllLogs()
+        val logs = repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0)
         assertTrue(id > 0)
         assertEquals(1, logs.size)
-        assertEquals(requestJson, logs.single().requestJson)
-        assertEquals(responseJson, logs.single().responseJson)
+        assertEquals(requestJson.take(24), logs.single().requestPreview)
+        assertEquals(responseJson.take(24), logs.single().responsePreview)
+        assertEquals(requestJson, repository.getRequestJson(id))
+        assertEquals(responseJson, repository.getResponseJson(id))
 
         repository.deleteAll()
-        assertTrue(repository.getAllLogs().isEmpty())
+        assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
+        assertEquals(null, repository.getRequestJson(id))
+        assertEquals(null, repository.getResponseJson(id))
     }
 
     @Test
@@ -87,6 +91,6 @@ class LLMRequestLogRepositoryTest {
         )
 
         assertEquals(0L, id)
-        assertTrue(repository.getAllLogs().isEmpty())
+        assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
     }
 }

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -54,14 +56,46 @@ fun JsonViewerLayout(
     uiState: JsonViewerUiState,
     emit: JsonViewerUiIntent.() -> Unit = {}
 ) {
-    BackHandler(enabled = uiState is JsonViewerUiState.Normal || uiState is JsonViewerUiState.Error) {
+    BackHandler(
+        enabled = uiState is JsonViewerUiState.Loading ||
+            uiState is JsonViewerUiState.Normal ||
+            uiState is JsonViewerUiState.Error
+    ) {
         JsonViewerUiIntent.Back.emit()
     }
     when (uiState) {
         JsonViewerUiState.None -> Unit
+        is JsonViewerUiState.Loading -> LoadingView(uiState = uiState, emit = emit)
         is JsonViewerUiState.Finished -> JsonViewerLayout(uiState.previous) {}
         is JsonViewerUiState.Normal -> NormalView(uiState = uiState, emit = emit)
         is JsonViewerUiState.Error -> ErrorView(uiState = uiState, emit = emit)
+    }
+}
+
+@Composable
+private fun LoadingView(
+    uiState: JsonViewerUiState.Loading,
+    emit: JsonViewerUiIntent.() -> Unit
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
+        topBar = {
+            AppTopBar(
+                title = uiState.title.ifBlank { stringResource(R.string.json_viewer) },
+                onBack = { JsonViewerUiIntent.Back.emit() }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
     }
 }
 

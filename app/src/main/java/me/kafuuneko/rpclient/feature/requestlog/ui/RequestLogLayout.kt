@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +30,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -70,7 +74,7 @@ fun RequestLogLayout(
         RequestLogUiState.None -> Unit
         is RequestLogUiState.Finished -> RequestLogLayout(uiState.previous) {}
         is RequestLogUiState.Normal -> {
-            NormalView(uiState.logs, emit)
+            NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
         }
     }
@@ -78,9 +82,10 @@ fun RequestLogLayout(
 
 @Composable
 private fun NormalView(
-    logs: List<RequestLogItem>,
+    uiState: RequestLogUiState.Normal,
     emit: RequestLogUiIntent.() -> Unit
 ) {
+    val logs = uiState.logs
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
@@ -128,8 +133,25 @@ private fun NormalView(
                     )
                 }
             }
-            items(logs) { log ->
+            items(logs, key = { it.id }) { log ->
                 RequestLogCard(log = log, emit = emit)
+            }
+            if (uiState.canLoadMore || uiState.isLoadingMore) {
+                item(key = "load_more") {
+                    if (uiState.canLoadMore) {
+                        LaunchedEffect(logs.size) {
+                            emit(RequestLogUiIntent.LoadMore)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    }
+                }
             }
         }
     }
@@ -196,13 +218,13 @@ private fun RequestLogCard(
                 val responseJsonTitle = stringResource(R.string.response_json)
                 JsonBlock(
                     title = requestJsonTitle,
-                    json = log.requestJson,
+                    json = log.requestPreview,
                     onCopy = { RequestLogUiIntent.CopyRequestJson(log.id).emit() },
                     onOpen = { RequestLogUiIntent.OpenRequestJson(log.id, requestJsonTitle).emit() }
                 )
                 JsonBlock(
                     title = responseJsonTitle,
-                    json = log.responseJson,
+                    json = log.responsePreview,
                     onCopy = { RequestLogUiIntent.CopyResponseJson(log.id).emit() },
                     onOpen = { RequestLogUiIntent.OpenResponseJson(log.id, responseJsonTitle).emit() }
                 )
@@ -287,8 +309,8 @@ private fun RequestLogLayoutPreview() {
                         id = 1L,
                         title = "ChatGPT / gpt-4o-mini",
                         subtitle = "05-12 01:20:00 · OpenAICompatible · once",
-                        requestJson = """{"model":"gpt-4o-mini","messages":[]}""",
-                        responseJson = """{"choices":[{"message":{"content":"Hello"}}]}"""
+                        requestPreview = """{"model":"gpt-4o-mini","messages":[]}""",
+                        responsePreview = """{"choices":[{"message":{"content":"Hello"}}]}"""
                     )
                 )
             )

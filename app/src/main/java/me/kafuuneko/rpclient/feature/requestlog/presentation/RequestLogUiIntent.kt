@@ -6,6 +6,8 @@ sealed class RequestLogUiIntent {
 
     data object Back : RequestLogUiIntent()
 
+    data object LoadMore : RequestLogUiIntent()
+
     data class CopyRequestJson(val logId: Long) : RequestLogUiIntent()
 
     data class CopyResponseJson(val logId: Long) : RequestLogUiIntent()

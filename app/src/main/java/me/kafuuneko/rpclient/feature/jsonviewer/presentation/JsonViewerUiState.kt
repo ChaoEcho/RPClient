@@ -11,6 +11,8 @@ import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
 sealed class JsonViewerUiState {
     data object None : JsonViewerUiState()
 
+    data class Loading(val title: String) : JsonViewerUiState()
+
     data class Normal(
         val title: String,
         val path: List<String>,
