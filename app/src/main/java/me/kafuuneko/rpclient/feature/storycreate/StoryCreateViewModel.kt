@@ -121,13 +121,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             .orEmpty()
         // 切换角色选择状态并在初次选中时追加关联条目
         updateReadyForm {
-            copy(
-                characterActivationModes = if (selecting) {
-                    characterActivationModes +
-                        (character.id to StoryCreateCharacterActivationMode.Auto)
-                } else {
-                    characterActivationModes - character.id
-                },
+            toggleCharacterSelection(character.id).copy(
                 selectedLorebookEntryIds = if (selecting) {
                     selectedLorebookEntryIds + linkedEntryIds
                 } else {

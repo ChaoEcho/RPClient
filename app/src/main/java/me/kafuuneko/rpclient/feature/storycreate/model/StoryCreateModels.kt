@@ -14,6 +14,20 @@ data class StoryCreateForm(
         return characterActivationModes[characterId] ?: StoryCreateCharacterActivationMode.Auto
     }
 
+    fun toggleCharacterSelection(characterId: Long): StoryCreateForm {
+        if (characterId in characterActivationModes) {
+            return copy(characterActivationModes = characterActivationModes - characterId)
+        }
+        val initialMode = if (characterActivationModes.isEmpty()) {
+            StoryCreateCharacterActivationMode.Primary
+        } else {
+            StoryCreateCharacterActivationMode.Auto
+        }
+        return copy(
+            characterActivationModes = characterActivationModes + (characterId to initialMode)
+        )
+    }
+
     fun setCharacterActivationMode(
         characterId: Long,
         activationMode: StoryCreateCharacterActivationMode
