@@ -526,7 +526,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             currentSummary = currentSettings.summary,
             sourceContent = mDraftContent,
             sourceRevision = mRevision,
-            provider = provider
+            provider = provider,
+            primaryCharacterName = currentSettings.characters.singleOrNull {
+                it.selected && it.activationMode == StoryCharacterActivationMode.Primary
+            }?.name
         )
     }
 
@@ -778,7 +781,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             }
             mStory = refreshedStory.first
             mWorldInfoStates = refreshedStory.second
-            clearEditHistory()
+            mEditHistory.rebaseWorldInfoStates(mWorldInfoStates)
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
             // 切回编辑器页面并更新参考区统计
             current.copy(
@@ -1101,6 +1104,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      * @param sourceContent 待总结正文源文本
      * @param sourceRevision 当前正文版本号
      * @param provider LLM 服务提供商配置
+     * @param primaryCharacterName Story 主角名，无主角时为 null
      */
     private fun launchSummaryJob(
         storyId: Long,
@@ -1108,7 +1112,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         currentSummary: String,
         sourceContent: String,
         sourceRevision: Long,
-        provider: LLMProvider
+        provider: LLMProvider,
+        primaryCharacterName: String?
     ) {
         // 取消前序未完成任务
         mSummaryJob?.cancel()
@@ -1120,7 +1125,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 currentSummary = currentSummary,
                 sourceContent = sourceContent,
                 sourceRevision = sourceRevision,
-                provider = provider
+                provider = provider,
+                primaryCharacterName = primaryCharacterName
             )
         }
     }
@@ -1140,7 +1146,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         currentSummary: String,
         sourceContent: String,
         sourceRevision: Long,
-        provider: LLMProvider
+        provider: LLMProvider,
+        primaryCharacterName: String?
     ) {
         try {
             // 在后台线程构建摘要 Prompt 请求体
@@ -1149,7 +1156,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     memory = memory,
                     currentSummary = currentSummary,
                     content = sourceContent,
-                    provider = provider
+                    provider = provider,
+                    userName = AppModel.userName.trim().ifBlank { "You" },
+                    primaryCharacterName = primaryCharacterName
                 )
             }
             // 调用模型生成摘要文本并清洗

@@ -31,7 +31,9 @@ class StorySummaryPromptBuilder(
         memory: String,
         currentSummary: String,
         content: String,
-        provider: LLMProvider
+        provider: LLMProvider,
+        userName: String,
+        primaryCharacterName: String?
     ): LLMGenerationRequest {
         require(content.isNotBlank()) { "Story manuscript cannot be blank" }
         // 校验并计算可用 Prompt 输入预算
@@ -51,10 +53,14 @@ class StorySummaryPromptBuilder(
         // 组装必需的系统提示词与正文上下文草稿
         val drafts = buildList {
             addRequired(
-                AppModel.storySummarizePrompt.replace(
-                    "{{words}}",
-                    AppModel.summaryWordsLimit.toString(),
-                    ignoreCase = true
+                renderStoryInstructionTemplate(
+                    template = AppModel.storySummarizePrompt.replace(
+                        "{{words}}",
+                        AppModel.summaryWordsLimit.toString(),
+                        ignoreCase = true
+                    ),
+                    userName = userName,
+                    primaryCharacterName = primaryCharacterName
                 ),
                 PromptSourceKind.StoryMainPrompt
             )

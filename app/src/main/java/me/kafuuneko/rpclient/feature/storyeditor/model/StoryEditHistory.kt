@@ -51,6 +51,34 @@ internal class StoryEditHistory(
     }
 
     /**
+     * 世界书选择变化后将历史快照对齐到当前条目集合。
+     *
+     * 正文撤销不应反向修改用户的世界书选择：已取消的条目从旧快照移除，
+     * 新增条目使用当前运行态补齐，已保留条目仍保留各次生成前后的时序状态。
+     */
+    fun rebaseWorldInfoStates(currentStates: List<StoryLorebookRuntimeState>) {
+        fun rebase(states: List<StoryLorebookRuntimeState>): List<StoryLorebookRuntimeState> {
+            val stateById = states.associateBy { it.lorebookEntryId }
+            return currentStates.map { current ->
+                stateById[current.lorebookEntryId] ?: current
+            }
+        }
+
+        fun StoryUndoEntry.rebased(): StoryUndoEntry = copy(
+            previousWorldInfoStates = rebase(previousWorldInfoStates),
+            nextWorldInfoStates = rebase(nextWorldInfoStates)
+        )
+
+        val rebasedUndo = mUndoEntries.map { it.rebased() }
+        val rebasedRedo = mRedoEntries.map { it.rebased() }
+        mUndoEntries.clear()
+        mUndoEntries.addAll(rebasedUndo)
+        mRedoEntries.clear()
+        mRedoEntries.addAll(rebasedRedo)
+        mLastManualEditAtMillis = null
+    }
+
+    /**
      * 记录用户正文修改。连续修改同一片段时合并为一条历史，移动到其他位置编辑或
      * 超过合并时间窗口后创建新条目。
      */

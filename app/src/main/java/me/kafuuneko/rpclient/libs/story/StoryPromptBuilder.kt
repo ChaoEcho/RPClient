@@ -238,7 +238,11 @@ class StoryPromptBuilder(
         // 注入故事主提示词
         addRequired(
             LLMMessageRole.System,
-            resolveOutlets(AppModel.storyMainPrompt, outlets),
+            renderStoryInstructionTemplate(
+                template = resolveOutlets(AppModel.storyMainPrompt, outlets),
+                userName = context.userName,
+                primaryCharacterName = context.characterCandidates.primaryCharacterName()
+            ),
             PromptSourceKind.StoryMainPrompt
         )
         // 注入设定记忆与摘要
@@ -495,6 +499,25 @@ class StoryPromptBuilder(
         /** 不可裁剪的必需核心内容（主提示词、设定、角色卡等）的最高保留优先级。 */
         const val PRIORITY_REQUIRED = 10_000
     }
+}
+
+/** 展开 StoryMain/StorySummarize 共用的用户和主角宏；无主角时保留 `{{char}}` 原文。 */
+internal fun renderStoryInstructionTemplate(
+    template: String,
+    userName: String,
+    primaryCharacterName: String?
+): String {
+    return resolveCharacterUserMacros(
+        template = template,
+        characterName = primaryCharacterName,
+        userName = userName
+    )
+}
+
+private fun List<StoryCharacterCandidate>.primaryCharacterName(): String? {
+    return singleOrNull {
+        it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY
+    }?.character?.name
 }
 
 /** 按 Story 角色顺序为角色关联世界书建立唯一、稳定的名称作用域。 */

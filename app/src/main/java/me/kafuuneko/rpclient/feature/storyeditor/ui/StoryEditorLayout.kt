@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -84,6 +83,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -302,7 +302,7 @@ private fun StoryTextEditor(
     }
     LaunchedEffect(document.syncVersion) {
         if (editorState.text.toString() != document.content) {
-            editorState.setTextAndPlaceCursorAtEnd(document.content)
+            editorState.syncTextPreservingSelection(document.content)
         }
     }
     LaunchedEffect(followStreamingOutput, editorScrollState) {
@@ -986,6 +986,18 @@ private fun ContextSettings(
             shape = RoundedCornerShape(16.dp)
         )
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** 同步外部文档版本时保留用户选择区，文本缩短时仅将越界位置裁剪到新文末。 */
+internal fun TextFieldState.syncTextPreservingSelection(content: String) {
+    val previousSelection = selection
+    edit {
+        replace(0, length, content)
+        selection = TextRange(
+            start = previousSelection.start.coerceIn(0, length),
+            end = previousSelection.end.coerceIn(0, length)
+        )
     }
 }
 
