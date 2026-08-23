@@ -19,13 +19,13 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
-import me.kafuuneko.rpclient.feature.main.model.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
@@ -50,6 +50,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
+import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
@@ -1213,7 +1214,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         ?.takeIf { it.isNotBlank() }
                         ?: mContext.getString(R.string.no_messages_yet),
                     messageCount = session.messageCount,
-                    updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
+                    updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm"),
+                    latestTime = session.latestTime
                 )
             }
             // 格式化故事列表项
@@ -1223,7 +1225,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     title = story.title,
                     preview = story.preview.replace(WHITESPACE_REGEX, " ").trim(),
                     contentCharacterCount = story.contentCharacterCount,
-                    updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm")
+                    updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm"),
+                    latestTime = story.latestTime
                 )
             }
             // 装配完整的首页状态模型
@@ -1246,7 +1249,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     MainRecentStoriesState.Empty
                 } else {
                     MainRecentStoriesState.Content(stories = storyItems)
-                }
+                },
+                allRecentItems = mergeAllRecentItems(
+                    chats = sessionItems,
+                    groupChats = groupChatItems,
+                    stories = storyItems
+                )
             )
         }
     }
@@ -1408,7 +1416,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             title = title,
             preview = latestMessageContent?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
             messageCount = messageCount,
-            updatedAt = latestTime.formatTimestamp("MM-dd HH:mm")
+            updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
+            latestTime = latestTime
         )
     }
 }

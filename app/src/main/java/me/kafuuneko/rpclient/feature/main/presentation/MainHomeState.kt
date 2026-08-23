@@ -1,9 +1,11 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
+import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
-import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 
 /** 首页内容流的筛选分类。 */
 enum class MainHomeContentTab {
@@ -19,9 +21,19 @@ data class MainHomeState(
     val recentChatsState: MainRecentChatsState,
     val recentGroupChatsState: MainRecentGroupChatsState,
     val recentStoriesState: MainRecentStoriesState,
+    val allRecentItems: List<MainHomeContentItem> = emptyList(),
     val selectedContentTab: MainHomeContentTab = MainHomeContentTab.All,
     val selectionState: MainHomeSelectionState = MainHomeSelectionState.None
 )
+
+/** 合并不同内容类型，并仅依据最近一次对话或写作时间倒序排列。 */
+internal fun mergeAllRecentItems(
+    chats: List<MainChatSessionItem>,
+    groupChats: List<MainGroupChatSessionItem>,
+    stories: List<MainStoryItem>
+): List<MainHomeContentItem> {
+    return (chats + groupChats + stories).sortedByDescending { it.latestTime }
+}
 
 /** 首页角色卡与世界书入口所需的资源统计。 */
 data class MainHomeResourceState(

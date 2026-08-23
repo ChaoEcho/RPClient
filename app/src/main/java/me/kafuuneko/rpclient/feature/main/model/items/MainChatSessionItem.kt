@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.main.model
+package me.kafuuneko.rpclient.feature.main.model.items
 
 /** 首页最近单聊会话卡片所需的扁平展示数据。 */
 data class MainChatSessionItem(
@@ -8,5 +8,6 @@ data class MainChatSessionItem(
     val title: String,
     val preview: String,
     val messageCount: Int,
-    val updatedAt: String
-)
+    val updatedAt: String,
+    override val latestTime: Long
+) : MainHomeContentItem
