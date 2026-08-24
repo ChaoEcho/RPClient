@@ -157,6 +157,7 @@ class FileRepository(
         maxDimensionPx: Int = MAX_CROP_SOURCE_DIMENSION
     ): Bitmap? = withContext(Dispatchers.IO) {
         if (maxDimensionPx !in 1..MAX_THUMBNAIL_DIMENSION) return@withContext null
+        // 预先读取原始图片宽高边界
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         val boundsInput = mContext.contentResolver.openInputStream(uri) ?: return@withContext null
         boundsInput.use {
@@ -164,7 +165,9 @@ class FileRepository(
         }
         val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return@withContext null
         val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return@withContext null
+        // 计算长边下采样采样率
         val sampleSize = calculateLongEdgeSampleSize(sourceWidth, sourceHeight, maxDimensionPx)
+        // 采样解码为 ARGB_8888 格式
         val decoded = mContext.contentResolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(
                 it,
@@ -175,6 +178,7 @@ class FileRepository(
                 }
             )
         } ?: return@withContext null
+        // 读取并应用 EXIF 旋转与翻转
         applyExifOrientation(decoded, readExifOrientation(uri))
     }
 
@@ -189,6 +193,7 @@ class FileRepository(
         outputSizePx: Int = AVATAR_OUTPUT_DIMENSION
     ): String = withContext(Dispatchers.IO) {
         require(outputSizePx in 1..MAX_THUMBNAIL_DIMENSION)
+        // 构建旋转与镜像矩阵
         val matrix = Matrix().apply {
             if (selection.isFlippedHorizontal) postScale(-1f, 1f)
             if (selection.rotationDegrees != 0) postRotate(selection.rotationDegrees.toFloat())
@@ -198,6 +203,7 @@ class FileRepository(
         } else {
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         }
+        // 计算裁剪框尺寸与像素坐标
         val shortEdge = minOf(transformed.width, transformed.height)
         val cropSize = (shortEdge * selection.sizeFractionOfShortEdge)
             .toInt()
@@ -210,12 +216,15 @@ class FileRepository(
         val cropTop = (centerY - cropSize / 2f)
             .toInt()
             .coerceIn(0, transformed.height - cropSize)
+        // 截取正方形区域
         val cropped = Bitmap.createBitmap(transformed, cropLeft, cropTop, cropSize, cropSize)
+        // 等比缩放至目标输出分辨率
         val output = if (cropped.width == outputSizePx) {
             cropped
         } else {
             cropped.scale(outputSizePx, outputSizePx, filter = true)
         }
+        // 根据透明度选择 PNG 或高质量 JPEG 压缩
         val hasAlpha = transformed.hasAlpha()
         val format = if (hasAlpha) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
         val mimeType = if (hasAlpha) "image/png" else "image/jpeg"

@@ -90,14 +90,17 @@ internal class StoryEditHistory(
         eventTimeMillis: Long = System.currentTimeMillis()
     ) {
         if (previousContent == currentContent) return
+        // 计算文本前后差异范围
         val change = StoryTextChange.between(previousContent, currentContent)
         val latest = mUndoEntries.lastOrNull()
         val lastManualEditAtMillis = mLastManualEditAtMillis
+        // 判断是否符合连续手写编辑合并条件（同为用户操作、在时间窗口内且编辑范围重叠）
         val canMerge = latest?.source == StoryEditSource.User &&
             lastManualEditAtMillis != null &&
             eventTimeMillis - lastManualEditAtMillis in 0..MANUAL_EDIT_MERGE_MILLIS &&
             latest.matches(previousContent) &&
             change.touches(latest)
+        // 合并上一次历史或基于上一次文本生成新历史记录
         val baseContent = if (canMerge) {
             val mergedEntry = requireNotNull(latest)
             mUndoEntries.removeLast()
@@ -149,7 +152,9 @@ internal class StoryEditHistory(
     }
 
     companion object {
+        /** 撤销栈最大容量。 */
         const val DEFAULT_MAX_ENTRIES = 50
+        /** 用户连续手写输入合并为同一撤销项的最大时间窗口（毫秒）。 */
         const val MANUAL_EDIT_MERGE_MILLIS = 1_500L
     }
 }

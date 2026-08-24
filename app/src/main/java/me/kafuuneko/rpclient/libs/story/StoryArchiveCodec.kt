@@ -107,10 +107,15 @@ class StoryArchiveCodec(private val mGson: Gson) {
     }
 
     companion object {
+        /** 常驻激活模式标识。 */
         const val MODE_ALWAYS = "always"
+        /** 自动匹配激活模式标识。 */
         const val MODE_AUTO = "auto"
+        /** 主角常驻激活模式标识。 */
         const val MODE_PRIMARY = "primary"
+        /** 导入未指定标题时的默认回退标题。 */
         private const val DEFAULT_TITLE = "Imported story"
+        /** 单篇归档允许包含的最大引用提示数。 */
         private const val MAX_HINTS = 10_000
     }
 }

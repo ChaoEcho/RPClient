@@ -9,7 +9,9 @@ data class StoryArchive(
     val lorebookHints: List<StoryLorebookHint> = emptyList()
 ) {
     companion object {
+        /** 故事归档标识字符串。 */
         const val FORMAT = "rpclient_story"
+        /** 故事归档协议版本号。 */
         const val VERSION = 1
     }
 }

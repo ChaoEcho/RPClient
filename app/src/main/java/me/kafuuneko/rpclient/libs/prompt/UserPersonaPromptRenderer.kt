@@ -13,18 +13,22 @@ fun renderUserPersonaTemplate(
     userDescription: String,
     characterName: String?
 ): String {
+    // 校验人设描述非空
     if (userDescription.isBlank()) return ""
+    // 先行替换人设描述中的 {{char}} / {{user}} 宏
     val resolvedDescription = resolveCharacterUserMacros(
         template = userDescription,
         characterName = characterName,
         userName = userName
     )
     if (template.isBlank()) return resolvedDescription
+    // 替换模板中的 {{char}} / {{user}} 宏
     val resolvedTemplate = resolveCharacterUserMacros(
         template = template,
         characterName = characterName,
         userName = userName
     )
+    // 查找并替换 {{persona}} 插槽宏
     val personaMacro = Regex("""\{\{\s*persona\s*\}\}""", RegexOption.IGNORE_CASE)
     return if (personaMacro.containsMatchIn(resolvedTemplate)) {
         resolvedTemplate.replace(personaMacro) { resolvedDescription }

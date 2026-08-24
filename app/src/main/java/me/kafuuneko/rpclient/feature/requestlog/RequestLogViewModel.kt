@@ -147,12 +147,14 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         )
     }
 
+    /** 从数据库异步加载指定日志的完整请求体 JSON。 */
     private suspend fun loadRequestJson(logId: Long): String? {
         return withContext(Dispatchers.IO) {
             mLLMRequestLogRepository.getRequestJson(logId)
         }
     }
 
+    /** 从数据库异步加载指定日志的完整响应体 JSON。 */
     private suspend fun loadResponseJson(logId: Long): String? {
         return withContext(Dispatchers.IO) {
             mLLMRequestLogRepository.getResponseJson(logId)
@@ -160,7 +162,9 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     }
 
     private companion object {
+        /** 单页日志数量。 */
         const val PAGE_SIZE = 50
+        /** 列表展示时的 JSON 预览文本截断最大长度。 */
         const val JSON_PREVIEW_LENGTH = 2_000
     }
 

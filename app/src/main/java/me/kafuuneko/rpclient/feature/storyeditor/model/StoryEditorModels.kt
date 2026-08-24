@@ -42,8 +42,11 @@ data class StoryCharacterOptionItem(
 
 /** Story 设置页可选择的角色激活方式，不暴露 Room 的持久化取值。 */
 enum class StoryCharacterActivationMode {
+    /** 主角：常驻置顶注入，单篇故事仅允许一个主角。 */
     Primary,
+    /** 常驻配角：常驻注入。 */
     Always,
+    /** 自动匹配：根据正文提及关键词动态激活。 */
     Auto
 }
 

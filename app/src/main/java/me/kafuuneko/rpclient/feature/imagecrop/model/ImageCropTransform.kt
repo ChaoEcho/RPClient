@@ -11,12 +11,15 @@ data class ImageCropTransform(
     val rotationDegrees: Int = 0,
     val isFlippedHorizontal: Boolean = false
 ) {
+    /** 是否处于 90 度或 270 度垂直旋转状态。 */
     val isRotated90: Boolean
         get() = rotationDegrees % 180 != 0
 
+    /** 考虑旋转后的有效宽高比。 */
     val effectiveAspectRatio: Float
         get() = if (isRotated90) 1f / sourceAspectRatio else sourceAspectRatio
 
+    /** 是否处于未进行任何平移、缩放、旋转或翻转的初始默认状态。 */
     val isDefault: Boolean
         get() = zoom == MIN_ZOOM &&
             offsetX == 0f &&
@@ -24,6 +27,13 @@ data class ImageCropTransform(
             rotationDegrees == 0 &&
             !isFlippedHorizontal
 
+    /**
+     * 根据平移量与缩放比例增量计算新的裁剪变换状态。
+     *
+     * @param panX X 轴平移增量。
+     * @param panY Y 轴平移增量。
+     * @param zoomChange 缩放比例乘数。
+     */
     fun update(panX: Float, panY: Float, zoomChange: Float): ImageCropTransform {
         val newZoom = (zoom * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
         val appliedZoomChange = newZoom / zoom
@@ -38,6 +48,7 @@ data class ImageCropTransform(
         )
     }
 
+    /** 顺时针旋转 90 度并重新限制平移边界。 */
     fun rotateRight(): ImageCropTransform {
         val nextRotation = (rotationDegrees + 90) % 360
         val isNextRotated90 = nextRotation % 180 != 0
@@ -53,6 +64,7 @@ data class ImageCropTransform(
         )
     }
 
+    /** 水平镜像翻转并反转 X 轴偏移量。 */
     fun flipHorizontal(): ImageCropTransform {
         val baseWidth = maxOf(effectiveAspectRatio, 1f)
         val maxOffsetX = ((baseWidth * zoom - 1f) / 2f).coerceAtLeast(0f)
@@ -62,6 +74,7 @@ data class ImageCropTransform(
         )
     }
 
+    /** 重置为初始裁剪变换状态。 */
     fun reset(): ImageCropTransform = copy(
         zoom = MIN_ZOOM,
         offsetX = 0f,
@@ -70,6 +83,7 @@ data class ImageCropTransform(
         isFlippedHorizontal = false
     )
 
+    /** 将当前变换状态转换为与分辨率无关的 [SquareCropSelection] 归一化选区。 */
     fun toSelection(): SquareCropSelection {
         val baseWidth = maxOf(effectiveAspectRatio, 1f)
         val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
@@ -85,7 +99,9 @@ data class ImageCropTransform(
     }
 
     companion object {
+        /** 最小缩放倍数（填满裁剪框）。 */
         const val MIN_ZOOM = 1f
+        /** 最大缩放倍数。 */
         const val MAX_ZOOM = 8f
     }
 }

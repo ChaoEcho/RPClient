@@ -255,11 +255,13 @@ class StoryRepository(
         characterSelections: List<StoryCharacterSelection>,
         latestTime: Long = System.currentTimeMillis()
     ) = mAppDatabase.withTransaction {
+        // 校验故事存在性与角色/世界书配置有效性
         requireNotNull(mStoryDao.getStory(storyId)) { "Story does not exist" }
         val configuration = normalizeAndValidateConfiguration(
             lorebookSelections,
             characterSelections
         )
+        // 更新故事基础设定
         check(
             mStoryDao.updateStorySettings(
                 id = storyId,
@@ -270,10 +272,12 @@ class StoryRepository(
                 latestTime = latestTime
             ) == 1
         ) { "Story settings update failed" }
+        // 重新写入故事关联角色列表
         val previousLorebookEntries = mStoryLorebookEntryDao.getByStoryId(storyId)
             .associateBy { it.lorebookEntryId }
         mStoryCharacterDao.deleteByStoryId(storyId)
         insertStoryCharacters(storyId, configuration.characterSelections)
+        // 重新写入故事关联世界书条目并保留原有条目的时序状态
         mStoryLorebookEntryDao.deleteByStoryId(storyId)
         val nextLorebookEntries = configuration.lorebookSelections.map { selection ->
             val previous = previousLorebookEntries[selection.lorebookEntryId]
@@ -289,6 +293,7 @@ class StoryRepository(
         }
     }
 
+    /** 仅在正文仍是生成时快照时保存摘要，避免旧响应覆盖新正文。 */
     suspend fun saveGeneratedSummary(
         storyId: Long,
         expectedContentRevision: Long,
