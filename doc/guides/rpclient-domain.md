@@ -76,12 +76,14 @@
 
 ---
 
-## 8. 测试优先级
-
-以下变更优先补单元测试：
-
-1. Character Card、Lorebook、Regex 的导入导出兼容。
-2. 世界书激活、递归、预算、sticky/cooldown。
-3. Prompt 构建、宏展开、协议后处理、Prompt Inspector omitted 记录。
-4. LLM 请求参数、默认 Provider 模板、错误解析。
-5. 群聊发言者选择、输出清理、摘要 Prompt。
+## 8. 测试优先级与边界
+ 
+仅在涉及**复杂规则计算、易碎边界或关键外部兼容逻辑**时补充单元测试：
+ 
+1. Character Card、Lorebook、Regex 的导入导出格式兼容与容错。
+2. 世界书激活、递归、预算裁剪、sticky/cooldown 计算。
+3. Prompt 构建核心流水线、宏展开、协议后处理、Prompt Inspector omitted 记录。
+4. LLM 请求体 Patch、非标 Provider 协议适配、复杂错误分类解析。
+5. 群聊发言者轮询算法、输出 Think 块清洗、摘要 Prompt 构建。
+ 
+> **注意**：上述领域的简单 UI 展示、字段透传、基础 DTO 1:1 映射或普通 CRUD 均不属于必须测试范围，严禁编写无业务价值的仪式性单测。
