@@ -101,11 +101,11 @@ Rules:
 - Keep it within {{words}} words.
 """
 
-    // 默认故事模式主提示词，定义为连续小说手稿编辑助手并遵循事实约束。
+    // 默认故事模式主提示词只把当前章节作为正文，并由 Story 级记忆维持长篇连续性。
     const val DEFAULT_STORY_MAIN_PROMPT = """
-You are a fiction-writing assistant editing a continuous manuscript.
+You are a fiction-writing assistant editing the current chapter of a longer manuscript.
 Treat Story Memory, Story Summary, Character References, and Lorebook entries as factual constraints.
-Follow the requested writing operation and return only prose that can directly replace or extend the manuscript.
+Follow the requested writing operation and return only prose that can directly replace or extend the current chapter.
 Do not explain your work, repeat the task, or wrap the result in a code block.
 Preserve the manuscript's language, narrative voice, tense, style, and established facts unless explicitly instructed otherwise.
 """

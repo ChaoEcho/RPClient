@@ -884,7 +884,7 @@
     <string name="story_export_markdown">Markdown exportieren</string>
     <string name="story_export_archive">Story-Archiv exportieren</string>
     <string name="story_import_preview">Importierte Story erstellen</string>
-    <string name="story_import_summary">%1$d Zeichen · %2$d Figurenhinweise · %3$d Lorebook-Hinweise</string>
+    <string name="story_import_summary">%1$d Zeichen · %2$d Kapitel · %3$d Figurenhinweise · %4$d Lorebook-Hinweise</string>
     <string name="story_import_create">Story erstellen</string>
     <string name="story_import_failed">Datei konnte nicht importiert werden. Sie ist eventuell zu groß oder nicht unterstützt.</string>
     <string name="story_export_succeeded">Story exportiert</string>
@@ -1001,4 +1001,20 @@
     </plurals>
     <string name="model_config_deleted">Modellkonfiguration gelöscht</string>
     <string name="model_config_delete_failed">Modellkonfiguration konnte nicht gelöscht werden</string>
+    <string name="story_open_outline">Kapitelübersicht öffnen</string>
+    <string name="story_outline">Bände und Kapitel</string>
+    <string name="story_ungrouped_chapters">Kapitel ohne Band</string>
+    <string name="story_add_volume">Band hinzufügen</string>
+    <string name="story_add_chapter">Kapitel hinzufügen</string>
+    <string name="story_move_chapter">Kapitel verschieben</string>
+    <string name="story_delete_volume">Band löschen</string>
+    <string name="story_delete_volume_message">„%1$s“ löschen? Die Kapitel bleiben unter „Kapitel ohne Band“ erhalten.</string>
+    <string name="story_delete_chapter">Kapitel löschen</string>
+    <string name="story_delete_chapter_message">„%1$s“ löschen? Der Inhalt kann nicht wiederhergestellt werden.</string>
+    <string name="story_structure_title">Titel</string>
+    <string name="story_structure_summary">%1$d Bände · %2$d Kapitel</string>
+    <string name="story_chapter_count">%1$d Kapitel</string>
+    <string name="story_no_ungrouped_chapters">Keine Kapitel ohne Band</string>
+    <string name="story_empty_volume">Dieser Band enthält keine Kapitel</string>
+    <string name="story_structure_update_failed">Die Story-Struktur konnte nicht aktualisiert werden</string>
 </resources>

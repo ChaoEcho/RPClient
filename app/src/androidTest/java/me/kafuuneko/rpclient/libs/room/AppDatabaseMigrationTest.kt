@@ -169,7 +169,9 @@ class AppDatabaseMigrationTest {
                 'regex_character_authorizations',
                 'stories',
                 'story_characters',
-                'story_lorebook_entries'
+                'story_chapters',
+                'story_lorebook_entries',
+                'story_volumes'
             )
             ORDER BY name
             """.trimIndent()
@@ -184,7 +186,9 @@ class AppDatabaseMigrationTest {
                     "regex_scripts",
                     "stories",
                     "story_characters",
-                    "story_lorebook_entries"
+                    "story_chapters",
+                    "story_lorebook_entries",
+                    "story_volumes"
                 ),
                 tableNames
             )
@@ -213,10 +217,24 @@ class AppDatabaseMigrationTest {
         migrated.execSQL(
             """
             INSERT INTO stories (
-                id, title, content, memory, summary, authorNote,
-                worldInfoGenerationStep, contentRevision,
+                id, title, memory, summary, authorNote,
+                worldInfoGenerationStep, revision,
                 createTime, latestTime
-            ) VALUES (202, 'draft', 'body', 'memory', 'summary', 'note', 3, 4, 5, 6)
+            ) VALUES (202, 'draft', 'memory', 'summary', 'note', 3, 7, 5, 6)
+            """.trimIndent()
+        )
+        migrated.execSQL(
+            """
+            INSERT INTO story_volumes (id, storyId, title, sortOrder)
+            VALUES (303, 202, 'Volume One', 0)
+            """.trimIndent()
+        )
+        migrated.execSQL(
+            """
+            INSERT INTO story_chapters (
+                id, storyId, volumeId, title, content, sortOrder,
+                contentRevision, createTime, latestTime
+            ) VALUES (304, 202, 303, 'Chapter One', 'body', 0, 4, 5, 6)
             """.trimIndent()
         )
         migrated.execSQL(
@@ -228,20 +246,33 @@ class AppDatabaseMigrationTest {
         )
         migrated.query(
             """
-            SELECT title, content, memory, summary, authorNote,
-                   worldInfoGenerationStep, contentRevision, includeUserPersona
+            SELECT title, memory, summary, authorNote,
+                   worldInfoGenerationStep, revision, includeUserPersona
             FROM stories WHERE id = 202
             """.trimIndent()
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals("draft", cursor.getString(0))
-            assertEquals("body", cursor.getString(1))
-            assertEquals("memory", cursor.getString(2))
-            assertEquals("summary", cursor.getString(3))
-            assertEquals("note", cursor.getString(4))
-            assertEquals(3, cursor.getInt(5))
-            assertEquals(4L, cursor.getLong(6))
-            assertEquals(0, cursor.getInt(7))
+            assertEquals("memory", cursor.getString(1))
+            assertEquals("summary", cursor.getString(2))
+            assertEquals("note", cursor.getString(3))
+            assertEquals(3, cursor.getInt(4))
+            assertEquals(7L, cursor.getLong(5))
+            assertEquals(0, cursor.getInt(6))
+        }
+        migrated.query(
+            """
+            SELECT volume.title, chapter.title, chapter.content, chapter.contentRevision
+            FROM story_chapters AS chapter
+            JOIN story_volumes AS volume ON volume.id = chapter.volumeId
+            WHERE chapter.id = 304
+            """.trimIndent()
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("Volume One", cursor.getString(0))
+            assertEquals("Chapter One", cursor.getString(1))
+            assertEquals("body", cursor.getString(2))
+            assertEquals(4L, cursor.getLong(3))
         }
         migrated.query(
             """

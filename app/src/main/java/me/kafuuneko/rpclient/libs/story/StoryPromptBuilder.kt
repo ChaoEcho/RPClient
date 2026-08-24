@@ -72,7 +72,7 @@ class StoryPromptBudgetException(
 ) : IllegalStateException("Required story context exceeds the provider budget")
 
 /**
- * 为连续正文生成动态上下文，并保留每段内容的 Inspector 来源。
+ * 为当前章节生成动态上下文，并保留每段内容的 Inspector 来源。
  *
  * 核心架构与职责：
  * - 动态正文分块与距离衰减：基于 Token 预算自光标位置向头部动态截取正文片段，越靠近光标权重越高；
@@ -89,7 +89,7 @@ class StoryPromptBuilder(
     private val mGson = Gson()
 
     /**
-     * 构建故事连续正文 AI 续写的生成请求及元数据。
+     * 构建当前章节 AI 续写的生成请求及元数据。
      *
      * 处理步骤：
      * - 校验光标是否位于文档末尾；

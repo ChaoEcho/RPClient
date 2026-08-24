@@ -849,7 +849,7 @@
     <string name="story_import_create">Créer la Story</string>
     <string name="story_import_failed">Import impossible. Le fichier est peut-être trop volumineux ou non pris en charge.</string>
     <string name="story_import_preview">Créer la Story importée</string>
-    <string name="story_import_summary">%1$d caractères · %2$d références de personnages · %3$d références de lorebook</string>
+    <string name="story_import_summary">%1$d caractères · %2$d chapitres · %3$d références de personnages · %4$d références de lorebook</string>
     <string name="story_import_text">Importer TXT / Markdown</string>
     <string name="story_insert_partial">Insérer le résultat partiel</string>
     <string name="story_leave_with_unsaved_draft">Le brouillon n’est pas encore enregistré. Réessayez ou copiez-le avant de partir.</string>
@@ -1002,4 +1002,20 @@
     </plurals>
     <string name="model_config_deleted">Configuration du modèle supprimée</string>
     <string name="model_config_delete_failed">Impossible de supprimer la configuration du modèle</string>
+    <string name="story_open_outline">Ouvrir le plan des chapitres</string>
+    <string name="story_outline">Tomes et chapitres</string>
+    <string name="story_ungrouped_chapters">Chapitres hors tome</string>
+    <string name="story_add_volume">Ajouter un tome</string>
+    <string name="story_add_chapter">Ajouter un chapitre</string>
+    <string name="story_move_chapter">Déplacer le chapitre</string>
+    <string name="story_delete_volume">Supprimer le tome</string>
+    <string name="story_delete_volume_message">Supprimer « %1$s » ? Ses chapitres seront conservés hors tome.</string>
+    <string name="story_delete_chapter">Supprimer le chapitre</string>
+    <string name="story_delete_chapter_message">Supprimer « %1$s » ? Son contenu ne pourra pas être récupéré.</string>
+    <string name="story_structure_title">Titre</string>
+    <string name="story_structure_summary">%1$d tomes · %2$d chapitres</string>
+    <string name="story_chapter_count">%1$d chapitres</string>
+    <string name="story_no_ungrouped_chapters">Aucun chapitre hors tome</string>
+    <string name="story_empty_volume">Ce tome ne contient aucun chapitre</string>
+    <string name="story_structure_update_failed">Impossible de modifier la structure de l’histoire</string>
 </resources>

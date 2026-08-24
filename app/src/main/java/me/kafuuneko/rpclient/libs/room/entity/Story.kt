@@ -5,24 +5,33 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * 连续故事文档实体。
+ * 故事级写作设置与全局生成状态。
  *
- * [content] 是正文及章节标记的唯一事实来源；[contentRevision] 由带乐观锁的正文写入递增，
- * 普通设置更新不得修改它。
+ * 正文由 StoryChapter 分章保存；[revision] 是跨章节、结构、设置和世界书时序状态共享的
+ * 单调版本号，用于阻止基于旧 Story 快照构建的生成结果覆盖新状态。
  */
 @Entity(tableName = "stories")
 data class Story(
+    // 故事 ID。
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
+    // 故事标题。
     val title: String,
-    val content: String = "",
+    // 跨章节长期记忆，用于生成当前章节时补充全局上下文。
     val memory: String = "",
+    // 故事级滚动摘要，用于压缩已完成内容的上下文。
     val summary: String = "",
+    // 作者备注，用于向模型补充当前故事的写作要求。
     val authorNote: String = "",
+    // 是否在故事 Prompt 中包含用户 Persona。
     @ColumnInfo(defaultValue = "0")
     val includeUserPersona: Boolean = false,
+    // 世界书时序状态当前推进到的生成步数。
     val worldInfoGenerationStep: Int = 0,
-    val contentRevision: Long = 0L,
+    // 故事结构、设置和全局生成状态共享的乐观锁版本号。
+    val revision: Long = 0L,
+    // 故事创建时间。
     val createTime: Long,
+    // 故事最近修改时间。
     val latestTime: Long
 )

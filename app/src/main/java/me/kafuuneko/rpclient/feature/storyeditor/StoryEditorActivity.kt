@@ -18,7 +18,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.ui.StoryEditorLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
-/** 连续正文编辑器宿主，负责页面生命周期与剪贴板系统能力。 */
+/** 分卷/章节编辑器宿主，负责页面生命周期与剪贴板系统能力。 */
 class StoryEditorActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<StoryEditorViewModel>()
 

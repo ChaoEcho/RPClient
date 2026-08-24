@@ -1,11 +1,15 @@
 package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 
-/** 连续正文编辑器页面状态树；完整正文由独立文档状态桥接，不复制到此处。 */
+/** 章节编辑器页面状态树；当前章节正文由独立文档状态桥接，不复制到此处。 */
 sealed class StoryEditorUiState {
     data object None : StoryEditorUiState()
 
@@ -13,6 +17,7 @@ sealed class StoryEditorUiState {
         val storyId: Long,
         val topBarState: StoryEditorTopBarState,
         val contentState: StoryEditorContentState,
+        val structureState: StoryEditorStructureState,
         val referenceState: StoryEditorReferenceState,
         val continuationInputState: StoryContinuationInputState = StoryContinuationInputState(),
         val generationState: StoryGenerationState = StoryGenerationState.Idle,
@@ -42,6 +47,17 @@ data class StoryEditorTopBarState(
 data class StoryEditorContentState(
     val characterCount: Int,
     val editable: Boolean = true
+)
+
+/** 当前 Story 的轻量分卷/章节结构与编辑定位，不包含任何章节正文。 */
+data class StoryEditorStructureState(
+    val currentChapterId: Long,
+    val currentChapterTitle: String,
+    val currentVolumeId: Long? = null,
+    val currentVolumeTitle: String? = null,
+    val ungroupedChapters: List<StoryChapterOutlineItem> = emptyList(),
+    val volumes: List<StoryVolumeOutlineItem> = emptyList(),
+    val isUpdating: Boolean = false
 )
 
 /** 当前故事已配置的上下文来源摘要。 */
@@ -101,6 +117,7 @@ enum class StorySettingsSection {
 /** 编辑器与全屏设置之间的页面状态。 */
 sealed class StoryEditorPageState {
     data object Editor : StoryEditorPageState()
+    data object Outline : StoryEditorPageState()
     data object LoadingSettings : StoryEditorPageState()
 
     data class Settings(
@@ -121,9 +138,32 @@ sealed class StoryEditorDialogState {
     data class PromptInspector(val inspection: PromptInspection) : StoryEditorDialogState()
     data object FileActions : StoryEditorDialogState()
     data class ImportPreview(val preview: StoryImportPreview) : StoryEditorDialogState()
+    data class StructureTitleEditor(
+        val target: StoryStructureTitleTarget,
+        val title: String,
+        val isSaving: Boolean = false
+    ) : StoryEditorDialogState()
+    data class DeleteVolume(
+        val volumeId: Long,
+        val title: String,
+        val isSaving: Boolean = false
+    ) : StoryEditorDialogState()
+    data class DeleteChapter(
+        val chapterId: Long,
+        val title: String,
+        val isSaving: Boolean = false
+    ) : StoryEditorDialogState()
+    data class MoveChapter(
+        val chapterId: Long,
+        val title: String,
+        val selectedDestination: StoryChapterDestination,
+        val isSaving: Boolean = false
+    ) : StoryEditorDialogState()
     data object SummarizingStory : StoryEditorDialogState()
     data class StorySummaryPreview(
         val content: String,
-        val sourceContentRevision: Long
+        val sourceStoryRevision: Long,
+        val sourceChapterId: Long,
+        val sourceChapterRevision: Long
     ) : StoryEditorDialogState()
 }

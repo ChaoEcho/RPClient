@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
+import me.kafuuneko.rpclient.libs.story.ArchivedChapter
 import me.kafuuneko.rpclient.libs.story.StoryCharacterHint
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.story.StoryImportType
@@ -125,7 +126,16 @@ class StoryRepositoryTest {
             characterSelections = emptyList(),
             createTime = 10L
         )
-        assertTrue(mRepository.updateContent(storyId, 0L, "Before", latestTime = 11L))
+        val chapter = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
+        val saved = requireNotNull(
+            mRepository.updateChapterContent(
+                storyId = storyId,
+                chapterId = chapter.id,
+                expectedChapterRevision = 0L,
+                content = "Before",
+                latestTime = 11L
+            )
+        )
         val previousStates = mRepository.getStoryLorebookRuntimeStates(storyId)
         val nextStates = previousStates.map {
             it.copy(activatedAtStep = 1, stickyUntilStep = 3, stateSignature = "active")
@@ -134,7 +144,9 @@ class StoryRepositoryTest {
             mRepository.applyGeneratedEdit(
                 StoryGeneratedEdit(
                     storyId = storyId,
-                    baseRevision = 1L,
+                    chapterId = chapter.id,
+                    baseStoryRevision = saved.storyRevision,
+                    baseChapterRevision = saved.chapterRevision,
                     start = 6,
                     end = 6,
                     originalTextHash = storyTextHash(""),
@@ -150,7 +162,9 @@ class StoryRepositoryTest {
             mRepository.applyGeneratedEdit(
                 StoryGeneratedEdit(
                     storyId = storyId,
-                    baseRevision = applied.revision,
+                    chapterId = chapter.id,
+                    baseStoryRevision = applied.storyRevision,
+                    baseChapterRevision = applied.chapterRevision,
                     start = applied.content.length,
                     end = applied.content.length,
                     originalTextHash = storyTextHash(""),
@@ -165,7 +179,9 @@ class StoryRepositoryTest {
         val reverted = requireNotNull(
             mRepository.revertGeneratedEdit(
                 storyId = storyId,
-                expectedRevision = applied.revision,
+                chapterId = chapter.id,
+                expectedStoryRevision = applied.storyRevision,
+                expectedChapterRevision = applied.chapterRevision,
                 start = 6,
                 insertedText = " after",
                 replacedText = "",
@@ -197,11 +213,14 @@ class StoryRepositoryTest {
         val activeStates = mRepository.getStoryLorebookRuntimeStates(storyId).map {
             it.copy(activatedAtStep = 1, stateSignature = "active")
         }
+        val chapter = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
         requireNotNull(
             mRepository.applyGeneratedEdit(
                 StoryGeneratedEdit(
                     storyId = storyId,
-                    baseRevision = 0L,
+                    chapterId = chapter.id,
+                    baseStoryRevision = 0L,
+                    baseChapterRevision = 0L,
                     start = 0,
                     end = 0,
                     originalTextHash = storyTextHash(""),
@@ -244,7 +263,7 @@ class StoryRepositoryTest {
         val storyId = archiveRepository.saveImport(
             draft = StoryImportDraft(
                 title = "Imported",
-                content = "正文",
+                ungroupedChapters = listOf(ArchivedChapter("正文", "正文")),
                 includeUserPersona = true,
                 characterHints = listOf(
                     StoryCharacterHint(
@@ -274,6 +293,80 @@ class StoryRepositoryTest {
             entryId,
             mRepository.getStoryLorebookEntryCandidates(storyId).single().entry.id
         )
+    }
+
+    @Test
+    fun structure_deletingVolumeKeepsChaptersAndDeletingLastChapterIsRejected() = runBlocking {
+        val storyId = mRepository.createStory("Novel")
+        val defaultChapter = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
+        val volumeId = mRepository.createVolume(storyId, "Volume One")
+        val first = mRepository.createChapter(storyId, volumeId, "Chapter One")
+        val second = mRepository.createChapter(storyId, volumeId, "Chapter Two")
+
+        assertTrue(mRepository.deleteVolume(storyId, volumeId))
+        val afterDelete = requireNotNull(
+            mRepository.getStoryEditorData(storyId, defaultChapter.id)
+        )
+        assertTrue(afterDelete.volumes.isEmpty())
+        assertEquals(
+            listOf(defaultChapter.id, first, second),
+            afterDelete.chapters.map { it.id }
+        )
+        assertTrue(afterDelete.chapters.all { it.volumeId == null })
+
+        assertTrue(mRepository.deleteChapter(storyId, first) != null)
+        assertTrue(mRepository.deleteChapter(storyId, second) != null)
+        val deletingLast = runCatching {
+            mRepository.deleteChapter(storyId, defaultChapter.id)
+        }
+        assertTrue(deletingLast.isFailure)
+        assertEquals(1, requireNotNull(mRepository.getStoryEditorData(storyId)).chapters.size)
+    }
+
+    @Test
+    fun chapterSave_usesChapterRevisionAndAdvancesStoryRevision() = runBlocking {
+        val storyId = mRepository.createStory("Novel")
+        val first = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
+        val secondId = mRepository.createChapter(storyId, null, "Chapter Two")
+
+        val firstWrite = requireNotNull(
+            mRepository.updateChapterContent(storyId, first.id, 0L, "First")
+        )
+        val secondWrite = requireNotNull(
+            mRepository.updateChapterContent(storyId, secondId, 0L, "Second")
+        )
+
+        assertEquals(1L, firstWrite.chapterRevision)
+        assertEquals(1L, secondWrite.chapterRevision)
+        assertTrue(secondWrite.storyRevision > firstWrite.storyRevision)
+        assertNull(mRepository.updateChapterContent(storyId, first.id, 0L, "Stale"))
+        assertEquals("First", requireNotNull(mRepository.getChapter(storyId, first.id)).content)
+    }
+
+    @Test
+    fun generatedEdit_isRejectedAfterStoryStructureChanges() = runBlocking {
+        val storyId = mRepository.createStory("Novel")
+        val chapter = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
+        val baseStoryRevision = requireNotNull(mRepository.getStory(storyId)).revision
+
+        mRepository.createVolume(storyId, "New volume")
+
+        assertNull(
+            mRepository.applyGeneratedEdit(
+                StoryGeneratedEdit(
+                    storyId = storyId,
+                    chapterId = chapter.id,
+                    baseStoryRevision = baseStoryRevision,
+                    baseChapterRevision = chapter.contentRevision,
+                    start = 0,
+                    end = 0,
+                    originalTextHash = storyTextHash(""),
+                    result = "Late result",
+                    nextWorldInfoStates = emptyList()
+                )
+            )
+        )
+        assertEquals("", requireNotNull(mRepository.getChapter(storyId, chapter.id)).content)
     }
 
     private suspend fun insertLorebookEntry(name: String = "Station"): Long {

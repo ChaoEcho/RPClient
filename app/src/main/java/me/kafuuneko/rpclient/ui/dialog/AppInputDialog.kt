@@ -63,6 +63,7 @@ fun AppInputDialog(
     password: Boolean = false,
     autoFocus: Boolean = true,
     clearable: Boolean = true,
+    enabled: Boolean = true,
     badgeIcon: ImageVector = Icons.Rounded.Edit,
     badgeTone: DialogBadgeTone = DialogBadgeTone.Primary,
     confirmText: String = stringResource(R.string.confirm),
@@ -76,8 +77,8 @@ fun AppInputDialog(
     val focusRequester = remember { FocusRequester() }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    if (autoFocus) {
-        LaunchedEffect(Unit) {
+    if (autoFocus && enabled) {
+        LaunchedEffect(enabled) {
             focusRequester.requestFocus()
         }
     }
@@ -111,6 +112,7 @@ fun AppInputDialog(
                 singleLine = singleLine,
                 minLines = minLines,
                 maxLines = maxLines,
+                enabled = enabled,
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = keyboardType,
@@ -118,7 +120,7 @@ fun AppInputDialog(
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        if (confirmEnabled && !isConfirmLoading) {
+                        if (enabled && confirmEnabled && !isConfirmLoading) {
                             onConfirm()
                         }
                     }

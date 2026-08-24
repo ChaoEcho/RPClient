@@ -845,7 +845,7 @@
     <string name="story_import_create">建立 Story</string>
     <string name="story_import_failed">無法匯入此檔案，檔案可能過大或格式不受支援。</string>
     <string name="story_import_preview">建立匯入的 Story</string>
-    <string name="story_import_summary">%1$d 個字元 · %2$d 個角色提示 · %3$d 個世界書提示</string>
+    <string name="story_import_summary">%1$d 個字元 · %2$d 個章節 · %3$d 個角色提示 · %4$d 個世界書提示</string>
     <string name="story_import_text">匯入 TXT / Markdown</string>
     <string name="story_insert_partial">插入部分結果</string>
     <string name="story_leave_with_unsaved_draft">草稿尚未儲存，請重試或複製草稿後再離開。</string>

@@ -29,6 +29,8 @@ import androidx.room.Index
     indices = [Index("llmProviderId")]
 )
 data class CharacterLLMProviderAssociation(
+    // 关联角色 ID；每个角色最多绑定一个回复模型配置。
     val characterId: Long,
+    // 角色回复时使用的模型配置 ID。
     val llmProviderId: Long
 )

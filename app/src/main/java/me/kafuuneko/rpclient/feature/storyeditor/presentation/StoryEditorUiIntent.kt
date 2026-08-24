@@ -2,10 +2,11 @@ package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import android.net.Uri
 
-/** 连续正文编辑器可接收的用户行为和生命周期意图。 */
+/** 分卷/章节编辑器可接收的用户行为和生命周期意图。 */
 sealed class StoryEditorUiIntent {
     data class Init(val storyId: Long) : StoryEditorUiIntent()
     data object Back : StoryEditorUiIntent()
@@ -14,6 +15,26 @@ sealed class StoryEditorUiIntent {
     data object RetrySave : StoryEditorUiIntent()
     data object CopyConflictDraft : StoryEditorUiIntent()
     data object ReloadAfterConflict : StoryEditorUiIntent()
+    data class OpenStoryOutline(val snapshot: StoryEditorSnapshot) : StoryEditorUiIntent()
+    data object CloseStoryOutline : StoryEditorUiIntent()
+    data class SelectStoryChapter(val chapterId: Long) : StoryEditorUiIntent()
+    data object ShowCreateVolumeDialog : StoryEditorUiIntent()
+    data class ShowCreateChapterDialog(val volumeId: Long?) : StoryEditorUiIntent()
+    data class ShowRenameVolumeDialog(val volumeId: Long) : StoryEditorUiIntent()
+    data class ShowRenameChapterDialog(val chapterId: Long) : StoryEditorUiIntent()
+    data class ChangeStructureTitle(val value: String) : StoryEditorUiIntent()
+    data object ConfirmStructureTitle : StoryEditorUiIntent()
+    data class ShowDeleteVolumeDialog(val volumeId: Long) : StoryEditorUiIntent()
+    data class ShowDeleteChapterDialog(val chapterId: Long) : StoryEditorUiIntent()
+    data object ConfirmDeleteVolume : StoryEditorUiIntent()
+    data object ConfirmDeleteChapter : StoryEditorUiIntent()
+    data class MoveStoryVolume(val volumeId: Long, val offset: Int) : StoryEditorUiIntent()
+    data class MoveStoryChapter(val chapterId: Long, val offset: Int) : StoryEditorUiIntent()
+    data class ShowMoveStoryChapterDialog(val chapterId: Long) : StoryEditorUiIntent()
+    data class SelectChapterDestination(
+        val destination: StoryChapterDestination
+    ) : StoryEditorUiIntent()
+    data object ConfirmMoveStoryChapter : StoryEditorUiIntent()
     data object OpenStorySettings : StoryEditorUiIntent()
     data object CloseStorySettings : StoryEditorUiIntent()
     data class SelectSettingsSection(val section: StorySettingsSection) : StoryEditorUiIntent()

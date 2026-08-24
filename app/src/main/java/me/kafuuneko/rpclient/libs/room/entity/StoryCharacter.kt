@@ -32,9 +32,13 @@ import androidx.room.Index
     ]
 )
 data class StoryCharacter(
+    // 所属故事 ID；故事删除时关联记录级联删除。
     val storyId: Long,
+    // 关联角色 ID；角色删除时关联记录级联删除。
     val characterId: Long,
+    // 角色在故事候选角色列表中的顺序，数值越小越靠前。
     val sortOrder: Int,
+    // 角色在故事生成中的激活方式，取值见 ACTIVATION_* 常量。
     val activationMode: Int = ACTIVATION_AUTO
 ) {
     companion object {

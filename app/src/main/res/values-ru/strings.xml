@@ -887,7 +887,7 @@
     <string name="story_export_markdown">Экспорт Markdown</string>
     <string name="story_export_archive">Экспорт архива Story</string>
     <string name="story_import_preview">Создать импортированную Story</string>
-    <string name="story_import_summary">%1$d символов · персонажей: %2$d · записей лора: %3$d</string>
+    <string name="story_import_summary">%1$d символов · глав: %2$d · персонажей: %3$d · записей лора: %4$d</string>
     <string name="story_import_create">Создать Story</string>
     <string name="story_import_failed">Не удалось импортировать файл. Возможно, он слишком большой или имеет неподдерживаемый формат.</string>
     <string name="story_export_succeeded">Story экспортирована</string>
@@ -1006,4 +1006,20 @@
     </plurals>
     <string name="model_config_deleted">Конфигурация модели удалена</string>
     <string name="model_config_delete_failed">Не удалось удалить конфигурацию модели</string>
+    <string name="story_open_outline">Открыть структуру глав</string>
+    <string name="story_outline">Тома и главы</string>
+    <string name="story_ungrouped_chapters">Главы без тома</string>
+    <string name="story_add_volume">Добавить том</string>
+    <string name="story_add_chapter">Добавить главу</string>
+    <string name="story_move_chapter">Переместить главу</string>
+    <string name="story_delete_volume">Удалить том</string>
+    <string name="story_delete_volume_message">Удалить «%1$s»? Главы сохранятся в разделе «Главы без тома».</string>
+    <string name="story_delete_chapter">Удалить главу</string>
+    <string name="story_delete_chapter_message">Удалить «%1$s»? Текст главы нельзя будет восстановить.</string>
+    <string name="story_structure_title">Название</string>
+    <string name="story_structure_summary">Томов: %1$d · глав: %2$d</string>
+    <string name="story_chapter_count">Глав: %1$d</string>
+    <string name="story_no_ungrouped_chapters">Нет глав без тома</string>
+    <string name="story_empty_volume">В этом томе пока нет глав</string>
+    <string name="story_structure_update_failed">Не удалось обновить структуру истории</string>
 </resources>

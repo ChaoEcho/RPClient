@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 /** Compose 文本编辑状态与 ViewModel 草稿之间的轻量同步快照。 */
 data class StoryEditorDocument(
     val storyId: Long,
+    val chapterId: Long,
     val content: String,
     val syncVersion: Long,
     val latestEditedRange: StoryEditedTextRange? = null
@@ -24,9 +25,41 @@ data class StoryEditedTextRange(
 
 /** 当前正文的文本和 IME composition 快照。 */
 data class StoryEditorSnapshot(
+    val chapterId: Long,
     val content: String,
     val isComposing: Boolean
 )
+
+/** 章节结构页中的轻量章节项；正文只通过 [StoryEditorDocument] 交给编辑器。 */
+data class StoryChapterOutlineItem(
+    val id: Long,
+    val title: String,
+    val volumeId: Long?,
+    val characterCount: Int,
+    val sortOrder: Int
+)
+
+/** 章节结构页中的分卷及其有序章节。 */
+data class StoryVolumeOutlineItem(
+    val id: Long,
+    val title: String,
+    val sortOrder: Int,
+    val chapters: List<StoryChapterOutlineItem>
+)
+
+/** 移动章节时可选择的目标分组。 */
+sealed class StoryChapterDestination {
+    data object Ungrouped : StoryChapterDestination()
+    data class Volume(val volumeId: Long) : StoryChapterDestination()
+}
+
+/** 创建或重命名结构节点时由对话框携带的目标。 */
+sealed class StoryStructureTitleTarget {
+    data object NewVolume : StoryStructureTitleTarget()
+    data class NewChapter(val volumeId: Long?) : StoryStructureTitleTarget()
+    data class Volume(val volumeId: Long) : StoryStructureTitleTarget()
+    data class Chapter(val chapterId: Long) : StoryStructureTitleTarget()
+}
 
 /** Story 设置页中的角色卡候选项。 */
 data class StoryCharacterOptionItem(

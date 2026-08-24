@@ -18,8 +18,10 @@ import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
+import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryLorebookEntryDao
+import me.kafuuneko.rpclient.libs.room.dao.StoryVolumeDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -36,7 +38,9 @@ import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.StoryVolume
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spec
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spec
 
@@ -58,6 +62,8 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         RegexScriptEntity::class,
         RegexCharacterAuthorization::class,
         Story::class,
+        StoryVolume::class,
+        StoryChapter::class,
         StoryCharacter::class,
         StoryLorebookEntry::class
     ],
@@ -84,6 +90,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getGroupChatSummaryDao(): GroupChatSummaryDao
     abstract fun getRegexScriptDao(): RegexScriptDao
     abstract fun getStoryDao(): StoryDao
+    abstract fun getStoryVolumeDao(): StoryVolumeDao
+    abstract fun getStoryChapterDao(): StoryChapterDao
     abstract fun getStoryCharacterDao(): StoryCharacterDao
     abstract fun getStoryLorebookEntryDao(): StoryLorebookEntryDao
 

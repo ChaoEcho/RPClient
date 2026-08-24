@@ -32,30 +32,35 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -84,7 +89,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,38 +97,48 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookEntryItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryContinuationInputState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructureState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySettingsSection
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
+import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
+import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
+import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 
-/** 连续正文编辑器及 Story 设置的 Compose 入口。 */
+/** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
 @Composable
 fun StoryEditorLayout(
     uiState: StoryEditorUiState,
@@ -144,16 +158,22 @@ private fun StoryEditorNormal(
     document: StoryEditorDocument?,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    val showingSettings = state.pageState != StoryEditorPageState.Editor
     BackHandler {
-        if (showingSettings) {
-            StoryEditorUiIntent.CloseStorySettings.emit()
-        } else {
-            StoryEditorUiIntent.Back.emit()
+        when (state.pageState) {
+            StoryEditorPageState.Editor -> StoryEditorUiIntent.Back.emit()
+            StoryEditorPageState.Outline -> StoryEditorUiIntent.CloseStoryOutline.emit()
+            StoryEditorPageState.LoadingSettings,
+            is StoryEditorPageState.Settings -> StoryEditorUiIntent.CloseStorySettings.emit()
         }
     }
     when (val pageState = state.pageState) {
         StoryEditorPageState.Editor -> StoryEditorPage(state, document, emit)
+        StoryEditorPageState.Outline -> StoryOutlinePage(
+            storyTitle = state.topBarState.title,
+            structureState = state.structureState,
+            emit = emit
+        )
+
         StoryEditorPageState.LoadingSettings -> StorySettingsLoadingPage(emit)
         is StoryEditorPageState.Settings -> StorySettingsPage(pageState, emit)
     }
@@ -166,9 +186,10 @@ private fun StoryEditorPage(
     document: StoryEditorDocument?,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    val editorState = remember(document?.storyId) {
+    val editorState = remember(document?.chapterId) {
         TextFieldState(document?.content.orEmpty())
     }
+    val documentMatchesChapter = document?.chapterId == state.structureState.currentChapterId
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -223,6 +244,7 @@ private fun StoryEditorPage(
                     {
                         StoryEditorUiIntent.ContinueStory(
                             StoryEditorSnapshot(
+                                chapterId = it.chapterId,
                                 content = editorState.text.toString(),
                                 isComposing = editorState.composition != null
                             )
@@ -242,7 +264,24 @@ private fun StoryEditorPage(
         ) {
             SaveProblemBanner(state.topBarState.saveState, emit)
             GenerationProblemBanner(state.generationState, emit)
-            if (document == null) {
+            CurrentChapterBar(
+                state = state.structureState,
+                enabled = documentMatchesChapter &&
+                        state.contentState.editable &&
+                        state.generationState is StoryGenerationState.Idle,
+                onClick = document?.takeIf { documentMatchesChapter }?.let { currentDocument ->
+                    {
+                        StoryEditorUiIntent.OpenStoryOutline(
+                            StoryEditorSnapshot(
+                                chapterId = currentDocument.chapterId,
+                                content = editorState.text.toString(),
+                                isComposing = editorState.composition != null
+                            )
+                        ).emit()
+                    }
+                }
+            )
+            if (document == null || !documentMatchesChapter) {
                 EditorLoading()
             } else {
                 StoryTextEditor(
@@ -254,6 +293,60 @@ private fun StoryEditorPage(
                     emit = emit
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CurrentChapterBar(
+    state: StoryEditorStructureState,
+    enabled: Boolean,
+    onClick: (() -> Unit)?
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Description,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.currentChapterTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = state.currentVolumeTitle
+                        ?: stringResource(R.string.story_ungrouped_chapters),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.story_open_outline),
+                tint = if (enabled) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.38f)
+                }
+            )
         }
     }
 }
@@ -273,7 +366,7 @@ private fun StoryTextEditor(
     val generatedTextColor = MaterialTheme.colorScheme.primary
     val displayedEditedRange = document.latestEditedRange.takeUnless {
         generationState is StoryGenerationState.Streaming ||
-            generationState is StoryGenerationState.Applying
+                generationState is StoryGenerationState.Applying
     }
     val currentEditedRange by rememberUpdatedState(displayedEditedRange)
     val currentEditedStyle by rememberUpdatedState(
@@ -315,6 +408,7 @@ private fun StoryTextEditor(
     LaunchedEffect(editorState) {
         snapshotFlow {
             StoryEditorSnapshot(
+                chapterId = document.chapterId,
                 content = editorState.text.toString(),
                 isComposing = editorState.composition != null
             )
@@ -379,8 +473,10 @@ private fun SaveStatus(
         color = when (saveState) {
             StorySaveState.Failed,
             StorySaveState.Conflict -> MaterialTheme.colorScheme.errorContainer
+
             StorySaveState.Dirty,
             StorySaveState.Saving -> MaterialTheme.colorScheme.secondaryContainer
+
             StorySaveState.Saved -> MaterialTheme.colorScheme.surfaceVariant
         }
     ) {
@@ -444,6 +540,7 @@ private fun SaveProblemBanner(
                 }
             }
         }
+
         StorySaveState.Conflict -> Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
@@ -478,6 +575,7 @@ private fun SaveProblemBanner(
                 }
             }
         }
+
         else -> Unit
     }
 }
@@ -512,9 +610,11 @@ private fun GenerationProblemBanner(
                                 R.string.story_generation_provider_failed
                             }
                         }
+
                         StoryGenerationFailure.ApplyResult -> {
                             R.string.story_generation_apply_failed
                         }
+
                         StoryGenerationFailure.Conflict -> R.string.story_generation_conflict
                         StoryGenerationFailure.EmptyResult -> R.string.story_generation_empty
                         StoryGenerationFailure.ContextBudget -> R.string.story_generation_budget
@@ -524,7 +624,10 @@ private fun GenerationProblemBanner(
             )
             if (failure.detail.isNotBlank()) {
                 Text(
-                    text = stringResource(R.string.story_generation_largest_characters, failure.detail),
+                    text = stringResource(
+                        R.string.story_generation_largest_characters,
+                        failure.detail
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -599,14 +702,27 @@ private fun EditorBottomBar(
                     .padding(horizontal = 16.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.story_character_count, characterCount),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${stringResource(R.string.story_character_references_count, referenceState.characterCount)} · ${stringResource(R.string.story_lorebook_entries_count, referenceState.lorebookEntryCount)}",
+                        text = "${
+                            stringResource(
+                                R.string.story_character_references_count,
+                                referenceState.characterCount
+                            )
+                        } · ${
+                            stringResource(
+                                R.string.story_lorebook_entries_count,
+                                referenceState.lorebookEntryCount
+                            )
+                        }",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -622,14 +738,16 @@ private fun EditorBottomBar(
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.story_stop_generation))
                     }
+
                     StoryGenerationState.Preparing,
                     StoryGenerationState.Applying -> CircularProgressIndicator(
                         modifier = Modifier.size(28.dp),
                         strokeWidth = 3.dp
                     )
+
                     else -> {
                         val historyEnabled = contentState.editable &&
-                            generationState is StoryGenerationState.Idle
+                                generationState is StoryGenerationState.Idle
                         IconButton(
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -661,8 +779,8 @@ private fun EditorBottomBar(
                                 onContinue?.invoke()
                             },
                             enabled = contentState.editable &&
-                                generationState is StoryGenerationState.Idle &&
-                                onContinue != null
+                                    generationState is StoryGenerationState.Idle &&
+                                    onContinue != null
                         ) {
                             Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
@@ -687,13 +805,92 @@ private fun EditorDialogSwitch(
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
             onCopyRequest = { StoryEditorUiIntent.CopyPromptItem(it).emit() }
         )
+
         StoryEditorDialogState.FileActions -> FileActionsDialog(emit)
         is StoryEditorDialogState.ImportPreview -> ImportPreviewDialog(dialogState, emit)
+        is StoryEditorDialogState.StructureTitleEditor -> AppInputDialog(
+            onDismissRequest = {
+                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+            },
+            title = when (dialogState.target) {
+                StoryStructureTitleTarget.NewVolume -> stringResource(R.string.story_add_volume)
+                is StoryStructureTitleTarget.NewChapter -> stringResource(R.string.story_add_chapter)
+                is StoryStructureTitleTarget.Volume,
+                is StoryStructureTitleTarget.Chapter -> stringResource(R.string.rename)
+            },
+            value = dialogState.title,
+            onValueChange = { StoryEditorUiIntent.ChangeStructureTitle(it).emit() },
+            label = stringResource(R.string.story_structure_title),
+            enabled = !dialogState.isSaving,
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
+            isConfirmLoading = dialogState.isSaving,
+            onConfirm = { StoryEditorUiIntent.ConfirmStructureTitle.emit() }
+        )
+
+        is StoryEditorDialogState.DeleteVolume -> AppDangerDialog(
+            onDismissRequest = {
+                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+            },
+            title = stringResource(R.string.story_delete_volume),
+            message = stringResource(R.string.story_delete_volume_message, dialogState.title),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isSaving,
+            isConfirmLoading = dialogState.isSaving,
+            onConfirm = { StoryEditorUiIntent.ConfirmDeleteVolume.emit() }
+        )
+
+        is StoryEditorDialogState.DeleteChapter -> AppDangerDialog(
+            onDismissRequest = {
+                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+            },
+            title = stringResource(R.string.story_delete_chapter),
+            message = stringResource(R.string.story_delete_chapter_message, dialogState.title),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isSaving,
+            isConfirmLoading = dialogState.isSaving,
+            onConfirm = { StoryEditorUiIntent.ConfirmDeleteChapter.emit() }
+        )
+
+        is StoryEditorDialogState.MoveChapter -> StoryMoveChapterDialog(
+            onDismissRequest = {
+                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+            },
+            chapterTitle = dialogState.title,
+            options = buildList {
+                add(
+                    StoryChapterDestinationOption(
+                        volumeId = null,
+                        title = stringResource(R.string.story_ungrouped_chapters)
+                    )
+                )
+                state.structureState.volumes.forEach { volume ->
+                    add(StoryChapterDestinationOption(volume.id, volume.title))
+                }
+            },
+            selectedVolumeId = when (val destination = dialogState.selectedDestination) {
+                StoryChapterDestination.Ungrouped -> null
+                is StoryChapterDestination.Volume -> destination.volumeId
+            },
+            isSaving = dialogState.isSaving,
+            onDestinationSelected = { volumeId ->
+                StoryEditorUiIntent.SelectChapterDestination(
+                    volumeId?.let(StoryChapterDestination::Volume)
+                        ?: StoryChapterDestination.Ungrouped
+                ).emit()
+            },
+            onConfirm = { StoryEditorUiIntent.ConfirmMoveStoryChapter.emit() }
+        )
+
         StoryEditorDialogState.SummarizingStory -> LoadingDialog(
             title = stringResource(R.string.story_summarizing),
             description = stringResource(R.string.story_summary_desc),
             onCancel = { StoryEditorUiIntent.CancelStorySummary.emit() }
         )
+
         is StoryEditorDialogState.StorySummaryPreview -> StorySummaryPreviewDialog(
             dialogState,
             emit
@@ -755,7 +952,9 @@ private fun FileActionsDialog(emit: StoryEditorUiIntent.() -> Unit) {
             AppActionItem(
                 icon = Icons.Rounded.FileUpload,
                 title = stringResource(R.string.story_export_markdown),
-                onClick = { StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Markdown).emit() }
+                onClick = {
+                    StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Markdown).emit()
+                }
             ),
             AppActionItem(
                 icon = Icons.Rounded.FileUpload,
@@ -801,7 +1000,8 @@ private fun ImportPreviewDialog(
             Text(
                 text = stringResource(
                     R.string.story_import_summary,
-                    preview.draft.content.length,
+                    preview.draft.totalCharacterCount,
+                    preview.draft.chapterCount,
                     preview.draft.characterHints.size,
                     preview.draft.lorebookHints.size
                 ),
@@ -810,6 +1010,494 @@ private fun ImportPreviewDialog(
             )
         }
     }
+}
+
+@Composable
+private fun StoryOutlinePage(
+    storyTitle: String,
+    structureState: StoryEditorStructureState,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    var collapsedVolumeIds by remember { mutableStateOf(emptySet<Long>()) }
+    val controlsEnabled = !structureState.isUpdating
+    val totalChapterCount = structureState.ungroupedChapters.size +
+            structureState.volumes.sumOf { it.chapters.size }
+
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.story_outline),
+                onBack = { StoryEditorUiIntent.CloseStoryOutline.emit() },
+                actions = {
+                    IconButton(
+                        onClick = { StoryEditorUiIntent.ShowCreateVolumeDialog.emit() },
+                        enabled = controlsEnabled
+                    ) {
+                        Icon(
+                            Icons.Rounded.Book,
+                            contentDescription = stringResource(R.string.story_add_volume)
+                        )
+                    }
+                    IconButton(
+                        onClick = { StoryEditorUiIntent.ShowCreateChapterDialog(null).emit() },
+                        enabled = controlsEnabled
+                    ) {
+                        Icon(
+                            Icons.Rounded.Add,
+                            contentDescription = stringResource(R.string.story_add_chapter)
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item(key = "outline-summary") {
+                OutlineSummary(
+                    storyTitle = storyTitle,
+                    volumeCount = structureState.volumes.size,
+                    chapterCount = totalChapterCount,
+                    updating = structureState.isUpdating
+                )
+            }
+            item(key = "ungrouped-header") {
+                OutlineSectionHeader(
+                    title = stringResource(R.string.story_ungrouped_chapters),
+                    itemCount = structureState.ungroupedChapters.size,
+                    enabled = controlsEnabled,
+                    onAddChapter = {
+                        StoryEditorUiIntent.ShowCreateChapterDialog(null).emit()
+                    }
+                )
+            }
+            if (structureState.ungroupedChapters.isEmpty()) {
+                item(key = "ungrouped-empty") {
+                    OutlineEmptyMessage(stringResource(R.string.story_no_ungrouped_chapters))
+                }
+            } else {
+                items(
+                    items = structureState.ungroupedChapters,
+                    key = { "chapter-${it.id}" }
+                ) { chapter ->
+                    val index =
+                        structureState.ungroupedChapters.indexOfFirst { it.id == chapter.id }
+                    StoryChapterOutlineRow(
+                        chapter = chapter,
+                        selected = chapter.id == structureState.currentChapterId,
+                        enabled = controlsEnabled,
+                        canMoveUp = index > 0,
+                        canMoveDown = index in 0 until structureState.ungroupedChapters.lastIndex,
+                        canDelete = totalChapterCount > 1,
+                        emit = emit
+                    )
+                }
+            }
+
+            structureState.volumes.forEachIndexed { volumeIndex, volume ->
+                item(key = "volume-${volume.id}") {
+                    StoryVolumeOutlineHeader(
+                        volume = volume,
+                        collapsed = volume.id in collapsedVolumeIds,
+                        enabled = controlsEnabled,
+                        canMoveUp = volumeIndex > 0,
+                        canMoveDown = volumeIndex < structureState.volumes.lastIndex,
+                        onToggleCollapsed = {
+                            collapsedVolumeIds = if (volume.id in collapsedVolumeIds) {
+                                collapsedVolumeIds - volume.id
+                            } else {
+                                collapsedVolumeIds + volume.id
+                            }
+                        },
+                        emit = emit
+                    )
+                }
+                if (volume.id !in collapsedVolumeIds) {
+                    if (volume.chapters.isEmpty()) {
+                        item(key = "volume-${volume.id}-empty") {
+                            OutlineEmptyMessage(stringResource(R.string.story_empty_volume))
+                        }
+                    } else {
+                        items(
+                            items = volume.chapters,
+                            key = { "chapter-${it.id}" }
+                        ) { chapter ->
+                            val index = volume.chapters.indexOfFirst { it.id == chapter.id }
+                            StoryChapterOutlineRow(
+                                chapter = chapter,
+                                selected = chapter.id == structureState.currentChapterId,
+                                enabled = controlsEnabled,
+                                canMoveUp = index > 0,
+                                canMoveDown = index in 0 until volume.chapters.lastIndex,
+                                canDelete = totalChapterCount > 1,
+                                emit = emit
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutlineSummary(
+    storyTitle: String,
+    volumeCount: Int,
+    chapterCount: Int,
+    updating: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        ),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RpIconBubble(Icons.AutoMirrored.Rounded.MenuBook)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = storyTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(
+                        R.string.story_structure_summary,
+                        volumeCount,
+                        chapterCount
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (updating) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutlineSectionHeader(
+    title: String,
+    itemCount: Int,
+    enabled: Boolean,
+    onAddChapter: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = itemCount.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        IconButton(onClick = onAddChapter, enabled = enabled) {
+            Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.story_add_chapter))
+        }
+    }
+}
+
+@Composable
+private fun StoryVolumeOutlineHeader(
+    volume: StoryVolumeOutlineItem,
+    collapsed: Boolean,
+    enabled: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onToggleCollapsed: () -> Unit,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onToggleCollapsed)
+                .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onToggleCollapsed, enabled = enabled) {
+                Icon(
+                    imageVector = if (collapsed) {
+                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                    } else {
+                        Icons.Rounded.KeyboardArrowDown
+                    },
+                    contentDescription = null
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = volume.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.story_chapter_count, volume.chapters.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            StoryVolumeMenu(
+                volumeId = volume.id,
+                enabled = enabled,
+                canMoveUp = canMoveUp,
+                canMoveDown = canMoveDown,
+                emit = emit
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoryChapterOutlineRow(
+    chapter: StoryChapterOutlineItem,
+    selected: Boolean,
+    enabled: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    canDelete: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                StoryEditorUiIntent.SelectStoryChapter(chapter.id).emit()
+            },
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        border = BorderStroke(
+            1.dp,
+            if (selected) {
+                MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = if (selected) Icons.Rounded.Check else Icons.Rounded.Description,
+                contentDescription = null,
+                tint = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = chapter.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.story_character_count, chapter.characterCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            StoryChapterMenu(
+                chapterId = chapter.id,
+                enabled = enabled,
+                canMoveUp = canMoveUp,
+                canMoveDown = canMoveDown,
+                canDelete = canDelete,
+                emit = emit
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoryVolumeMenu(
+    volumeId: Long,
+    enabled: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, enabled = enabled) {
+            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            OutlineMenuItem(
+                textRes = R.string.story_add_chapter,
+                icon = Icons.Rounded.Add,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowCreateChapterDialog(volumeId).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.rename,
+                icon = Icons.Rounded.Edit,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowRenameVolumeDialog(volumeId).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.move_up,
+                icon = Icons.Rounded.ArrowUpward,
+                enabled = canMoveUp,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.MoveStoryVolume(volumeId, -1).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.move_down,
+                icon = Icons.Rounded.ArrowDownward,
+                enabled = canMoveDown,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.MoveStoryVolume(volumeId, 1).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.delete,
+                icon = Icons.Rounded.Delete,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowDeleteVolumeDialog(volumeId).emit()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoryChapterMenu(
+    chapterId: Long,
+    enabled: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    canDelete: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, enabled = enabled) {
+            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            OutlineMenuItem(
+                textRes = R.string.rename,
+                icon = Icons.Rounded.Edit,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowRenameChapterDialog(chapterId).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.story_move_chapter,
+                icon = Icons.Rounded.FolderOpen,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowMoveStoryChapterDialog(chapterId).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.move_up,
+                icon = Icons.Rounded.ArrowUpward,
+                enabled = canMoveUp,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.MoveStoryChapter(chapterId, -1).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.move_down,
+                icon = Icons.Rounded.ArrowDownward,
+                enabled = canMoveDown,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.MoveStoryChapter(chapterId, 1).emit()
+                }
+            )
+            OutlineMenuItem(
+                textRes = R.string.delete,
+                icon = Icons.Rounded.Delete,
+                enabled = canDelete,
+                onClick = {
+                    expanded = false
+                    StoryEditorUiIntent.ShowDeleteChapterDialog(chapterId).emit()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun OutlineMenuItem(
+    textRes: Int,
+    icon: ImageVector,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(textRes)) },
+        leadingIcon = { Icon(icon, contentDescription = null) },
+        enabled = enabled,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun OutlineEmptyMessage(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -930,7 +1618,13 @@ private fun SettingsTab(selected: Boolean, label: String, onClick: () -> Unit) {
         onClick = onClick,
         label = { Text(label) },
         leadingIcon = if (selected) {
-            { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+            {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         } else {
             null
         }
@@ -1345,42 +2039,42 @@ private fun LorebookEntryRow(
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-            RpIconBubble(Icons.Rounded.Book)
-            Spacer(Modifier.width(10.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val constantLabel = if (entry.constant) {
-                    stringResource(R.string.entry_constant)
-                } else {
-                    null
-                }
-                val tags = listOfNotNull(constantLabel) + entry.keywords
-                if (tags.isNotEmpty()) {
-                    RpTagRow(tags = tags, maxCount = 3)
-                } else {
+                RpIconBubble(Icons.Rounded.Book)
+                Spacer(Modifier.width(10.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
-                        text = entry.contentPreview,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    val constantLabel = if (entry.constant) {
+                        stringResource(R.string.entry_constant)
+                    } else {
+                        null
+                    }
+                    val tags = listOfNotNull(constantLabel) + entry.keywords
+                    if (tags.isNotEmpty()) {
+                        RpTagRow(tags = tags, maxCount = 3)
+                    } else {
+                        Text(
+                            text = entry.contentPreview,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            }
-            Switch(
-                checked = entry.selected,
-                onCheckedChange = {
-                    StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit()
-                }
-            )
+                Switch(
+                    checked = entry.selected,
+                    onCheckedChange = {
+                        StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit()
+                    }
+                )
             }
         }
     }
@@ -1443,6 +2137,13 @@ private fun StoryEditorLayoutPreview() {
                 contentState = StoryEditorContentState(
                     characterCount = 128
                 ),
+                structureState = StoryEditorStructureState(
+                    currentChapterId = 1L,
+                    currentChapterTitle = "Chapter One",
+                    ungroupedChapters = listOf(
+                        StoryChapterOutlineItem(1L, "Chapter One", null, 128, 0)
+                    )
+                ),
                 referenceState = StoryEditorReferenceState(
                     hasMemory = true,
                     hasAuthorNote = true,
@@ -1452,6 +2153,7 @@ private fun StoryEditorLayoutPreview() {
             ),
             document = StoryEditorDocument(
                 storyId = 1L,
+                chapterId = 1L,
                 content = "# Chapter One\n\nRain tapped softly against the station windows.",
                 syncVersion = 1L
             ),

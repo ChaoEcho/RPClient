@@ -845,7 +845,7 @@
     <string name="story_import_create">Story 만들기</string>
     <string name="story_import_failed">파일을 가져올 수 없습니다. 너무 크거나 지원하지 않는 형식일 수 있습니다.</string>
     <string name="story_import_preview">가져온 Story 만들기</string>
-    <string name="story_import_summary">%1$d자 · 캐릭터 힌트 %2$d개 · 월드북 힌트 %3$d개</string>
+    <string name="story_import_summary">%1$d자 · 챕터 %2$d개 · 캐릭터 힌트 %3$d개 · 월드북 힌트 %4$d개</string>
     <string name="story_import_text">TXT / Markdown 가져오기</string>
     <string name="story_insert_partial">부분 결과 삽입</string>
     <string name="story_leave_with_unsaved_draft">초안이 아직 저장되지 않았습니다. 다시 시도하거나 나가기 전에 복사하세요.</string>
@@ -996,4 +996,20 @@
     </plurals>
     <string name="model_config_deleted">모델 설정을 삭제했습니다</string>
     <string name="model_config_delete_failed">모델 설정을 삭제할 수 없습니다</string>
+    <string name="story_open_outline">챕터 개요 열기</string>
+    <string name="story_outline">권과 챕터</string>
+    <string name="story_ungrouped_chapters">권에 속하지 않은 챕터</string>
+    <string name="story_add_volume">권 추가</string>
+    <string name="story_add_chapter">챕터 추가</string>
+    <string name="story_move_chapter">챕터 이동</string>
+    <string name="story_delete_volume">권 삭제</string>
+    <string name="story_delete_volume_message">“%1$s”을(를) 삭제할까요? 챕터는 권에 속하지 않은 상태로 유지됩니다.</string>
+    <string name="story_delete_chapter">챕터 삭제</string>
+    <string name="story_delete_chapter_message">“%1$s”을(를) 삭제할까요? 본문은 복구할 수 없습니다.</string>
+    <string name="story_structure_title">제목</string>
+    <string name="story_structure_summary">권 %1$d개 · 챕터 %2$d개</string>
+    <string name="story_chapter_count">챕터 %1$d개</string>
+    <string name="story_no_ungrouped_chapters">권에 속하지 않은 챕터가 없습니다</string>
+    <string name="story_empty_volume">이 권에는 챕터가 없습니다</string>
+    <string name="story_structure_update_failed">스토리 구조를 업데이트할 수 없습니다</string>
 </resources>

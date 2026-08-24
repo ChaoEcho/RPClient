@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditHistory
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
@@ -28,10 +30,13 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.toggleLorebook
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryUndoEntry
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructureState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
@@ -43,6 +48,7 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.entity.Story
+import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -52,6 +58,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
+import me.kafuuneko.rpclient.libs.room.repository.StoryEditorData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryEditTarget
@@ -78,14 +85,14 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
 /**
- * 连续正文故事编辑器（Story Editor）的 ViewModel（状态持有者与业务控制器）。
+ * 分卷/章节故事编辑器（Story Editor）的 ViewModel（状态持有者与业务控制器）。
  *
  * 核心设计与职责：
  * - 双轨草稿与防抖自动保存：
  *   - 内存草稿（`mDraftContent`）与持久化内容（`mPersistedContent`）解耦。
  *   - 自动保存采用乐观锁版本号（`mRevision`）机制，串行化保存防并发冲突；若发生冲突则保护内存草稿不被数据库旧数据覆盖。
  *   - 输入法组合态（`isComposing`）感知：在打字组合期间暂缓自动保存，待组合结束后按需触发。
- * - 连续文本 AI 续写（Continuation Generation）：
+ * - 当前章节 AI 续写（Continuation Generation）：
  *   - 支持流式与非流式调用、世界书递归扫描预算、角色卡上下文组装。
  *   - 异常与取消保障：支持“可恢复的局部生成内容”（Recoverable Partial），用户中断或生成失败时可保留或一键插入已生成的文本片段。
  * - 精细化撤销/重做（Undo/Redo）：
@@ -120,6 +127,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private var mDebounceJob: Job? = null
     /** 当前故事数据库实体缓存。 */
     private var mStory: Story? = null
+    /** 当前仅加载并编辑的章节实体。 */
+    private var mChapter: StoryChapter? = null
+    /** Story 聚合版本；章节正文版本由 [mRevision] 单独记录。 */
+    private var mStoryRevision = 0L
     /** 当前编辑器内存中的正文草稿。 */
     private var mDraftContent = ""
     /** 上一次成功持久化落库的正文内容。 */
@@ -146,6 +157,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private val mEditHistory = StoryEditHistory()
     /** 当前故事各世界书条目的关联与时序运行态快照。 */
     private var mWorldInfoStates: List<StoryLorebookRuntimeState> = emptyList()
+    /** 系统文件选择器返回 URI 时恢复用户选择的文本导出格式。 */
+    private var mPendingTextExportFormat = StoryTextExportFormat.Text
 
     /**
      * 初始化故事编辑器。
@@ -168,32 +181,40 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
         // 异步从数据库加载故事基础数据与关联统计
         val loaded = withContext(Dispatchers.IO) {
-            val story = mStoryRepository.getStory(intent.storyId) ?: return@withContext null
-            val characterCount = mStoryRepository.getStoryCharacterCandidates(story.id).size
-            val worldInfoStates = mStoryRepository.getStoryLorebookRuntimeStates(story.id)
-            LoadedStory(story, characterCount, worldInfoStates)
+            val editorData = mStoryRepository.getStoryEditorData(intent.storyId)
+                ?: return@withContext null
+            val characterCount = mStoryRepository
+                .getStoryCharacterCandidates(editorData.story.id)
+                .size
+            val worldInfoStates = mStoryRepository
+                .getStoryLorebookRuntimeStates(editorData.story.id)
+            LoadedStory(editorData, characterCount, worldInfoStates)
         } ?: run {
             finishMissingStory()
             return
         }
-        val story = loaded.story
+        val story = loaded.editorData.story
+        val chapter = loaded.editorData.currentChapter
         val characterCount = loaded.characterCount
         val lorebookEntryCount = loaded.worldInfoStates.size
         // 初始化本地状态快照与版本号
         mStory = story
-        mDraftContent = story.content
-        mPersistedContent = story.content
-        mRevision = story.contentRevision
+        mChapter = chapter
+        mStoryRevision = story.revision
+        mDraftContent = chapter.content
+        mPersistedContent = chapter.content
+        mRevision = chapter.contentRevision
         mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
-        publishDocument(story.content)
+        publishDocument(chapter.content)
         // 建立初始 UI 状态
         StoryEditorUiState.Normal(
             storyId = story.id,
             topBarState = StoryEditorTopBarState(title = story.title),
             contentState = StoryEditorContentState(
-                characterCount = story.content.length
+                characterCount = chapter.content.length
             ),
+            structureState = buildStructureState(loaded.editorData),
             referenceState = StoryEditorReferenceState(
                 hasMemory = story.memory.isNotBlank() || story.summary.isNotBlank(),
                 hasAuthorNote = story.authorNote.isNotBlank(),
@@ -227,6 +248,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun acceptEditorSnapshot(snapshot: StoryEditorSnapshot) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (snapshot.chapterId != mChapter?.id) return
         // 编辑器处于禁用状态时不允许外部变更正文
         if (!uiState.contentState.editable && snapshot.content != mDraftContent) return
         val wasComposing = mIsComposing
@@ -376,28 +398,267 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         if (uiState.topBarState.saveState != StorySaveState.Conflict) return
         // 重新从数据库读取最新故事内容
-        val story = withContext(Dispatchers.IO) {
-            mStoryRepository.getStory(uiState.storyId)
+        val editorData = withContext(Dispatchers.IO) {
+            mStoryRepository.getStoryEditorData(uiState.storyId, mChapter?.id)
         } ?: run {
             finishMissingStory()
             return
         }
         // 重置内存镜像与版本
+        val story = editorData.story
+        val chapter = editorData.currentChapter
         mStory = story
-        mDraftContent = story.content
-        mPersistedContent = story.content
-        mRevision = story.contentRevision
+        mChapter = chapter
+        mStoryRevision = story.revision
+        mDraftContent = chapter.content
+        mPersistedContent = chapter.content
+        mRevision = chapter.contentRevision
         // 清理编辑撤销历史并发布到文档流
         clearEditHistory()
-        publishDocument(story.content)
+        publishDocument(chapter.content)
         // 恢复 UI 状态为已保存
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         current.copy(
             topBarState = current.topBarState.copy(saveState = StorySaveState.Saved),
-            contentState = current.contentState.copy(characterCount = story.content.length),
+            contentState = current.contentState.copy(characterCount = chapter.content.length),
+            structureState = buildStructureState(editorData),
             canUndoEdit = false,
             canRedoEdit = false
         ).setup()
+    }
+
+    /** 保存当前章节后打开轻量大纲；大纲状态不携带任何章节正文。 */
+    @UiIntentObserver(StoryEditorUiIntent.OpenStoryOutline::class)
+    private suspend fun onOpenStoryOutline(intent: StoryEditorUiIntent.OpenStoryOutline) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.pageState != StoryEditorPageState.Editor) return
+        if (uiState.generationState !is StoryGenerationState.Idle) return
+        if (uiState.dialogState != StoryEditorDialogState.None) return
+        acceptEditorSnapshot(intent.snapshot)
+        mDebounceJob?.cancel()
+        if (!saveDraft()) return
+        val editorData = withContext(Dispatchers.IO) {
+            mStoryRepository.getStoryEditorData(uiState.storyId, mChapter?.id)
+        } ?: run {
+            finishMissingStory()
+            return
+        }
+        adoptStructureData(editorData)
+        val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        current.copy(
+            structureState = buildStructureState(editorData),
+            pageState = StoryEditorPageState.Outline
+        ).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.CloseStoryOutline::class)
+    private fun onCloseStoryOutline() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.pageState != StoryEditorPageState.Outline) return
+        uiState.copy(pageState = StoryEditorPageState.Editor).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.SelectStoryChapter::class)
+    private suspend fun onSelectStoryChapter(intent: StoryEditorUiIntent.SelectStoryChapter) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.pageState != StoryEditorPageState.Outline) return
+        if (intent.chapterId == mChapter?.id) {
+            uiState.copy(pageState = StoryEditorPageState.Editor).setup()
+            return
+        }
+        switchToChapter(uiState.storyId, intent.chapterId)
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowCreateVolumeDialog::class)
+    private fun onShowCreateVolumeDialog() {
+        showStructureTitleDialog(StoryStructureTitleTarget.NewVolume, "")
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowCreateChapterDialog::class)
+    private fun onShowCreateChapterDialog(intent: StoryEditorUiIntent.ShowCreateChapterDialog) {
+        showStructureTitleDialog(StoryStructureTitleTarget.NewChapter(intent.volumeId), "")
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowRenameVolumeDialog::class)
+    private fun onShowRenameVolumeDialog(intent: StoryEditorUiIntent.ShowRenameVolumeDialog) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val volume = uiState.structureState.volumes.firstOrNull { it.id == intent.volumeId }
+            ?: return
+        showStructureTitleDialog(StoryStructureTitleTarget.Volume(volume.id), volume.title)
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowRenameChapterDialog::class)
+    private fun onShowRenameChapterDialog(intent: StoryEditorUiIntent.ShowRenameChapterDialog) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val chapter = uiState.structureState.allChapters()
+            .firstOrNull { it.id == intent.chapterId }
+            ?: return
+        showStructureTitleDialog(StoryStructureTitleTarget.Chapter(chapter.id), chapter.title)
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ChangeStructureTitle::class)
+    private fun onChangeStructureTitle(intent: StoryEditorUiIntent.ChangeStructureTitle) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.StructureTitleEditor ?: return
+        if (dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(title = intent.value)).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ConfirmStructureTitle::class)
+    private suspend fun onConfirmStructureTitle() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.StructureTitleEditor ?: return
+        val title = dialog.title.trim()
+        if (dialog.isSaving || title.isEmpty()) return
+        uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
+        try {
+            val newChapterId = withContext(Dispatchers.IO) {
+                when (val target = dialog.target) {
+                    StoryStructureTitleTarget.NewVolume -> {
+                        mStoryRepository.createVolume(uiState.storyId, title)
+                        null
+                    }
+                    is StoryStructureTitleTarget.NewChapter -> {
+                        mStoryRepository.createChapter(uiState.storyId, target.volumeId, title)
+                    }
+                    is StoryStructureTitleTarget.Volume -> {
+                        check(mStoryRepository.renameVolume(uiState.storyId, target.volumeId, title))
+                        null
+                    }
+                    is StoryStructureTitleTarget.Chapter -> {
+                        check(mStoryRepository.renameChapter(uiState.storyId, target.chapterId, title))
+                        null
+                    }
+                }
+            }
+            if (newChapterId != null) {
+                switchToChapter(uiState.storyId, newChapterId)
+            } else {
+                refreshStructure(uiState.storyId, closeDialog = true)
+            }
+        } catch (_: Exception) {
+            restoreStructureDialogAfterFailure()
+        }
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowDeleteVolumeDialog::class)
+    private fun onShowDeleteVolumeDialog(intent: StoryEditorUiIntent.ShowDeleteVolumeDialog) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        val volume = uiState.structureState.volumes.firstOrNull { it.id == intent.volumeId }
+            ?: return
+        uiState.copy(
+            dialogState = StoryEditorDialogState.DeleteVolume(volume.id, volume.title)
+        ).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowDeleteChapterDialog::class)
+    private fun onShowDeleteChapterDialog(intent: StoryEditorUiIntent.ShowDeleteChapterDialog) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        val chapter = uiState.structureState.allChapters()
+            .firstOrNull { it.id == intent.chapterId }
+            ?: return
+        uiState.copy(
+            dialogState = StoryEditorDialogState.DeleteChapter(chapter.id, chapter.title)
+        ).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ConfirmDeleteVolume::class)
+    private suspend fun onConfirmDeleteVolume() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.DeleteVolume ?: return
+        if (dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
+        try {
+            val deleted = withContext(Dispatchers.IO) {
+                mStoryRepository.deleteVolume(uiState.storyId, dialog.volumeId)
+            }
+            check(deleted)
+            refreshStructure(uiState.storyId, closeDialog = true)
+        } catch (_: Exception) {
+            restoreStructureDialogAfterFailure()
+        }
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ConfirmDeleteChapter::class)
+    private suspend fun onConfirmDeleteChapter() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.DeleteChapter ?: return
+        if (dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
+        try {
+            val result = withContext(Dispatchers.IO) {
+                mStoryRepository.deleteChapter(uiState.storyId, dialog.chapterId)
+            } ?: error("Story chapter does not exist")
+            if (result.deletedChapterId == mChapter?.id) {
+                switchToChapter(uiState.storyId, result.fallbackChapterId)
+            } else {
+                refreshStructure(uiState.storyId, closeDialog = true)
+            }
+        } catch (_: Exception) {
+            restoreStructureDialogAfterFailure()
+        }
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.MoveStoryVolume::class)
+    private suspend fun onMoveStoryVolume(intent: StoryEditorUiIntent.MoveStoryVolume) {
+        mutateStructure {
+            mStoryRepository.moveVolume(it, intent.volumeId, intent.offset)
+        }
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.MoveStoryChapter::class)
+    private suspend fun onMoveStoryChapter(intent: StoryEditorUiIntent.MoveStoryChapter) {
+        mutateStructure {
+            mStoryRepository.moveChapter(it, intent.chapterId, intent.offset)
+        }
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ShowMoveStoryChapterDialog::class)
+    private fun onShowMoveStoryChapterDialog(intent: StoryEditorUiIntent.ShowMoveStoryChapterDialog) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        val chapter = uiState.structureState.allChapters()
+            .firstOrNull { it.id == intent.chapterId }
+            ?: return
+        val destination = chapter.volumeId?.let(StoryChapterDestination::Volume)
+            ?: StoryChapterDestination.Ungrouped
+        uiState.copy(
+            dialogState = StoryEditorDialogState.MoveChapter(
+                chapterId = chapter.id,
+                title = chapter.title,
+                selectedDestination = destination
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.SelectChapterDestination::class)
+    private fun onSelectChapterDestination(intent: StoryEditorUiIntent.SelectChapterDestination) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.MoveChapter ?: return
+        if (dialog.isSaving) return
+        uiState.copy(
+            dialogState = dialog.copy(selectedDestination = intent.destination)
+        ).setup()
+    }
+
+    @UiIntentObserver(StoryEditorUiIntent.ConfirmMoveStoryChapter::class)
+    private suspend fun onConfirmMoveStoryChapter() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? StoryEditorDialogState.MoveChapter ?: return
+        if (dialog.isSaving) return
+        uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
+        try {
+            val volumeId = (dialog.selectedDestination as? StoryChapterDestination.Volume)?.volumeId
+            val moved = withContext(Dispatchers.IO) {
+                mStoryRepository.moveChapterToVolume(uiState.storyId, dialog.chapterId, volumeId)
+            }
+            check(moved)
+            refreshStructure(uiState.storyId, closeDialog = true)
+        } catch (_: Exception) {
+            restoreStructureDialogAfterFailure()
+        }
     }
 
     /**
@@ -523,10 +784,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 启动后台总结协程
         launchSummaryJob(
             storyId = current.storyId,
+            chapterId = requireNotNull(mChapter).id,
             memory = currentSettings.memory,
             currentSummary = currentSettings.summary,
             sourceContent = mDraftContent,
-            sourceRevision = mRevision,
+            sourceStoryRevision = mStoryRevision,
+            sourceChapterRevision = mRevision,
             provider = provider,
             primaryCharacterName = currentSettings.characters.singleOrNull {
                 it.selected && it.activationMode == StoryCharacterActivationMode.Primary
@@ -559,17 +822,20 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val saved = withContext(Dispatchers.IO) {
             mStoryRepository.saveGeneratedSummary(
                 storyId = uiState.storyId,
-                expectedContentRevision = preview.sourceContentRevision,
+                chapterId = preview.sourceChapterId,
+                expectedStoryRevision = preview.sourceStoryRevision,
+                expectedChapterRevision = preview.sourceChapterRevision,
                 content = preview.content
             )
         }
-        if (!saved) {
+        if (saved == null) {
             uiState.copy(dialogState = StoryEditorDialogState.None).setup()
             AppViewEvent.PopupToastMessageByResId(R.string.story_summary_conflict).tryEmit()
             return
         }
         // 更新内存故事快照
-        mStory = mStory?.copy(summary = preview.content)
+        mStoryRevision = saved
+        mStory = mStory?.copy(summary = preview.content, revision = saved)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         val currentSettings = current.pageState as? StoryEditorPageState.Settings ?: return
         // 更新 UI 设置状态与参考栏红点
@@ -781,6 +1047,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 story to mStoryRepository.getStoryLorebookRuntimeStates(uiState.storyId)
             }
             mStory = refreshedStory.first
+            mStoryRevision = refreshedStory.first.revision
             mWorldInfoStates = refreshedStory.second
             mEditHistory.rebaseWorldInfoStates(mWorldInfoStates)
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -1039,6 +1306,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private suspend fun onExportTextClick(intent: StoryEditorUiIntent.ExportTextClick) {
         if (!saveDraft()) return
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        mPendingTextExportFormat = intent.format
         closeDialog()
         val extension = if (intent.format == StoryTextExportFormat.Markdown) ".md" else ".txt"
         StoryEditorViewEvent.OpenTextExporter(
@@ -1055,7 +1323,13 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     @UiIntentObserver(StoryEditorUiIntent.ExportTextResult::class)
     private suspend fun onExportTextResult(intent: StoryEditorUiIntent.ExportTextResult) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
-        export { mStoryArchiveRepository.exportTextToUri(uiState.storyId, intent.uri) }
+        export {
+            mStoryArchiveRepository.exportTextToUri(
+                storyId = uiState.storyId,
+                uri = intent.uri,
+                markdown = mPendingTextExportFormat == StoryTextExportFormat.Markdown
+            )
+        }
     }
 
     /**
@@ -1109,10 +1383,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun launchSummaryJob(
         storyId: Long,
+        chapterId: Long,
         memory: String,
         currentSummary: String,
         sourceContent: String,
-        sourceRevision: Long,
+        sourceStoryRevision: Long,
+        sourceChapterRevision: Long,
         provider: LLMProvider,
         primaryCharacterName: String?
     ) {
@@ -1122,10 +1398,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mSummaryJob = viewModelScope.launch {
             runStorySummary(
                 storyId = storyId,
+                chapterId = chapterId,
                 memory = memory,
                 currentSummary = currentSummary,
                 sourceContent = sourceContent,
-                sourceRevision = sourceRevision,
+                sourceStoryRevision = sourceStoryRevision,
+                sourceChapterRevision = sourceChapterRevision,
                 provider = provider,
                 primaryCharacterName = primaryCharacterName
             )
@@ -1143,10 +1421,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private suspend fun runStorySummary(
         storyId: Long,
+        chapterId: Long,
         memory: String,
         currentSummary: String,
         sourceContent: String,
-        sourceRevision: Long,
+        sourceStoryRevision: Long,
+        sourceChapterRevision: Long,
         provider: LLMProvider,
         primaryCharacterName: String?
     ) {
@@ -1180,7 +1460,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             uiState.copy(
                 dialogState = StoryEditorDialogState.StorySummaryPreview(
                     content = summary,
-                    sourceContentRevision = sourceRevision
+                    sourceStoryRevision = sourceStoryRevision,
+                    sourceChapterId = chapterId,
+                    sourceChapterRevision = sourceChapterRevision
                 )
             ).setup()
         } catch (error: CancellationException) {
@@ -1245,10 +1527,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             restoreEditorAfterPreparation()
             return
         }
-        val story = mStory?.copy(
-            content = mDraftContent,
-            contentRevision = mRevision
-        ) ?: run {
+        val story = mStory ?: run {
+            restoreEditorAfterPreparation()
+            return
+        }
+        val chapter = mChapter ?: run {
             restoreEditorAfterPreparation()
             return
         }
@@ -1300,7 +1583,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             token = Any(),
             provider = provider,
             target = target,
-            baseRevision = mRevision,
+            chapterId = chapter.id,
+            baseStoryRevision = mStoryRevision,
+            baseChapterRevision = mRevision,
             sourceContent = mDraftContent,
             previousEditedRange = mDocumentFlow.value?.latestEditedRange,
             previousWorldInfoStates = mWorldInfoStates.toList(),
@@ -1514,7 +1799,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             mStoryRepository.applyGeneratedEdit(
                 StoryGeneratedEdit(
                     storyId = uiState.storyId,
-                    baseRevision = active.baseRevision,
+                    chapterId = active.chapterId,
+                    baseStoryRevision = active.baseStoryRevision,
+                    baseChapterRevision = active.baseChapterRevision,
                     start = active.target.start,
                     end = active.target.end,
                     originalTextHash = storyTextHash(
@@ -1555,14 +1842,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mEditHistory.record(undoEntry)
         // 更新本地镜像与版本
         mRecoverableGeneration = null
-        mRevision = applied.revision
+        mStoryRevision = applied.storyRevision
+        mRevision = applied.chapterRevision
         mDraftContent = applied.content
         mPersistedContent = applied.content
         mWorldInfoStates = applied.worldInfoStates
         mStory = mStory?.copy(
-            content = applied.content,
-            contentRevision = applied.revision,
+            revision = applied.storyRevision,
             worldInfoGenerationStep = applied.worldInfoGenerationStep
+        )
+        mChapter = mChapter?.copy(
+            content = applied.content,
+            contentRevision = applied.chapterRevision
         )
         // 发布新正文与高亮范围到文档流
         publishDocument(applied.content, active.resultTextRange(result))
@@ -1601,7 +1892,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val reverted = withContext(Dispatchers.IO) {
             mStoryRepository.revertGeneratedEdit(
                 storyId = uiState.storyId,
-                expectedRevision = mRevision,
+                chapterId = requireNotNull(mChapter).id,
+                expectedStoryRevision = mStoryRevision,
+                expectedChapterRevision = mRevision,
                 start = entry.start,
                 insertedText = entry.insertedText,
                 replacedText = entry.replacedText,
@@ -1620,14 +1913,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return false
         }
         // 更新版本号与草稿镜像
-        mRevision = reverted.revision
+        mStoryRevision = reverted.storyRevision
+        mRevision = reverted.chapterRevision
         mDraftContent = reverted.content
         mPersistedContent = reverted.content
         mWorldInfoStates = reverted.worldInfoStates
         mStory = mStory?.copy(
-            content = reverted.content,
-            contentRevision = reverted.revision,
+            revision = reverted.storyRevision,
             worldInfoGenerationStep = entry.previousWorldInfoGenerationStep
+        )
+        mChapter = mChapter?.copy(
+            content = reverted.content,
+            contentRevision = reverted.chapterRevision
         )
         // 确认撤销并移动历史指针
         mEditHistory.confirmUndo(entry)
@@ -1671,7 +1968,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             mStoryRepository.applyGeneratedEdit(
                 StoryGeneratedEdit(
                     storyId = uiState.storyId,
-                    baseRevision = mRevision,
+                    chapterId = requireNotNull(mChapter).id,
+                    baseStoryRevision = mStoryRevision,
+                    baseChapterRevision = mRevision,
                     start = entry.start,
                     end = entry.start + entry.replacedText.length,
                     originalTextHash = storyTextHash(entry.replacedText),
@@ -1692,14 +1991,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return false
         }
         // 同步本地版本与内容镜像
-        mRevision = applied.revision
+        mStoryRevision = applied.storyRevision
+        mRevision = applied.chapterRevision
         mDraftContent = applied.content
         mPersistedContent = applied.content
         mWorldInfoStates = applied.worldInfoStates
         mStory = mStory?.copy(
-            content = applied.content,
-            contentRevision = applied.revision,
+            revision = applied.storyRevision,
             worldInfoGenerationStep = applied.worldInfoGenerationStep
+        )
+        mChapter = mChapter?.copy(
+            content = applied.content,
+            contentRevision = applied.chapterRevision
         )
         // 确认重做并移动历史指针
         mEditHistory.confirmRedo(entry)
@@ -1752,7 +2055,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             story = story,
             characterCandidates = characterCandidates,
             target = target,
-            sourceContent = story.content,
+            sourceContent = mDraftContent,
             provider = provider,
             candidateLorebookEntries = entries,
             candidateLorebooks = candidateLorebooks,
@@ -1869,13 +2172,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
         val contentToSave = mDraftContent
         val expectedRevision = mRevision
+        val chapter = mChapter ?: return@withLock false
         updateSaveState(StorySaveState.Saving)
         // 异步向数据库提交带版本号的正文更新
         val saved = try {
             withContext(Dispatchers.IO) {
-                mStoryRepository.updateContent(
+                mStoryRepository.updateChapterContent(
                     storyId = uiState.storyId,
-                    expectedRevision = expectedRevision,
+                    chapterId = chapter.id,
+                    expectedChapterRevision = expectedRevision,
                     content = contentToSave
                 )
             }
@@ -1884,16 +2189,20 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return@withLock false
         }
         // 乐观锁版本冲突处理
-        if (!saved) {
+        if (saved == null) {
             updateSaveState(StorySaveState.Conflict)
             return@withLock false
         }
         // 保存成功，版本号自增并同步持久化镜像
-        mRevision = expectedRevision + 1L
+        mStoryRevision = saved.storyRevision
+        mRevision = saved.chapterRevision
         mPersistedContent = contentToSave
         mStory = mStory?.copy(
+            revision = saved.storyRevision
+        )
+        mChapter = mChapter?.copy(
             content = contentToSave,
-            contentRevision = mRevision
+            contentRevision = saved.chapterRevision
         )
         // 检查在保存期间是否有新的输入到来
         if (mDraftContent == contentToSave) {
@@ -1903,6 +2212,149 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             if (!mIsComposing) scheduleAutoSave()
         }
         true
+    }
+
+    private fun showStructureTitleDialog(target: StoryStructureTitleTarget, title: String) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        uiState.copy(
+            dialogState = StoryEditorDialogState.StructureTitleEditor(target, title)
+        ).setup()
+    }
+
+    /** 切换章节会丢弃上一章的会话级撤销栈和迟到生成快照。 */
+    private suspend fun switchToChapter(storyId: Long, chapterId: Long) {
+        val editorData = withContext(Dispatchers.IO) {
+            mStoryRepository.getStoryEditorData(storyId, chapterId)
+        } ?: run {
+            finishMissingStory()
+            return
+        }
+        if (editorData.currentChapter.id != chapterId) {
+            AppViewEvent.PopupToastMessageByResId(R.string.story_structure_update_failed).tryEmit()
+            return
+        }
+        mDebounceJob?.cancel()
+        mStory = editorData.story
+        mChapter = editorData.currentChapter
+        mStoryRevision = editorData.story.revision
+        mRevision = editorData.currentChapter.contentRevision
+        mDraftContent = editorData.currentChapter.content
+        mPersistedContent = editorData.currentChapter.content
+        mIsComposing = false
+        mActiveGeneration = null
+        mRecoverableGeneration = null
+        mLastPromptInspection = null
+        clearEditHistory()
+        publishDocument(editorData.currentChapter.content)
+        val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        current.copy(
+            topBarState = current.topBarState.copy(saveState = StorySaveState.Saved),
+            contentState = current.contentState.copy(
+                characterCount = editorData.currentChapter.content.length,
+                editable = true
+            ),
+            structureState = buildStructureState(editorData),
+            continuationInputState = current.continuationInputState.copy(guidanceDraft = ""),
+            generationState = StoryGenerationState.Idle,
+            canUndoEdit = false,
+            canRedoEdit = false,
+            hasPromptInspection = false,
+            pageState = StoryEditorPageState.Editor,
+            dialogState = StoryEditorDialogState.None
+        ).setup()
+    }
+
+    private suspend fun refreshStructure(storyId: Long, closeDialog: Boolean) {
+        val editorData = withContext(Dispatchers.IO) {
+            mStoryRepository.getStoryEditorData(storyId, mChapter?.id)
+        } ?: run {
+            finishMissingStory()
+            return
+        }
+        adoptStructureData(editorData)
+        val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        current.copy(
+            structureState = buildStructureState(editorData),
+            dialogState = if (closeDialog) {
+                StoryEditorDialogState.None
+            } else {
+                current.dialogState
+            }
+        ).setup()
+    }
+
+    private fun adoptStructureData(editorData: StoryEditorData) {
+        mStory = editorData.story
+        mChapter = editorData.currentChapter
+        mStoryRevision = editorData.story.revision
+        mRevision = editorData.currentChapter.contentRevision
+        mDraftContent = editorData.currentChapter.content
+        mPersistedContent = editorData.currentChapter.content
+    }
+
+    private fun buildStructureState(editorData: StoryEditorData): StoryEditorStructureState {
+        val chapters = editorData.chapters.map { overview ->
+            StoryChapterOutlineItem(
+                id = overview.id,
+                title = overview.title,
+                volumeId = overview.volumeId,
+                characterCount = overview.contentCharacterCount,
+                sortOrder = overview.sortOrder
+            )
+        }
+        val currentVolume = editorData.currentChapter.volumeId?.let { volumeId ->
+            editorData.volumes.firstOrNull { it.id == volumeId }
+        }
+        return StoryEditorStructureState(
+            currentChapterId = editorData.currentChapter.id,
+            currentChapterTitle = editorData.currentChapter.title,
+            currentVolumeId = currentVolume?.id,
+            currentVolumeTitle = currentVolume?.title,
+            ungroupedChapters = chapters.filter { it.volumeId == null },
+            volumes = editorData.volumes.map { volume ->
+                StoryVolumeOutlineItem(
+                    id = volume.id,
+                    title = volume.title,
+                    sortOrder = volume.sortOrder,
+                    chapters = chapters.filter { it.volumeId == volume.id }
+                )
+            }
+        )
+    }
+
+    private suspend fun mutateStructure(
+        operation: suspend (storyId: Long) -> Boolean
+    ) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        uiState.copy(
+            structureState = uiState.structureState.copy(isUpdating = true)
+        ).setup()
+        try {
+            val changed = withContext(Dispatchers.IO) { operation(uiState.storyId) }
+            check(changed)
+            refreshStructure(uiState.storyId, closeDialog = false)
+        } catch (_: Exception) {
+            val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+            current.copy(
+                structureState = current.structureState.copy(isUpdating = false)
+            ).setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.story_structure_update_failed).tryEmit()
+        }
+    }
+
+    private fun restoreStructureDialogAfterFailure() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val restored = when (val dialog = uiState.dialogState) {
+            is StoryEditorDialogState.StructureTitleEditor -> dialog.copy(isSaving = false)
+            is StoryEditorDialogState.DeleteVolume -> dialog.copy(isSaving = false)
+            is StoryEditorDialogState.DeleteChapter -> dialog.copy(isSaving = false)
+            is StoryEditorDialogState.MoveChapter -> dialog.copy(isSaving = false)
+            else -> dialog
+        }
+        uiState.copy(dialogState = restored).setup()
+        AppViewEvent.PopupToastMessageByResId(R.string.story_structure_update_failed).tryEmit()
     }
 
     /**
@@ -2036,8 +2488,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         latestEditedRange: StoryEditedTextRange? = null
     ) {
         val story = mStory ?: return
+        val chapter = mChapter ?: return
         mDocumentFlow.value = StoryEditorDocument(
             storyId = story.id,
+            chapterId = chapter.id,
             content = content,
             syncVersion = ++mDocumentSyncVersion,
             latestEditedRange = latestEditedRange
@@ -2067,7 +2521,9 @@ private data class ActiveStoryGeneration(
     val token: Any,
     val provider: LLMProvider,
     val target: StoryEditTarget,
-    val baseRevision: Long,
+    val chapterId: Long,
+    val baseStoryRevision: Long,
+    val baseChapterRevision: Long,
     val sourceContent: String,
     val previousEditedRange: StoryEditedTextRange?,
     val previousWorldInfoStates: List<StoryLorebookRuntimeState>,
@@ -2093,10 +2549,21 @@ private data class ActiveStoryGeneration(
 
 /** 编辑器初始化时一次性读取的 Story 与关联状态。 */
 private data class LoadedStory(
-    val story: Story,
+    val editorData: StoryEditorData,
     val characterCount: Int,
     val worldInfoStates: List<StoryLorebookRuntimeState>
 )
+
+private fun StoryEditorUiState.Normal.canEditStructure(): Boolean {
+    return pageState == StoryEditorPageState.Outline &&
+        dialogState == StoryEditorDialogState.None &&
+        !structureState.isUpdating &&
+        generationState is StoryGenerationState.Idle
+}
+
+private fun StoryEditorStructureState.allChapters(): List<StoryChapterOutlineItem> {
+    return ungroupedChapters + volumes.flatMap { it.chapters }
+}
 
 /** 计算撤销条目中插入文本所覆盖的范围。 */
 private fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {

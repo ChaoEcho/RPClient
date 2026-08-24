@@ -33,14 +33,20 @@ import androidx.room.Index
     ]
 )
 data class StoryLorebookEntry(
+    // 所属故事 ID；故事删除时关联记录级联删除。
     val storyId: Long,
+    // 关联世界书条目 ID；条目删除时关联记录级联删除。
     val lorebookEntryId: Long,
+    // 条目最近一次激活时对应的故事生成步数。
     @ColumnInfo(defaultValue = "NULL")
     val activatedAtStep: Int? = null,
+    // 条目保持激活状态的截止生成步数。
     @ColumnInfo(defaultValue = "NULL")
     val stickyUntilStep: Int? = null,
+    // 条目冷却状态的截止生成步数。
     @ColumnInfo(defaultValue = "NULL")
     val cooldownUntilStep: Int? = null,
+    // 生成时序状态对应的条目配置与宏作用域签名。
     @ColumnInfo(defaultValue = "NULL")
     val stateSignature: String? = null
 ) {

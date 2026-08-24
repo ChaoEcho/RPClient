@@ -846,7 +846,7 @@
     <string name="story_import_create">Story を作成</string>
     <string name="story_import_failed">ファイルをインポートできません。サイズ超過または未対応形式の可能性があります。</string>
     <string name="story_import_preview">インポートした Story を作成</string>
-    <string name="story_import_summary">%1$d 文字 · キャラクターヒント %2$d 件 · 世界書ヒント %3$d 件</string>
+    <string name="story_import_summary">%1$d 文字 · %2$d 章 · キャラクターヒント %3$d 件 · 世界書ヒント %4$d 件</string>
     <string name="story_import_text">TXT / Markdown をインポート</string>
     <string name="story_insert_partial">部分結果を挿入</string>
     <string name="story_leave_with_unsaved_draft">下書きはまだ保存されていません。再試行するか、退出前にコピーしてください。</string>
@@ -997,4 +997,20 @@
     </plurals>
     <string name="model_config_deleted">モデル設定を削除しました</string>
     <string name="model_config_delete_failed">モデル設定を削除できませんでした</string>
+    <string name="story_open_outline">章のアウトラインを開く</string>
+    <string name="story_outline">巻と章</string>
+    <string name="story_ungrouped_chapters">巻に属さない章</string>
+    <string name="story_add_volume">巻を追加</string>
+    <string name="story_add_chapter">章を追加</string>
+    <string name="story_move_chapter">章を移動</string>
+    <string name="story_delete_volume">巻を削除</string>
+    <string name="story_delete_volume_message">「%1$s」を削除しますか？章は「巻に属さない章」に残ります。</string>
+    <string name="story_delete_chapter">章を削除</string>
+    <string name="story_delete_chapter_message">「%1$s」を削除しますか？本文は復元できません。</string>
+    <string name="story_structure_title">タイトル</string>
+    <string name="story_structure_summary">%1$d 巻 · %2$d 章</string>
+    <string name="story_chapter_count">%1$d 章</string>
+    <string name="story_no_ungrouped_chapters">巻に属さない章はありません</string>
+    <string name="story_empty_volume">この巻には章がありません</string>
+    <string name="story_structure_update_failed">ストーリー構成を更新できませんでした</string>
 </resources>
