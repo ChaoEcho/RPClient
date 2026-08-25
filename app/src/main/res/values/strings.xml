@@ -903,6 +903,14 @@
     <string name="story_delete_chapter_message">Delete “%1$s”? Its content cannot be recovered.</string>
     <string name="story_structure_title">Title</string>
     <string name="story_structure_summary">%1$d volumes · %2$d chapters</string>
+    <string name="story_outline_stats_summary">%1$d volumes · %2$d chapters · %3$s characters</string>
+    <string name="story_volume_stats">%1$d chapters · %2$s characters</string>
+    <string name="story_active_chapter">Editing</string>
+    <string name="story_draft_chapter">Draft</string>
+    <string name="story_add_chapter_to_volume">Add chapter to this volume</string>
+    <string name="story_add_ungrouped_chapter_button">Add ungrouped chapter</string>
+    <string name="story_empty_volume_guide">No chapters in this volume yet. Tap below to start writing.</string>
+    <string name="story_drag_handle">Drag to reorder</string>
     <string name="story_chapter_count">%1$d chapters</string>
     <string name="story_no_ungrouped_chapters">No ungrouped chapters</string>
     <string name="story_empty_volume">This volume has no chapters</string>

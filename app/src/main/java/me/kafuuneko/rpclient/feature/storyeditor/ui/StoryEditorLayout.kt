@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FileDownload
@@ -97,6 +98,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
+import java.util.Locale
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
@@ -307,25 +309,36 @@ private fun CurrentChapterBar(
     enabled: Boolean,
     onClick: (() -> Unit)?
 ) {
+    // 外层容器采用 Secondary Container 柔和配色与微边框
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 章节主题图标指示
             Icon(
                 imageVector = Icons.Rounded.Description,
                 contentDescription = null,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            Column(modifier = Modifier.weight(1f)) {
+            // 章节标题与归属分卷信息
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
                     text = state.currentChapterTitle,
                     style = MaterialTheme.typography.titleSmall,
@@ -337,20 +350,38 @@ private fun CurrentChapterBar(
                     text = state.currentVolumeTitle
                         ?: stringResource(R.string.story_ungrouped_chapters),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.story_open_outline),
-                tint = if (enabled) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.38f)
+            // 进入大纲的轻量胶囊按钮提示
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.story_outline),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = stringResource(R.string.story_open_outline),
+                        modifier = Modifier.size(16.dp),
+                        tint = if (enabled) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.38f)
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 }
@@ -1026,6 +1057,11 @@ private fun StoryOutlinePage(
     val controlsEnabled = !structureState.isUpdating
     val totalChapterCount = structureState.ungroupedChapters.size +
             structureState.volumes.sumOf { it.chapters.size }
+    val totalCharacterCount = remember(structureState) {
+        structureState.ungroupedChapters.sumOf { it.characterCount } +
+                structureState.volumes.sumOf { volume -> volume.chapters.sumOf { it.characterCount } }
+    }
+
     // 只有章节节点参与拖动，标题和分卷节点继续作为固定的容器边界
     val listState = rememberLazyListState()
     val chaptersByKey: Map<Any, StoryChapterOutlineItem> = remember(structureState) {
@@ -1090,18 +1126,24 @@ private fun StoryOutlinePage(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // 全书体量与结构概览卡片
             item(key = "outline-summary") {
                 OutlineSummary(
                     storyTitle = storyTitle,
                     volumeCount = structureState.volumes.size,
                     chapterCount = totalChapterCount,
+                    totalCharacterCount = totalCharacterCount,
                     updating = structureState.isUpdating
                 )
             }
+
+            // 未分卷章节分组
+            val ungroupedTotalWords = structureState.ungroupedChapters.sumOf { it.characterCount }
             item(key = "ungrouped-header") {
                 OutlineSectionHeader(
                     title = stringResource(R.string.story_ungrouped_chapters),
                     itemCount = structureState.ungroupedChapters.size,
+                    totalCharacterCount = ungroupedTotalWords,
                     enabled = controlsEnabled,
                     onAddChapter = {
                         StoryEditorUiIntent.ShowCreateChapterDialog(null).emit()
@@ -1110,7 +1152,12 @@ private fun StoryOutlinePage(
             }
             if (structureState.ungroupedChapters.isEmpty()) {
                 item(key = "ungrouped-empty") {
-                    OutlineEmptyMessage(stringResource(R.string.story_no_ungrouped_chapters))
+                    OutlineEmptyMessage(
+                        text = stringResource(R.string.story_no_ungrouped_chapters),
+                        onAction = { StoryEditorUiIntent.ShowCreateChapterDialog(null).emit() },
+                        actionTextRes = R.string.story_add_ungrouped_chapter_button,
+                        enabled = controlsEnabled
+                    )
                 }
             } else {
                 items(
@@ -1119,10 +1166,12 @@ private fun StoryOutlinePage(
                 ) { chapter ->
                     val index =
                         structureState.ungroupedChapters.indexOfFirst { it.id == chapter.id }
-                    DraggableItem(dragDropState, chapterDragKey(chapter.id)) {
+                    DraggableItem(dragDropState, chapterDragKey(chapter.id)) { isDragging ->
                         StoryChapterOutlineRow(
+                            index = index,
                             chapter = chapter,
                             selected = chapter.id == structureState.currentChapterId,
+                            isDragging = isDragging,
                             enabled = controlsEnabled,
                             canMoveUp = index > 0,
                             canMoveDown = index in 0 until structureState.ungroupedChapters.lastIndex,
@@ -1131,8 +1180,16 @@ private fun StoryOutlinePage(
                         )
                     }
                 }
+                item(key = "ungrouped-add-button") {
+                    OutlineAddChapterButton(
+                        textRes = R.string.story_add_ungrouped_chapter_button,
+                        enabled = controlsEnabled,
+                        onClick = { StoryEditorUiIntent.ShowCreateChapterDialog(null).emit() }
+                    )
+                }
             }
 
+            // 各分卷及其包含的章节列表
             structureState.volumes.forEachIndexed { volumeIndex, volume ->
                 item(key = "volume-${volume.id}") {
                     StoryVolumeOutlineHeader(
@@ -1148,13 +1205,21 @@ private fun StoryOutlinePage(
                                 collapsedVolumeIds + volume.id
                             }
                         },
+                        onAddChapter = {
+                            StoryEditorUiIntent.ShowCreateChapterDialog(volume.id).emit()
+                        },
                         emit = emit
                     )
                 }
                 if (volume.id !in collapsedVolumeIds) {
                     if (volume.chapters.isEmpty()) {
                         item(key = "volume-${volume.id}-empty") {
-                            OutlineEmptyMessage(stringResource(R.string.story_empty_volume))
+                            OutlineEmptyMessage(
+                                text = stringResource(R.string.story_empty_volume_guide),
+                                onAction = { StoryEditorUiIntent.ShowCreateChapterDialog(volume.id).emit() },
+                                actionTextRes = R.string.story_add_chapter_to_volume,
+                                enabled = controlsEnabled
+                            )
                         }
                     } else {
                         items(
@@ -1162,10 +1227,12 @@ private fun StoryOutlinePage(
                             key = { chapterDragKey(it.id) }
                         ) { chapter ->
                             val index = volume.chapters.indexOfFirst { it.id == chapter.id }
-                            DraggableItem(dragDropState, chapterDragKey(chapter.id)) {
+                            DraggableItem(dragDropState, chapterDragKey(chapter.id)) { isDragging ->
                                 StoryChapterOutlineRow(
+                                    index = index,
                                     chapter = chapter,
                                     selected = chapter.id == structureState.currentChapterId,
+                                    isDragging = isDragging,
                                     enabled = controlsEnabled,
                                     canMoveUp = index > 0,
                                     canMoveDown = index in 0 until volume.chapters.lastIndex,
@@ -1173,6 +1240,13 @@ private fun StoryOutlinePage(
                                     emit = emit
                                 )
                             }
+                        }
+                        item(key = "volume-${volume.id}-add-button") {
+                            OutlineAddChapterButton(
+                                textRes = R.string.story_add_chapter_to_volume,
+                                enabled = controlsEnabled,
+                                onClick = { StoryEditorUiIntent.ShowCreateChapterDialog(volume.id).emit() }
+                            )
                         }
                     }
                 }
@@ -1186,8 +1260,10 @@ private fun OutlineSummary(
     storyTitle: String,
     volumeCount: Int,
     chapterCount: Int,
+    totalCharacterCount: Int,
     updating: Boolean
 ) {
+    // 汇总卡片采用 Primary Container 柔和主色调与通透圆角
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
@@ -1201,10 +1277,12 @@ private fun OutlineSummary(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 图标气泡
             RpIconBubble(Icons.AutoMirrored.Rounded.MenuBook)
+            // 标题与聚合统计文案
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = storyTitle,
@@ -1215,9 +1293,10 @@ private fun OutlineSummary(
                 )
                 Text(
                     text = stringResource(
-                        R.string.story_structure_summary,
+                        R.string.story_outline_stats_summary,
                         volumeCount,
-                        chapterCount
+                        chapterCount,
+                        String.format(Locale.getDefault(), "%,d", totalCharacterCount)
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1234,13 +1313,14 @@ private fun OutlineSummary(
 private fun OutlineSectionHeader(
     title: String,
     itemCount: Int,
+    totalCharacterCount: Int? = null,
     enabled: Boolean,
     onAddChapter: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp),
+            .padding(horizontal = 2.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -1249,11 +1329,25 @@ private fun OutlineSectionHeader(
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            text = itemCount.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if (totalCharacterCount != null) {
+            Text(
+                text = stringResource(
+                    R.string.story_volume_stats,
+                    itemCount,
+                    String.format(Locale.getDefault(), "%,d", totalCharacterCount)
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        } else {
+            Text(
+                text = itemCount.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
         IconButton(onClick = onAddChapter, enabled = enabled) {
             Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.story_add_chapter))
         }
@@ -1268,19 +1362,29 @@ private fun StoryVolumeOutlineHeader(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onToggleCollapsed: () -> Unit,
+    onAddChapter: () -> Unit,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
+    val totalWords = remember(volume.chapters) {
+        volume.chapters.sumOf { it.characterCount }
+    }
+    // 分卷头部采用容器卡片样式，包含章节数与总字数统计
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(enabled = enabled, onClick = onToggleCollapsed)
-                .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+                .padding(start = 6.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 折叠与展开图标
             IconButton(onClick = onToggleCollapsed, enabled = enabled) {
                 Icon(
                     imageVector = if (collapsed) {
@@ -1288,10 +1392,17 @@ private fun StoryVolumeOutlineHeader(
                     } else {
                         Icons.Rounded.KeyboardArrowDown
                     },
-                    contentDescription = null
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+            // 分卷标题与统计指标
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
                     text = volume.title,
                     style = MaterialTheme.typography.titleSmall,
@@ -1300,9 +1411,21 @@ private fun StoryVolumeOutlineHeader(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = stringResource(R.string.story_chapter_count, volume.chapters.size),
+                    text = stringResource(
+                        R.string.story_volume_stats,
+                        volume.chapters.size,
+                        String.format(Locale.getDefault(), "%,d", totalWords)
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            // 快速为本卷添加章节按钮
+            IconButton(onClick = onAddChapter, enabled = enabled) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = stringResource(R.string.story_add_chapter_to_volume),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             StoryVolumeMenu(
@@ -1318,63 +1441,134 @@ private fun StoryVolumeOutlineHeader(
 
 @Composable
 private fun StoryChapterOutlineRow(
+    index: Int,
     chapter: StoryChapterOutlineItem,
     selected: Boolean,
+    isDragging: Boolean = false,
     enabled: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     canDelete: Boolean,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
+    // 章节行卡片容器，包含序号、高亮边框、当前编辑状态徽标与拖拽手柄
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 StoryEditorUiIntent.SelectStoryChapter(chapter.id).emit()
             },
         shape = RoundedCornerShape(14.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
+        shadowElevation = if (isDragging) 8.dp else 0.dp,
+        tonalElevation = if (selected || isDragging) 3.dp else 0.dp,
+        color = when {
+            isDragging -> MaterialTheme.colorScheme.surfaceVariant
+            selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.surface
         },
         border = BorderStroke(
-            1.dp,
-            if (selected) {
-                MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            width = if (selected || isDragging) 1.5.dp else 1.dp,
+            color = when {
+                isDragging -> MaterialTheme.colorScheme.primary
+                selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             }
         )
     ) {
         Row(
-            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                imageVector = if (selected) Icons.Rounded.Check else Icons.Rounded.Description,
-                contentDescription = null,
-                tint = if (selected) {
+            // 章节两位工整序号徽标
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (selected) {
                     MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                },
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
-            )
-            Column(modifier = Modifier.weight(1f)) {
+            ) {
                 Text(
-                    text = chapter.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = stringResource(R.string.story_character_count, chapter.characterCount),
+                    text = String.format(Locale.getDefault(), "%02d", index + 1),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                 )
             }
+            // 标题与字数/状态行
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = chapter.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (selected) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = stringResource(R.string.story_active_chapter),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.story_character_count,
+                            chapter.characterCount
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (chapter.characterCount < 50) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ) {
+                            Text(
+                                text = stringResource(R.string.story_draft_chapter),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.5.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            // 拖拽手柄视觉提示
+            Icon(
+                imageVector = Icons.Rounded.DragHandle,
+                contentDescription = stringResource(R.string.story_drag_handle),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier.size(20.dp)
+            )
             StoryChapterMenu(
                 chapterId = chapter.id,
                 enabled = enabled,
@@ -1383,6 +1577,90 @@ private fun StoryChapterOutlineRow(
                 canDelete = canDelete,
                 emit = emit
             )
+        }
+    }
+}
+
+@Composable
+private fun OutlineAddChapterButton(
+    textRes: Int,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(textRes),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun OutlineEmptyMessage(
+    text: String,
+    onAction: (() -> Unit)? = null,
+    actionTextRes: Int? = null,
+    enabled: Boolean = true
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (onAction != null && actionTextRes != null) {
+                TextButton(onClick = onAction, enabled = enabled) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(stringResource(actionTextRes), style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
     }
 }
@@ -1401,6 +1679,7 @@ private fun StoryVolumeMenu(
             Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            // 新建章节
             OutlineMenuItem(
                 textRes = R.string.story_add_chapter,
                 icon = Icons.Rounded.Add,
@@ -1409,6 +1688,7 @@ private fun StoryVolumeMenu(
                     StoryEditorUiIntent.ShowCreateChapterDialog(volumeId).emit()
                 }
             )
+            // 重命名分卷
             OutlineMenuItem(
                 textRes = R.string.rename,
                 icon = Icons.Rounded.Edit,
@@ -1417,6 +1697,7 @@ private fun StoryVolumeMenu(
                     StoryEditorUiIntent.ShowRenameVolumeDialog(volumeId).emit()
                 }
             )
+            // 上移分卷
             OutlineMenuItem(
                 textRes = R.string.move_up,
                 icon = Icons.Rounded.ArrowUpward,
@@ -1426,6 +1707,7 @@ private fun StoryVolumeMenu(
                     StoryEditorUiIntent.MoveStoryVolume(volumeId, -1).emit()
                 }
             )
+            // 下移分卷
             OutlineMenuItem(
                 textRes = R.string.move_down,
                 icon = Icons.Rounded.ArrowDownward,
@@ -1435,6 +1717,7 @@ private fun StoryVolumeMenu(
                     StoryEditorUiIntent.MoveStoryVolume(volumeId, 1).emit()
                 }
             )
+            // 删除分卷
             OutlineMenuItem(
                 textRes = R.string.delete,
                 icon = Icons.Rounded.Delete,
@@ -1462,6 +1745,7 @@ private fun StoryChapterMenu(
             Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            // 重命名章节
             OutlineMenuItem(
                 textRes = R.string.rename,
                 icon = Icons.Rounded.Edit,
@@ -1470,6 +1754,7 @@ private fun StoryChapterMenu(
                     StoryEditorUiIntent.ShowRenameChapterDialog(chapterId).emit()
                 }
             )
+            // 移动到其他分卷
             OutlineMenuItem(
                 textRes = R.string.story_move_chapter,
                 icon = Icons.Rounded.FolderOpen,
@@ -1478,6 +1763,7 @@ private fun StoryChapterMenu(
                     StoryEditorUiIntent.ShowMoveStoryChapterDialog(chapterId).emit()
                 }
             )
+            // 上移章节
             OutlineMenuItem(
                 textRes = R.string.move_up,
                 icon = Icons.Rounded.ArrowUpward,
@@ -1487,6 +1773,7 @@ private fun StoryChapterMenu(
                     StoryEditorUiIntent.MoveStoryChapter(chapterId, -1).emit()
                 }
             )
+            // 下移章节
             OutlineMenuItem(
                 textRes = R.string.move_down,
                 icon = Icons.Rounded.ArrowDownward,
@@ -1496,6 +1783,7 @@ private fun StoryChapterMenu(
                     StoryEditorUiIntent.MoveStoryChapter(chapterId, 1).emit()
                 }
             )
+            // 删除章节
             OutlineMenuItem(
                 textRes = R.string.delete,
                 icon = Icons.Rounded.Delete,
@@ -1521,18 +1809,6 @@ private fun OutlineMenuItem(
         leadingIcon = { Icon(icon, contentDescription = null) },
         enabled = enabled,
         onClick = onClick
-    )
-}
-
-@Composable
-private fun OutlineEmptyMessage(text: String) {
-    Text(
-        text = text,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 

@@ -886,6 +886,14 @@
     <string name="story_delete_chapter_message">确定删除“%1$s”吗？章节正文将无法恢复。</string>
     <string name="story_structure_title">标题</string>
     <string name="story_structure_summary">%1$d 个分卷 · %2$d 个章节</string>
+    <string name="story_outline_stats_summary">%1$d 个分卷 · %2$d 个章节 · %3$s 字</string>
+    <string name="story_volume_stats">%1$d 个章节 · %2$s 字</string>
+    <string name="story_active_chapter">正在编辑</string>
+    <string name="story_draft_chapter">草稿</string>
+    <string name="story_add_chapter_to_volume">在分卷内新建章节</string>
+    <string name="story_add_ungrouped_chapter_button">添加未分卷章节</string>
+    <string name="story_empty_volume_guide">本卷暂无章节，点击下方开始创作</string>
+    <string name="story_drag_handle">拖拽重排</string>
     <string name="story_chapter_count">%1$d 个章节</string>
     <string name="story_no_ungrouped_chapters">暂无未分卷章节</string>
     <string name="story_empty_volume">这个分卷还没有章节</string>
