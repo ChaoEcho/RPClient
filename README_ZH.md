@@ -24,8 +24,8 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 ## 界面展示
 
 <p align="center">
-  <img src="metadata/images/home.jpg" alt="RPClient 主页" width="45%" />
-  <img src="metadata/images/chat.jpg" alt="RPClient 聊天页面" width="45%" />
+  <img src="metadata/images/home_zh.png" alt="RPClient 主页" width="45%" />
+  <img src="metadata/images/chat_zh.png" alt="RPClient 聊天页面" width="45%" />
 </p>
 
 ## 功能特性
