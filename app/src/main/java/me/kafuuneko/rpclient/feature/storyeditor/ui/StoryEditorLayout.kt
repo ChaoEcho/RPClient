@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -133,9 +134,12 @@ import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
 import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
+import me.kafuuneko.rpclient.ui.widgets.dragContainer
+import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
@@ -1022,6 +1026,32 @@ private fun StoryOutlinePage(
     val controlsEnabled = !structureState.isUpdating
     val totalChapterCount = structureState.ungroupedChapters.size +
             structureState.volumes.sumOf { it.chapters.size }
+    // 只有章节节点参与拖动，标题和分卷节点继续作为固定的容器边界
+    val listState = rememberLazyListState()
+    val chaptersByKey: Map<Any, StoryChapterOutlineItem> = remember(structureState) {
+        (structureState.ungroupedChapters + structureState.volumes.flatMap { it.chapters })
+            .associateBy { chapterDragKey(it.id) }
+    }
+    val draggableChapterKeys = remember(chaptersByKey, controlsEnabled) {
+        if (controlsEnabled) chaptersByKey.keys else emptySet()
+    }
+    val dragDropState = rememberLazyListDragDropState(
+        lazyListState = listState,
+        isItemDraggable = { key -> key in draggableChapterKeys },
+        onMove = { fromKey, toKey ->
+            val fromChapter = chaptersByKey[fromKey]
+            val toChapter = chaptersByKey[toKey]
+            if (fromChapter != null && toChapter != null &&
+                fromChapter.volumeId == toChapter.volumeId
+            ) {
+                StoryEditorUiIntent.ReorderStoryChapter(
+                    fromChapterId = fromChapter.id,
+                    toChapterId = toChapter.id
+                ).emit()
+            }
+        },
+        onDragEnd = { StoryEditorUiIntent.CommitStoryChapterOrder.emit() }
+    )
 
     Scaffold(
         topBar = {
@@ -1052,9 +1082,11 @@ private fun StoryOutlinePage(
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .dragContainer(dragDropState),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -1083,19 +1115,21 @@ private fun StoryOutlinePage(
             } else {
                 items(
                     items = structureState.ungroupedChapters,
-                    key = { "chapter-${it.id}" }
+                    key = { chapterDragKey(it.id) }
                 ) { chapter ->
                     val index =
                         structureState.ungroupedChapters.indexOfFirst { it.id == chapter.id }
-                    StoryChapterOutlineRow(
-                        chapter = chapter,
-                        selected = chapter.id == structureState.currentChapterId,
-                        enabled = controlsEnabled,
-                        canMoveUp = index > 0,
-                        canMoveDown = index in 0 until structureState.ungroupedChapters.lastIndex,
-                        canDelete = totalChapterCount > 1,
-                        emit = emit
-                    )
+                    DraggableItem(dragDropState, chapterDragKey(chapter.id)) {
+                        StoryChapterOutlineRow(
+                            chapter = chapter,
+                            selected = chapter.id == structureState.currentChapterId,
+                            enabled = controlsEnabled,
+                            canMoveUp = index > 0,
+                            canMoveDown = index in 0 until structureState.ungroupedChapters.lastIndex,
+                            canDelete = totalChapterCount > 1,
+                            emit = emit
+                        )
+                    }
                 }
             }
 
@@ -1125,18 +1159,20 @@ private fun StoryOutlinePage(
                     } else {
                         items(
                             items = volume.chapters,
-                            key = { "chapter-${it.id}" }
+                            key = { chapterDragKey(it.id) }
                         ) { chapter ->
                             val index = volume.chapters.indexOfFirst { it.id == chapter.id }
-                            StoryChapterOutlineRow(
-                                chapter = chapter,
-                                selected = chapter.id == structureState.currentChapterId,
-                                enabled = controlsEnabled,
-                                canMoveUp = index > 0,
-                                canMoveDown = index in 0 until volume.chapters.lastIndex,
-                                canDelete = totalChapterCount > 1,
-                                emit = emit
-                            )
+                            DraggableItem(dragDropState, chapterDragKey(chapter.id)) {
+                                StoryChapterOutlineRow(
+                                    chapter = chapter,
+                                    selected = chapter.id == structureState.currentChapterId,
+                                    enabled = controlsEnabled,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index in 0 until volume.chapters.lastIndex,
+                                    canDelete = totalChapterCount > 1,
+                                    emit = emit
+                                )
+                            }
                         }
                     }
                 }
@@ -1746,8 +1782,35 @@ private fun CharacterSettings(
         return
     }
     val selectedCount = state.characters.count { it.selected }
+    // 未选角色不属于当前故事引用，保留原有名称排序且不参与拖动
+    val listState = rememberLazyListState()
+    val draggableCharacterIds = remember(state.characters, state.isSaving) {
+        if (state.isSaving) {
+            emptySet()
+        } else {
+            state.characters.filter { it.selected }.map { it.id }.toSet()
+        }
+    }
+    val dragDropState = rememberLazyListDragDropState(
+        lazyListState = listState,
+        isItemDraggable = { key -> key in draggableCharacterIds },
+        onMove = { fromKey, toKey ->
+            val selected = state.characters.filter { it.selected }
+            val fromIndex = selected.indexOfFirst { it.id == fromKey }
+            val toIndex = selected.indexOfFirst { it.id == toKey }
+            if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
+                StoryEditorUiIntent.MoveStoryCharacter(
+                    characterId = selected[fromIndex].id,
+                    offset = toIndex - fromIndex
+                ).emit()
+            }
+        }
+    )
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .dragContainer(dragDropState),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -1762,15 +1825,20 @@ private fun CharacterSettings(
             val selectedIndex = state.characters
                 .filter { it.selected }
                 .indexOfFirst { it.id == character.id }
-            CharacterSettingCard(
-                character = character,
-                canMoveUp = character.selected && selectedIndex > 0,
-                canMoveDown = character.selected && selectedIndex in 0 until selectedCount - 1,
-                emit = emit
-            )
+            DraggableItem(dragDropState, character.id) {
+                CharacterSettingCard(
+                    character = character,
+                    canMoveUp = character.selected && selectedIndex > 0,
+                    canMoveDown = character.selected && selectedIndex in 0 until selectedCount - 1,
+                    emit = emit
+                )
+            }
         }
     }
 }
+
+/** 为章节列表项生成与非章节节点不冲突的稳定拖动键。 */
+private fun chapterDragKey(chapterId: Long): String = "chapter-$chapterId"
 
 @Composable
 private fun CharacterSettingCard(

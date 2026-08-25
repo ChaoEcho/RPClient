@@ -119,6 +119,8 @@ class GroupChatViewModel :
     private var mStreamingRegexApplied: Boolean = false
     /** 最近一次实际发送给模型请求的 Prompt 检查报告。 */
     private var mLastPromptInspection: PromptInspection? = null
+    /** 一次成员拖动的原始顺序与等待持久化的最终顺序。 */
+    private var mPendingMemberOrder: PendingMemberOrder? = null
 
     /**
      * 初始化群聊会话。
@@ -675,8 +677,8 @@ class GroupChatViewModel :
                 }
             }
         }
-        // 刷新设置页面最新数据
-        refreshState(page = GroupChatPage.Settings)
+        // 保存完成后重载会话数据并返回群聊对话页
+        refreshState(page = GroupChatPage.Conversation)
     }
 
     /**
@@ -788,6 +790,51 @@ class GroupChatViewModel :
             )
         }
         refreshState(page = uiState.page)
+    }
+
+    /** 在内存中即时重排群聊成员，为长按拖动提供连续反馈。 */
+    @UiIntentObserver(GroupChatUiIntent.ReorderMember::class)
+    private fun onReorderMember(intent: GroupChatUiIntent.ReorderMember) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        val fromIndex = uiState.members.indexOfFirst { it.id == intent.fromCharacterId }
+        val toIndex = uiState.members.indexOfFirst { it.id == intent.toCharacterId }
+        if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) return
+        val originalIds = mPendingMemberOrder?.originalCharacterIds
+            ?: uiState.members.map { it.id }
+        // 拖动期间只更新页面状态，避免每次跨越成员都触发数据库刷新
+        val reordered = uiState.members.toMutableList().apply {
+            add(toIndex, removeAt(fromIndex))
+        }
+        mPendingMemberOrder = PendingMemberOrder(
+            originalCharacterIds = originalIds,
+            orderedCharacterIds = reordered.map { it.id }
+        )
+        uiState.copy(members = reordered).setup()
+    }
+
+    /** 拖动结束后以一次数据库事务提交成员最终顺序。 */
+    @UiIntentObserver(GroupChatUiIntent.CommitMemberOrder::class)
+    private suspend fun onCommitMemberOrder() {
+        val pendingOrder = mPendingMemberOrder ?: return
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        mPendingMemberOrder = null
+        val committed = runCatching {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.reorderMembers(
+                    sessionId = uiState.sessionId,
+                    orderedCharacterIds = pendingOrder.orderedCharacterIds
+                )
+            }
+        }.getOrDefault(false)
+        if (committed) return
+        // 写入失败时恢复手势开始前的顺序，不影响设置页的其他未保存草稿
+        val memberById = uiState.members.associateBy { it.id }
+        val restored = pendingOrder.originalCharacterIds.mapNotNull(memberById::get)
+        if (restored.size == uiState.members.size) {
+            uiState.copy(members = restored).setup()
+        }
     }
 
     /**
@@ -1568,6 +1615,7 @@ class GroupChatViewModel :
                 dialogState = dialogState
             )
         } ?: return
+        mPendingMemberOrder = null
         next.setup()
     }
 
@@ -1937,6 +1985,12 @@ class GroupChatViewModel :
         val entries: List<me.kafuuneko.rpclient.libs.room.entity.LorebookEntry>,
         val lorebooks: Map<Long, me.kafuuneko.rpclient.libs.room.entity.Lorebook>,
         val recursiveLorebookIds: Set<Long>
+    )
+
+    /** 一次成员拖动的原始顺序与最终顺序快照。 */
+    private data class PendingMemberOrder(
+        val originalCharacterIds: List<Long>,
+        val orderedCharacterIds: List<Long>
     )
 
     private companion object {

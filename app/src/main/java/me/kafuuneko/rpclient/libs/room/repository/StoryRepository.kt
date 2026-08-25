@@ -379,6 +379,42 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         true
     }
 
+    /**
+     * 按给定主键顺序批量重排同卷或未分卷容器内的全部章节。
+     *
+     * @param storyId 所属故事 ID
+     * @param volumeId 所属分卷 ID，为空时表示未分卷章节
+     * @param orderedChapterIds 容器内全部章节的最终主键顺序
+     * @param latestTime 本次结构变更时间
+     * @return 容器快照有效且顺序成功提交时返回 true
+     */
+    suspend fun reorderChapters(
+        storyId: Long,
+        volumeId: Long?,
+        orderedChapterIds: List<Long>,
+        latestTime: Long = System.currentTimeMillis()
+    ): Boolean = mAppDatabase.withTransaction {
+        val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
+        val siblings = mStoryChapterDao.getByContainer(storyId, volumeId)
+        // 完整校验容器成员，避免拖动期间的并发结构变更覆盖章节归属或新增数据
+        if (orderedChapterIds.distinct().size != orderedChapterIds.size) {
+            return@withTransaction false
+        }
+        if (siblings.map { it.id }.toSet() != orderedChapterIds.toSet()) {
+            return@withTransaction false
+        }
+        // 仅写入实际变化的序号，并以一次 Story 修订推进提交整次拖动结果
+        val chapterById = siblings.associateBy { it.id }
+        orderedChapterIds.forEachIndexed { index, chapterId ->
+            val chapter = chapterById.getValue(chapterId)
+            if (chapter.sortOrder != index) {
+                check(mStoryChapterDao.updateSortOrder(chapterId, storyId, index) == 1)
+            }
+        }
+        advanceStory(story, latestTime)
+        true
+    }
+
     /** 将章节移动到指定分卷或未分卷容器中。 */
     suspend fun moveChapterToVolume(
         storyId: Long,

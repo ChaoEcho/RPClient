@@ -162,6 +162,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private val mEditHistory = StoryEditHistory()
     /** 当前故事各世界书条目的关联与时序运行态快照。 */
     private var mWorldInfoStates: List<StoryLorebookRuntimeState> = emptyList()
+    /** 一次章节拖动等待持久化的最终容器顺序。 */
+    private var mPendingChapterOrder: PendingChapterOrder? = null
     /** 系统文件选择器返回 URI 时恢复用户选择的文本导出格式。 */
     private var mPendingTextExportFormat = StoryTextExportFormat.Text
 
@@ -645,6 +647,65 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private suspend fun onMoveStoryChapter(intent: StoryEditorUiIntent.MoveStoryChapter) {
         mutateStructure {
             mStoryRepository.moveChapter(it, intent.chapterId, intent.offset)
+        }
+    }
+
+    /** 在内存中即时重排同一容器内的章节，为长按拖动提供连续反馈。 */
+    @UiIntentObserver(StoryEditorUiIntent.ReorderStoryChapter::class)
+    private fun onReorderStoryChapter(intent: StoryEditorUiIntent.ReorderStoryChapter) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        val fromChapter = uiState.structureState.allChapters()
+            .firstOrNull { it.id == intent.fromChapterId }
+            ?: return
+        val toChapter = uiState.structureState.allChapters()
+            .firstOrNull { it.id == intent.toChapterId }
+            ?: return
+        if (fromChapter.volumeId != toChapter.volumeId) return
+        val chapters = uiState.structureState.chaptersInVolume(fromChapter.volumeId)
+        val fromIndex = chapters.indexOfFirst { it.id == fromChapter.id }
+        val toIndex = chapters.indexOfFirst { it.id == toChapter.id }
+        if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) return
+        // 先更新页面列表，松手后再把最终顺序作为一次事务持久化
+        val reordered = chapters.toMutableList().apply {
+            add(toIndex, removeAt(fromIndex))
+        }.mapIndexed { index, chapter -> chapter.copy(sortOrder = index) }
+        val structureState = uiState.structureState.withChapters(
+            volumeId = fromChapter.volumeId,
+            chapters = reordered
+        )
+        mPendingChapterOrder = PendingChapterOrder(
+            volumeId = fromChapter.volumeId,
+            chapterIds = reordered.map { it.id }
+        )
+        uiState.copy(structureState = structureState).setup()
+    }
+
+    /** 拖动结束后以一次数据库事务提交章节最终顺序。 */
+    @UiIntentObserver(StoryEditorUiIntent.CommitStoryChapterOrder::class)
+    private suspend fun onCommitStoryChapterOrder() {
+        val pendingOrder = mPendingChapterOrder ?: return
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (!uiState.canEditStructure()) return
+        mPendingChapterOrder = null
+        uiState.copy(
+            structureState = uiState.structureState.copy(isUpdating = true)
+        ).setup()
+        try {
+            // 提交完整容器快照，仓库会拒绝拖动期间发生过成员变化的旧列表
+            val changed = withContext(Dispatchers.IO) {
+                mStoryRepository.reorderChapters(
+                    storyId = uiState.storyId,
+                    volumeId = pendingOrder.volumeId,
+                    orderedChapterIds = pendingOrder.chapterIds
+                )
+            }
+            check(changed)
+            refreshStructure(uiState.storyId, closeDialog = false)
+        } catch (_: Exception) {
+            // 提交失败时重读持久化顺序，避免界面保留未保存的拖动结果
+            refreshStructure(uiState.storyId, closeDialog = false)
+            AppViewEvent.PopupToastMessageByResId(R.string.story_structure_update_failed).tryEmit()
         }
     }
 
@@ -2330,6 +2391,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return
         }
         adoptStructureData(editorData)
+        mPendingChapterOrder = null
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         // 更新大纲 UI 状态
         current.copy(
@@ -2633,6 +2695,39 @@ private fun StoryEditorUiState.Normal.canEditStructure(): Boolean {
 private fun StoryEditorStructureState.allChapters(): List<StoryChapterOutlineItem> {
     return ungroupedChapters + volumes.flatMap { it.chapters }
 }
+
+/** 返回指定分卷中的章节；空分卷 ID 表示未分卷章节。 */
+private fun StoryEditorStructureState.chaptersInVolume(
+    volumeId: Long?
+): List<StoryChapterOutlineItem> {
+    return if (volumeId == null) {
+        ungroupedChapters
+    } else {
+        volumes.firstOrNull { it.id == volumeId }?.chapters.orEmpty()
+    }
+}
+
+/** 替换指定分卷的章节列表，同时保留其余结构节点不变。 */
+private fun StoryEditorStructureState.withChapters(
+    volumeId: Long?,
+    chapters: List<StoryChapterOutlineItem>
+): StoryEditorStructureState {
+    return if (volumeId == null) {
+        copy(ungroupedChapters = chapters)
+    } else {
+        copy(
+            volumes = volumes.map { volume ->
+                if (volume.id == volumeId) volume.copy(chapters = chapters) else volume
+            }
+        )
+    }
+}
+
+/** 一次章节拖动等待持久化的最终容器顺序。 */
+private data class PendingChapterOrder(
+    val volumeId: Long?,
+    val chapterIds: List<Long>
+)
 
 /** 计算撤销条目中插入文本所覆盖的范围。 */
 private fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {

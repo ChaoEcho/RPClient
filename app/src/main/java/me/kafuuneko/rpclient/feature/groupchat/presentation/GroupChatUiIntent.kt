@@ -45,6 +45,11 @@ sealed class GroupChatUiIntent {
     data class AddMember(val characterId: Long) : GroupChatUiIntent()
     data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
     data class MoveMember(val characterId: Long, val offset: Int) : GroupChatUiIntent()
+    data class ReorderMember(
+        val fromCharacterId: Long,
+        val toCharacterId: Long
+    ) : GroupChatUiIntent()
+    data object CommitMemberOrder : GroupChatUiIntent()
     data class CopyMessage(val messageId: Long) : GroupChatUiIntent()
     data class ToggleThinkBlock(val blockId: String) : GroupChatUiIntent()
     data class StartEditMessage(val messageId: Long) : GroupChatUiIntent()

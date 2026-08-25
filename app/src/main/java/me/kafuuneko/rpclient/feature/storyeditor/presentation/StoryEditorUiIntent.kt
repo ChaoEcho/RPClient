@@ -30,6 +30,11 @@ sealed class StoryEditorUiIntent {
     data object ConfirmDeleteChapter : StoryEditorUiIntent()
     data class MoveStoryVolume(val volumeId: Long, val offset: Int) : StoryEditorUiIntent()
     data class MoveStoryChapter(val chapterId: Long, val offset: Int) : StoryEditorUiIntent()
+    data class ReorderStoryChapter(
+        val fromChapterId: Long,
+        val toChapterId: Long
+    ) : StoryEditorUiIntent()
+    data object CommitStoryChapterOrder : StoryEditorUiIntent()
     data class ShowMoveStoryChapterDialog(val chapterId: Long) : StoryEditorUiIntent()
     data class SelectChapterDestination(
         val destination: StoryChapterDestination

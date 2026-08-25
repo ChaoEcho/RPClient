@@ -259,6 +259,35 @@ class GroupChatRepository(
         }
     }
 
+    /**
+     * 按给定主键顺序批量重排群聊的全部成员。
+     *
+     * @param sessionId 群聊会话 ID
+     * @param orderedCharacterIds 当前会话全部成员的最终角色主键顺序
+     * @return 成员快照有效且顺序成功提交时返回 true
+     */
+    suspend fun reorderMembers(
+        sessionId: Long,
+        orderedCharacterIds: List<Long>
+    ): Boolean = mAppDatabase.withTransaction {
+        val members = mMemberDao.getMembers(sessionId)
+        // 完整校验成员快照，避免拖动期间的增删操作被旧顺序覆盖
+        if (orderedCharacterIds.distinct().size != orderedCharacterIds.size) {
+            return@withTransaction false
+        }
+        if (members.map { it.characterId }.toSet() != orderedCharacterIds.toSet()) {
+            return@withTransaction false
+        }
+        // 仅写入实际变化的连续序号
+        val memberById = members.associateBy { it.characterId }
+        orderedCharacterIds.forEachIndexed { index, characterId ->
+            if (memberById.getValue(characterId).sortOrder != index) {
+                mMemberDao.updateSortOrder(sessionId, characterId, index)
+            }
+        }
+        true
+    }
+
     /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) {
         mSessionDao.update(session)
