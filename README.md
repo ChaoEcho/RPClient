@@ -63,7 +63,7 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 ### Story Writing
 
 - Continuous manuscript editor with debounced local autosave and revision conflict protection
-- End-of-document continuation with optional one-shot guidance and multi-step session undo/redo
+- End-of-document continuation with persistent per-chapter guidance and multi-step session undo/redo
 - Story Memory, Author's Note, per-story character activation, lorebook matching, and Prompt Inspector
 - Streaming generation with stop, recoverable partial output, and multi-step session undo/redo
 - TXT/Markdown import and export, plus portable `.rpstory.json` archives

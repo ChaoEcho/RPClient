@@ -43,7 +43,8 @@ data class ArchivedVolume(
 /** 归档中的一个章节。 */
 data class ArchivedChapter(
     val title: String,
-    val content: String
+    val content: String,
+    val continuationGuidance: String = ""
 )
 
 /** 归档中的角色匹配提示，不包含完整角色卡内容。 */

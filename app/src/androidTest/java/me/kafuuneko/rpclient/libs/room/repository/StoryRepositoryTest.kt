@@ -129,11 +129,12 @@ class StoryRepositoryTest {
         )
         val chapter = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
         val saved = requireNotNull(
-            mRepository.updateChapterContent(
+            mRepository.updateChapterDraft(
                 storyId = storyId,
                 chapterId = chapter.id,
                 expectedChapterRevision = 0L,
                 content = "Before",
+                continuationGuidance = "",
                 latestTime = 11L
             )
         )
@@ -264,7 +265,9 @@ class StoryRepositoryTest {
         val storyId = archiveRepository.saveImport(
             draft = StoryImportDraft(
                 title = "Imported",
-                ungroupedChapters = listOf(ArchivedChapter("正文", "正文")),
+                ungroupedChapters = listOf(
+                    ArchivedChapter("正文", "正文", "保持悬疑氛围")
+                ),
                 includeUserPersona = true,
                 characterHints = listOf(
                     StoryCharacterHint(
@@ -293,6 +296,12 @@ class StoryRepositoryTest {
         assertEquals(
             entryId,
             mRepository.getStoryLorebookEntryCandidates(storyId).single().entry.id
+        )
+        assertEquals(
+            "保持悬疑氛围",
+            requireNotNull(mRepository.getStoryEditorData(storyId))
+                .currentChapter
+                .continuationGuidance
         )
     }
 
@@ -325,23 +334,27 @@ class StoryRepositoryTest {
     }
 
     @Test
-    fun chapterSave_usesChapterRevisionAndAdvancesStoryRevision() = runBlocking {
+    fun chapterSave_persistsGuidanceAndUsesChapterRevision() = runBlocking {
         val storyId = mRepository.createStory("Novel")
         val first = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
         val secondId = mRepository.createChapter(storyId, null, "Chapter Two")
 
         val firstWrite = requireNotNull(
-            mRepository.updateChapterContent(storyId, first.id, 0L, "First")
+            mRepository.updateChapterDraft(storyId, first.id, 0L, "First", "Guide One")
         )
         val secondWrite = requireNotNull(
-            mRepository.updateChapterContent(storyId, secondId, 0L, "Second")
+            mRepository.updateChapterDraft(storyId, secondId, 0L, "Second", "Guide Two")
         )
 
         assertEquals(1L, firstWrite.chapterRevision)
         assertEquals(1L, secondWrite.chapterRevision)
         assertTrue(secondWrite.storyRevision > firstWrite.storyRevision)
-        assertNull(mRepository.updateChapterContent(storyId, first.id, 0L, "Stale"))
-        assertEquals("First", requireNotNull(mRepository.getChapter(storyId, first.id)).content)
+        assertNull(
+            mRepository.updateChapterDraft(storyId, first.id, 0L, "Stale", "Stale Guide")
+        )
+        val savedFirst = requireNotNull(mRepository.getChapter(storyId, first.id))
+        assertEquals("First", savedFirst.content)
+        assertEquals("Guide One", savedFirst.continuationGuidance)
     }
 
     @Test

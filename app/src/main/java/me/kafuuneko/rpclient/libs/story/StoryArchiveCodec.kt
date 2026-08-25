@@ -8,7 +8,7 @@ import java.io.Reader
 import java.io.Writer
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 
-/** `.rpstory.json` 的稳定 V2 编解码器，同时将 V1 连续正文归档升级为单章节结构。 */
+/** `.rpstory.json` 的稳定 V2 编解码器，同时兼容缺少章节引导的历史归档。 */
 class StoryArchiveCodec(private val mGson: Gson) {
     fun encode(archive: StoryArchive): String {
         validateArchive(archive)
@@ -84,7 +84,8 @@ class StoryArchiveCodec(private val mGson: Gson) {
     private fun JsonObject.decodeChapter(): ArchivedChapter {
         return ArchivedChapter(
             title = requiredNonBlankTitle("title"),
-            content = requiredString("content")
+            content = requiredString("content"),
+            continuationGuidance = optionalString("continuationGuidance")
         )
     }
 

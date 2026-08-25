@@ -68,7 +68,7 @@ data class StoryEditorReferenceState(
     val lorebookEntryCount: Int
 )
 
-/** 编辑器底栏中只对下一次普通续写生效的一次性引导草稿。 */
+/** 编辑器底栏中归属于当前章节并持续用于普通续写的引导草稿。 */
 data class StoryContinuationInputState(
     val guidanceDraft: String = ""
 )

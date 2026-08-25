@@ -33,6 +33,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryUndoEntry
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryContinuationInputState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
@@ -89,7 +90,7 @@ import org.koin.core.component.inject
  *
  * 核心设计与职责：
  * - 双轨草稿与防抖自动保存：
- *   - 内存草稿（`mDraftContent`）与持久化内容（`mPersistedContent`）解耦。
+ *   - 正文与章节续写引导均使用内存草稿和持久化镜像解耦。
  *   - 自动保存采用乐观锁版本号（`mRevision`）机制，串行化保存防并发冲突；若发生冲突则保护内存草稿不被数据库旧数据覆盖。
  *   - 输入法组合态（`isComposing`）感知：在打字组合期间暂缓自动保存，待组合结束后按需触发。
  * - 当前章节 AI 续写（Continuation Generation）：
@@ -135,6 +136,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private var mDraftContent = ""
     /** 上一次成功持久化落库的正文内容。 */
     private var mPersistedContent = ""
+    /** 当前章节内存中的持续续写引导草稿。 */
+    private var mDraftGuidance = ""
+    /** 上一次成功持久化落库的章节续写引导。 */
+    private var mPersistedGuidance = ""
     /** 当前正文的版本号（Revision），用于乐观锁冲突检测。 */
     private var mRevision = 0L
     /** 文档同步版本计数，用于通知 UI 强制刷新编辑器内容。 */
@@ -203,6 +208,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mStoryRevision = story.revision
         mDraftContent = chapter.content
         mPersistedContent = chapter.content
+        mDraftGuidance = chapter.continuationGuidance
+        mPersistedGuidance = chapter.continuationGuidance
         mRevision = chapter.contentRevision
         mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
@@ -220,6 +227,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 hasAuthorNote = story.authorNote.isNotBlank(),
                 characterCount = characterCount,
                 lorebookEntryCount = lorebookEntryCount
+            ),
+            continuationInputState = StoryContinuationInputState(
+                guidanceDraft = chapter.continuationGuidance
             )
         ).setup()
     }
@@ -412,6 +422,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mStoryRevision = story.revision
         mDraftContent = chapter.content
         mPersistedContent = chapter.content
+        mDraftGuidance = chapter.continuationGuidance
+        mPersistedGuidance = chapter.continuationGuidance
         mRevision = chapter.contentRevision
         // 清理编辑撤销历史并发布到文档流
         clearEditHistory()
@@ -422,6 +434,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             topBarState = current.topBarState.copy(saveState = StorySaveState.Saved),
             contentState = current.contentState.copy(characterCount = chapter.content.length),
             structureState = buildStructureState(editorData),
+            continuationInputState = current.continuationInputState.copy(
+                guidanceDraft = chapter.continuationGuidance
+            ),
             canUndoEdit = false,
             canRedoEdit = false
         ).setup()
@@ -1113,7 +1128,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     /**
-     * 修改续写引导词（Continuation Guidance）草稿。
+     * 修改当前章节持续使用的续写引导草稿并调度自动保存。
      *
      * @param intent 包含引导词文本的意图
      */
@@ -1124,11 +1139,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         if (uiState.pageState != StoryEditorPageState.Editor) return
         if (uiState.generationState !is StoryGenerationState.Idle) return
+        if (intent.value == mDraftGuidance) return
+        mDraftGuidance = intent.value
         uiState.copy(
+            topBarState = uiState.topBarState.copy(saveState = StorySaveState.Dirty),
             continuationInputState = uiState.continuationInputState.copy(
                 guidanceDraft = intent.value
             )
         ).setup()
+        scheduleAutoSave()
     }
 
     /**
@@ -1887,7 +1906,6 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 characterCount = applied.content.length,
                 editable = true
             ),
-            continuationInputState = current.continuationInputState.copy(guidanceDraft = ""),
             generationState = StoryGenerationState.Idle,
             canUndoEdit = mEditHistory.canUndo,
             canRedoEdit = mEditHistory.canRedo
@@ -2172,12 +2190,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     /**
-     * 保存当前内存正文草稿到 Room 数据库。
+     * 原子保存当前章节的正文与持续续写引导草稿到 Room 数据库。
      *
      * 并发与冲突控制机制：
      * - 使用 [Mutex] 串行化保存；
      * - 若草稿与持久化镜像一致，直接标记已保存（Saved）；
-     * - 携带 `expectedRevision` 版本号执行乐观锁更新（`mStoryRepository.updateContent`）；
+     * - 携带 `expectedRevision` 版本号原子保存正文与引导；
      * - 若返回 false 说明数据库版本被其他流程更新，标记为冲突状态（Conflict）以保护内存草稿；
      * - 保存成功后版本号自增 1，同步更新持久化镜像与状态栏。
      *
@@ -2187,23 +2205,25 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return@withLock false
         // 若已处于冲突状态，拒绝盲目覆盖
         if (uiState.topBarState.saveState == StorySaveState.Conflict) return@withLock false
-        // 内容未发生改动，直接确认为已保存
-        if (mDraftContent == mPersistedContent) {
+        // 两类章节草稿均未变化时直接确认为已保存
+        if (mDraftContent == mPersistedContent && mDraftGuidance == mPersistedGuidance) {
             updateSaveState(StorySaveState.Saved)
             return@withLock true
         }
         val contentToSave = mDraftContent
+        val guidanceToSave = mDraftGuidance
         val expectedRevision = mRevision
         val chapter = mChapter ?: return@withLock false
         updateSaveState(StorySaveState.Saving)
-        // 异步向数据库提交带版本号的正文更新
+        // 异步向数据库提交带版本号的章节草稿更新
         val saved = try {
             withContext(Dispatchers.IO) {
-                mStoryRepository.updateChapterContent(
+                mStoryRepository.updateChapterDraft(
                     storyId = uiState.storyId,
                     chapterId = chapter.id,
                     expectedChapterRevision = expectedRevision,
-                    content = contentToSave
+                    content = contentToSave,
+                    continuationGuidance = guidanceToSave
                 )
             }
         } catch (_: Exception) {
@@ -2219,15 +2239,17 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mStoryRevision = saved.storyRevision
         mRevision = saved.chapterRevision
         mPersistedContent = contentToSave
+        mPersistedGuidance = guidanceToSave
         mStory = mStory?.copy(
             revision = saved.storyRevision
         )
         mChapter = mChapter?.copy(
             content = contentToSave,
+            continuationGuidance = guidanceToSave,
             contentRevision = saved.chapterRevision
         )
         // 检查在保存期间是否有新的输入到来
-        if (mDraftContent == contentToSave) {
+        if (mDraftContent == contentToSave && mDraftGuidance == guidanceToSave) {
             updateSaveState(StorySaveState.Saved)
         } else {
             updateSaveState(StorySaveState.Dirty)
@@ -2267,6 +2289,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = editorData.currentChapter.contentRevision
         mDraftContent = editorData.currentChapter.content
         mPersistedContent = editorData.currentChapter.content
+        mDraftGuidance = editorData.currentChapter.continuationGuidance
+        mPersistedGuidance = editorData.currentChapter.continuationGuidance
         mIsComposing = false
         // 清理进行中生成与历史撤销栈
         mActiveGeneration = null
@@ -2284,7 +2308,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 editable = true
             ),
             structureState = buildStructureState(editorData),
-            continuationInputState = current.continuationInputState.copy(guidanceDraft = ""),
+            continuationInputState = current.continuationInputState.copy(
+                guidanceDraft = editorData.currentChapter.continuationGuidance
+            ),
             generationState = StoryGenerationState.Idle,
             canUndoEdit = false,
             canRedoEdit = false,
@@ -2324,6 +2350,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = editorData.currentChapter.contentRevision
         mDraftContent = editorData.currentChapter.content
         mPersistedContent = editorData.currentChapter.content
+        mDraftGuidance = editorData.currentChapter.continuationGuidance
+        mPersistedGuidance = editorData.currentChapter.continuationGuidance
     }
 
     /** 将数据库加载的大纲聚合数据转换为 UI 结构状态。 */

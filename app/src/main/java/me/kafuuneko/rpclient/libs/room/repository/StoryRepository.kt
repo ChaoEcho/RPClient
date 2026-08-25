@@ -421,25 +421,27 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         StoryChapterDeleteResult(chapterId, fallback.id)
     }
 
-    /** 保存一个章节，并与 Story 聚合 revision 在同一事务中推进。 */
-    suspend fun updateChapterContent(
+    /** 以同一章节版本原子保存正文和持续续写引导，并推进 Story 聚合版本。 */
+    suspend fun updateChapterDraft(
         storyId: Long,
         chapterId: Long,
         expectedChapterRevision: Long,
         content: String,
+        continuationGuidance: String,
         latestTime: Long = System.currentTimeMillis()
     ): StoryChapterWriteResult? = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId)
             ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
-        // 乐观锁更新章节正文与版本号
+        // 乐观锁原子更新章节可编辑内容与版本号
         if (
-            mStoryChapterDao.updateContent(
+            mStoryChapterDao.updateDraft(
                 chapter.id,
                 storyId,
                 expectedChapterRevision,
                 content,
+                continuationGuidance,
                 latestTime
             ) != 1
         ) return@withTransaction null

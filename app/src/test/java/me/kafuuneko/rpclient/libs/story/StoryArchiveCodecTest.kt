@@ -17,7 +17,7 @@ class StoryArchiveCodecTest {
                 summary = "Summary",
                 includeUserPersona = true,
                 ungroupedChapters = listOf(
-                    ArchivedChapter("序章", "正文😀")
+                    ArchivedChapter("序章", "正文😀", "维持雨夜氛围")
                 ),
                 volumes = listOf(
                     ArchivedVolume(
@@ -43,6 +43,15 @@ class StoryArchiveCodecTest {
         )
 
         assertEquals(source, mCodec.decode(mCodec.encode(source)))
+    }
+
+    @Test
+    fun v2ArchiveWithoutGuidanceDefaultsToEmpty() {
+        val archive = mCodec.decode(
+            """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[{"title":"正文","content":"y"}],"volumes":[]}}"""
+        )
+
+        assertEquals("", archive.story.ungroupedChapters.single().continuationGuidance)
     }
 
     @Test

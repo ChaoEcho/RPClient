@@ -63,7 +63,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 ### 故事创作
 
 - 连续正文编辑器，支持本地防抖自动保存与 revision 冲突保护
-- 支持可选单次引导的文档末尾续写，以及会话期内的多步撤销与恢复
+- 支持按章节持久保存引导的文档末尾续写，以及会话期内的多步撤销与恢复
 - Story Memory、作者注释、Story 专属角色激活、世界书匹配与 Prompt Inspector
 - 流式生成、停止、部分结果恢复、会话内多步撤销与恢复
 - TXT/Markdown 导入导出及可迁移的 `.rpstory.json` 归档

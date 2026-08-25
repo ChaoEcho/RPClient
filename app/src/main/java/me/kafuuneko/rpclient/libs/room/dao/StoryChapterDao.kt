@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.model.StoryChapterOverview
 
-/** Story 章节正文、轻量大纲、排序和乐观锁写入接口。 */
+/** Story 章节内容、轻量大纲、排序和乐观锁写入接口。 */
 @Dao
 interface StoryChapterDao : MutableDao<StoryChapter> {
     /** 章节主键冲突必须中止，避免 REPLACE 将并发修改静默覆盖。 */
@@ -102,6 +102,27 @@ interface StoryChapterDao : MutableDao<StoryChapter> {
         storyId: Long,
         expectedRevision: Long,
         content: String,
+        latestTime: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE story_chapters
+        SET content = :content,
+            continuationGuidance = :continuationGuidance,
+            contentRevision = contentRevision + 1,
+            latestTime = :latestTime
+        WHERE id = :id
+          AND storyId = :storyId
+          AND contentRevision = :expectedRevision
+        """
+    )
+    suspend fun updateDraft(
+        id: Long,
+        storyId: Long,
+        expectedRevision: Long,
+        content: String,
+        continuationGuidance: String,
         latestTime: Long
     ): Int
 

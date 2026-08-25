@@ -237,13 +237,13 @@ class StoryArchiveRepository(
                 authorNote = story.authorNote,
                 includeUserPersona = story.includeUserPersona,
                 ungroupedChapters = chapters.filter { it.volumeId == null }.map {
-                    ArchivedChapter(it.title, it.content)
+                    ArchivedChapter(it.title, it.content, it.continuationGuidance)
                 },
                 volumes = volumes.map { volume ->
                     ArchivedVolume(
                         title = volume.title,
                         chapters = chapters.filter { it.volumeId == volume.id }.map {
-                            ArchivedChapter(it.title, it.content)
+                            ArchivedChapter(it.title, it.content, it.continuationGuidance)
                         }
                     )
                 }
@@ -282,6 +282,7 @@ class StoryArchiveRepository(
                 volumeId = volumeId,
                 title = requireTitle(chapter.title),
                 content = chapter.content,
+                continuationGuidance = chapter.continuationGuidance,
                 sortOrder = sortOrder,
                 createTime = now,
                 latestTime = now
