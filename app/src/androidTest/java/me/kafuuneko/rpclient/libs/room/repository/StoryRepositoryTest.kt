@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.story.StoryLorebookHint
 import me.kafuuneko.rpclient.libs.story.storyTextHash
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -331,6 +332,64 @@ class StoryRepositoryTest {
         }
         assertTrue(deletingLast.isFailure)
         assertEquals(1, requireNotNull(mRepository.getStoryEditorData(storyId)).chapters.size)
+    }
+
+    @Test
+    fun structure_reorderAllChaptersValidatesSnapshotAndPersistsAtomically() = runBlocking {
+        val storyId = mRepository.createStory("Novel")
+        val first = requireNotNull(mRepository.getStoryEditorData(storyId)).currentChapter
+        val volumeId = mRepository.createVolume(storyId, "Volume")
+        val secondId = mRepository.createChapter(storyId, volumeId, "Second")
+        val otherStoryId = mRepository.createStory("Other")
+        val foreignVolumeId = mRepository.createVolume(otherStoryId, "Foreign")
+        val initialRevision = requireNotNull(mRepository.getStory(storyId)).revision
+
+        // 重复成员、重复顺序和跨故事分卷都必须在写入前拒绝。
+        assertFalse(
+            mRepository.reorderAllChapters(
+                storyId,
+                listOf(
+                    StoryChapterPlacement(first.id, null, 0),
+                    StoryChapterPlacement(first.id, null, 1),
+                    StoryChapterPlacement(secondId, volumeId, 0)
+                )
+            )
+        )
+        assertFalse(
+            mRepository.reorderAllChapters(
+                storyId,
+                listOf(
+                    StoryChapterPlacement(first.id, null, 0),
+                    StoryChapterPlacement(secondId, null, 0)
+                )
+            )
+        )
+        assertFalse(
+            mRepository.reorderAllChapters(
+                storyId,
+                listOf(
+                    StoryChapterPlacement(first.id, foreignVolumeId, 0),
+                    StoryChapterPlacement(secondId, volumeId, 0)
+                )
+            )
+        )
+        assertEquals(initialRevision, requireNotNull(mRepository.getStory(storyId)).revision)
+
+        // 合法完整快照一次提交章节归属、连续顺序和故事修订号。
+        assertTrue(
+            mRepository.reorderAllChapters(
+                storyId,
+                listOf(
+                    StoryChapterPlacement(secondId, volumeId, 0),
+                    StoryChapterPlacement(first.id, volumeId, 1)
+                )
+            )
+        )
+        assertEquals(
+            listOf(secondId, first.id),
+            mDatabase.getStoryChapterDao().getByContainer(storyId, volumeId).map { it.id }
+        )
+        assertTrue(requireNotNull(mRepository.getStory(storyId)).revision > initialRevision)
     }
 
     @Test

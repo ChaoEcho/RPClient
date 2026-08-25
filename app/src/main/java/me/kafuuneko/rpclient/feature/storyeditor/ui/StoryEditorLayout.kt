@@ -101,6 +101,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.Locale
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropPosition
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
@@ -899,11 +901,18 @@ private fun EditorDialogSwitch(
                 add(
                     StoryChapterDestinationOption(
                         volumeId = null,
-                        title = stringResource(R.string.story_ungrouped_chapters)
+                        title = stringResource(R.string.story_ungrouped_chapters),
+                        chapterCount = state.structureState.ungroupedChapters.size
                     )
                 )
                 state.structureState.volumes.forEach { volume ->
-                    add(StoryChapterDestinationOption(volume.id, volume.title))
+                    add(
+                        StoryChapterDestinationOption(
+                            volumeId = volume.id,
+                            title = volume.title,
+                            chapterCount = volume.chapters.size
+                        )
+                    )
                 }
             },
             selectedVolumeId = when (val destination = dialogState.selectedDestination) {
@@ -1062,29 +1071,23 @@ private fun StoryOutlinePage(
                 structureState.volumes.sumOf { volume -> volume.chapters.sumOf { it.characterCount } }
     }
 
-    // 只有章节节点参与拖动，标题和分卷节点继续作为固定的容器边界
+    // 通过查找表把可保存的稳定 key 转换为类型化手势目标，避免解析字符串约定。
     val listState = rememberLazyListState()
-    val chaptersByKey: Map<Any, StoryChapterOutlineItem> = remember(structureState) {
-        (structureState.ungroupedChapters + structureState.volumes.flatMap { it.chapters })
-            .associateBy { chapterDragKey(it.id) }
-    }
-    val draggableChapterKeys = remember(chaptersByKey, controlsEnabled) {
-        if (controlsEnabled) chaptersByKey.keys else emptySet()
+    val dragNodesByKey = remember(structureState) {
+        storyOutlineDragNodes(structureState)
     }
     val dragDropState = rememberLazyListDragDropState(
         lazyListState = listState,
-        isItemDraggable = { key -> key in draggableChapterKeys },
+        isItemDraggable = { key -> controlsEnabled && dragNodesByKey[key]?.chapterId != null },
+        isItemDropTarget = { key ->
+            controlsEnabled && dragNodesByKey[key]?.dropTarget != null
+        },
         onMove = { fromKey, toKey ->
-            val fromChapter = chaptersByKey[fromKey]
-            val toChapter = chaptersByKey[toKey]
-            if (fromChapter != null && toChapter != null &&
-                fromChapter.volumeId == toChapter.volumeId
-            ) {
-                StoryEditorUiIntent.ReorderStoryChapter(
-                    fromChapterId = fromChapter.id,
-                    toChapterId = toChapter.id
-                ).emit()
-            }
+            val chapterId = dragNodesByKey[fromKey]?.chapterId
+                ?: return@rememberLazyListDragDropState
+            val target = dragNodesByKey[toKey]?.dropTarget
+                ?: return@rememberLazyListDragDropState
+            StoryEditorUiIntent.DragStoryChapter(chapterId, target).emit()
         },
         onDragEnd = { StoryEditorUiIntent.CommitStoryChapterOrder.emit() }
     )
@@ -1127,7 +1130,7 @@ private fun StoryOutlinePage(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // 全书体量与结构概览卡片
-            item(key = "outline-summary") {
+            item(key = OUTLINE_SUMMARY_KEY) {
                 OutlineSummary(
                     storyTitle = storyTitle,
                     volumeCount = structureState.volumes.size,
@@ -1139,7 +1142,7 @@ private fun StoryOutlinePage(
 
             // 未分卷章节分组
             val ungroupedTotalWords = structureState.ungroupedChapters.sumOf { it.characterCount }
-            item(key = "ungrouped-header") {
+            item(key = UNGROUPED_HEADER_KEY) {
                 OutlineSectionHeader(
                     title = stringResource(R.string.story_ungrouped_chapters),
                     itemCount = structureState.ungroupedChapters.size,
@@ -1151,7 +1154,7 @@ private fun StoryOutlinePage(
                 )
             }
             if (structureState.ungroupedChapters.isEmpty()) {
-                item(key = "ungrouped-empty") {
+                item(key = UNGROUPED_EMPTY_KEY) {
                     OutlineEmptyMessage(
                         text = stringResource(R.string.story_no_ungrouped_chapters),
                         onAction = { StoryEditorUiIntent.ShowCreateChapterDialog(null).emit() },
@@ -1162,11 +1165,14 @@ private fun StoryOutlinePage(
             } else {
                 items(
                     items = structureState.ungroupedChapters,
-                    key = { chapterDragKey(it.id) }
+                    key = { chapterOutlineKey(it.id) }
                 ) { chapter ->
                     val index =
                         structureState.ungroupedChapters.indexOfFirst { it.id == chapter.id }
-                    DraggableItem(dragDropState, chapterDragKey(chapter.id)) { isDragging ->
+                    DraggableItem(
+                        dragDropState,
+                        chapterOutlineKey(chapter.id)
+                    ) { isDragging ->
                         StoryChapterOutlineRow(
                             index = index,
                             chapter = chapter,
@@ -1180,7 +1186,7 @@ private fun StoryOutlinePage(
                         )
                     }
                 }
-                item(key = "ungrouped-add-button") {
+                item(key = UNGROUPED_ADD_KEY) {
                     OutlineAddChapterButton(
                         textRes = R.string.story_add_ungrouped_chapter_button,
                         enabled = controlsEnabled,
@@ -1191,7 +1197,7 @@ private fun StoryOutlinePage(
 
             // 各分卷及其包含的章节列表
             structureState.volumes.forEachIndexed { volumeIndex, volume ->
-                item(key = "volume-${volume.id}") {
+                item(key = volumeHeaderKey(volume.id)) {
                     StoryVolumeOutlineHeader(
                         volume = volume,
                         collapsed = volume.id in collapsedVolumeIds,
@@ -1213,7 +1219,7 @@ private fun StoryOutlinePage(
                 }
                 if (volume.id !in collapsedVolumeIds) {
                     if (volume.chapters.isEmpty()) {
-                        item(key = "volume-${volume.id}-empty") {
+                        item(key = volumeEmptyKey(volume.id)) {
                             OutlineEmptyMessage(
                                 text = stringResource(R.string.story_empty_volume_guide),
                                 onAction = { StoryEditorUiIntent.ShowCreateChapterDialog(volume.id).emit() },
@@ -1224,10 +1230,13 @@ private fun StoryOutlinePage(
                     } else {
                         items(
                             items = volume.chapters,
-                            key = { chapterDragKey(it.id) }
+                            key = { chapterOutlineKey(it.id) }
                         ) { chapter ->
                             val index = volume.chapters.indexOfFirst { it.id == chapter.id }
-                            DraggableItem(dragDropState, chapterDragKey(chapter.id)) { isDragging ->
+                            DraggableItem(
+                                dragDropState,
+                                chapterOutlineKey(chapter.id)
+                            ) { isDragging ->
                                 StoryChapterOutlineRow(
                                     index = index,
                                     chapter = chapter,
@@ -1241,7 +1250,7 @@ private fun StoryOutlinePage(
                                 )
                             }
                         }
-                        item(key = "volume-${volume.id}-add-button") {
+                        item(key = volumeAddKey(volume.id)) {
                             OutlineAddChapterButton(
                                 textRes = R.string.story_add_chapter_to_volume,
                                 enabled = controlsEnabled,
@@ -2113,8 +2122,73 @@ private fun CharacterSettings(
     }
 }
 
-/** 为章节列表项生成与非章节节点不冲突的稳定拖动键。 */
-private fun chapterDragKey(chapterId: Long): String = "chapter-$chapterId"
+private const val OUTLINE_SUMMARY_KEY = "outline-summary"
+private const val UNGROUPED_HEADER_KEY = "ungrouped-header"
+private const val UNGROUPED_EMPTY_KEY = "ungrouped-empty"
+private const val UNGROUPED_ADD_KEY = "ungrouped-add-button"
+
+/** 大纲列表节点对应的拖动源和类型化投放目标。 */
+private data class StoryOutlineDragNode(
+    val chapterId: Long? = null,
+    val dropTarget: StoryChapterDropTarget? = null
+)
+
+/** 为当前大纲建立稳定列表 key 到拖放语义的查找表。 */
+private fun storyOutlineDragNodes(
+    state: StoryEditorStructureState
+): Map<Any, StoryOutlineDragNode> = buildMap {
+    // 分组头部和空状态接收首部投放，追加按钮接收尾部投放。
+    put(
+        UNGROUPED_HEADER_KEY,
+        StoryOutlineDragNode(
+            dropTarget = StoryChapterDropTarget.Container(null, StoryChapterDropPosition.Start)
+        )
+    )
+    put(UNGROUPED_EMPTY_KEY, getValue(UNGROUPED_HEADER_KEY))
+    put(
+        UNGROUPED_ADD_KEY,
+        StoryOutlineDragNode(
+            dropTarget = StoryChapterDropTarget.Container(null, StoryChapterDropPosition.End)
+        )
+    )
+    state.volumes.forEach { volume ->
+        val startNode = StoryOutlineDragNode(
+            dropTarget = StoryChapterDropTarget.Container(
+                volume.id,
+                StoryChapterDropPosition.Start
+            )
+        )
+        put(volumeHeaderKey(volume.id), startNode)
+        put(volumeEmptyKey(volume.id), startNode)
+        put(
+            volumeAddKey(volume.id),
+            StoryOutlineDragNode(
+                dropTarget = StoryChapterDropTarget.Container(
+                    volume.id,
+                    StoryChapterDropPosition.End
+                )
+            )
+        )
+    }
+    // 章节节点既是拖动源，也是插入到该章节之前的投放锚点。
+    (state.ungroupedChapters + state.volumes.flatMap { it.chapters }).forEach { chapter ->
+        put(
+            chapterOutlineKey(chapter.id),
+            StoryOutlineDragNode(
+                chapterId = chapter.id,
+                dropTarget = StoryChapterDropTarget.Chapter(chapter.id)
+            )
+        )
+    }
+}
+
+private fun chapterOutlineKey(chapterId: Long): String = "chapter-$chapterId"
+
+private fun volumeHeaderKey(volumeId: Long): String = "volume-$volumeId"
+
+private fun volumeEmptyKey(volumeId: Long): String = "volume-$volumeId-empty"
+
+private fun volumeAddKey(volumeId: Long): String = "volume-$volumeId-add-button"
 
 @Composable
 private fun CharacterSettingCard(

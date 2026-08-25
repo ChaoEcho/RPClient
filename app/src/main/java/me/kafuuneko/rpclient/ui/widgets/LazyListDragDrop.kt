@@ -39,6 +39,7 @@ class LazyListDragDropState internal constructor(
     private val mState: LazyListState,
     private val mScope: CoroutineScope,
     private val mIsItemDraggable: (key: Any) -> Boolean,
+    private val mIsItemDropTarget: (key: Any) -> Boolean = mIsItemDraggable,
     private val mOnMove: (fromKey: Any, toKey: Any) -> Unit,
     private val mOnDragEnd: () -> Unit = {},
 ) {
@@ -111,28 +112,24 @@ class LazyListDragDropState internal constructor(
         val endOffset = startOffset + draggingItem.size
 
         val candidates = mState.layoutInfo.visibleItemsInfo.filter { item ->
-            mIsItemDraggable(item.key) && draggingItem.key != item.key
+            mIsItemDropTarget(item.key) && draggingItem.key != item.key
         }
 
-        val targetItem = if (mDraggingItemDraggedDelta >= 0) {
-            // 向下拖拽：寻找下方首个被拖拽项覆盖超过 20% 高度的 Item
-            candidates
-                .filter { it.index > draggingItem.index }
-                .firstOrNull { item ->
-                    val itemTop = item.offset.toFloat()
-                    val threshold = item.size * 0.20f
-                    endOffset > (itemTop + threshold)
-                }
-        } else {
-            // 向上拖拽：寻找上方首个被拖拽项覆盖超过 20% 高度的 Item
-            candidates
-                .filter { it.index < draggingItem.index }
-                .lastOrNull { item ->
-                    val itemBottom = (item.offset + item.size).toFloat()
-                    val threshold = item.size * 0.20f
-                    startOffset < (itemBottom - threshold)
-                }
-        }
+        // 计算物理重叠面积，选取重叠最大的候选接收项
+        val targetItem = candidates
+            .map { item ->
+                val itemTop = item.offset.toFloat()
+                val itemBottom = (item.offset + item.size).toFloat()
+                val overlap = (minOf(endOffset, itemBottom) - maxOf(startOffset, itemTop)).coerceAtLeast(0f)
+                item to overlap
+            }
+            .filter { it.second > 0f }
+            .maxByOrNull { it.second }
+            ?.let { (item, overlap) ->
+                // 要求重叠量至少达到两者中较小尺寸的五分之一，防止边缘微小抖动误触发
+                val minThreshold = minOf(item.size, draggingItem.size) * 0.20f
+                if (overlap >= minThreshold) item else null
+            }
 
         if (targetItem != null) {
             if (
@@ -164,16 +161,26 @@ class LazyListDragDropState internal constructor(
  * 创建并记住与指定 [LazyListState] 绑定的拖拽状态。
  *
  * 回调通过最新值包装，避免重组后拖拽状态继续捕获旧闭包；返回值不能跨列表复用。
+ *
+ * @param lazyListState 目标列表的滚动与布局状态
+ * @param isItemDraggable 判断列表项能否作为拖动源
+ * @param isItemDropTarget 判断列表项能否接收拖动项；不可拖动的容器节点也可返回 true
+ * @param onMove 拖动项与有效目标达到重叠阈值时调用
+ * @param onDragEnd 拖动手势结束或取消时调用
+ * @return 与 [lazyListState] 生命周期绑定的拖拽状态
  */
 @Composable
 fun rememberLazyListDragDropState(
     lazyListState: LazyListState,
     isItemDraggable: (key: Any) -> Boolean = { true },
+    isItemDropTarget: (key: Any) -> Boolean = isItemDraggable,
     onMove: (fromKey: Any, toKey: Any) -> Unit,
     onDragEnd: () -> Unit = {},
 ): LazyListDragDropState {
     val scope = rememberCoroutineScope()
+    // 状态对象跨重组保留，但所有行为回调始终转发到调用方的最新闭包。
     val currentIsItemDraggable = rememberUpdatedState(isItemDraggable)
+    val currentIsItemDropTarget = rememberUpdatedState(isItemDropTarget)
     val currentOnMove = rememberUpdatedState(onMove)
     val currentOnDragEnd = rememberUpdatedState(onDragEnd)
     val state = remember(lazyListState) {
@@ -181,10 +188,12 @@ fun rememberLazyListDragDropState(
             mState = lazyListState,
             mScope = scope,
             mIsItemDraggable = { key -> currentIsItemDraggable.value(key) },
+            mIsItemDropTarget = { key -> currentIsItemDropTarget.value(key) },
             mOnMove = { fromKey, toKey -> currentOnMove.value(fromKey, toKey) },
             mOnDragEnd = { currentOnDragEnd.value() }
         )
     }
+    // 拖到视口边缘时串行消费滚动距离，避免为每次指针事件创建独立协程。
     LaunchedEffect(state) {
         while (true) {
             val diff = state.scrollChannel.receive()

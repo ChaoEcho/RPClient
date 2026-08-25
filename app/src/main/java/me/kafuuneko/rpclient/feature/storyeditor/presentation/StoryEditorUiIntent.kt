@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.storyeditor.presentation
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import android.net.Uri
 
@@ -30,9 +31,9 @@ sealed class StoryEditorUiIntent {
     data object ConfirmDeleteChapter : StoryEditorUiIntent()
     data class MoveStoryVolume(val volumeId: Long, val offset: Int) : StoryEditorUiIntent()
     data class MoveStoryChapter(val chapterId: Long, val offset: Int) : StoryEditorUiIntent()
-    data class ReorderStoryChapter(
-        val fromChapterId: Long,
-        val toChapterId: Long
+    data class DragStoryChapter(
+        val chapterId: Long,
+        val target: StoryChapterDropTarget
     ) : StoryEditorUiIntent()
     data object CommitStoryChapterOrder : StoryEditorUiIntent()
     data class ShowMoveStoryChapterDialog(val chapterId: Long) : StoryEditorUiIntent()

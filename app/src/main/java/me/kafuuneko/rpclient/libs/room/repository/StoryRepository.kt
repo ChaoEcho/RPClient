@@ -415,6 +415,52 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         true
     }
 
+    /**
+     * 批量重排故事内的全部章节（支持跨分卷移动与全书重排）。
+     *
+     * - 快照必须无重复地覆盖当前故事全部章节。
+     * - 分卷必须属于当前故事，每个容器的排序值必须从零开始连续。
+     * - 无实际位置变化时不推进故事修订号。
+     *
+     * @param storyId 所属故事 ID
+     * @param placements 全部章节的最新归属与排序列表
+     * @param latestTime 本次结构变更时间
+     * @return 校验通过且事务成功提交时返回 true
+     */
+    suspend fun reorderAllChapters(
+        storyId: Long,
+        placements: List<StoryChapterPlacement>,
+        latestTime: Long = System.currentTimeMillis()
+    ): Boolean = mAppDatabase.withTransaction {
+        val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
+        val allChapters = mStoryChapterDao.getByStoryId(storyId)
+        val existingIds = allChapters.map { it.id }.toSet()
+        val availableVolumeIds = mStoryVolumeDao.getByStoryId(storyId).map { it.id }.toSet()
+        // 完整快照必须精确覆盖现有章节，并且只能引用当前故事的分卷。
+        if (!placements.isValidChapterPlacementSnapshot(existingIds, availableVolumeIds)) {
+            return@withTransaction false
+        }
+        val chapterById = allChapters.associateBy { it.id }
+        val changedPlacements = placements.filter { placement ->
+            val current = chapterById.getValue(placement.chapterId)
+            current.volumeId != placement.volumeId || current.sortOrder != placement.sortOrder
+        }
+        if (changedPlacements.isEmpty()) return@withTransaction true
+        // 只写入发生变化的位置，全部成功后再推进故事修订号。
+        changedPlacements.forEach { placement ->
+            check(
+                mStoryChapterDao.updateLocation(
+                    id = placement.chapterId,
+                    storyId = storyId,
+                    volumeId = placement.volumeId,
+                    sortOrder = placement.sortOrder
+                ) == 1
+            )
+        }
+        advanceStory(story, latestTime)
+        true
+    }
+
     /** 将章节移动到指定分卷或未分卷容器中。 */
     suspend fun moveChapterToVolume(
         storyId: Long,
@@ -824,5 +870,25 @@ private fun List<StoryLorebookEntry>.withRuntimeStates(
             cooldownUntilStep = state.cooldownUntilStep,
             stateSignature = state.stateSignature
         )
+    }
+}
+
+/** 章节归属分卷与排序位置载荷。 */
+data class StoryChapterPlacement(
+    val chapterId: Long,
+    val volumeId: Long?,
+    val sortOrder: Int
+)
+
+/** 验证完整章节位置快照的成员、分卷归属与容器内连续顺序。 */
+private fun List<StoryChapterPlacement>.isValidChapterPlacementSnapshot(
+    existingChapterIds: Set<Long>,
+    availableVolumeIds: Set<Long>
+): Boolean {
+    if (size != existingChapterIds.size) return false
+    if (map { it.chapterId }.toSet() != existingChapterIds) return false
+    if (any { it.volumeId != null && it.volumeId !in availableVolumeIds }) return false
+    return groupBy { it.volumeId }.values.all { placements ->
+        placements.map { it.sortOrder }.sorted() == placements.indices.toList()
     }
 }

@@ -53,6 +53,24 @@ sealed class StoryChapterDestination {
     data class Volume(val volumeId: Long) : StoryChapterDestination()
 }
 
+/** 章节拖放手势命中的结构目标，不携带最终排序下标。 */
+sealed class StoryChapterDropTarget {
+    /** 拖到另一章节时，由状态持有者计算目标章节前的插入位置。 */
+    data class Chapter(val chapterId: Long) : StoryChapterDropTarget()
+
+    /** 拖到分组边界时，由状态持有者根据 [position] 计算首尾位置。 */
+    data class Container(
+        val volumeId: Long?,
+        val position: StoryChapterDropPosition
+    ) : StoryChapterDropTarget()
+}
+
+/** 章节拖到分组边界时表达的相对位置。 */
+enum class StoryChapterDropPosition {
+    Start,
+    End
+}
+
 /** 创建或重命名结构节点时由对话框携带的目标。 */
 sealed class StoryStructureTitleTarget {
     data object NewVolume : StoryStructureTitleTarget()
