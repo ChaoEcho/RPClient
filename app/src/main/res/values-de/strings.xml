@@ -284,6 +284,7 @@
     <string name="stop_generation_before_summarizing">Bitte stoppe die Generierung vor dem Zusammenfassen</string>
     <string name="stop_generation_before_deleting">Bitte stoppe die Generierung vor dem Löschen dieses Chats</string>
     <string name="untitled_chat">Unbenannter Chat</string>
+    <string name="untitled">Unbenannt</string>
     <string name="no_latest_assistant_reply_to_regenerate">Keine letzte Antwort des Assistenten zum Regenerieren vorhanden</string>
     <string name="cannot_regenerate_only_first_message">Die erste Nachricht kann nicht allein neu generiert werden</string>
     <string name="no_latest_assistant_reply_to_continue">Keine Antwort des Assistenten zum Fortsetzen vorhanden</string>

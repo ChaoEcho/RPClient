@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.io.Reader
 import java.io.Writer
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 
 /** `.rpstory.json` 的稳定 V2 编解码器，同时将 V1 连续正文归档升级为单章节结构。 */
 class StoryArchiveCodec(private val mGson: Gson) {
@@ -45,14 +46,14 @@ class StoryArchiveCodec(private val mGson: Gson) {
 
     private fun decodeLegacyStory(story: JsonObject): ArchivedStory {
         return ArchivedStory(
-            title = story.normalizedTitle("title", DEFAULT_TITLE),
+            title = story.normalizedTitle("title", DefaultNames.IMPORTED_STORY),
             memory = story.optionalString("memory"),
             summary = story.optionalString("summary"),
             authorNote = story.optionalString("authorNote"),
             includeUserPersona = story.optionalBoolean("includeUserPersona"),
             ungroupedChapters = listOf(
                 ArchivedChapter(
-                    title = DEFAULT_CHAPTER_TITLE,
+                    title = DefaultNames.STORY_CHAPTER,
                     content = story.requiredString("content")
                 )
             )
@@ -61,7 +62,7 @@ class StoryArchiveCodec(private val mGson: Gson) {
 
     private fun decodeStory(story: JsonObject): ArchivedStory {
         return ArchivedStory(
-            title = story.normalizedTitle("title", DEFAULT_TITLE),
+            title = story.normalizedTitle("title", DefaultNames.IMPORTED_STORY),
             memory = story.optionalString("memory"),
             summary = story.optionalString("summary"),
             authorNote = story.optionalString("authorNote"),
@@ -210,10 +211,6 @@ class StoryArchiveCodec(private val mGson: Gson) {
         const val MODE_PRIMARY = "primary"
         /** 旧版连续正文归档的协议版本号。 */
         private const val LEGACY_VERSION = 1
-        /** 导入未指定标题时的默认回退标题。 */
-        private const val DEFAULT_TITLE = "Imported story"
-        /** 旧版连续正文导入后的默认章节标题。 */
-        private const val DEFAULT_CHAPTER_TITLE = "正文"
         /** 单篇归档允许包含的最大分卷数。 */
         private const val MAX_VOLUMES = 1_000
         /** 单篇归档允许包含的最大章节数。 */

@@ -283,6 +283,7 @@
     <string name="stop_generation_before_summarizing">Veuillez arrêter la génération avant de résumer</string>
     <string name="stop_generation_before_deleting">Veuillez arrêter la génération avant de supprimer cette discussion</string>
     <string name="untitled_chat">Discussion sans titre</string>
+    <string name="untitled">Sans titre</string>
     <string name="no_latest_assistant_reply_to_regenerate">Aucune réponse de l\'assistant récente à régénérer</string>
     <string name="cannot_regenerate_only_first_message">Le premier message ne peut pas être régénéré seul</string>
     <string name="no_latest_assistant_reply_to_continue">Aucune réponse de l\'assistant à continuer</string>

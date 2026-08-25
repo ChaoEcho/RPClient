@@ -13,6 +13,13 @@ class LorebookCodecTest {
     private val codec = LorebookCodec(Gson())
 
     @Test
+    fun blankImportedBookNameUsesStableDefault() {
+        val imported = codec.parseLorebook("""{"name":" ","entries":{}}""")
+
+        assertEquals("Imported world book", imported.lorebook.name)
+    }
+
+    @Test
     fun missingBookBudgetFollowsGlobalAndIsOmittedOnExport() {
         val imported = codec.parseLorebook(
             """{"name":"Imported","entries":{}}"""

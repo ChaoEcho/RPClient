@@ -338,7 +338,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val characters = withContext(Dispatchers.IO) {
             mCharacterRepository.getAllCharacters()
         }
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         // 构建 UI 渲染列表项
         val allCharacterItems = characters.map { character ->
             CharacterListItem(

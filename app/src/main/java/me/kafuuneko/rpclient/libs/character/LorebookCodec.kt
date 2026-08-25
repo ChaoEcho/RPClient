@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
@@ -22,7 +23,7 @@ class LorebookCodec(
         
         val name = root.optString("name")
         val lorebook = Lorebook(
-            name = name.ifBlank { "Imported World Book" },
+            name = name.ifBlank { DefaultNames.IMPORTED_WORLD_BOOK },
             description = root.optString("description"),
             scanDepth = root.optInt("scanDepth", 2),
             tokenBudget = root.optInt("tokenBudget", 0),

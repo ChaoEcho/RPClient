@@ -59,7 +59,7 @@ class GroupChatCreateViewModel :
         GroupChatCreateUiState.Normal(
             loadState = GroupChatCreateLoadState.Loading
         ).setup()
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters().map {
@@ -322,7 +322,7 @@ class GroupChatCreateViewModel :
         }
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         // 提取候选成员与开场白列表
         val greetingCandidates = uiState.greetingState.characters.map {
             GroupChatGreetingCandidate(

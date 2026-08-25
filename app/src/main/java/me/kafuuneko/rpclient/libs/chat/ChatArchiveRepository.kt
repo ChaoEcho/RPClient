@@ -6,6 +6,8 @@ import android.provider.OpenableColumns
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -70,14 +72,18 @@ class ChatArchiveRepository(
         }
     }
 
-    /** 从 URI 读取并解析对话，但不创建会话或消息。 */
-    suspend fun readImportFromUri(uri: Uri): ChatArchive = withContext(Dispatchers.IO) {
+    /** 从 URI 读取并解析对话，但不创建会话或消息；来源缺少用户名时使用调用方身份。 */
+    suspend fun readImportFromUri(
+        uri: Uri,
+        fallbackUserName: String = DefaultNames.USER
+    ): ChatArchive = withContext(Dispatchers.IO) {
         val fallbackTitle = resolveDisplayTitle(uri)
         mContext.contentResolver.openInputStream(uri)?.use { input ->
             SizeLimitedInputStream(input, MAX_IMPORT_BYTES.toLong()).reader(Charsets.UTF_8).use {
                 mCodec.decode(
                     reader = it,
-                    fallbackTitle = fallbackTitle
+                    fallbackTitle = fallbackTitle,
+                    fallbackUserName = fallbackUserName
                 )
             }
         } ?: error("Cannot read chat archive")
@@ -104,9 +110,9 @@ class ChatArchiveRepository(
                             archive.messages.lastOrNull()?.createTime ?: archive.createTime
                         ),
                         lorebookEntrySet = "[]",
-                        title = archive.title.ifBlank { DEFAULT_TITLE },
+                        title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
                         userNote = archive.userNote,
-                        userName = archive.userName.ifBlank { DEFAULT_USER_NAME },
+                        userName = archive.userName.normalizedUserName(),
                         userDescription = archive.userDescription,
                         creatorNotes = archive.creatorNotes,
                         worldInfoStateJson = "{}",
@@ -207,7 +213,7 @@ class ChatArchiveRepository(
             ?.removeSuffix(".jsonl")
             ?.removeSuffix(".json")
             ?.takeIf { it.isNotBlank() }
-            ?: DEFAULT_TITLE
+            ?: DefaultNames.IMPORTED_CHAT
     }
 
     private fun ChatMessage.Source.toArchiveRole(): ChatArchiveMessageRole {
@@ -254,7 +260,5 @@ class ChatArchiveRepository(
     private companion object {
         const val EXPORT_PAGE_SIZE = 256
         const val MAX_IMPORT_BYTES = 32 * 1024 * 1024
-        const val DEFAULT_TITLE = "Imported chat"
-        const val DEFAULT_USER_NAME = "You"
     }
 }

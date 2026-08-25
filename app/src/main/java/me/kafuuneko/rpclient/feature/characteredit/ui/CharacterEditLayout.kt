@@ -1164,7 +1164,7 @@ private fun LorebookSelector(
                 )
                 availableLorebooks.forEach { lorebook ->
                     DropdownMenuItem(
-                        text = { Text(lorebook.name.ifBlank { "Untitled" }) },
+                        text = { Text(lorebook.name.ifBlank { stringResource(R.string.untitled) }) },
                         onClick = {
                             onSelect(lorebook.id)
                             expanded = false

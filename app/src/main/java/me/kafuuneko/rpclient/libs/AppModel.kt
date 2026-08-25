@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.libs
 
 import com.chibatching.kotpref.KotprefModel
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 
@@ -225,7 +227,11 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var streamEnabled by booleanPref(default = true)
 
     // Prompt 宏中的用户名称，对应 {{user}}。
-    var userName by stringPref(default = "You")
+    var userName by stringPref(default = DefaultNames.USER)
+
+    /** 始终可安全用于展示、持久化和 Prompt 宏的全局用户名。 */
+    val resolvedUserName: String
+        get() = userName.normalizedUserName()
 
     // 用户头像，存储的是 File UUID。
     var userAvatar by stringPref(default = "")

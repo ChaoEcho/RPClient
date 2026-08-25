@@ -918,6 +918,7 @@ private fun TestPanel(
                         LLMProviderEditTestState.None -> stringResource(R.string.send_short_message)
                         LLMProviderEditTestState.Testing -> stringResource(R.string.testing)
                         is LLMProviderEditTestState.Success -> testState.message
+                            ?: stringResource(R.string.test_success)
                         LLMProviderEditTestState.Failed -> stringResource(R.string.test_failed)
                     },
                     style = MaterialTheme.typography.bodySmall,

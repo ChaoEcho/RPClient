@@ -53,7 +53,7 @@ class StoryArchiveCodecTest {
 
         assertEquals(StoryArchive.VERSION, archive.version)
         assertEquals(
-            listOf(ArchivedChapter("正文", "正文😀")),
+            listOf(ArchivedChapter("Chapter 1", "正文😀")),
             archive.story.ungroupedChapters
         )
         assertEquals(emptyList<ArchivedVolume>(), archive.story.volumes)

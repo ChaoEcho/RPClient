@@ -284,6 +284,7 @@
     <string name="stop_generation_before_summarizing">要約する前に生成を停止してください</string>
     <string name="stop_generation_before_deleting">このチャットを削除する前に生成を停止してください</string>
     <string name="untitled_chat">無題のチャット</string>
+    <string name="untitled">無題</string>
     <string name="no_latest_assistant_reply_to_regenerate">再生成する最新のアシスタントの返信がありません</string>
     <string name="cannot_regenerate_only_first_message">最初のメッセージだけを再生成することはできません</string>
     <string name="no_latest_assistant_reply_to_continue">続行するアシスタントの返信がありません</string>

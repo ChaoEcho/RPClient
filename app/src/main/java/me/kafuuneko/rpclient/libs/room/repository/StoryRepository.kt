@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -167,7 +168,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
         includeUserPersona: Boolean = false,
-        initialChapterTitle: String = DEFAULT_CHAPTER_TITLE,
+        initialChapterTitle: String = DefaultNames.STORY_CHAPTER,
         createTime: Long = System.currentTimeMillis()
     ): Long = mAppDatabase.withTransaction {
         val normalizedTitle = requireTitle(title, "Story title cannot be blank")
@@ -753,10 +754,6 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val characterSelections: List<StoryCharacterSelection>
     )
 
-    private companion object {
-        /** 故事初始默认章节标题。 */
-        const val DEFAULT_CHAPTER_TITLE = "正文"
-    }
 }
 
 private fun StoryLorebookEntry.toRuntimeState(): StoryLorebookRuntimeState {

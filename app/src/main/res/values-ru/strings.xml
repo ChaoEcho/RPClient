@@ -283,6 +283,7 @@
     <string name="stop_generation_before_summarizing">Пожалуйста, остановите генерацию перед созданием сводки</string>
     <string name="stop_generation_before_deleting">Пожалуйста, остановите генерацию перед удалением этого чата</string>
     <string name="untitled_chat">Чат без названия</string>
+    <string name="untitled">Без названия</string>
     <string name="no_latest_assistant_reply_to_regenerate">Нет последнего ответа ассистента для перегенерации</string>
     <string name="cannot_regenerate_only_first_message">Нельзя перегенерировать только первое сообщение</string>
     <string name="no_latest_assistant_reply_to_continue">Нет ответа ассистента для продолжения</string>

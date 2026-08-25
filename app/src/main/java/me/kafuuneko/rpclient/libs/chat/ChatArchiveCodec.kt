@@ -13,6 +13,8 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 
 /**
  * RPClient 与 SillyTavern JSONL 单聊文件之间的编解码器。
@@ -60,24 +62,28 @@ class ChatArchiveCodec(
     /**
      * 解析 SillyTavern JSONL 或 RPClient 导出的扩展 JSONL。
      *
-     * [fallbackTitle] 通常来自系统文档名；[fallbackTime] 仅在来源没有可识别时间时使用。
+     * [fallbackTitle] 通常来自系统文档名；[fallbackUserName] 由应用身份设置提供；
+     * [fallbackTime] 仅在来源没有可识别时间时使用。
      */
     fun decode(
         jsonl: String,
         fallbackTitle: String,
-        fallbackTime: Long = System.currentTimeMillis()
+        fallbackTime: Long = System.currentTimeMillis(),
+        fallbackUserName: String = DefaultNames.USER
     ): ChatArchive {
         return decode(
             reader = jsonl.reader(),
             fallbackTitle = fallbackTitle,
-            fallbackTime = fallbackTime
+            fallbackTime = fallbackTime,
+            fallbackUserName = fallbackUserName
         )
     }
 
     fun decode(
         reader: Reader,
         fallbackTitle: String,
-        fallbackTime: Long = System.currentTimeMillis()
+        fallbackTime: Long = System.currentTimeMillis(),
+        fallbackUserName: String = DefaultNames.USER
     ): ChatArchive {
         val parsed = parseLines(reader, fallbackTime)
         val header = parsed.header
@@ -107,12 +113,12 @@ class ChatArchiveCodec(
                 ?.speakerName
                 .takeUnlessUnused()
             ?: header.stringOrNull(KEY_USER_NAME).takeUnlessUnused()
-            ?: DEFAULT_USER_NAME
+            ?: fallbackUserName.normalizedUserName()
 
         return ChatArchive(
             title = rpclient?.stringOrNull(KEY_TITLE)
                 ?.takeIf { it.isNotBlank() }
-                ?: fallbackTitle.ifBlank { DEFAULT_TITLE },
+                ?: fallbackTitle.ifBlank { DefaultNames.IMPORTED_CHAT },
             createTime = createTime,
             latestTime = maxOf(latestTime, decodedMessages.lastOrNull()?.message?.createTime ?: createTime),
             userName = userName,
@@ -410,8 +416,6 @@ class ChatArchiveCodec(
         const val SECONDS_EPOCH_THRESHOLD = 100_000_000_000L
         const val BYTE_ORDER_MARK = "\uFEFF"
         const val UNUSED_NAME = "unused"
-        const val DEFAULT_USER_NAME = "You"
-        const val DEFAULT_TITLE = "Imported chat"
         const val NARRATOR_NAME = "Narrator"
         const val NARRATOR_TYPE = "narrator"
 

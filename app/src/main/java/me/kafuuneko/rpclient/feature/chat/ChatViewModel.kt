@@ -41,6 +41,7 @@ import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -850,7 +851,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserName(sessionId, intent.value.trim().ifBlank { "You" })
+            mChatRepository.updateSessionUserName(sessionId, intent.value.normalizedUserName())
         }
         refreshUiState(sessionId = sessionId)
     }

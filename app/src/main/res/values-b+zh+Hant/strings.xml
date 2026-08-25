@@ -283,6 +283,7 @@
     <string name="stop_generation_before_summarizing">請先停止生成再進行摘要</string>
     <string name="stop_generation_before_deleting">請先停止生成再刪除此聊天</string>
     <string name="untitled_chat">未命名聊天</string>
+    <string name="untitled">未命名</string>
     <string name="no_latest_assistant_reply_to_regenerate">沒有可重新生成的最新助理回覆</string>
     <string name="cannot_regenerate_only_first_message">只有一條首條訊息時無法重新生成</string>
     <string name="no_latest_assistant_reply_to_continue">沒有可續寫的助理回覆</string>

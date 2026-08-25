@@ -9,6 +9,7 @@ import java.io.FilterInputStream
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -64,7 +65,7 @@ class StoryArchiveRepository(
         StoryImportDraft(
             title = resolveDisplayTitle(uri),
             ungroupedChapters = listOf(
-                ArchivedChapter(title = DEFAULT_CHAPTER_TITLE, content = content)
+                ArchivedChapter(title = DefaultNames.STORY_CHAPTER, content = content)
             ),
             type = StoryImportType.Text
         )
@@ -353,7 +354,7 @@ class StoryArchiveRepository(
             ?.removeSuffix(".md")
             ?.removeSuffix(".txt")
             ?.takeIf(String::isNotBlank)
-            ?: DEFAULT_TITLE
+            ?: DefaultNames.IMPORTED_STORY
     }
 
     private fun requireTitle(value: String): String {
@@ -387,9 +388,5 @@ class StoryArchiveRepository(
     private companion object {
         /** 故事文件导入大小上限（16MB）。 */
         const val MAX_IMPORT_BYTES = 16 * 1024 * 1024
-        /** 默认故事回退标题。 */
-        const val DEFAULT_TITLE = "Imported story"
-        /** 默认章节回退标题。 */
-        const val DEFAULT_CHAPTER_TITLE = "正文"
     }
 }

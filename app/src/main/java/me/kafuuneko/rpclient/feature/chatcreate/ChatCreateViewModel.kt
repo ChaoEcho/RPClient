@@ -95,7 +95,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             ?.defaultLorebookEntryIds(data.second)
             .orEmpty()
         // 渲染初始就绪状态
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
             form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
@@ -234,7 +234,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         // 校验开场白选择
         val firstMessageSelection = uiState.resolveFirstMessageSelection() ?: return
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         val userDescription = AppModel.userDescription.trim()
         val createTime = System.currentTimeMillis()
         val sessionTitle = uiState.form.normalizedTitle(createTime)

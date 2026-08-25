@@ -69,6 +69,7 @@ import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
@@ -391,7 +392,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         mChatImportJob = viewModelScope.launch {
             try {
                 // 在 IO 线程解析聊天存档并检索全量候选角色
-                val archive = mChatArchiveRepository.readImportFromUri(intent.uri)
+                val archive = mChatArchiveRepository.readImportFromUri(
+                    uri = intent.uri,
+                    fallbackUserName = AppModel.resolvedUserName
+                )
                 val characters = mCharacterRepository.getAllCharacters()
                 mPendingChatImport = archive
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
@@ -820,17 +824,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ChangeUserName::class)
     private fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val value = intent.value.trim()
-        AppModel.userName = value.ifBlank { "You" }
+        val value = intent.value.normalizedUserName()
+        AppModel.userName = value
         val identityState = uiState.settingsState.identityState
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = identityState.copy(
-                    userName = intent.value,
+                    userName = value,
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = identityState.userDescription,
                         characterName = null,
-                        userName = value.ifBlank { "You" }
+                        userName = value
                     )
                 )
             )
@@ -849,8 +853,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = intent.value,
                         characterName = null,
-                        userName = uiState.settingsState.identityState.userName
-                            .trim().ifBlank { "You" }
+                        userName = uiState.settingsState.identityState.userName.normalizedUserName()
                     )
                 )
             )
@@ -892,8 +895,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = dialog.draftText,
                         characterName = null,
-                        userName = uiState.settingsState.identityState.userName
-                            .trim().ifBlank { "You" }
+                        userName = uiState.settingsState.identityState.userName.normalizedUserName()
                     )
                 )
             ),
@@ -1299,12 +1301,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     ): MainSettingsState {
         return MainSettingsState(
             identityState = MainUserIdentityState(
-                userName = AppModel.userName,
+                userName = AppModel.resolvedUserName,
                 userDescription = AppModel.userDescription,
                 userDescriptionPreview = resolveCharacterUserMacros(
                     template = AppModel.userDescription,
                     characterName = null,
-                    userName = AppModel.userName.trim().ifBlank { "You" }
+                    userName = AppModel.resolvedUserName
                 ),
                 avatarState = if (AppModel.userAvatar.isBlank()) {
                     MainUserAvatarState.None

@@ -56,7 +56,7 @@ sealed class LLMProviderEditLoadState {
 sealed class LLMProviderEditTestState {
     data object None : LLMProviderEditTestState()
     data object Testing : LLMProviderEditTestState()
-    data class Success(val message: String) : LLMProviderEditTestState()
+    data class Success(val message: String?) : LLMProviderEditTestState()
     data object Failed : LLMProviderEditTestState()
 }
 

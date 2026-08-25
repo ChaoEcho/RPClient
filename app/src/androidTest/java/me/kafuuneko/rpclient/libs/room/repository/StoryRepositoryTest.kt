@@ -66,6 +66,7 @@ class StoryRepositoryTest {
         val story = requireNotNull(mRepository.getStory(storyId))
         assertEquals("Configured story", story.title)
         assertTrue(story.includeUserPersona)
+        assertEquals("Chapter 1", mRepository.getStoryEditorData(storyId)?.currentChapter?.title)
         val character = mRepository.getStoryCharacterCandidates(storyId).single()
         assertEquals(StoryCharacter.ACTIVATION_PRIMARY, character.relation.activationMode)
         val lorebook = mRepository.getStoryLorebookEntryCandidates(storyId).single()

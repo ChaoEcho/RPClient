@@ -114,6 +114,17 @@ class ChatArchiveCodecTest {
     }
 
     @Test
+    fun missingImportedUserNameUsesCallerFallback() {
+        val decoded = codec.decode(
+            jsonl = """{"chat_metadata":{}}""",
+            fallbackTitle = "Fallback",
+            fallbackUserName = " Local user "
+        )
+
+        assertEquals("Local user", decoded.userName)
+    }
+
+    @Test
     fun malformedOrHeaderlessFileIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             codec.decode("""{"name":"Alice","mes":"Hello","is_user":true}""", "Fallback")

@@ -283,6 +283,7 @@
     <string name="stop_generation_before_summarizing">요약하기 전에 생성을 중단해주세요</string>
     <string name="stop_generation_before_deleting">대화를 삭제하기 전에 생성을 중단해주세요</string>
     <string name="untitled_chat">제목 없는 대화</string>
+    <string name="untitled">제목 없음</string>
     <string name="no_latest_assistant_reply_to_regenerate">다시 생성할 마지막 어시스턴트 답변이 없습니다</string>
     <string name="cannot_regenerate_only_first_message">첫 메시지만 다시 생성할 수 없습니다</string>
     <string name="no_latest_assistant_reply_to_continue">이어 쓸 어시스턴트 답변이 없습니다</string>

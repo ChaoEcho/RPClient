@@ -1460,7 +1460,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     currentSummary = currentSummary,
                     content = sourceContent,
                     provider = provider,
-                    userName = AppModel.userName.trim().ifBlank { "You" },
+                    userName = AppModel.resolvedUserName,
                     primaryCharacterName = primaryCharacterName
                 )
             }
@@ -2084,7 +2084,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             recursiveScanningLorebookIds = candidateLorebooks.values
                 .filter { it.recursiveScanning }
                 .mapTo(mutableSetOf()) { it.id },
-            userName = AppModel.userName.trim().ifBlank { "You" },
+            userName = AppModel.resolvedUserName,
             userDescription = AppModel.userDescription,
             continuationGuidance = continuationGuidance
         )
@@ -2424,7 +2424,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 description = resolveCharacterUserMacros(
                     template = character.description,
                     characterName = character.name,
-                    userName = AppModel.userName.trim().ifBlank { "You" }
+                    userName = AppModel.resolvedUserName
                 ),
                 selected = relation != null,
                 activationMode = relation?.relation?.activationMode

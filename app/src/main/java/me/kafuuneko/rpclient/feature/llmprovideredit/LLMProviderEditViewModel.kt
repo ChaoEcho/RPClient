@@ -516,7 +516,7 @@ class LLMProviderEditViewModel :
                 // 测试成功，展示模型响应内容
                 latestState.copy(
                     testState = LLMProviderEditTestState.Success(
-                        response.content.ifBlank { "Model test successful" }
+                        response.content.takeIf { it.isNotBlank() }
                     )
                 ).setup()
             } catch (_: CancellationException) {

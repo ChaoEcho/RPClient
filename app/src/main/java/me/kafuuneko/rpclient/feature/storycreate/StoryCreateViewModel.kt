@@ -240,7 +240,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
 
     /** 从数据库拉取所有世界书及其有效条目，以及全量候选角色。 */
     private suspend fun loadOptions(): StoryCreateOptions {
-        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userName = AppModel.resolvedUserName
         val lorebooks = mLorebookRepository.getAllLorebooks()
         val lorebookNames = lorebooks.associate { it.id to it.name }
         // 构建包含条目列表的世界书分组项
