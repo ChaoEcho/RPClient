@@ -124,6 +124,7 @@ class StoryEditorActivity : CoreActivityWithEvent() {
     }
 
     companion object {
+        /** 启动故事编辑器 Activity 时传入的故事 ID 键名。 */
         const val EXTRA_STORY_ID = "extra_story_id"
     }
 }

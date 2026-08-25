@@ -92,6 +92,7 @@ class StoryArchiveRepository(
         require(normalizedTitle.isNotEmpty()) { "Story title cannot be blank" }
         require(draft.chapterCount > 0) { "Story must contain at least one chapter" }
         mAppDatabase.withTransaction {
+            // 读取现有角色与世界书条目进行指纹/名称关联匹配
             val characters = mCharacterDao.getAllCharacters()
             val lorebooks = mLorebookDao.getAllLorebooks()
             val entries = lorebooks.flatMap { mLorebookEntryDao.getEntriesByLorebookId(it.id) }
@@ -101,6 +102,7 @@ class StoryArchiveRepository(
                 entries = entries,
                 lorebooks = lorebooks
             )
+            // 写入故事主体记录
             val now = System.currentTimeMillis()
             val storyId = mStoryDao.insertOrReplace(
                 Story(
@@ -113,9 +115,11 @@ class StoryArchiveRepository(
                     latestTime = now
                 )
             )
+            // 写入未分卷章节
             draft.ungroupedChapters.forEachIndexed { index, chapter ->
                 insertChapter(storyId, null, chapter, index, now)
             }
+            // 写入分卷及其所包含章节
             draft.volumes.forEachIndexed { volumeIndex, archivedVolume ->
                 val volumeId = mStoryVolumeDao.insert(
                     StoryVolume(
@@ -128,6 +132,7 @@ class StoryArchiveRepository(
                     insertChapter(storyId, volumeId, chapter, chapterIndex, now)
                 }
             }
+            // 写入关联匹配成功的角色卡引用
             val storyCharacters = matchedCharacters.mapIndexed { index, (characterId, hint) ->
                 StoryCharacter(
                     storyId = storyId,
@@ -141,6 +146,7 @@ class StoryArchiveRepository(
                 )
             }
             if (storyCharacters.isNotEmpty()) mStoryCharacterDao.insertAll(storyCharacters)
+            // 写入关联匹配成功的世界书条目引用
             val storyLorebookEntries = matchedEntries.map { entryId ->
                 StoryLorebookEntry(storyId = storyId, lorebookEntryId = entryId)
             }
@@ -165,12 +171,15 @@ class StoryArchiveRepository(
         plan: TextExportPlan,
         markdown: Boolean
     ) {
+        // 输出故事总标题
         if (markdown) writer.write("# ${plan.storyTitle}\n") else writer.write(plan.storyTitle)
         writer.write("\n\n")
+        // 依次输出未分卷章节
         val ungrouped = plan.chapters.filter { it.volumeId == null }
         ungrouped.forEach { chapter ->
             writeChapter(writer, chapter, headingLevel = 2, markdown = markdown)
         }
+        // 依次输出各分卷及其包含章节
         plan.volumes.forEach { volume ->
             if (markdown) {
                 writer.write("## ${volume.title}\n\n")
@@ -202,19 +211,23 @@ class StoryArchiveRepository(
     }
 
     private suspend fun buildArchive(storyId: Long): StoryArchive {
+        // 读取故事元数据、分卷和章节列表
         val story = requireNotNull(mStoryDao.getStory(storyId)) { "Story not found" }
         val volumes = mStoryVolumeDao.getByStoryId(storyId)
         val chapters = mStoryChapterDao.getByStoryId(storyId)
+        // 读取关联角色列表并生成指纹提示
         val relations = mStoryCharacterDao.getByStoryId(storyId)
         val characters = relations.mapNotNull { relation ->
             mCharacterDao.getCharacterById(relation.characterId)?.let { relation to it }
         }
+        // 读取关联世界书条目列表并生成指纹提示
         val lorebooks = mLorebookDao.getAllLorebooks().associateBy { it.id }
         val selectedEntries = mStoryLorebookEntryDao.getByStoryId(storyId).mapNotNull { relation ->
             mLorebookEntryDao.getEntryById(relation.lorebookEntryId)?.let { entry ->
                 relation to entry
             }
         }
+        // 组装归档对象
         return StoryArchive(
             story = ArchivedStory(
                 title = story.title,
@@ -372,8 +385,11 @@ class StoryArchiveRepository(
     }
 
     private companion object {
+        /** 故事文件导入大小上限（16MB）。 */
         const val MAX_IMPORT_BYTES = 16 * 1024 * 1024
+        /** 默认故事回退标题。 */
         const val DEFAULT_TITLE = "Imported story"
+        /** 默认章节回退标题。 */
         const val DEFAULT_CHAPTER_TITLE = "正文"
     }
 }

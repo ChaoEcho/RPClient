@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
+/** 移动章节弹窗中的目标分卷/未分卷选择项。 */
 data class StoryChapterDestinationOption(
     val volumeId: Long?,
     val title: String

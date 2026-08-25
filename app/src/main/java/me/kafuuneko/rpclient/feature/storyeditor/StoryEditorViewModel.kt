@@ -458,6 +458,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         uiState.copy(pageState = StoryEditorPageState.Editor).setup()
     }
 
+    /** 在大纲结构页切换当前选中章节。 */
     @UiIntentObserver(StoryEditorUiIntent.SelectStoryChapter::class)
     private suspend fun onSelectStoryChapter(intent: StoryEditorUiIntent.SelectStoryChapter) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -469,16 +470,19 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         switchToChapter(uiState.storyId, intent.chapterId)
     }
 
+    /** 弹出新建分卷对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowCreateVolumeDialog::class)
     private fun onShowCreateVolumeDialog() {
         showStructureTitleDialog(StoryStructureTitleTarget.NewVolume, "")
     }
 
+    /** 弹出新建章节对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowCreateChapterDialog::class)
     private fun onShowCreateChapterDialog(intent: StoryEditorUiIntent.ShowCreateChapterDialog) {
         showStructureTitleDialog(StoryStructureTitleTarget.NewChapter(intent.volumeId), "")
     }
 
+    /** 弹出重命名分卷对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowRenameVolumeDialog::class)
     private fun onShowRenameVolumeDialog(intent: StoryEditorUiIntent.ShowRenameVolumeDialog) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -487,6 +491,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         showStructureTitleDialog(StoryStructureTitleTarget.Volume(volume.id), volume.title)
     }
 
+    /** 弹出重命名章节对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowRenameChapterDialog::class)
     private fun onShowRenameChapterDialog(intent: StoryEditorUiIntent.ShowRenameChapterDialog) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -496,6 +501,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         showStructureTitleDialog(StoryStructureTitleTarget.Chapter(chapter.id), chapter.title)
     }
 
+    /** 修改分卷或章节标题编辑草稿。 */
     @UiIntentObserver(StoryEditorUiIntent.ChangeStructureTitle::class)
     private fun onChangeStructureTitle(intent: StoryEditorUiIntent.ChangeStructureTitle) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -504,6 +510,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         uiState.copy(dialogState = dialog.copy(title = intent.value)).setup()
     }
 
+    /** 确认提交新建或重命名分卷/章节。 */
     @UiIntentObserver(StoryEditorUiIntent.ConfirmStructureTitle::class)
     private suspend fun onConfirmStructureTitle() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -512,6 +519,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (dialog.isSaving || title.isEmpty()) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
+            // 根据目标类型执行分卷/章节的创建或重命名操作
             val newChapterId = withContext(Dispatchers.IO) {
                 when (val target = dialog.target) {
                     StoryStructureTitleTarget.NewVolume -> {
@@ -531,6 +539,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     }
                 }
             }
+            // 若新建了章节则切换至新章节，否则仅刷新结构大纲
             if (newChapterId != null) {
                 switchToChapter(uiState.storyId, newChapterId)
             } else {
@@ -541,6 +550,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 弹出删除分卷确认对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowDeleteVolumeDialog::class)
     private fun onShowDeleteVolumeDialog(intent: StoryEditorUiIntent.ShowDeleteVolumeDialog) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -552,6 +562,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 弹出删除章节确认对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowDeleteChapterDialog::class)
     private fun onShowDeleteChapterDialog(intent: StoryEditorUiIntent.ShowDeleteChapterDialog) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -564,6 +575,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 确认删除指定分卷，卷内章节自动平移至未分卷。 */
     @UiIntentObserver(StoryEditorUiIntent.ConfirmDeleteVolume::class)
     private suspend fun onConfirmDeleteVolume() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -571,6 +583,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
+            // 异步从数据库删除分卷
             val deleted = withContext(Dispatchers.IO) {
                 mStoryRepository.deleteVolume(uiState.storyId, dialog.volumeId)
             }
@@ -581,6 +594,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 确认删除指定章节并自动切换至相邻章节。 */
     @UiIntentObserver(StoryEditorUiIntent.ConfirmDeleteChapter::class)
     private suspend fun onConfirmDeleteChapter() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -588,9 +602,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
+            // 异步从数据库删除章节并获取相邻回退章节
             val result = withContext(Dispatchers.IO) {
                 mStoryRepository.deleteChapter(uiState.storyId, dialog.chapterId)
             } ?: error("Story chapter does not exist")
+            // 若删除的是当前正在编辑的章节则切换至回退章节，否则刷新结构大纲
             if (result.deletedChapterId == mChapter?.id) {
                 switchToChapter(uiState.storyId, result.fallbackChapterId)
             } else {
@@ -601,6 +617,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 向上或向下移动分卷排列顺序。 */
     @UiIntentObserver(StoryEditorUiIntent.MoveStoryVolume::class)
     private suspend fun onMoveStoryVolume(intent: StoryEditorUiIntent.MoveStoryVolume) {
         mutateStructure {
@@ -608,6 +625,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 在同组内向上或向下移动章节排列顺序。 */
     @UiIntentObserver(StoryEditorUiIntent.MoveStoryChapter::class)
     private suspend fun onMoveStoryChapter(intent: StoryEditorUiIntent.MoveStoryChapter) {
         mutateStructure {
@@ -615,6 +633,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 弹出章节跨卷移动对话框。 */
     @UiIntentObserver(StoryEditorUiIntent.ShowMoveStoryChapterDialog::class)
     private fun onShowMoveStoryChapterDialog(intent: StoryEditorUiIntent.ShowMoveStoryChapterDialog) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -633,6 +652,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 在移动章节对话框中切换目标分卷或未分卷归属。 */
     @UiIntentObserver(StoryEditorUiIntent.SelectChapterDestination::class)
     private fun onSelectChapterDestination(intent: StoryEditorUiIntent.SelectChapterDestination) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -643,6 +663,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 确认将章节移动至选中的目标分卷或未分卷。 */
     @UiIntentObserver(StoryEditorUiIntent.ConfirmMoveStoryChapter::class)
     private suspend fun onConfirmMoveStoryChapter() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -650,6 +671,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (dialog.isSaving) return
         uiState.copy(dialogState = dialog.copy(isSaving = true)).setup()
         try {
+            // 异步更新章节所属分卷并刷新大纲
             val volumeId = (dialog.selectedDestination as? StoryChapterDestination.Volume)?.volumeId
             val moved = withContext(Dispatchers.IO) {
                 mStoryRepository.moveChapterToVolume(uiState.storyId, dialog.chapterId, volumeId)
@@ -2214,6 +2236,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         true
     }
 
+    /** 打开分卷或章节标题输入弹窗。 */
     private fun showStructureTitleDialog(target: StoryStructureTitleTarget, title: String) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         if (!uiState.canEditStructure()) return
@@ -2224,6 +2247,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
 
     /** 切换章节会丢弃上一章的会话级撤销栈和迟到生成快照。 */
     private suspend fun switchToChapter(storyId: Long, chapterId: Long) {
+        // 从数据库拉取目标章节正文与故事大纲
         val editorData = withContext(Dispatchers.IO) {
             mStoryRepository.getStoryEditorData(storyId, chapterId)
         } ?: run {
@@ -2234,7 +2258,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             AppViewEvent.PopupToastMessageByResId(R.string.story_structure_update_failed).tryEmit()
             return
         }
+        // 取消正在等待的自动保存任务
         mDebounceJob?.cancel()
+        // 重置内存镜像与版本号
         mStory = editorData.story
         mChapter = editorData.currentChapter
         mStoryRevision = editorData.story.revision
@@ -2242,12 +2268,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mDraftContent = editorData.currentChapter.content
         mPersistedContent = editorData.currentChapter.content
         mIsComposing = false
+        // 清理进行中生成与历史撤销栈
         mActiveGeneration = null
         mRecoverableGeneration = null
         mLastPromptInspection = null
         clearEditHistory()
+        // 发布新章节文档流
         publishDocument(editorData.currentChapter.content)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        // 刷新 UI 状态至正文编辑页
         current.copy(
             topBarState = current.topBarState.copy(saveState = StorySaveState.Saved),
             contentState = current.contentState.copy(
@@ -2265,7 +2294,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 刷新故事分卷与章节结构状态。 */
     private suspend fun refreshStructure(storyId: Long, closeDialog: Boolean) {
+        // 异步重新拉取大纲数据
         val editorData = withContext(Dispatchers.IO) {
             mStoryRepository.getStoryEditorData(storyId, mChapter?.id)
         } ?: run {
@@ -2274,6 +2305,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
         adoptStructureData(editorData)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        // 更新大纲 UI 状态
         current.copy(
             structureState = buildStructureState(editorData),
             dialogState = if (closeDialog) {
@@ -2284,6 +2316,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         ).setup()
     }
 
+    /** 同步更新 ViewModel 内部持有的故事与章节内存镜像。 */
     private fun adoptStructureData(editorData: StoryEditorData) {
         mStory = editorData.story
         mChapter = editorData.currentChapter
@@ -2293,7 +2326,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mPersistedContent = editorData.currentChapter.content
     }
 
+    /** 将数据库加载的大纲聚合数据转换为 UI 结构状态。 */
     private fun buildStructureState(editorData: StoryEditorData): StoryEditorStructureState {
+        // 将章节数据库实体映射为大纲项
         val chapters = editorData.chapters.map { overview ->
             StoryChapterOutlineItem(
                 id = overview.id,
@@ -2303,9 +2338,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 sortOrder = overview.sortOrder
             )
         }
+        // 解析当前章节所属分卷
         val currentVolume = editorData.currentChapter.volumeId?.let { volumeId ->
             editorData.volumes.firstOrNull { it.id == volumeId }
         }
+        // 组装大纲状态对象
         return StoryEditorStructureState(
             currentChapterId = editorData.currentChapter.id,
             currentChapterTitle = editorData.currentChapter.title,
@@ -2323,15 +2360,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         )
     }
 
+    /** 统一封装故事结构变更事务与加载状态维护。 */
     private suspend fun mutateStructure(
         operation: suspend (storyId: Long) -> Boolean
     ) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         if (!uiState.canEditStructure()) return
+        // 标记大纲正在更新中
         uiState.copy(
             structureState = uiState.structureState.copy(isUpdating = true)
         ).setup()
         try {
+            // 执行结构变更操作并刷新大纲
             val changed = withContext(Dispatchers.IO) { operation(uiState.storyId) }
             check(changed)
             refreshStructure(uiState.storyId, closeDialog = false)
@@ -2344,6 +2384,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 在结构操作失败时恢复对话框可交互状态并弹出错误提示。 */
     private fun restoreStructureDialogAfterFailure() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         val restored = when (val dialog = uiState.dialogState) {

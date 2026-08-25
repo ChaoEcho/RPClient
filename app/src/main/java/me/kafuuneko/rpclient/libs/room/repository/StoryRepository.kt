@@ -201,6 +201,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId
     }
 
+    /** 修改故事标题并推进修订版本号。 */
     suspend fun renameStory(
         id: Long,
         title: String,
@@ -211,12 +212,15 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         mStoryDao.renameStory(id, story.revision, normalizedTitle, latestTime) == 1
     }
 
+    /** 创建故事分卷，并放置在分卷列表末尾。 */
     suspend fun createVolume(
         storyId: Long,
         title: String,
         latestTime: Long = System.currentTimeMillis()
     ): Long = mAppDatabase.withTransaction {
+        // 校验所属故事存在性
         val story = requireStory(storyId)
+        // 插入分卷记录并设置顺序号
         val id = mStoryVolumeDao.insert(
             StoryVolume(
                 storyId = storyId,
@@ -224,10 +228,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 sortOrder = mStoryVolumeDao.getByStoryId(storyId).size
             )
         )
+        // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
         id
     }
 
+    /** 重命名指定故事分卷。 */
     suspend fun renameVolume(
         storyId: Long,
         volumeId: Long,
@@ -238,6 +244,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val volume = mStoryVolumeDao.getById(volumeId)
             ?.takeIf { it.storyId == storyId }
             ?: return@withTransaction false
+        // 更新分卷标题
         check(
             mStoryVolumeDao.rename(
                 volume.id,
@@ -245,10 +252,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 requireTitle(title, "Story volume title cannot be blank")
             ) == 1
         )
+        // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
         true
     }
 
+    /** 调整分卷在故事中的相对排列顺序。 */
     suspend fun moveVolume(
         storyId: Long,
         volumeId: Long,
@@ -260,6 +269,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val from = volumes.indexOfFirst { it.id == volumeId }
         val to = from + offset
         if (from < 0 || to !in volumes.indices) return@withTransaction false
+        // 交换两分卷的序号
         check(mStoryVolumeDao.updateSortOrder(volumes[from].id, storyId, to) == 1)
         check(mStoryVolumeDao.updateSortOrder(volumes[to].id, storyId, from) == 1)
         advanceStory(story, latestTime)
@@ -276,7 +286,9 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val volume = mStoryVolumeDao.getById(volumeId)
             ?.takeIf { it.storyId == storyId }
             ?: return@withTransaction false
+        // 获取未分卷区域已有章节数量
         val ungroupedCount = mStoryChapterDao.getByContainer(storyId, null).size
+        // 将原卷内章节依次移出分卷并追加至未分卷末尾
         mStoryChapterDao.getByContainer(storyId, volumeId).forEachIndexed { index, chapter ->
             check(
                 mStoryChapterDao.updateLocation(
@@ -287,12 +299,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 ) == 1
             )
         }
+        // 删除分卷记录并重排其余分卷
         check(mStoryVolumeDao.deleteById(volume.id, storyId) == 1)
         normalizeVolumeOrder(storyId)
         advanceStory(story, latestTime)
         true
     }
 
+    /** 创建新章节并放置在指定容器末尾。 */
     suspend fun createChapter(
         storyId: Long,
         volumeId: Long?,
@@ -301,6 +315,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     ): Long = mAppDatabase.withTransaction {
         val story = requireStory(storyId)
         validateVolume(storyId, volumeId)
+        // 插入章节记录并计算同组末尾序号
         val id = mStoryChapterDao.insert(
             StoryChapter(
                 storyId = storyId,
@@ -311,10 +326,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 latestTime = latestTime
             )
         )
+        // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
         id
     }
 
+    /** 重命名指定章节。 */
     suspend fun renameChapter(
         storyId: Long,
         chapterId: Long,
@@ -325,6 +342,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val chapter = mStoryChapterDao.getById(chapterId)
             ?.takeIf { it.storyId == storyId }
             ?: return@withTransaction false
+        // 更新章节标题
         check(
             mStoryChapterDao.rename(
                 chapter.id,
@@ -333,10 +351,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 latestTime
             ) == 1
         )
+        // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
         true
     }
 
+    /** 在同卷或未分卷容器内移动章节相对顺序。 */
     suspend fun moveChapter(
         storyId: Long,
         chapterId: Long,
@@ -351,12 +371,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val from = siblings.indexOfFirst { it.id == chapterId }
         val to = from + offset
         if (from < 0 || to !in siblings.indices) return@withTransaction false
+        // 交换同组内两章节的顺序号
         check(mStoryChapterDao.updateSortOrder(siblings[from].id, storyId, to) == 1)
         check(mStoryChapterDao.updateSortOrder(siblings[to].id, storyId, from) == 1)
         advanceStory(story, latestTime)
         true
     }
 
+    /** 将章节移动到指定分卷或未分卷容器中。 */
     suspend fun moveChapterToVolume(
         storyId: Long,
         chapterId: Long,
@@ -369,13 +391,16 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
             ?: return@withTransaction false
         validateVolume(storyId, volumeId)
         if (chapter.volumeId == volumeId) return@withTransaction true
+        // 更新章节所属分卷并放置在目标分卷末尾
         val targetOrder = mStoryChapterDao.getByContainer(storyId, volumeId).size
         check(mStoryChapterDao.updateLocation(chapterId, storyId, volumeId, targetOrder) == 1)
+        // 整理原容器内章节序号
         normalizeChapterOrder(storyId, chapter.volumeId)
         advanceStory(story, latestTime)
         true
     }
 
+    /** 删除指定章节，故事至少需保留一个章节。 */
     suspend fun deleteChapter(
         storyId: Long,
         chapterId: Long,
@@ -387,6 +412,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val index = ordered.indexOfFirst { it.id == chapterId }
         if (index < 0) return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId) ?: return@withTransaction null
+        // 确定删除后回退激活的相邻章节
         val fallback = ordered.getOrNull(index - 1) ?: ordered[index + 1]
         check(mStoryChapterDao.deleteById(chapterId, storyId) == 1)
         normalizeChapterOrder(storyId, chapter.volumeId)
@@ -406,6 +432,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val chapter = mStoryChapterDao.getById(chapterId)
             ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
+        // 乐观锁更新章节正文与版本号
         if (
             mStoryChapterDao.updateContent(
                 chapter.id,
@@ -415,6 +442,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 latestTime
             ) != 1
         ) return@withTransaction null
+        // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
         StoryChapterWriteResult(story.revision + 1L, chapter.contentRevision + 1L)
     }
@@ -422,12 +450,15 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     /** 校验 Story、章节和世界书快照后，原子提交 AI 结果。 */
     suspend fun applyGeneratedEdit(edit: StoryGeneratedEdit): StoryAppliedEdit? {
         return mAppDatabase.withTransaction {
+            // 校验故事与章节两级修订版本、原文哈希及世界书状态快照
             val snapshots = validateGeneratedEdit(edit) ?: return@withTransaction null
             val story = snapshots.first
             val chapter = snapshots.second
+            // 替换正文目标区间
             val content = chapter.content.replaceRange(edit.start, edit.end, edit.result)
             val nextStep = edit.nextWorldInfoGenerationStep
                 ?: (story.worldInfoGenerationStep + 1)
+            // 乐观锁原子更新章节正文与故事生成步数
             check(
                 mStoryChapterDao.updateContent(
                     chapter.id,
@@ -445,6 +476,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                     System.currentTimeMillis()
                 ) == 1
             )
+            // 更新关联世界书条目的时序状态
             val currentRelations = mStoryLorebookEntryDao.getByStoryId(story.id)
             val nextRelations = currentRelations.withRuntimeStates(edit.nextWorldInfoStates)
             updateLorebookRuntimeStates(nextRelations)
@@ -470,12 +502,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         previousWorldInfoStates: List<StoryLorebookRuntimeState>,
         previousWorldInfoGenerationStep: Int
     ): StoryAppliedEdit? = mAppDatabase.withTransaction {
+        // 校验故事与章节版本号
         val story = mStoryDao.getStory(storyId)
             ?.takeIf { it.revision == expectedStoryRevision }
             ?: return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId)
             ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
+        // 校验待回滚文本区间有效性与哈希一致性
         val end = start + insertedText.length
         if (start !in 0..end || end > chapter.content.length) return@withTransaction null
         if (storyTextHash(chapter.content.substring(start, end)) != storyTextHash(insertedText)) {
@@ -483,6 +517,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         }
         val relations = mStoryLorebookEntryDao.getByStoryId(storyId)
         if (!relations.matches(previousWorldInfoStates)) return@withTransaction null
+        // 恢复原文正文并写库
         val content = chapter.content.replaceRange(start, end, replacedText)
         check(
             mStoryChapterDao.updateContent(
@@ -501,6 +536,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 System.currentTimeMillis()
             ) == 1
         )
+        // 恢复应用前的世界书条目时序状态
         val previousRelations = relations.withRuntimeStates(previousWorldInfoStates)
         updateLorebookRuntimeStates(previousRelations)
         StoryAppliedEdit(
@@ -718,6 +754,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     )
 
     private companion object {
+        /** 故事初始默认章节标题。 */
         const val DEFAULT_CHAPTER_TITLE = "正文"
     }
 }
