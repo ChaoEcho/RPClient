@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -229,25 +228,19 @@ private fun StrategySection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RpSectionHeader(title = stringResource(R.string.group_chat_turn_strategy))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             GroupChatActivationStrategy.entries.forEach { strategy ->
                 FilterChip(
                     selected = selected == strategy,
                     onClick = { onSelect(strategy) },
-                    label = { Text(stringResource(strategy.titleRes())) },
-                    leadingIcon = if (selected == strategy) {
-                        {
-                            Icon(
-                                Icons.Rounded.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    } else {
-                        null
+                    label = {
+                        Text(
+                            text = stringResource(strategy.titleRes()),
+                            maxLines = 1
+                        )
                     },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor =
@@ -269,11 +262,16 @@ private fun SelfResponseSetting(
     enabled: Boolean,
     onChange: (Boolean) -> Unit
 ) {
-    ElevatedCard(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-        )
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!enabled) },
+        shape = RoundedCornerShape(16.dp),
+        color = if (enabled) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        }
     ) {
         Row(
             modifier = Modifier
@@ -284,7 +282,11 @@ private fun SelfResponseSetting(
             Icon(
                 Icons.Rounded.AutoAwesome,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary
+                tint = if (enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.secondary
+                }
             )
             Column(
                 modifier = Modifier
