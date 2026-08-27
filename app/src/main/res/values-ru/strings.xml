@@ -1023,4 +1023,9 @@
     <string name="story_no_ungrouped_chapters">Нет глав без тома</string>
     <string name="story_empty_volume">В этом томе пока нет глав</string>
     <string name="story_structure_update_failed">Не удалось обновить структуру истории</string>
+    <string name="no_model_configured">Модель не настроена</string>
+    <string name="no_model_provider_title">Требуется настройка модели</string>
+    <string name="no_model_provider_desc">RPClient — это локальный клиент без встроенных моделей ИИ. Пожалуйста, настройте и включите ключ API (например, OpenAI, Gemini, Claude, DeepSeek) в настройках моделей, чтобы начать общение.</string>
+    <string name="no_model_provider_banner">Модель не настроена. Нажмите здесь, чтобы настроить ключ API.</string>
+    <string name="go_to_model_settings">Настроить</string>
 </resources>

@@ -62,5 +62,6 @@ sealed class GroupChatUiIntent {
     data object ContinueLast : GroupChatUiIntent()
     data object DeleteSessionClick : GroupChatUiIntent()
     data object ConfirmDeleteSession : GroupChatUiIntent()
+    data object OpenProviderSettings : GroupChatUiIntent()
     data object DismissDialog : GroupChatUiIntent()
 }

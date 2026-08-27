@@ -35,6 +35,7 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
@@ -251,6 +252,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSendMessage() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         val rawInput = uiState.conversationState.inputDraft.trim()
             .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
         // 若最终输入为空，退化为续写角色消息
@@ -842,6 +844,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
+     * 跳转至全局模型配置管理界面。
+     */
+    @UiIntentObserver(ChatUiIntent.OpenProviderSettings::class)
+    private fun onOpenProviderSettings() {
+        val uiState = getOrNull<ChatUiState.Normal>()
+        uiState?.copy(dialogState = ChatDialogState.None)?.setup()
+        AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
+    }
+
+    /**
      * 保存当前会话的用户名称。
      *
      * 空白名称统一保存为默认值 `You`，避免生成 prompt 和消息署名出现空名称。
@@ -1025,6 +1037,32 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
+     * 检查当前会话关联角色或全局是否存在已启用的模型服务配置；若未配置则唤起引导弹窗。
+     *
+     * @param sessionId 会话 ID
+     * @param characterId 角色 ID
+     * @return true 表示已就绪可调用，false 表示已拦截并弹窗引导
+     */
+    private suspend fun ensureProviderConfigured(sessionId: Long, characterId: Long): Boolean {
+        val character = withContext(Dispatchers.IO) {
+            mCharacterRepository.getCharacterById(characterId)
+        }
+        val provider = if (character != null) {
+            withContext(Dispatchers.IO) {
+                mProviderSelectionResolver.getCharacterProviderOrNull(character)
+            }
+        } else null
+        if (provider == null) {
+            refreshUiState(
+                sessionId = sessionId,
+                dialogState = ChatDialogState.NoProviderGuide
+            )
+            return false
+        }
+        return true
+    }
+
+    /**
      * 重新生成最后一条角色回复的核心业务逻辑。
      *
      * 规则限制与处理流程：
@@ -1037,6 +1075,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截：若已有生成任务在运行则拒绝
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
@@ -1123,6 +1162,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun continueLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
@@ -1198,6 +1238,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun generateUserImpersonation(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
@@ -1786,6 +1827,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let {
             mFileRepository.loadBitmap(it)?.asImageBitmap()
         }
+        val hasAvailableProvider = mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
         // 组装并返回 Normal UI 状态
         return ChatUiState.Normal(
             page = page,
@@ -1826,6 +1868,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 },
             streamEnabled = AppModel.streamEnabled,
             hasPromptInspection = mLastPromptInspection != null,
+            hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState
         )
     }

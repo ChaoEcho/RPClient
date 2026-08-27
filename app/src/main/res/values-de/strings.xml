@@ -1018,4 +1018,9 @@
     <string name="story_no_ungrouped_chapters">Keine Kapitel ohne Band</string>
     <string name="story_empty_volume">Dieser Band enthält keine Kapitel</string>
     <string name="story_structure_update_failed">Die Story-Struktur konnte nicht aktualisiert werden</string>
+    <string name="no_model_configured">Kein Modell konfiguriert</string>
+    <string name="no_model_provider_title">Modellkonfiguration erforderlich</string>
+    <string name="no_model_provider_desc">RPClient ist ein lokaler Client und enthält keine integrierten KI-Modelle. Bitte konfiguriere und aktiviere einen API-Schlüssel (z. B. OpenAI, Gemini, Claude, DeepSeek) in den Modelleinstellungen, um zu chatten.</string>
+    <string name="no_model_provider_banner">Kein Modell konfiguriert. Tippe hier, um einen API-Schlüssel einzurichten.</string>
+    <string name="go_to_model_settings">Konfigurieren</string>
 </resources>

@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
@@ -129,6 +130,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySettingsSection
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
@@ -274,6 +276,11 @@ private fun StoryEditorPage(
         ) {
             SaveProblemBanner(state.topBarState.saveState, emit)
             GenerationProblemBanner(state.generationState, emit)
+            if (!state.hasAvailableProvider) {
+                NoProviderBanner(
+                    onClick = { StoryEditorUiIntent.OpenProviderSettings.emit() }
+                )
+            }
             CurrentChapterBar(
                 state = state.structureState,
                 enabled = documentMatchesChapter &&
@@ -700,6 +707,46 @@ private fun GenerationProblemBanner(
 }
 
 @Composable
+private fun NoProviderBanner(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = stringResource(R.string.no_model_provider_banner),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
 private fun EditorBottomBar(
     characterCount: Int,
     referenceState: StoryEditorReferenceState,
@@ -721,6 +768,7 @@ private fun EditorBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .imePadding()
         ) {
             OutlinedTextField(
                 modifier = Modifier
@@ -875,6 +923,14 @@ private fun EditorDialogSwitch(
 ) {
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
+        StoryEditorDialogState.NoProviderGuide -> AppConfirmDialog(
+            onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.no_model_provider_title),
+            message = stringResource(R.string.no_model_provider_desc),
+            confirmText = stringResource(R.string.go_to_model_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { StoryEditorUiIntent.OpenProviderSettings.emit() }
+        )
         is StoryEditorDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },

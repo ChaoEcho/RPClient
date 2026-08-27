@@ -37,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -118,6 +119,7 @@ import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -218,10 +220,16 @@ private fun GroupChatNormalView(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (!state.hasAvailableProvider) {
+                NoProviderBanner(
+                    onClick = { emitIntent(GroupChatUiIntent.OpenProviderSettings) }
+                )
+            }
             GroupHeader(
                 strategy = state.activeActivationStrategy,
                 generationState = state.conversationState.generationState,
                 canContinue = canContinue,
+                hasAvailableProvider = state.hasAvailableProvider,
                 onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) }
             )
             MemberRail(
@@ -269,7 +277,9 @@ private fun GroupChatSettingsView(
             }
         )
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -873,6 +883,7 @@ private fun GroupHeader(
     strategy: GroupChatActivationStrategy,
     generationState: GroupChatGenerationState,
     canContinue: Boolean,
+    hasAvailableProvider: Boolean = true,
     onContinue: () -> Unit
 ) {
     Surface(
@@ -905,7 +916,7 @@ private fun GroupHeader(
                 Text(
                     text = when (generationState) {
                         GroupChatGenerationState.Idle ->
-                            stringResource(R.string.group_chat_cast_ready)
+                            if (!hasAvailableProvider) stringResource(R.string.no_model_configured) else stringResource(R.string.group_chat_cast_ready)
                         is GroupChatGenerationState.Generating ->
                             stringResource(
                                 R.string.group_chat_speaker_replying,
@@ -1686,6 +1697,14 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         GroupChatDialogState.None -> Unit
+        GroupChatDialogState.NoProviderGuide -> AppConfirmDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = stringResource(R.string.no_model_provider_title),
+            message = stringResource(R.string.no_model_provider_desc),
+            confirmText = stringResource(R.string.go_to_model_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emitIntent(GroupChatUiIntent.OpenProviderSettings) }
+        )
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
@@ -1752,6 +1771,46 @@ private fun GroupChatActivationStrategy.titleRes(): Int {
         GroupChatActivationStrategy.Natural -> R.string.group_chat_strategy_natural
         GroupChatActivationStrategy.List -> R.string.group_chat_strategy_list
         GroupChatActivationStrategy.Pooled -> R.string.group_chat_strategy_pooled
+    }
+}
+
+@Composable
+private fun NoProviderBanner(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = stringResource(R.string.no_model_provider_banner),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+            )
+        }
     }
 }
 

@@ -22,6 +22,7 @@ sealed class ChatUiState {
         val lorebookState: ChatLorebookState,
         val streamEnabled: Boolean,
         val hasPromptInspection: Boolean = false,
+        val hasAvailableProvider: Boolean = true,
         val dialogState: ChatDialogState = ChatDialogState.None
     ) : ChatUiState()
 
@@ -86,6 +87,8 @@ sealed class ChatDialogState {
     data class DeleteMessageConfirm(
         val messageId: String
     ) : ChatDialogState()
+
+    data object NoProviderGuide : ChatDialogState()
 }
 
 /**

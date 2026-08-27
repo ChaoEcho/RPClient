@@ -1019,4 +1019,9 @@
     <string name="story_no_ungrouped_chapters">Aucun chapitre hors tome</string>
     <string name="story_empty_volume">Ce tome ne contient aucun chapitre</string>
     <string name="story_structure_update_failed">Impossible de modifier la structure de l’histoire</string>
+    <string name="no_model_configured">Aucun modèle configuré</string>
+    <string name="no_model_provider_title">Configuration de modèle requise</string>
+    <string name="no_model_provider_desc">RPClient est un client local et n’intègre pas de modèle IA. Veuillez configurer et activer une clé API (ex. OpenAI, Gemini, Claude, DeepSeek) dans les paramètres de modèle pour commencer à discuter.</string>
+    <string name="no_model_provider_banner">Aucun modèle configuré. Appuyez ici pour configurer une clé API.</string>
+    <string name="go_to_model_settings">Configurer</string>
 </resources>

@@ -31,6 +31,7 @@ sealed class GroupChatUiState {
         val conversationState: GroupChatConversationState,
         val settingsState: GroupChatSettingsState,
         val hasPromptInspection: Boolean = false,
+        val hasAvailableProvider: Boolean = true,
         val dialogState: GroupChatDialogState = GroupChatDialogState.None
     ) : GroupChatUiState()
 
@@ -96,6 +97,7 @@ sealed class GroupChatLoadState {
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
     data object None : GroupChatDialogState()
+    data object NoProviderGuide : GroupChatDialogState()
     data class PromptInspector(val inspection: PromptInspection) : GroupChatDialogState()
     data class DeleteMessageConfirm(val messageId: Long) : GroupChatDialogState()
     data class DeleteSessionConfirm(val title: String) : GroupChatDialogState()

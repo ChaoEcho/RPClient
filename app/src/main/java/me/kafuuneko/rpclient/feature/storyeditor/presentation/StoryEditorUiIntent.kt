@@ -81,5 +81,7 @@ sealed class StoryEditorUiIntent {
     data class ExportTextResult(val uri: Uri) : StoryEditorUiIntent()
     data object ExportStoryClick : StoryEditorUiIntent()
     data class ExportStoryResult(val uri: Uri) : StoryEditorUiIntent()
+    data object OpenProviderSettings : StoryEditorUiIntent()
+    data object Resume : StoryEditorUiIntent()
     data object DismissDialog : StoryEditorUiIntent()
 }

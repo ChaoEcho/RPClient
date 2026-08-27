@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
@@ -112,6 +113,7 @@ private fun NormalView(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 18.dp),
             contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),

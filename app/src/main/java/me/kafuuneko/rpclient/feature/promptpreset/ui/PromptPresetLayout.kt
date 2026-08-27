@@ -100,6 +100,7 @@ private fun NormalView(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 18.dp),
             contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),

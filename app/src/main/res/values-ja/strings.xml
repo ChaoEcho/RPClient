@@ -1014,4 +1014,9 @@
     <string name="story_no_ungrouped_chapters">巻に属さない章はありません</string>
     <string name="story_empty_volume">この巻には章がありません</string>
     <string name="story_structure_update_failed">ストーリー構成を更新できませんでした</string>
+    <string name="no_model_configured">モデル未設定</string>
+    <string name="no_model_provider_title">モデル設定が必要です</string>
+    <string name="no_model_provider_desc">RPClient はローカルファーストのクライアントであり、組み込みの AI モデルは含まれていません。チャットを開始するには、モデル設定で API キー（OpenAI、Gemini、Claude、DeepSeek など）を設定して有効にしてください。</string>
+    <string name="no_model_provider_banner">モデルが設定されていません。タップして API キーを設定してください。</string>
+    <string name="go_to_model_settings">設定する</string>
 </resources>

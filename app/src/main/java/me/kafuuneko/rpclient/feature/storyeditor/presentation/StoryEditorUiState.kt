@@ -24,6 +24,7 @@ sealed class StoryEditorUiState {
         val canUndoEdit: Boolean = false,
         val canRedoEdit: Boolean = false,
         val hasPromptInspection: Boolean = false,
+        val hasAvailableProvider: Boolean = true,
         val pageState: StoryEditorPageState = StoryEditorPageState.Editor,
         val dialogState: StoryEditorDialogState = StoryEditorDialogState.None
     ) : StoryEditorUiState()
@@ -32,7 +33,7 @@ sealed class StoryEditorUiState {
 
     companion object {
         fun finished(previous: StoryEditorUiState): StoryEditorUiState {
-            return if (previous is Finished) previous else Finished(previous)
+            return previous as? Finished ?: Finished(previous)
         }
     }
 }
@@ -135,6 +136,7 @@ sealed class StoryEditorPageState {
 /** 编辑器业务对话框状态。 */
 sealed class StoryEditorDialogState {
     data object None : StoryEditorDialogState()
+    data object NoProviderGuide : StoryEditorDialogState()
     data class PromptInspector(val inspection: PromptInspection) : StoryEditorDialogState()
     data object FileActions : StoryEditorDialogState()
     data class ImportPreview(val preview: StoryImportPreview) : StoryEditorDialogState()

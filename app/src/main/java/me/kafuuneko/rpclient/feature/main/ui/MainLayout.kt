@@ -730,6 +730,7 @@ private fun HomePage(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .navigationBarsPadding()
             .padding(horizontal = 18.dp),
         contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1396,6 +1397,7 @@ private fun SettingsPage(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .navigationBarsPadding()
             .padding(horizontal = 18.dp),
         contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)

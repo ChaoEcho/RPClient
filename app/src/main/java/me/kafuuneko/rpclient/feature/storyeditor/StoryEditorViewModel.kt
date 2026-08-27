@@ -47,6 +47,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEve
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -219,6 +220,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
         publishDocument(chapter.content)
+        // 检查全局是否存在已启用的模型服务配置
+        val hasAvailableProvider = withContext(Dispatchers.IO) {
+            mLLMRepository.getSelectedProvider() != null
+        }
         // 建立初始 UI 状态
         StoryEditorUiState.Normal(
             storyId = story.id,
@@ -235,7 +240,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             ),
             continuationInputState = StoryContinuationInputState(
                 guidanceDraft = chapter.continuationGuidance
-            )
+            ),
+            hasAvailableProvider = hasAvailableProvider
         ).setup()
     }
 
@@ -337,6 +343,30 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             return
         }
         scheduleAutoSave(delayMillis = 0L)
+    }
+
+    /**
+     * 页面从后台恢复时的刷新处理，更新模型服务配置可用状态。
+     */
+    @UiIntentObserver(StoryEditorUiIntent.Resume::class)
+    private suspend fun onResume() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val hasAvailableProvider = withContext(Dispatchers.IO) {
+            mLLMRepository.getSelectedProvider() != null
+        }
+        if (uiState.hasAvailableProvider != hasAvailableProvider) {
+            uiState.copy(hasAvailableProvider = hasAvailableProvider).setup()
+        }
+    }
+
+    /**
+     * 打开全局模型服务配置管理界面。
+     */
+    @UiIntentObserver(StoryEditorUiIntent.OpenProviderSettings::class)
+    private fun onOpenProviderSettings() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>()
+        uiState?.copy(dialogState = StoryEditorDialogState.None)?.setup()
+        AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
     /**
@@ -1172,6 +1202,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (uiState.pageState != StoryEditorPageState.Editor) return
         if (uiState.generationState !is StoryGenerationState.Idle) return
         if (!uiState.contentState.editable) return
+        if (!uiState.hasAvailableProvider) {
+            uiState.copy(dialogState = StoryEditorDialogState.NoProviderGuide).setup()
+            return
+        }
         acceptEditorSnapshot(intent.snapshot)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         startGeneration(

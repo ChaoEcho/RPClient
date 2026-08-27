@@ -997,4 +997,9 @@
     </plurals>
     <string name="model_config_deleted">模型設定已刪除</string>
     <string name="model_config_delete_failed">無法刪除模型設定</string>
+    <string name="no_model_configured">未設定模型</string>
+    <string name="no_model_provider_title">需要設定模型服務</string>
+    <string name="no_model_provider_desc">RPClient 是本機端工具，不包含內建模型服務。請先在「模型設定」中新增並啟用您的 API Key（如 OpenAI、Gemini、Claude、DeepSeek 等）即可開始對話。</string>
+    <string name="no_model_provider_banner">尚未設定模型服務，點擊前往設定 API Key</string>
+    <string name="go_to_model_settings">前往設定</string>
 </resources>

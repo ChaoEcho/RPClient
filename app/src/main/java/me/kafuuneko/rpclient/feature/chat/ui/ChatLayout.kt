@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -115,6 +117,7 @@ import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
@@ -211,9 +214,15 @@ private fun ChatNormal(
             loadState = state.loadState,
             streamEnabled = state.streamEnabled,
             hasPromptInspection = state.hasPromptInspection,
+            hasAvailableProvider = state.hasAvailableProvider,
             onBack = { ChatUiIntent.Back.emit() },
             emit = emit
         )
+        if (!state.hasAvailableProvider) {
+            NoProviderBanner(
+                onClick = { ChatUiIntent.OpenProviderSettings.emit() }
+            )
+        }
         if (state.lorebookState.isExpanded) {
             SessionLorePanel(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -279,6 +288,7 @@ private fun CustomChatTopBar(
     loadState: ChatLoadState,
     streamEnabled: Boolean,
     hasPromptInspection: Boolean,
+    hasAvailableProvider: Boolean = true,
     onBack: () -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -327,7 +337,7 @@ private fun CustomChatTopBar(
                 Text(
                     text = buildString {
                         append(session.title)
-                        val status = chatStatusText(loadState, generationState, streamEnabled)
+                        val status = chatStatusText(loadState, generationState, streamEnabled, hasAvailableProvider)
                         if (status.isNotBlank()) {
                             append(" • ")
                             append(status)
@@ -1109,7 +1119,12 @@ private fun ChatInputBar(
         tonalElevation = 2.dp,
         shadowElevation = 3.dp
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1295,7 +1310,9 @@ private fun ChatSettingsPage(
             onBack = { ChatUiIntent.CloseChatSettings.emit() }
         )
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -1511,6 +1528,14 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         ChatDialogState.None -> Unit
+        ChatDialogState.NoProviderGuide -> AppConfirmDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.no_model_provider_title),
+            message = stringResource(R.string.no_model_provider_desc),
+            confirmText = stringResource(R.string.go_to_model_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ChatUiIntent.OpenProviderSettings.emit() }
+        )
         ChatDialogState.Exporting -> LoadingDialog(
             title = stringResource(R.string.exporting_chat),
             description = stringResource(R.string.export_chat_desc)
@@ -1655,12 +1680,55 @@ private fun ChatGenerationState.label(streamEnabled: Boolean): String {
 private fun chatStatusText(
     loadState: ChatLoadState,
     generationState: ChatGenerationState,
-    streamEnabled: Boolean
+    streamEnabled: Boolean,
+    hasAvailableProvider: Boolean = true
 ): String {
     return if (loadState == ChatLoadState.Saving) {
         stringResource(R.string.updating_summary)
+    } else if (!hasAvailableProvider && generationState == ChatGenerationState.Idle) {
+        stringResource(R.string.no_model_configured)
     } else {
         generationState.label(streamEnabled)
+    }
+}
+
+@Composable
+private fun NoProviderBanner(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = stringResource(R.string.no_model_provider_banner),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+            )
+        }
     }
 }
 

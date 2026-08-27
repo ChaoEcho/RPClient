@@ -1013,4 +1013,9 @@
     <string name="story_no_ungrouped_chapters">권에 속하지 않은 챕터가 없습니다</string>
     <string name="story_empty_volume">이 권에는 챕터가 없습니다</string>
     <string name="story_structure_update_failed">스토리 구조를 업데이트할 수 없습니다</string>
+    <string name="no_model_configured">모델 미구성</string>
+    <string name="no_model_provider_title">모델 구성이 필요합니다</string>
+    <string name="no_model_provider_desc">RPClient는 로컬 우선 클라이언트이며 기본 제공 AI 모델이 포함되어 있지 않습니다. 대화를 시작하려면 모델 설정에서 API 키(예: OpenAI, Gemini, Claude, DeepSeek)를 구성하고 활성화하세요.</string>
+    <string name="no_model_provider_banner">구성된 모델이 없습니다. 탭하여 API 키를 설정하세요.</string>
+    <string name="go_to_model_settings">설정하기</string>
 </resources>

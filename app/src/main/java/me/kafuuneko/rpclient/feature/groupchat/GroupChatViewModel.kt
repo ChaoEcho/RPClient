@@ -26,6 +26,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.withSettingsDraft
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -193,6 +194,16 @@ class GroupChatViewModel :
     }
 
     /**
+     * 打开全局模型服务配置管理界面。
+     */
+    @UiIntentObserver(GroupChatUiIntent.OpenProviderSettings::class)
+    private fun onOpenProviderSettings() {
+        val uiState = getOrNull<GroupChatUiState.Normal>()
+        uiState?.copy(dialogState = GroupChatDialogState.None)?.setup()
+        AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
+    }
+
+    /**
      * 打开 Prompt 检查器对话框，展示群聊最近一次请求的 Prompt 组成结构。
      */
     @UiIntentObserver(GroupChatUiIntent.OpenPromptInspector::class)
@@ -317,6 +328,20 @@ class GroupChatViewModel :
     }
 
     /**
+     * 校验群聊当前是否存在可用模型服务；若无可用服务则唤起引导弹窗。
+     *
+     * @return true 表示已就绪，false 表示已拦截并弹出引导
+     */
+    private suspend fun ensureProviderConfigured(): Boolean {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return false
+        if (!uiState.hasAvailableProvider) {
+            refreshState(dialogState = GroupChatDialogState.NoProviderGuide)
+            return false
+        }
+        return true
+    }
+
+    /**
      * 发送群聊消息并启动多角色发言流程。
      *
      * 业务流程：
@@ -329,6 +354,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.SendMessage::class)
     private suspend fun onSendMessage() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (!ensureProviderConfigured()) return
         // 并发拦截
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(
@@ -415,6 +441,7 @@ class GroupChatViewModel :
     private suspend fun onSummarizeNow() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
+        if (!ensureProviderConfigured()) return
         uiState.copy(loadState = GroupChatLoadState.Summarizing).setup()
         summarizeSession(uiState.sessionId, showToast = true)
         refreshState(
@@ -1015,6 +1042,7 @@ class GroupChatViewModel :
     private suspend fun onRegenerateMessage(intent: GroupChatUiIntent.RegenerateMessage) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
+        if (!ensureProviderConfigured()) return
         val data = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatData(uiState.sessionId)
         } ?: return
@@ -1057,6 +1085,7 @@ class GroupChatViewModel :
     private suspend fun onContinueLast() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
+        if (!ensureProviderConfigured()) return
         val data = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatData(uiState.sessionId)
         } ?: return
@@ -1702,6 +1731,10 @@ class GroupChatViewModel :
                 }
             )
         }.filter { it.entries.isNotEmpty() }
+        // 检查全局或关联成员是否存在可用的模型服务配置
+        val hasAvailableProvider = mLLMRepository.getSelectedProvider() != null || data.members.any {
+            mProviderSelectionResolver.getCharacterProviderOrNull(it.character) != null
+        }
         // 构建并返回群聊完整 UI 状态
         return GroupChatUiState.Normal(
             sessionId = sessionId,
@@ -1742,6 +1775,7 @@ class GroupChatViewModel :
                 lorebookQuery = lorebookQuery
             ),
             hasPromptInspection = mLastPromptInspection != null,
+            hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState
         )
     }

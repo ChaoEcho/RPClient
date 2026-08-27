@@ -66,6 +66,11 @@ class StoryEditorActivity : CoreActivityWithEvent() {
         mViewModel.emit(StoryEditorUiIntent.Init(storyId))
     }
 
+    override fun onResume() {
+        super.onResume()
+        mViewModel.emit(StoryEditorUiIntent.Resume)
+    }
+
     override fun onStop() {
         mViewModel.emit(StoryEditorUiIntent.FlushDraft)
         super.onStop()
