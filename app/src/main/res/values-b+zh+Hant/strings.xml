@@ -168,6 +168,10 @@
     <string name="export_character">匯出角色</string>
     <string name="import_character_success">角色已匯入</string>
     <string name="import_character_failed">匯入角色失敗</string>
+    <string name="batch_import_character_result_title">角色卡批次匯入完成</string>
+    <string name="batch_import_character_result_message">成功匯入：%1$d\n匯入失敗：%2$d</string>
+    <string name="batch_import_character_reading_progress">正在解析 %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">正在匯入 %1$d/%2$d</string>
     <string name="export_character_success">角色已匯出</string>
     <string name="export_character_failed">匯出角色失敗</string>
     <string name="import_world_book">匯入世界書</string>
@@ -176,6 +180,7 @@
     <string name="import_world_book_failed">匯入世界書失敗</string>
     <string name="low_world_book_budget_title">世界書預算可能過低</string>
     <string name="low_world_book_budget_message">該世界書的固定預算為 %1$d Token，可能不足。是否改為跟隨全域預算？</string>
+    <string name="batch_low_world_book_budget_message">所選角色卡中有 %1$d 張包含低預算世界書，最低固定預算為 %2$d Token。是否將這些世界書改為跟隨全域預算？</string>
     <string name="low_embedded_world_book_budget_message">該角色包含的世界書固定預算為 %1$d Token，可能不足。是否改為跟隨全域預算？</string>
     <string name="follow_global_budget">跟隨全域</string>
     <string name="keep_imported_budget">保留匯入預算</string>

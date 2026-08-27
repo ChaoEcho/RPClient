@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,10 +57,13 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.model.CharacterListItem
+import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterImportStage
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDialogState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -140,8 +142,8 @@ private fun CharacterListNormal(
                     onAction = { CharacterListUiIntent.CreateCharacter.emit() }
                 )
             }
-            if (state.loadState == CharacterListLoadState.Loading) {
-                item { LoadingRow() }
+            if (state.loadState != CharacterListLoadState.None) {
+                item { LoadingRow(state.loadState) }
             }
             val characters = state.characters
             if (state.loadState != CharacterListLoadState.Loading && characters.isEmpty()) {
@@ -165,6 +167,7 @@ private fun DialogSwitch(
     dialogState: CharacterListDialogState,
     emit: CharacterListUiIntent.() -> Unit
 ) {
+    // 低预算确认在单卡与批量场景复用同一策略入口
     when (dialogState) {
         CharacterListDialogState.None -> Unit
         is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> AppWarningDialog(
@@ -172,16 +175,40 @@ private fun DialogSwitch(
                 CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()
             },
             title = stringResource(R.string.low_world_book_budget_title),
-            message = stringResource(
-                R.string.low_world_book_budget_message,
-                dialogState.importedTokenBudget
-            ),
+            message = if (dialogState.affectedCharacterCount == 1) {
+                stringResource(
+                    R.string.low_world_book_budget_message,
+                    dialogState.importedTokenBudget
+                )
+            } else {
+                stringResource(
+                    R.string.batch_low_world_book_budget_message,
+                    dialogState.affectedCharacterCount,
+                    dialogState.importedTokenBudget
+                )
+            },
             confirmText = stringResource(R.string.follow_global_budget),
             dismissText = stringResource(R.string.keep_imported_budget),
             onConfirm = {
                 CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget.emit()
             }
         )
+        // 结果统计属于可恢复页面状态，不使用易丢失的瞬时 Toast
+        is CharacterListDialogState.BatchImportResult -> AppDialogScaffold(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.batch_import_character_result_title),
+            confirmText = stringResource(android.R.string.ok),
+            dismissText = null,
+            onConfirm = { CharacterListUiIntent.DismissDialog.emit() }
+        ) {
+            Text(
+                stringResource(
+                    R.string.batch_import_character_result_message,
+                    dialogState.successCount,
+                    dialogState.failureCount
+                )
+            )
+        }
     }
 }
 
@@ -219,12 +246,29 @@ private fun SearchField(
 }
 
 @Composable
-private fun LoadingRow() {
+private fun LoadingRow(loadState: CharacterListLoadState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         CircularProgressIndicator()
+        // 普通列表加载与导出保持简洁，只有批量导入显示阶段计数
+        if (loadState is CharacterListLoadState.Importing) {
+            val messageRes = when (loadState.stage) {
+                CharacterImportStage.Reading -> R.string.batch_import_character_reading_progress
+                CharacterImportStage.Saving -> R.string.batch_import_character_saving_progress
+            }
+            Text(
+                text = stringResource(
+                    messageRes,
+                    loadState.completedCount,
+                    loadState.totalCount
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

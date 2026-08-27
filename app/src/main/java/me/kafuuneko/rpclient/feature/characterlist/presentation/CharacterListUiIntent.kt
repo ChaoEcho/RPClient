@@ -23,11 +23,13 @@ sealed class CharacterListUiIntent {
 
     data object ImportCharacterClick : CharacterListUiIntent()
 
-    data class ImportCharacterCard(val uri: Uri) : CharacterListUiIntent()
+    data class ImportCharacterCards(val uris: List<Uri>) : CharacterListUiIntent()
 
     data object ImportCharacterWithGlobalLorebookBudget : CharacterListUiIntent()
 
     data object ImportCharacterWithOriginalLorebookBudget : CharacterListUiIntent()
+
+    data object DismissDialog : CharacterListUiIntent()
 
     data class ExportCharacterJsonClick(val characterId: Long) : CharacterListUiIntent()
 

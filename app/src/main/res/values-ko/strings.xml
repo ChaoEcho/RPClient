@@ -168,6 +168,10 @@
     <string name="export_character">캐릭터 내보내기</string>
     <string name="import_character_success">캐릭터를 가져왔습니다</string>
     <string name="import_character_failed">캐릭터 가져오기 실패</string>
+    <string name="batch_import_character_result_title">캐릭터 카드 일괄 가져오기 완료</string>
+    <string name="batch_import_character_result_message">성공: %1$d\n실패: %2$d</string>
+    <string name="batch_import_character_reading_progress">분석 중 %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">가져오는 중 %1$d/%2$d</string>
     <string name="export_character_success">캐릭터를 내보냈습니다</string>
     <string name="export_character_failed">캐릭터 내보내기 실패</string>
     <string name="import_world_book">월드북 가져오기</string>
@@ -176,6 +180,7 @@
     <string name="import_world_book_failed">월드북 가져오기 실패</string>
     <string name="low_world_book_budget_title">월드북 예산이 너무 적을 수 있음</string>
     <string name="low_world_book_budget_message">이 월드북의 고정 예산은 %1$d토큰으로, 너무 적을 수 있습니다. 전역 예산을 따르도록 변경할까요?</string>
+    <string name="batch_low_world_book_budget_message">선택한 캐릭터 카드 중 %1$d개에 낮은 예산의 월드북이 포함되어 있습니다. 가장 낮은 고정 예산은 %2$d토큰입니다. 해당 월드북이 전역 예산을 따르도록 변경할까요?</string>
     <string name="low_embedded_world_book_budget_message">이 캐릭터에 포함된 월드북의 고정 예산은 %1$d토큰으로, 너무 적을 수 있습니다. 전역 예산을 따르도록 변경할까요?</string>
     <string name="follow_global_budget">전역 예산 따르기</string>
     <string name="keep_imported_budget">가져온 예산 유지</string>

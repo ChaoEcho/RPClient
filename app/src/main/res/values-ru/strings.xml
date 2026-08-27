@@ -168,6 +168,10 @@
     <string name="export_character">Экспортировать персонажа</string>
     <string name="import_character_success">Персонаж импортирован</string>
     <string name="import_character_failed">Не удалось импортировать персонажа</string>
+    <string name="batch_import_character_result_title">Пакетный импорт карточек завершён</string>
+    <string name="batch_import_character_result_message">Импортировано: %1$d\nОшибок: %2$d</string>
+    <string name="batch_import_character_reading_progress">Чтение: %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">Импорт: %1$d/%2$d</string>
     <string name="export_character_success">Персонаж экспортирован</string>
     <string name="export_character_failed">Не удалось экспортировать персонажа</string>
     <string name="import_world_book">Импортировать книгу мира</string>
@@ -176,6 +180,7 @@
     <string name="import_world_book_failed">Не удалось импортировать книгу мира</string>
     <string name="low_world_book_budget_title">Бюджет книги мира может быть слишком мал</string>
     <string name="low_world_book_budget_message">Для этой книги мира задан фиксированный бюджет %1$d токенов, которого может быть недостаточно. Использовать глобальный бюджет?</string>
+    <string name="batch_low_world_book_budget_message">В %1$d выбранных карточках персонажей есть книги мира с низким бюджетом. Минимальный фиксированный бюджет — %2$d токенов. Использовать для этих книг глобальный бюджет?</string>
     <string name="low_embedded_world_book_budget_message">Для встроенной в этого персонажа книги мира задан фиксированный бюджет %1$d токенов, которого может быть недостаточно. Использовать глобальный бюджет?</string>
     <string name="follow_global_budget">Следовать глобальному бюджету</string>
     <string name="keep_imported_budget">Сохранить импортированный бюджет</string>

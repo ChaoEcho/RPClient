@@ -168,6 +168,10 @@
     <string name="export_character">Exportar personaje</string>
     <string name="import_character_success">Personaje importado</string>
     <string name="import_character_failed">Error al importar el personaje</string>
+    <string name="batch_import_character_result_title">Importación por lotes completada</string>
+    <string name="batch_import_character_result_message">Importadas: %1$d\nFallidas: %2$d</string>
+    <string name="batch_import_character_reading_progress">Leyendo %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">Importando %1$d/%2$d</string>
     <string name="export_character_success">Personaje exportado</string>
     <string name="export_character_failed">Error al exportar el personaje</string>
     <string name="import_world_book">Importar libro del mundo</string>
@@ -176,6 +180,7 @@
     <string name="import_world_book_failed">Error al importar el libro del mundo</string>
     <string name="low_world_book_budget_title">Presupuesto bajo de libro del mundo</string>
     <string name="low_world_book_budget_message">Este libro del mundo usa un presupuesto fijo de %1$d tokens, que puede ser insuficiente. ¿Desea que siga el presupuesto global?</string>
+    <string name="batch_low_world_book_budget_message">%1$d tarjetas de personaje seleccionadas contienen libros del mundo con un presupuesto bajo. El presupuesto fijo más bajo es de %2$d tokens. ¿Desea que estos libros sigan el presupuesto global?</string>
     <string name="low_embedded_world_book_budget_message">Este personaje contiene un libro del mundo con un presupuesto fijo de %1$d tokens, que puede ser insuficiente. ¿Desea que siga el presupuesto global?</string>
     <string name="follow_global_budget">Seguir presupuesto global</string>
     <string name="keep_imported_budget">Mantener presupuesto importado</string>

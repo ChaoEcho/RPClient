@@ -1,7 +1,8 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
-import android.os.Bundle
 import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.model.CharacterListItem
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDialogState
+import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterImportStage
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
@@ -61,7 +63,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private val mAvatarLoadKeys = mutableMapOf<Long, AvatarCacheKey>()
     private val mVisibleAvatars = mutableMapOf<Long, LoadedAvatar>()
     private val mAvatarCache = AvatarBitmapCache(MAX_AVATAR_CACHE_BYTES)
-    private var mPendingImport: CharacterCardImportDraft? = null
+    private var mPendingImport: CharacterCardImportBatch? = null
 
     /** 初始化角色列表，进入加载中状态并拉取数据库数据。 */
     @UiIntentObserver(CharacterListUiIntent.Init::class)
@@ -173,51 +175,57 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     }
 
     /**
-     * 解析角色卡并在需要时暂停于内嵌世界书预算确认。
+     * 解析一批角色卡，并在需要时暂停于内嵌世界书预算确认。
      *
-     * 确认前只保存进程内草稿，不写入角色、头像或世界书；传输 token 保证被替换或页面结束
-     * 的旧任务不能清除新任务的 Loading 状态。
+     * - 各文件顺序解析，限制批量导入的瞬时内存占用。
+     * - 单个文件解析失败不会阻断其余文件。
+     * - 确认前只保存进程内草稿，不写入角色、头像或世界书。
      *
-     * @param intent 包含角色卡文件 URI 的导入意图
+     * @param intent 包含一组角色卡文件 URI 的导入意图
      */
-    @UiIntentObserver(CharacterListUiIntent.ImportCharacterCard::class)
-    private fun onImportCharacterCard(intent: CharacterListUiIntent.ImportCharacterCard) {
+    @UiIntentObserver(CharacterListUiIntent.ImportCharacterCards::class)
+    private fun onImportCharacterCards(intent: CharacterListUiIntent.ImportCharacterCards) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val uris = intent.uris.distinct()
+        if (uris.isEmpty()) return
         if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
-        // 生成本次传输的唯一标识 Token
+        // 传输 token 保证旧任务不能清除后来任务的 Loading 状态
         val token = Any()
         mTransferToken = token
-        // 进入加载中状态
-        uiState.copy(loadState = CharacterListLoadState.Loading).setup()
+        uiState.copy(
+            loadState = CharacterListLoadState.Importing(
+                stage = CharacterImportStage.Reading,
+                completedCount = 0,
+                totalCount = uris.size
+            )
+        ).setup()
         mTransferJob = viewModelScope.launch {
             try {
-                // 在 IO 线程解析 URI 对应的角色卡文件（JSON 或 PNG Tavern Card）
-                val draft = withContext(Dispatchers.IO) {
-                    mCharacterCardRepository.readImportFromUri(intent.uri)
+                // 解析阶段只创建内存草稿，避免确认前产生半成品数据
+                val batch = readImportBatch(uris)
+                val lowBudgetDrafts = batch.drafts.filter {
+                    LorebookImportPolicy.requiresLowBudgetConfirmation(it.card)
                 }
-                // 检查内嵌世界书是否包含低于阈值的固定 Token 预算，若有则弹出确认对话框
-                if (LorebookImportPolicy.requiresLowBudgetConfirmation(draft.card)) {
-                    mPendingImport = draft
+                if (lowBudgetDrafts.isNotEmpty()) {
+                    mPendingImport = batch
                     getOrNull<CharacterListUiState.Normal>()?.copy(
                         loadState = CharacterListLoadState.None,
                         dialogState = CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm(
-                            importedTokenBudget = requireNotNull(
-                                draft.card.embeddedLorebook
-                            ).lorebook.tokenBudget
+                            importedTokenBudget = lowBudgetDrafts.minOf {
+                                requireNotNull(it.card.embeddedLorebook).lorebook.tokenBudget
+                            },
+                            affectedCharacterCount = lowBudgetDrafts.size
                         )
                     )?.setup()
                 } else {
-                    // 直接执行角色与关联世界书入库
-                    saveImport(draft)
+                    saveImportBatch(batch)
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                // 导入失败弹出 Toast 提示并刷新列表
                 AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
                 refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
             } finally {
-                // 结束传输状态
                 finishTransfer(token)
             }
         }
@@ -236,28 +244,43 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     }
 
     /**
-     * 消费一次待确认草稿，应用用户选择的预算策略后再开始事务导入。
+     * 消费一次待确认批次，对其中的低预算世界书统一应用用户选择后开始导入。
      *
      * @param followGlobal 是否将内嵌世界书改为跟随全局预算
      */
     private fun continuePendingImport(followGlobal: Boolean) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState !is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm) return
-        val draft = mPendingImport ?: return
+        val batch = mPendingImport ?: return
         mPendingImport = null
         val token = Any()
         mTransferToken = token
         // 关闭弹窗并重置为加载中状态
         uiState.copy(
-            loadState = CharacterListLoadState.Loading,
+            loadState = CharacterListLoadState.Importing(
+                stage = CharacterImportStage.Saving,
+                completedCount = 0,
+                totalCount = batch.drafts.size
+            ),
             dialogState = CharacterListDialogState.None
         ).setup()
         mTransferJob = viewModelScope.launch {
             try {
-                // 根据用户选择应用预算策略并保存入库
-                saveImport(
-                    draft.copy(
-                        card = LorebookImportPolicy.resolveBudget(draft.card, followGlobal)
+                // 预算策略只改变命中低预算规则的卡片，其余草稿保持原样
+                saveImportBatch(
+                    batch.copy(
+                        drafts = batch.drafts.map { draft ->
+                            if (LorebookImportPolicy.requiresLowBudgetConfirmation(draft.card)) {
+                                draft.copy(
+                                    card = LorebookImportPolicy.resolveBudget(
+                                        draft.card,
+                                        followGlobal
+                                    )
+                                )
+                            } else {
+                                draft
+                            }
+                        }
                     )
                 )
             } catch (cancellation: CancellationException) {
@@ -272,13 +295,115 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 将解析后的角色、头像与关联世界书写入数据库，并弹出成功 Toast。 */
-    private suspend fun saveImport(draft: CharacterCardImportDraft) {
-        val importedId = withContext(Dispatchers.IO) {
-            mCharacterCardRepository.saveImport(draft)
+    /** 关闭当前非阻塞结果对话框。 */
+    @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult) return
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
+    }
+
+    /** 顺序解析 URI，并把文件级失败折叠到批次统计中。 */
+    private suspend fun readImportBatch(uris: List<Uri>): CharacterCardImportBatch {
+        val drafts = mutableListOf<CharacterCardImportDraft>()
+        var failureCount = 0
+        // 每个 URI 独立捕获格式或读取错误，确保后续有效卡片仍能进入保存阶段
+        uris.forEachIndexed { index, uri ->
+            try {
+                drafts += mCharacterCardRepository.readImportFromUri(uri)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                failureCount++
+            }
+            updateImportProgress(
+                stage = CharacterImportStage.Reading,
+                completedCount = index + 1,
+                totalCount = uris.size
+            )
         }
-        AppViewEvent.PopupToastMessageByResId(R.string.import_character_success).tryEmit()
-        refreshCharacters(selectedCharacterId = importedId)
+        return CharacterCardImportBatch(
+            drafts = drafts,
+            parseFailureCount = failureCount,
+            totalCount = uris.size
+        )
+    }
+
+    /**
+     * 顺序保存批次中的有效草稿，并在批次完成后统一刷新列表和发布结果。
+     *
+     * 每张角色卡使用 Repository 自身的补偿清理边界，单卡失败不会回滚其他已成功卡片。
+     */
+    private suspend fun saveImportBatch(batch: CharacterCardImportBatch) {
+        var successCount = 0
+        var failureCount = batch.parseFailureCount
+        var selectedCharacterId = getOrNull<CharacterListUiState.Normal>()?.selectedCharacterId
+        updateImportProgress(
+            stage = CharacterImportStage.Saving,
+            completedCount = 0,
+            totalCount = batch.drafts.size
+        )
+        // 逐卡提交可控制头像解码峰值，并保留部分成功结果
+        batch.drafts.forEachIndexed { index, draft ->
+            try {
+                selectedCharacterId = mCharacterCardRepository.saveImport(draft)
+                successCount++
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                failureCount++
+            }
+            updateImportProgress(
+                stage = CharacterImportStage.Saving,
+                completedCount = index + 1,
+                totalCount = batch.drafts.size
+            )
+        }
+        // 列表只在整批完成后查询一次，避免导入数量放大数据库读取与头像失效开销
+        refreshCharacters(selectedCharacterId = selectedCharacterId)
+        publishImportResult(
+            totalCount = batch.totalCount,
+            successCount = successCount,
+            failureCount = failureCount
+        )
+    }
+
+    /** 单文件沿用简洁 Toast，批量导入展示可核对的成功与失败计数。 */
+    private fun publishImportResult(totalCount: Int, successCount: Int, failureCount: Int) {
+        // 保留原有单文件交互，避免一次选择一张卡时出现冗余结果弹窗
+        if (totalCount == 1) {
+            val message = if (successCount == 1) {
+                R.string.import_character_success
+            } else {
+                R.string.import_character_failed
+            }
+            AppViewEvent.PopupToastMessageByResId(message).tryEmit()
+            return
+        }
+        // 批量结果进入 UiState，旋转屏幕时仍能保留可核对的统计
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        uiState.copy(
+            dialogState = CharacterListDialogState.BatchImportResult(
+                successCount = successCount,
+                failureCount = failureCount
+            )
+        ).setup()
+    }
+
+    /** 发布批量导入阶段进度，忽略已离开 Normal 状态的过期任务。 */
+    private fun updateImportProgress(
+        stage: CharacterImportStage,
+        completedCount: Int,
+        totalCount: Int
+    ) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        uiState.copy(
+            loadState = CharacterListLoadState.Importing(
+                stage = stage,
+                completedCount = completedCount,
+                totalCount = totalCount
+            )
+        ).setup()
     }
 
     /** 准备导出指定角色的 JSON 格式文件，并触发文件创建器。 */
@@ -411,7 +536,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         mTransferToken = null
         mTransferJob = null
         val current = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (current.loadState == CharacterListLoadState.Loading) {
+        if (current.loadState != CharacterListLoadState.None) {
             current.copy(loadState = CharacterListLoadState.None).setup()
         }
     }
@@ -519,6 +644,13 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             item.copy(avatarImage = mVisibleAvatars[item.id]?.image)
         }
     }
+
+    /** 一次角色卡导入选择对应的有效草稿与解析失败统计。 */
+    private data class CharacterCardImportBatch(
+        val drafts: List<CharacterCardImportDraft>,
+        val parseFailureCount: Int,
+        val totalCount: Int
+    )
 
     /** 头像内存缓存键，由文件 UUID 与宽高像素共同决定。 */
     private data class AvatarCacheKey(

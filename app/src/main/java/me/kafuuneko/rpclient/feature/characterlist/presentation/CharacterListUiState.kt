@@ -29,7 +29,13 @@ sealed class CharacterListDialogState {
     data object None : CharacterListDialogState()
 
     data class LowEmbeddedLorebookBudgetConfirm(
-        val importedTokenBudget: Int
+        val importedTokenBudget: Int,
+        val affectedCharacterCount: Int
+    ) : CharacterListDialogState()
+
+    data class BatchImportResult(
+        val successCount: Int,
+        val failureCount: Int
     ) : CharacterListDialogState()
 }
 
@@ -37,4 +43,16 @@ sealed class CharacterListDialogState {
 sealed class CharacterListLoadState {
     data object None : CharacterListLoadState()
     data object Loading : CharacterListLoadState()
+
+    data class Importing(
+        val stage: CharacterImportStage,
+        val completedCount: Int,
+        val totalCount: Int
+    ) : CharacterListLoadState()
+}
+
+/** 批量角色卡导入的当前处理阶段。 */
+enum class CharacterImportStage {
+    Reading,
+    Saving
 }

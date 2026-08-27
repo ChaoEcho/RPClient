@@ -169,6 +169,10 @@
     <string name="export_character">Export character</string>
     <string name="import_character_success">Character imported</string>
     <string name="import_character_failed">Failed to import character</string>
+    <string name="batch_import_character_result_title">Character import complete</string>
+    <string name="batch_import_character_result_message">Imported: %1$d\nFailed: %2$d</string>
+    <string name="batch_import_character_reading_progress">Reading %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">Importing %1$d/%2$d</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
     <string name="import_world_book">Import world book</string>
@@ -177,6 +181,7 @@
     <string name="import_world_book_failed">Failed to import world book</string>
     <string name="low_world_book_budget_title">Low world book budget</string>
     <string name="low_world_book_budget_message">This world book uses a fixed budget of %1$d tokens, which may be too small. Change it to follow the global budget?</string>
+    <string name="batch_low_world_book_budget_message">%1$d selected character cards contain low-budget world books. The lowest fixed budget is %2$d tokens. Change these world books to follow the global budget?</string>
     <string name="low_embedded_world_book_budget_message">This character contains a world book with a fixed budget of %1$d tokens, which may be too small. Change it to follow the global budget?</string>
     <string name="follow_global_budget">Follow global</string>
     <string name="keep_imported_budget">Keep imported budget</string>

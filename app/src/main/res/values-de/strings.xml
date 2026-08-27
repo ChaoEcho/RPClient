@@ -169,6 +169,10 @@
     <string name="export_character">Charakter exportieren</string>
     <string name="import_character_success">Charakter importiert</string>
     <string name="import_character_failed">Import des Charakters fehlgeschlagen</string>
+    <string name="batch_import_character_result_title">Stapelimport der Charakterkarten abgeschlossen</string>
+    <string name="batch_import_character_result_message">Importiert: %1$d\nFehlgeschlagen: %2$d</string>
+    <string name="batch_import_character_reading_progress">Dateien werden gelesen: %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">Import läuft: %1$d/%2$d</string>
     <string name="export_character_success">Charakter exportiert</string>
     <string name="export_character_failed">Export des Charakters fehlgeschlagen</string>
     <string name="import_world_book">Weltbuch importieren</string>
@@ -177,6 +181,7 @@
     <string name="import_world_book_failed">Import des Weltbuchs fehlgeschlagen</string>
     <string name="low_world_book_budget_title">Weltbuch-Budget möglicherweise zu niedrig</string>
     <string name="low_world_book_budget_message">Dieses Weltbuch verwendet ein festes Budget von %1$d Token, das möglicherweise zu niedrig ist. Soll stattdessen das globale Budget verwendet werden?</string>
+    <string name="batch_low_world_book_budget_message">%1$d ausgewählte Charakterkarten enthalten Weltbücher mit niedrigem Budget. Das niedrigste feste Budget beträgt %2$d Token. Sollen diese Weltbücher stattdessen das globale Budget verwenden?</string>
     <string name="low_embedded_world_book_budget_message">Das in diesem Charakter enthaltene Weltbuch verwendet ein festes Budget von %1$d Token, das möglicherweise zu niedrig ist. Soll stattdessen das globale Budget verwendet werden?</string>
     <string name="follow_global_budget">Globalem Budget folgen</string>
     <string name="keep_imported_budget">Importiertes Budget beibehalten</string>

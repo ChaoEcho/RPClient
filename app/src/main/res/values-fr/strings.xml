@@ -168,6 +168,10 @@
     <string name="export_character">Exporter le personnage</string>
     <string name="import_character_success">Personnage importé</string>
     <string name="import_character_failed">Échec de l\'importation du personnage</string>
+    <string name="batch_import_character_result_title">Importation groupée terminée</string>
+    <string name="batch_import_character_result_message">Importées : %1$d\nÉchecs : %2$d</string>
+    <string name="batch_import_character_reading_progress">Lecture : %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">Importation : %1$d/%2$d</string>
     <string name="export_character_success">Personnage exporté</string>
     <string name="export_character_failed">Échec de l\'exportation du personnage</string>
     <string name="import_world_book">Importer le livre d\'univers</string>
@@ -176,6 +180,7 @@
     <string name="import_world_book_failed">Échec de l\'importation du livre d\'univers</string>
     <string name="low_world_book_budget_title">Budget du livre d\'univers potentiellement insuffisant</string>
     <string name="low_world_book_budget_message">Ce livre d\'univers utilise un budget fixe de %1$d jetons, qui pourrait être insuffisant. Utiliser plutôt le budget global ?</string>
+    <string name="batch_low_world_book_budget_message">%1$d fiches de personnage sélectionnées contiennent des livres d\'univers à faible budget. Le budget fixe le plus bas est de %2$d jetons. Utiliser le budget global pour ces livres ?</string>
     <string name="low_embedded_world_book_budget_message">Le livre d\'univers intégré à ce personnage utilise un budget fixe de %1$d jetons, qui pourrait être insuffisant. Utiliser plutôt le budget global ?</string>
     <string name="follow_global_budget">Suivre le budget global</string>
     <string name="keep_imported_budget">Conserver le budget importé</string>

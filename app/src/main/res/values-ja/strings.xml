@@ -169,6 +169,10 @@
     <string name="export_character">キャラクターをエクスポート</string>
     <string name="import_character_success">キャラクターをインポートしました</string>
     <string name="import_character_failed">キャラクターのインポートに失敗しました</string>
+    <string name="batch_import_character_result_title">キャラクターカードの一括インポート完了</string>
+    <string name="batch_import_character_result_message">成功：%1$d\n失敗：%2$d</string>
+    <string name="batch_import_character_reading_progress">解析中 %1$d/%2$d</string>
+    <string name="batch_import_character_saving_progress">インポート中 %1$d/%2$d</string>
     <string name="export_character_success">キャラクターをエクスポートしました</string>
     <string name="export_character_failed">キャラクターのエクスポートに失敗しました</string>
     <string name="import_world_book">ワールドブックをインポート</string>
@@ -177,6 +181,7 @@
     <string name="import_world_book_failed">ワールドブックのインポートに失敗しました</string>
     <string name="low_world_book_budget_title">ワールドブックの予算が少なすぎる可能性があります</string>
     <string name="low_world_book_budget_message">このワールドブックの固定予算は%1$dトークンで、少なすぎる可能性があります。グローバル予算に従うよう変更しますか？</string>
+    <string name="batch_low_world_book_budget_message">選択したキャラクターカードのうち%1$d件に低予算のワールドブックが含まれています。最小の固定予算は%2$dトークンです。これらをグローバル予算に従うよう変更しますか？</string>
     <string name="low_embedded_world_book_budget_message">このキャラクターに含まれるワールドブックの固定予算は%1$dトークンで、少なすぎる可能性があります。グローバル予算に従うよう変更しますか？</string>
     <string name="follow_global_budget">グローバル予算に従う</string>
     <string name="keep_imported_budget">インポートした予算を維持</string>
