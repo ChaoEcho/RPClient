@@ -16,6 +16,23 @@
     <string name="tech_stack_label">Technology Stack</string>
     <string name="github_repo_label">GitHub Repository</string>
     <string name="visit_repo">Visit</string>
+    <string name="rate_app">Rate App</string>
+    <string name="rate_app_desc">Rate RPClient on the app store</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">Enjoying RPClient?</string>
+    <string name="rate_card_desc">Leave a 5-star review on Google Play to support our continuous updates and development.</string>
+    <string name="rate_card_action">Rate on Google Play</string>
+    <string name="feedback_label">Feedback</string>
+    <string name="feedback_desc">Submit bug reports or feature requests</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">Community &amp; Feedback</string>
+    <string name="section_about">About &amp; Support</string>
+    <string name="copy_email_hint">Tap to copy email</string>
+    <string name="open_source_license">Open Source License</string>
+    <string name="open_source_license_desc">Free &amp; Open Source · Under MIT License</string>
+    <string name="about_app_summary">Immersive AI roleplay &amp; storytelling client</string>
+    <string name="about_crafted_with_love">Crafted with passion for roleplayers &amp; storytellers</string>
+    <string name="about_copyright">RPClient · Open source software</string>
 
     <!-- Main Layout -->
     <string name="home">Home</string>

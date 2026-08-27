@@ -15,6 +15,23 @@
     <string name="tech_stack_label">기술 스택</string>
     <string name="github_repo_label">GitHub 저장소</string>
     <string name="visit_repo">방문</string>
+    <string name="rate_app">앱 평가하기</string>
+    <string name="rate_app_desc">앱 스토어에서 RPClient 평가하기</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">RPClient가 마음에 드시나요?</string>
+    <string name="rate_card_desc">지속적인 업데이트와 개발을 위해 Google Play에 별 5개 리뷰를 남겨주세요.</string>
+    <string name="rate_card_action">평가하기</string>
+    <string name="feedback_label">문제 신고 및 피드백</string>
+    <string name="feedback_desc">버그 신고나 기능 제안으로 앱 개선에 참여하기</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">커뮤니티 및 피드백</string>
+    <string name="section_about">정보 및 지원</string>
+    <string name="copy_email_hint">탭하여 개발자 이메일 주소 복사</string>
+    <string name="open_source_license">오픈 소스 라이선스</string>
+    <string name="open_source_license_desc">자유와 개방 · MIT License</string>
+    <string name="about_app_summary">몰입형 AI 롤플레잉 및 스토리 창작 클라이언트</string>
+    <string name="about_crafted_with_love">롤플레이어와 스토리 작가를 위해 정성껏 제작되었습니다</string>
+    <string name="about_copyright">RPClient · 오픈 소스 소프트웨어</string>
 
     <!-- Main Layout -->
     <string name="home">홈</string>

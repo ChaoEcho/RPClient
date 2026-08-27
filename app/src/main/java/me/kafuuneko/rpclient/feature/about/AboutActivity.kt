@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.about
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -17,10 +18,11 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreActivity
 
-/** 关于页面宿主，负责提供版本和项目联系信息。 */
+/** 关于页面宿主，负责提供版本、社区反馈和项目联系信息。 */
 class AboutActivity : CoreActivity() {
     @Composable
     override fun ViewContent() {
+        // - 读取应用包信息与静态链接，构造页面展示状态
         val uiState = remember {
             AboutUiState(
                 appVersionName = packageManager
@@ -29,34 +31,73 @@ class AboutActivity : CoreActivity() {
                     ?: getString(R.string.unknown_version),
                 githubRepoUrl = AppModel.GITHUB_REPO,
                 githubRepoName = "KafuuNeko/RPClient",
-                developerEmail = AppModel.EMAIL
+                developerEmail = AppModel.EMAIL,
+                githubIssuesUrl = "${AppModel.GITHUB_REPO}/issues"
             )
         }
+
+        // - 渲染关于界面并绑定外部跳转交互
         Surface(modifier = Modifier.fillMaxSize()) {
             AboutLayout(
                 uiState = uiState,
                 onBack = { finish() },
-                onCopyDeveloperEmail = {
-                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText(
-                            getString(R.string.developer_contact),
-                            uiState.developerEmail
-                        )
-                    )
-                    Toast.makeText(
-                        this@AboutActivity,
-                        R.string.copied_to_clipboard,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                },
-                onOpenRepository = {
-                    startActivity(repositoryIntent(uiState.githubRepoUrl))
-                }
+                onCopyDeveloperEmail = { copyDeveloperEmail(uiState.developerEmail) },
+                onOpenRepository = { safeOpenUrl(uiState.githubRepoUrl) },
+                onRateApp = { openGooglePlay() },
+                onOpenFeedback = { safeOpenUrl(uiState.githubIssuesUrl) }
             )
+        }
+    }
+
+    /** 复制开发者邮箱至剪贴板并提示用户。 */
+    private fun copyDeveloperEmail(email: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                getString(R.string.developer_contact),
+                email
+            )
+        )
+        Toast.makeText(
+            this,
+            R.string.copied_to_clipboard,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    /** 打开 Google Play 商店评价页面，缺失对应市场应用时平滑降级至网页版。 */
+    private fun openGooglePlay() {
+        val pkg = packageName
+        val playStoreIntent = Intent(
+            Intent.ACTION_VIEW,
+            "market://details?id=$pkg".toUri()
+        ).apply {
+            setPackage("com.android.vending")
+        }
+        try {
+            startActivity(playStoreIntent)
+        } catch (_: ActivityNotFoundException) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=$pkg".toUri()))
+            } catch (_: ActivityNotFoundException) {
+                safeOpenUrl("https://play.google.com/store/apps/details?id=$pkg")
+            }
+        }
+    }
+
+    /** 安全打开外部超链接，若无可用浏览器则回退至复制链接到剪贴板。 */
+    private fun safeOpenUrl(url: String) {
+        try {
+            startActivity(repositoryIntent(url))
+        } catch (_: ActivityNotFoundException) {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.about), url)
+            )
+            Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
         }
     }
 }
 
-/** 构造只包含公开仓库 URI 的外部浏览 Intent。 */
+/** 构造只包含公开 URI 的外部浏览 Intent。 */
 internal fun repositoryIntent(url: String): Intent = Intent(Intent.ACTION_VIEW, url.toUri())

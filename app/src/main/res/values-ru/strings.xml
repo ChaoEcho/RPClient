@@ -15,6 +15,23 @@
     <string name="tech_stack_label">Стек технологий</string>
     <string name="github_repo_label">Репозиторий GitHub</string>
     <string name="visit_repo">Перейти</string>
+    <string name="rate_app">Оценить приложение</string>
+    <string name="rate_app_desc">Оценить RPClient в магазине приложений</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">Нравится RPClient?</string>
+    <string name="rate_card_desc">Оставьте отзыв с 5 звездами в Google Play, чтобы поддержать дальнейшие обновления и разработку.</string>
+    <string name="rate_card_action">Оценить</string>
+    <string name="feedback_label">Отзывы и предложения</string>
+    <string name="feedback_desc">Сообщайте об ошибках или предлагайте идеи для улучшения RPClient</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">Сообщество и отзывы</string>
+    <string name="section_about">О приложении и поддержка</string>
+    <string name="copy_email_hint">Нажмите, чтобы скопировать почту разработчика</string>
+    <string name="open_source_license">Лицензия открытого ПО</string>
+    <string name="open_source_license_desc">Свободно и открыто · Лицензия MIT</string>
+    <string name="about_app_summary">Иммерсивный клиент для ролевых игр и создания историй с ИИ</string>
+    <string name="about_crafted_with_love">Создано с заботой для ролевиков и рассказчиков</string>
+    <string name="about_copyright">RPClient · Открытое программное обеспечение</string>
 
     <!-- Main Layout -->
     <string name="home">Главная</string>

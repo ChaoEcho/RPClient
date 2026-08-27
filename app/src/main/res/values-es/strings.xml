@@ -15,6 +15,23 @@
     <string name="tech_stack_label">Pila tecnológica</string>
     <string name="github_repo_label">Repositorio de GitHub</string>
     <string name="visit_repo">Visitar</string>
+    <string name="rate_app">Calificar aplicación</string>
+    <string name="rate_app_desc">Calificar RPClient en la tienda de aplicaciones</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">¿Te gusta RPClient?</string>
+    <string name="rate_card_desc">Deja una reseña de 5 estrellas en Google Play para apoyar nuestras actualizaciones y desarrollo continuos.</string>
+    <string name="rate_card_action">Calificar ahora</string>
+    <string name="feedback_label">Comentarios</string>
+    <string name="feedback_desc">Envía informes de errores o sugerencias para ayudarnos a mejorar</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">Comunidad y comentarios</string>
+    <string name="section_about">Acerca de y soporte</string>
+    <string name="copy_email_hint">Toca para copiar el correo del desarrollador</string>
+    <string name="open_source_license">Licencia de código abierto</string>
+    <string name="open_source_license_desc">Libre y abierto · Bajo licencia MIT</string>
+    <string name="about_app_summary">Cliente inmersivo de rol e historias con IA</string>
+    <string name="about_crafted_with_love">Creado con pasión para jugadores de rol y narradores</string>
+    <string name="about_copyright">RPClient · Software de código abierto</string>
 
     <!-- Main Layout -->
     <string name="home">Inicio</string>

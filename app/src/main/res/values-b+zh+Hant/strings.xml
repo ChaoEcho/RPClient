@@ -15,6 +15,23 @@
     <string name="tech_stack_label">技術棧</string>
     <string name="github_repo_label">開源倉庫</string>
     <string name="visit_repo">前往查看</string>
+    <string name="rate_app">應用評分</string>
+    <string name="rate_app_desc">在應用商店為 RPClient 評分</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">喜歡 RPClient 嗎？</string>
+    <string name="rate_card_desc">歡迎前往 Google Play 為我們留下五星好評，支持我們的持續更新與維護。</string>
+    <string name="rate_card_action">前往評分</string>
+    <string name="feedback_label">問題反饋</string>
+    <string name="feedback_desc">提交缺陷或功能建議，幫助我們變得更好</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">社區與反饋</string>
+    <string name="section_about">關於與支持</string>
+    <string name="copy_email_hint">點擊複製開發者電子郵件</string>
+    <string name="open_source_license">開源協議</string>
+    <string name="open_source_license_desc">自由與開放 · 基於 MIT License</string>
+    <string name="about_app_summary">沉浸式 AI 角色扮演與故事創作用戶端</string>
+    <string name="about_crafted_with_love">為角色扮演與故事創作者精心打造</string>
+    <string name="about_copyright">RPClient · 基於開源協議發布</string>
 
     <!-- Main Layout -->
     <string name="home">首頁</string>

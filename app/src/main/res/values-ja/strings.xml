@@ -16,6 +16,23 @@
     <string name="tech_stack_label">技術スタック</string>
     <string name="github_repo_label">GitHub リポジトリ</string>
     <string name="visit_repo">表示</string>
+    <string name="rate_app">アプリを評価</string>
+    <string name="rate_app_desc">アプリストアで RPClient を評価</string>
+    <string name="rate_on_google_play">Google Play</string>
+    <string name="rate_card_title">RPClient を気に入っていただけましたか？</string>
+    <string name="rate_card_desc">Google Play で星5つの評価をいただき、今後の継続的なアップデートを応援してください。</string>
+    <string name="rate_card_action">評価する</string>
+    <string name="feedback_label">フィードバックと提案</string>
+    <string name="feedback_desc">不具合の報告や新機能の提案でアプリ改善を支援</string>
+    <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="section_community">コミュニティとフィードバック</string>
+    <string name="section_about">アプリ情報とサポート</string>
+    <string name="copy_email_hint">タップしてメールアドレスをコピー</string>
+    <string name="open_source_license">オープンソースライセンス</string>
+    <string name="open_source_license_desc">自由とオープン · MIT License</string>
+    <string name="about_app_summary">没入型 AI ロールプレイ＆ストーリー執筆クライアント</string>
+    <string name="about_crafted_with_love">ロールプレイヤーとストーリーテラーのために情熱を込めて制作</string>
+    <string name="about_copyright">RPClient · オープンソースソフトウェア</string>
 
     <!-- Main Layout -->
     <string name="home">ホーム</string>
