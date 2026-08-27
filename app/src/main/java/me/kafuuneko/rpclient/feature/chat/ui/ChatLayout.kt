@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,23 +54,22 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +82,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -104,23 +103,23 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.libs.utils.toggle
-import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
-import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
-import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
-import me.kafuuneko.rpclient.ui.message.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
+import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
+import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
+import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -137,9 +136,11 @@ fun ChatLayout(
     BackHandler(enabled = uiState is ChatUiState.Normal) { ChatUiIntent.Back.emit() }
     when (uiState) {
         ChatUiState.None -> {
-            Box(modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background))
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            )
         }
 
         is ChatUiState.Finished -> ChatLayout(uiState.previous) {}
@@ -187,14 +188,22 @@ private fun ChatNormal(
         }
     }
 
+    // - 只要收到新消息或发送消息，立即恢复底部跟随并平滑滚动到末尾
+    LaunchedEffect(state.conversationState.messages.size) {
+        if (state.conversationState.messages.isNotEmpty()) {
+            shouldFollowBottom = true
+            listState.scrollToItem(state.conversationState.messages.size + 1)
+            isFirstLoad = false
+        }
+    }
+
+    // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
     LaunchedEffect(
-        state.conversationState.messages.size,
         state.conversationState.messages.lastOrNull()?.content,
         state.conversationState.expandedThinkBlockIds
     ) {
         if (state.conversationState.messages.isNotEmpty()) {
             if (isFirstLoad || shouldFollowBottom) {
-                // 列表项包含顶部占位、消息正文和用于自动滚动的末尾锚点。
                 listState.scrollToItem(state.conversationState.messages.size + 1)
                 isFirstLoad = false
             }
@@ -265,7 +274,7 @@ private fun ChatNormal(
                 )
             }
             item(key = "conversation-end") {
-                Spacer(modifier = Modifier.height(1.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
         ChatInputBar(
@@ -337,7 +346,12 @@ private fun CustomChatTopBar(
                 Text(
                     text = buildString {
                         append(session.title)
-                        val status = chatStatusText(loadState, generationState, streamEnabled, hasAvailableProvider)
+                        val status = chatStatusText(
+                            loadState,
+                            generationState,
+                            streamEnabled,
+                            hasAvailableProvider
+                        )
                         if (status.isNotBlank()) {
                             append(" • ")
                             append(status)
@@ -461,7 +475,10 @@ private fun ConversationStartHeader(
             OutlinedButton(
                 onClick = { ChatUiIntent.OpenCharacterEditor.emit() },
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                border = BorderStroke(
+                    0.5.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
             ) {
                 Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -685,7 +702,11 @@ private fun MessageBubble(
     ) {
         if (!isUser) {
             AvatarPreview(
-                avatarText = if (message.speaker == character.name) character.avatarText else message.speaker.take(1).uppercase(),
+                avatarText = if (message.speaker == character.name) {
+                    character.avatarText
+                } else {
+                    message.speaker.take(1).uppercase()
+                },
                 avatarColor = if (message.speaker == character.name) character.accentColor else NarratorAvatarColor,
                 image = if (message.speaker == character.name) character.avatarImage else null,
                 size = 34,
@@ -712,12 +733,14 @@ private fun MessageBubble(
                         bottomStart = 18.dp,
                         bottomEnd = 4.dp
                     )
+
                     MessageRole.Assistant -> RoundedCornerShape(
                         topStart = 18.dp,
                         topEnd = 18.dp,
                         bottomStart = 4.dp,
                         bottomEnd = 18.dp
                     )
+
                     MessageRole.Narrator -> RoundedCornerShape(14.dp)
                 },
                 color = when (message.role) {
@@ -727,8 +750,15 @@ private fun MessageBubble(
                 },
                 border = when (message.role) {
                     MessageRole.User -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                    MessageRole.Assistant -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
-                    MessageRole.Narrator -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
+                    MessageRole.Assistant -> BorderStroke(
+                        0.5.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+                    )
+
+                    MessageRole.Narrator -> BorderStroke(
+                        0.5.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                    )
                 },
                 shadowElevation = if (isUser) 1.5.dp else 0.5.dp
             ) {
@@ -779,7 +809,10 @@ private fun MessageBubble(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    border = BorderStroke(
+                        0.5.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                    ),
                     shadowElevation = 2.dp,
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
@@ -956,7 +989,9 @@ private fun ThinkBlock(
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
+                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(
+                        R.string.show
+                    ),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -1016,14 +1051,18 @@ private fun QuickActionPill(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.38f
+                ),
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.38f
+                )
             )
         }
     }
@@ -1123,7 +1162,6 @@ private fun ChatInputBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .imePadding()
         ) {
             Box(
                 modifier = Modifier
@@ -1132,7 +1170,7 @@ private fun ChatInputBar(
                     .height(0.5.dp)
             )
 
-            // 快捷操作胶囊条 (Quick Action Pills Row)
+            // - 快捷操作胶囊条（随页面整体上移平推，常驻方便快速操作）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1260,7 +1298,9 @@ private fun ChatInputBar(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                         disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = 0.22f
+                        )
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
@@ -1536,20 +1576,24 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             onConfirm = { ChatUiIntent.OpenProviderSettings.emit() }
         )
+
         ChatDialogState.Exporting -> LoadingDialog(
             title = stringResource(R.string.exporting_chat),
             description = stringResource(R.string.export_chat_desc)
         )
+
         ChatDialogState.Summarizing -> LoadingDialog(
             title = stringResource(R.string.updating_summary),
             description = stringResource(R.string.summarize_now_desc),
             onCancel = { ChatUiIntent.CancelSummary.emit() }
         )
+
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() }
         )
+
         is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_chat_title),
@@ -1558,6 +1602,7 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             onConfirm = { ChatUiIntent.ConfirmDeleteSession.emit() }
         )
+
         is ChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_message_title),

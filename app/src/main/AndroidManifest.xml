@@ -18,84 +18,104 @@
         <activity
             android:name=".feature.about.AboutActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.jsonviewer.JsonViewerActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.requestlog.RequestLogActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.regexscript.RegexScriptActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.characteredit.CharacterEditActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.imagecrop.ImageCropActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.llmprovideredit.LLMProviderEditActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.llmproviderlist.LLMProviderListActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.worldbookedit.WorldBookEditActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.worldbookentryedit.WorldBookEntryEditActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.worldbooklist.WorldBookListActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.chat.ChatActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".feature.chatcreate.ChatCreateActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.groupchat.GroupChatActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".feature.groupchatcreate.GroupChatCreateActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.storycreate.StoryCreateActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.storyeditor.StoryEditorActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.characterlist.CharacterListActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.promptpreset.PromptPresetActivity"
             android:exported="false"
-            android:theme="@style/Theme.RPClient" />
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.main.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.RPClient">
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

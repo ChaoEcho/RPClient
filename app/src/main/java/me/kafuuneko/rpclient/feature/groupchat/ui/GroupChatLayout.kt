@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,14 +37,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
@@ -54,14 +53,12 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,10 +87,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -104,28 +102,27 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
-import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatLoadState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
-import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
-import me.kafuuneko.rpclient.libs.core.ActivityPreview
-import me.kafuuneko.rpclient.ui.theme.getMacaronColor
-import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
-import me.kafuuneko.rpclient.ui.message.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
+import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
+import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
-import androidx.compose.ui.res.stringResource
+import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 
 /** 群聊页 Compose 入口，根据状态渲染对话、成员与世界书设置。 */
 @Composable
@@ -915,7 +912,10 @@ private fun GroupHeader(
                 Text(
                     text = when (generationState) {
                         GroupChatGenerationState.Idle ->
-                            if (!hasAvailableProvider) stringResource(R.string.no_model_configured) else stringResource(R.string.group_chat_cast_ready)
+                            if (!hasAvailableProvider) stringResource(R.string.no_model_configured) else stringResource(
+                                R.string.group_chat_cast_ready
+                            )
+
                         is GroupChatGenerationState.Generating ->
                             stringResource(
                                 R.string.group_chat_speaker_replying,
@@ -923,6 +923,7 @@ private fun GroupHeader(
                                 generationState.current,
                                 generationState.total
                             )
+
                         is GroupChatGenerationState.Failed -> generationState.message
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -1082,14 +1083,25 @@ private fun MessageList(
                 }
         }
     }
+    // - 只要收到新消息或发送消息，立即恢复底部跟随并平滑滚动到末尾
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            shouldFollowBottom = true
+            listState.scrollToItem(messages.size)
+            isFirstLoad = false
+        }
+    }
+
+    // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
     LaunchedEffect(
-        messages.size,
         messages.lastOrNull()?.content,
         expandedThinkBlockIds
     ) {
-        if (messages.isNotEmpty() && (isFirstLoad || shouldFollowBottom)) {
-            listState.scrollToItem(messages.size)
-            isFirstLoad = false
+        if (messages.isNotEmpty()) {
+            if (isFirstLoad || shouldFollowBottom) {
+                listState.scrollToItem(messages.size)
+                isFirstLoad = false
+            }
         }
     }
     if (messages.isEmpty()) {
@@ -1121,7 +1133,7 @@ private fun MessageList(
             )
         }
         item(key = "conversation-end") {
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -1232,9 +1244,20 @@ private fun MessageBubble(
                         showActions = !showActions
                     },
                 shape = when {
-                    isUser -> RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+                    isUser -> RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 4.dp,
+                        bottomEnd = 18.dp,
+                        bottomStart = 18.dp
+                    )
+
                     isSystem -> RoundedCornerShape(14.dp)
-                    else -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+                    else -> RoundedCornerShape(
+                        topStart = 4.dp,
+                        topEnd = 18.dp,
+                        bottomEnd = 18.dp,
+                        bottomStart = 18.dp
+                    )
                 },
                 color = when {
                     isUser -> MaterialTheme.colorScheme.primary
@@ -1243,8 +1266,15 @@ private fun MessageBubble(
                 },
                 border = when {
                     isUser -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                    isSystem -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
-                    else -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
+                    isSystem -> BorderStroke(
+                        0.5.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                    )
+
+                    else -> BorderStroke(
+                        0.5.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+                    )
                 },
                 shadowElevation = if (isUser) 1.5.dp else 0.5.dp
             ) {
@@ -1275,7 +1305,10 @@ private fun MessageBubble(
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            border = BorderStroke(
+                                0.5.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                            ),
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Row(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
@@ -1320,6 +1353,7 @@ private fun GroupMessageContent(
                         )
                     }
                 }
+
                 is MessageContentPart.Think -> GroupThinkBlock(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
@@ -1405,7 +1439,9 @@ private fun GroupThinkBlock(
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
+                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(
+                        R.string.show
+                    ),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -1603,7 +1639,6 @@ private fun Composer(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .imePadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom
         ) {
@@ -1704,11 +1739,13 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             onConfirm = { emitIntent(GroupChatUiIntent.OpenProviderSettings) }
         )
+
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) }
         )
+
         is GroupChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             title = stringResource(R.string.delete_message_title),
@@ -1717,6 +1754,7 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) }
         )
+
         is GroupChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             title = stringResource(R.string.group_chat_delete_title),
@@ -1756,6 +1794,7 @@ private fun LoadStateOverlay(loadState: GroupChatLoadState) {
                         GroupChatLoadState.Saving -> stringResource(R.string.saving)
                         GroupChatLoadState.Summarizing ->
                             stringResource(R.string.updating_summary)
+
                         else -> stringResource(R.string.loading)
                     }
                 )
