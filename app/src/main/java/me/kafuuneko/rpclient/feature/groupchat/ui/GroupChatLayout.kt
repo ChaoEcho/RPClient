@@ -184,19 +184,6 @@ private fun GroupChatNormalView(
                             contentDescription = stringResource(R.string.settings)
                         )
                     }
-                    IconButton(
-                        onClick = {
-                            emitIntent(GroupChatUiIntent.DeleteSessionClick)
-                        },
-                        enabled = !generating
-                    ) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = stringResource(
-                                R.string.group_chat_delete_content_description
-                            )
-                        )
-                    }
                 }
             )
         },
@@ -512,6 +499,17 @@ private fun GroupChatSettingsView(
                 }
             }
             item {
+                GroupSettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Delete,
+                        title = stringResource(R.string.group_chat_delete_content_description),
+                        subtitle = stringResource(R.string.delete_chat_desc),
+                        iconTint = MaterialTheme.colorScheme.error,
+                        onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) }
+                    )
+                }
+            }
+            item {
                 Button(
                     onClick = { emitIntent(GroupChatUiIntent.SaveSettings) },
                     modifier = Modifier.fillMaxWidth()
@@ -554,6 +552,7 @@ private fun SettingsActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit
 ) {
     Surface(
@@ -571,7 +570,7 @@ private fun SettingsActionRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = iconTint
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleSmall)
