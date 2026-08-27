@@ -1010,6 +1010,14 @@
     <string name="story_delete_chapter_message">「%1$s」を削除しますか？本文は復元できません。</string>
     <string name="story_structure_title">タイトル</string>
     <string name="story_structure_summary">%1$d 巻 · %2$d 章</string>
+    <string name="story_outline_stats_summary">%1$d 巻 · %2$d 章 · %3$s 文字</string>
+    <string name="story_volume_stats">%1$d 章 · %2$s 文字</string>
+    <string name="story_active_chapter">編集中</string>
+    <string name="story_draft_chapter">下書き</string>
+    <string name="story_add_chapter_to_volume">この巻に章を追加</string>
+    <string name="story_add_ungrouped_chapter_button">巻に属さない章を追加</string>
+    <string name="story_empty_volume_guide">この巻にはまだ章がありません。下をタップして執筆を開始してください。</string>
+    <string name="story_drag_handle">ドラッグして並べ替え</string>
     <string name="story_chapter_count">%1$d 章</string>
     <string name="story_no_ungrouped_chapters">巻に属さない章はありません</string>
     <string name="story_empty_volume">この巻には章がありません</string>

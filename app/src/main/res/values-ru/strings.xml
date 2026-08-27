@@ -1019,6 +1019,14 @@
     <string name="story_delete_chapter_message">Удалить «%1$s»? Текст главы нельзя будет восстановить.</string>
     <string name="story_structure_title">Название</string>
     <string name="story_structure_summary">Томов: %1$d · глав: %2$d</string>
+    <string name="story_outline_stats_summary">Томов: %1$d · глав: %2$d · знаков: %3$s</string>
+    <string name="story_volume_stats">Глав: %1$d · знаков: %2$s</string>
+    <string name="story_active_chapter">Редактируется</string>
+    <string name="story_draft_chapter">Черновик</string>
+    <string name="story_add_chapter_to_volume">Добавить главу в этот том</string>
+    <string name="story_add_ungrouped_chapter_button">Добавить главу без тома</string>
+    <string name="story_empty_volume_guide">В этом томе пока нет глав. Нажмите ниже, чтобы начать писать.</string>
+    <string name="story_drag_handle">Потяните для изменения порядка</string>
     <string name="story_chapter_count">Глав: %1$d</string>
     <string name="story_no_ungrouped_chapters">Нет глав без тома</string>
     <string name="story_empty_volume">В этом томе пока нет глав</string>

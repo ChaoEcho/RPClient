@@ -566,6 +566,10 @@
     <string name="character_avatar_save_failed">Error al guardar el avatar del personaje</string>
     <string name="user_avatar_save_failed">Error al guardar el avatar del usuario</string>
 
+    <!-- Chat ViewModel -->
+    <string name="send_and_stream_coming_soon">La lógica de envío y generación en streaming llegará pronto</string>
+    <string name="stop_generation_coming_soon">La lógica de detención de generación llegará pronto</string>
+
     <!-- Prompt Preset -->
     <string name="prompt_preset_title">Preajustes de prompt del sistema</string>
     <string name="prompt_preset_subtitle">Administre prompts del sistema, utilidades y plantillas al estilo SillyTavern</string>

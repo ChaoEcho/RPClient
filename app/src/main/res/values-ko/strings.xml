@@ -1009,6 +1009,14 @@
     <string name="story_delete_chapter_message">“%1$s”을(를) 삭제할까요? 본문은 복구할 수 없습니다.</string>
     <string name="story_structure_title">제목</string>
     <string name="story_structure_summary">권 %1$d개 · 챕터 %2$d개</string>
+    <string name="story_outline_stats_summary">권 %1$d개 · 챕터 %2$d개 · %3$s자</string>
+    <string name="story_volume_stats">챕터 %1$d개 · %2$s자</string>
+    <string name="story_active_chapter">편집 중</string>
+    <string name="story_draft_chapter">초안</string>
+    <string name="story_add_chapter_to_volume">이 권에 챕터 추가</string>
+    <string name="story_add_ungrouped_chapter_button">권에 속하지 않은 챕터 추가</string>
+    <string name="story_empty_volume_guide">이 권에는 아직 챕터가 없습니다. 아래를 눌러 작성을 시작하세요.</string>
+    <string name="story_drag_handle">드래그하여 순서 변경</string>
     <string name="story_chapter_count">챕터 %1$d개</string>
     <string name="story_no_ungrouped_chapters">권에 속하지 않은 챕터가 없습니다</string>
     <string name="story_empty_volume">이 권에는 챕터가 없습니다</string>

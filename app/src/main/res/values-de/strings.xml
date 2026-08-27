@@ -1014,6 +1014,14 @@
     <string name="story_delete_chapter_message">„%1$s“ löschen? Der Inhalt kann nicht wiederhergestellt werden.</string>
     <string name="story_structure_title">Titel</string>
     <string name="story_structure_summary">%1$d Bände · %2$d Kapitel</string>
+    <string name="story_outline_stats_summary">%1$d Bände · %2$d Kapitel · %3$s Zeichen</string>
+    <string name="story_volume_stats">%1$d Kapitel · %2$s Zeichen</string>
+    <string name="story_active_chapter">In Bearbeitung</string>
+    <string name="story_draft_chapter">Entwurf</string>
+    <string name="story_add_chapter_to_volume">Kapitel zu diesem Band hinzufügen</string>
+    <string name="story_add_ungrouped_chapter_button">Kapitel ohne Band hinzufügen</string>
+    <string name="story_empty_volume_guide">Dieser Band enthält noch keine Kapitel. Tippe unten, um mit dem Schreiben zu beginnen.</string>
+    <string name="story_drag_handle">Zum Neuanordnen ziehen</string>
     <string name="story_chapter_count">%1$d Kapitel</string>
     <string name="story_no_ungrouped_chapters">Keine Kapitel ohne Band</string>
     <string name="story_empty_volume">Dieser Band enthält keine Kapitel</string>

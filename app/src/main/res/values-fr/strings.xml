@@ -1015,6 +1015,14 @@
     <string name="story_delete_chapter_message">Supprimer « %1$s » ? Son contenu ne pourra pas être récupéré.</string>
     <string name="story_structure_title">Titre</string>
     <string name="story_structure_summary">%1$d tomes · %2$d chapitres</string>
+    <string name="story_outline_stats_summary">%1$d tomes · %2$d chapitres · %3$s caractères</string>
+    <string name="story_volume_stats">%1$d chapitres · %2$s caractères</string>
+    <string name="story_active_chapter">En cours d\'édition</string>
+    <string name="story_draft_chapter">Brouillon</string>
+    <string name="story_add_chapter_to_volume">Ajouter un chapitre à ce tome</string>
+    <string name="story_add_ungrouped_chapter_button">Ajouter un chapitre hors tome</string>
+    <string name="story_empty_volume_guide">Aucun chapitre dans ce tome pour l\'instant. Appuyez ci-dessous pour commencer à écrire.</string>
+    <string name="story_drag_handle">Faire glisser pour réorganiser</string>
     <string name="story_chapter_count">%1$d chapitres</string>
     <string name="story_no_ungrouped_chapters">Aucun chapitre hors tome</string>
     <string name="story_empty_volume">Ce tome ne contient aucun chapitre</string>
