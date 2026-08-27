@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Settings
@@ -145,6 +146,7 @@ import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import androidx.compose.ui.platform.LocalLocale
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
 @Composable
@@ -746,30 +748,65 @@ private fun EditorBottomBar(
                     Text(
                         text = stringResource(R.string.story_character_count, characterCount),
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                     )
-                    Text(
-                        text = "${
-                            stringResource(
-                                R.string.story_character_references_count,
-                                referenceState.characterCount
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Person,
+                                contentDescription = stringResource(
+                                    R.string.story_character_references_count,
+                                    referenceState.characterCount
+                                ),
+                                modifier = Modifier.size(13.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        } · ${
-                            stringResource(
-                                R.string.story_lorebook_entries_count,
-                                referenceState.lorebookEntryCount
+                            Text(
+                                text = "${referenceState.characterCount}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        }
+                        Text(
+                            text = "·",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Book,
+                                contentDescription = stringResource(
+                                    R.string.story_lorebook_entries_count,
+                                    referenceState.lorebookEntryCount
+                                ),
+                                modifier = Modifier.size(13.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${referenceState.lorebookEntryCount}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
                 when (generationState) {
                     is StoryGenerationState.Streaming -> Button(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             StoryEditorUiIntent.StopGeneration.emit()
-                        }
+                        },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Icon(Icons.Rounded.Stop, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -817,7 +854,8 @@ private fun EditorBottomBar(
                             },
                             enabled = contentState.editable &&
                                     generationState is StoryGenerationState.Idle &&
-                                    onContinue != null
+                                    onContinue != null,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                         ) {
                             Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
@@ -1305,7 +1343,7 @@ private fun OutlineSummary(
                         R.string.story_outline_stats_summary,
                         volumeCount,
                         chapterCount,
-                        String.format(Locale.getDefault(), "%,d", totalCharacterCount)
+                        String.format(LocalLocale.current.platformLocale, "%,d", totalCharacterCount)
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1343,7 +1381,7 @@ private fun OutlineSectionHeader(
                 text = stringResource(
                     R.string.story_volume_stats,
                     itemCount,
-                    String.format(Locale.getDefault(), "%,d", totalCharacterCount)
+                    String.format(LocalLocale.current.platformLocale, "%,d", totalCharacterCount)
                 ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1423,7 +1461,7 @@ private fun StoryVolumeOutlineHeader(
                     text = stringResource(
                         R.string.story_volume_stats,
                         volume.chapters.size,
-                        String.format(Locale.getDefault(), "%,d", totalWords)
+                        String.format(LocalLocale.current.platformLocale, "%,d", totalWords)
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1506,7 +1544,7 @@ private fun StoryChapterOutlineRow(
                 }
             ) {
                 Text(
-                    text = String.format(Locale.getDefault(), "%02d", index + 1),
+                    text = String.format(LocalLocale.current.platformLocale, "%02d", index + 1),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
