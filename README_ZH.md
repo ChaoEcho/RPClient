@@ -9,6 +9,15 @@
 
   支持角色卡、世界书、单人对话、群聊、长期摘要记忆、Prompt 检查与多种 LLM 接口。
 
+  <p>
+    <a href="https://play.google.com/store/apps/details?id=me.kafuuneko.rpclient">
+      <img src="https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png" alt="Get it on Google Play" height="80" />
+    </a>
+    <a href="https://f-droid.org/packages/me.kafuuneko.rpclient/">
+      <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80" />
+    </a>
+  </p>
+
   [项目简介](#项目简介) · [界面展示](#界面展示) · [功能特性](#功能特性) · [快速开始](#快速开始) · [参与贡献](#参与贡献)
 </div>
 
@@ -24,8 +33,12 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 ## 界面展示
 
 <p align="center">
-  <img src="metadata/images/home_zh.png" alt="RPClient 主页" width="45%" />
-  <img src="metadata/images/chat_zh.png" alt="RPClient 聊天页面" width="45%" />
+  <img src="metadata/images/home.jpg" alt="RPClient 主页" width="45%" />
+  <img src="metadata/images/chat.jpg" alt="RPClient 聊天页面" width="45%" />
+</p>
+<p align="center">
+  <img src="metadata/images/story.jpg" alt="RPClient 故事创作" width="45%" />
+  <img src="metadata/images/settings.jpg" alt="RPClient 设置页面" width="45%" />
 </p>
 
 ## 功能特性
@@ -85,7 +98,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 
 ## 快速开始
 
-1. 安装并打开 RPClient。
+1. 安装并打开 RPClient（可通过 [Google Play](https://play.google.com/store/apps/details?id=me.kafuuneko.rpclient)、[F-Droid](https://f-droid.org/packages/me.kafuuneko.rpclient/) 或 [GitHub Releases](https://github.com/KafuuNeko/RPClient/releases) 获取）。
 2. 进入“设置 > 模型配置”，选择已有模板或新建模型配置。
 3. 填写 API Key、模型名称和服务地址，测试连接后启用该配置。
 4. 创建角色，或导入已有的 JSON/PNG 角色卡。

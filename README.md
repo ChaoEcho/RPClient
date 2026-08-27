@@ -9,6 +9,15 @@
 
   Supports character cards, lorebooks, one-on-one chats, group chats, long-term summary memory, prompt inspection, and multiple LLM APIs.
 
+  <p>
+    <a href="https://play.google.com/store/apps/details?id=me.kafuuneko.rpclient">
+      <img src="https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png" alt="Get it on Google Play" height="80" />
+    </a>
+    <a href="https://f-droid.org/packages/me.kafuuneko.rpclient/">
+      <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80" />
+    </a>
+  </p>
+
   [Overview](#overview) · [Screenshots](#screenshots) · [Features](#features) · [Quick Start](#quick-start) · [Contributing](#contributing)
 </div>
 
@@ -26,6 +35,10 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 <p align="center">
   <img src="metadata/images/home.jpg" alt="RPClient home screen" width="45%" />
   <img src="metadata/images/chat.jpg" alt="RPClient chat screen" width="45%" />
+</p>
+<p align="center">
+  <img src="metadata/images/story.jpg" alt="RPClient story editor screen" width="45%" />
+  <img src="metadata/images/settings.jpg" alt="RPClient settings screen" width="45%" />
 </p>
 
 ## Features
@@ -85,7 +98,7 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 
 ## Quick Start
 
-1. Install and open RPClient.
+1. Install and open RPClient (available on [Google Play](https://play.google.com/store/apps/details?id=me.kafuuneko.rpclient), [F-Droid](https://f-droid.org/packages/me.kafuuneko.rpclient/), or [GitHub Releases](https://github.com/KafuuNeko/RPClient/releases)).
 2. Go to "Settings > Model Configurations" and select an existing template or create a new configuration.
 3. Enter the API key, model name, and service URL. Test the connection, then enable the configuration.
 4. Create a character or import an existing JSON/PNG character card.
