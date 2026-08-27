@@ -1395,7 +1395,7 @@ private fun LLMProviderEditLayoutPreview() {
                     providerType = LLMProviderType.OpenRouter,
                     baseUrl = "https://openrouter.ai/api/v1",
                     model = "~anthropic/claude-sonnet-latest",
-                    requestBodyPatchJson = "{\n  \"session_id\": \"\$rpclient.routing_session_id\",\n  \"reasoning\": {\n    \"effort\": \"high\"\n  }\n}"
+                    requestBodyPatchJson = "{\n  \"session_id\": \"\$rpclient.routing_session_id\",\n  \"reasoning\": {\n    \"effort\": \"low\"\n  }\n}"
                 ),
                 requestExtensionsState = LLMProviderEditRequestExtensionsState(
                     isOpenRouter = true

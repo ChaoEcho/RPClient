@@ -13,25 +13,25 @@ const val LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID = "\$rpclient.routing_session_
 const val OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON =
     "{\"session_id\":\"\$rpclient.routing_session_id\"}"
 
-/** 内置 Gemini 模板显式展示官方默认的思考等级，用户可在高级 JSON 中直接调整。 */
+/** 内置 Gemini 模板显式展示默认的思考等级，用户可在高级 JSON 中直接调整。 */
 const val DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON =
-    "{\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"medium\"}}}"
+    "{\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"low\"}}}"
 
 /** 内置 Claude 模板只展示默认 effort，不隐式开启 adaptive thinking。 */
 const val DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON =
-    "{\"output_config\":{\"effort\":\"high\"}}"
+    "{\"output_config\":{\"effort\":\"low\"}}"
 
 /** 内置 DeepSeek 模板显式展示其默认启用的思考模式和强度。 */
 const val DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON =
-    "{\"thinking\":{\"type\":\"enabled\"},\"reasoning_effort\":\"high\"}"
+    "{\"thinking\":{\"type\":\"enabled\"},\"reasoning_effort\":\"low\"}"
 
 /** 内置 Grok 模板显式展示其默认思考强度。 */
 const val DEFAULT_GROK_REQUEST_BODY_PATCH_JSON =
-    "{\"reasoning_effort\":\"high\"}"
+    "{\"reasoning_effort\":\"low\"}"
 
 /** 内置 OpenRouter 模板同时启用会话粘性并展示统一推理参数。 */
 const val DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON =
-    "{\"session_id\":\"\$rpclient.routing_session_id\",\"reasoning\":{\"effort\":\"high\"}}"
+    "{\"session_id\":\"\$rpclient.routing_session_id\",\"reasoning\":{\"effort\":\"low\"}}"
 
 /**
  * 在线模型供应商类型，用于 UI 展示和统计归类。
