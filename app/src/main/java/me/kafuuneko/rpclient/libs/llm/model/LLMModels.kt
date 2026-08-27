@@ -13,9 +13,9 @@ const val LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID = "\$rpclient.routing_session_
 const val OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON =
     "{\"session_id\":\"\$rpclient.routing_session_id\"}"
 
-/** 内置 Gemini 模板显式展示默认的思考等级，用户可在高级 JSON 中直接调整。 */
+/** 内置 Gemini 模板显式展示默认思考等级和摘要返回开关，用户可在高级 JSON 中调整。 */
 const val DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON =
-    "{\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"low\"}}}"
+    "{\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"low\",\"includeThoughts\":true}}}"
 
 /** 内置 Claude 模板只展示默认 effort，不隐式开启 adaptive thinking。 */
 const val DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON =
@@ -137,6 +137,8 @@ data class LLMGenerationRequest(
     val model: String? = null,
     val options: LLMGenerationOptions = LLMGenerationOptions(),
     val includeReasoningInContent: Boolean = false,
+    /** 是否请求并接收模型服务可提供的推理文本；展示策略由业务层决定。 */
+    val captureReasoning: Boolean = includeReasoningInContent,
     /** 请求模板可用于会话粘性路由的不透明 ID；字段位置由模型配置决定。 */
     val routingSessionId: String? = null,
     /** 已完成宏展开、后处理和最终上下文预算，不应在 Repository 中再次改写。 */
@@ -169,12 +171,24 @@ data class LLMGenerationResponse(
  * 流式生成事件。
  */
 sealed class LLMStreamEvent {
+    /** 模型服务已接受请求并建立响应流。 */
+    data object Connected : LLMStreamEvent()
+
     /**
      * 模型增量输出的文本片段。
      */
     data class Delta(
         val content: String,
         val rawChunk: String
+    ) : LLMStreamEvent()
+
+    /**
+     * 模型服务明确返回的推理文本片段，不应直接并入最终正文。
+     */
+    data class ReasoningDelta(
+        val content: String,
+        val rawChunk: String,
+        val kind: LLMReasoningKind = LLMReasoningKind.Detailed
     ) : LLMStreamEvent()
 
     /**
@@ -187,4 +201,10 @@ sealed class LLMStreamEvent {
         /** 网关实际路由到的模型名；没有提供时由调用方使用请求模型。 */
         val model: String? = null
     ) : LLMStreamEvent()
+}
+
+/** 模型服务返回的推理文本粒度。 */
+enum class LLMReasoningKind {
+    Summary,
+    Detailed
 }

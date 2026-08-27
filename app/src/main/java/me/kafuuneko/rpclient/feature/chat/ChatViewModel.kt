@@ -1451,6 +1451,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                             )
                         ).setup()
                     }
+                    LLMStreamEvent.Connected,
+                    is LLMStreamEvent.ReasoningDelta,
                     is LLMStreamEvent.Finished -> Unit
                 }
             }

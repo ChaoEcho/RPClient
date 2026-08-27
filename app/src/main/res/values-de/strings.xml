@@ -886,6 +886,14 @@
     <string name="story_continuation_guidance">Fortsetzungshinweis</string>
     <string name="story_continuation_guidance_placeholder">Beschreibe, was als Nächstes geschehen soll (optional)</string>
     <string name="story_stop_generation">Stoppen</string>
+    <string name="story_generation_status_preparing">Story-Kontext wird vorbereitet…</string>
+    <string name="story_generation_status_waiting">Auf die Modellantwort wird gewartet…</string>
+    <string name="story_generation_status_connected">Modell verbunden, Verarbeitung läuft…</string>
+    <string name="story_generation_status_reasoning">Nächster Abschnitt wird geplant…</string>
+    <string name="story_generation_status_writing">Kapitel wird geschrieben…</string>
+    <string name="story_generation_status_applying">Text wird fertiggestellt und gespeichert…</string>
+    <string name="story_generation_elapsed_seconds">%1$d s</string>
+    <string name="story_generation_slow_hint">Das Modell arbeitet noch. Du kannst weiter warten oder die Generierung stoppen.</string>
     <string name="story_undo">Letzte Änderung rückgängig</string>
     <string name="story_redo">Letzte Änderung wiederholen</string>
     <string name="story_discard">Verwerfen</string>

@@ -35,6 +35,8 @@ internal fun Flow<LLMStreamEvent>.requireNonEmptyContent(): Flow<LLMStreamEvent>
             is LLMStreamEvent.Delta -> {
                 if (event.content.isNotBlank()) hasContent = true
             }
+            LLMStreamEvent.Connected,
+            is LLMStreamEvent.ReasoningDelta,
             is LLMStreamEvent.Finished -> Unit
         }
         emit(event)

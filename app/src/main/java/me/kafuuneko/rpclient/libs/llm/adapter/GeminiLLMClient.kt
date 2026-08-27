@@ -41,7 +41,10 @@ class GeminiLLMClient(
         }.onFailure {
             mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
         }.getOrThrow()
-        return raw.toGeminiResponse(model)
+        return raw.toGeminiResponse(
+            fallbackModel = model,
+            includeReasoningInContent = request.includeReasoningInContent
+        )
     }
 
     /**
@@ -52,11 +55,22 @@ class GeminiLLMClient(
         return flow {
             val httpRequest = buildRequest(request, model, stream = true)
             val rawChunks = JSONArray()
+            val partMapper = LLMStreamPartMapper(
+                includeReasoningInContent = request.includeReasoningInContent,
+                captureReasoning = request.captureReasoning
+            )
             runCatching {
-                mOkHttpClient.streamLines(httpRequest.request).collect { line ->
+                mOkHttpClient.streamLines(
+                    request = httpRequest.request,
+                    onConnected = { emit(LLMStreamEvent.Connected) }
+                ).collect { line ->
                     rawChunks.put(line)
-                    emit(line.toGeminiStreamEvent() ?: return@collect)
+                    parseGeminiStreamParts(line).forEach { part ->
+                        partMapper.map(part).forEach { emit(it) }
+                    }
                 }
+                // 兼容未发送 finishReason 便关闭连接的代理服务
+                partMapper.finish()?.let { emit(it) }
             }.onSuccess {
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
@@ -77,6 +91,12 @@ class GeminiLLMClient(
         val options = request.options.resolveFor(mProvider)
         val generationConfig = JSONObject()
             .put("maxOutputTokens", options.maxTokens)
+        if (request.captureReasoning) {
+            generationConfig.put(
+                "thinkingConfig",
+                JSONObject().put("includeThoughts", true)
+            )
+        }
         options.temperature?.let { generationConfig.put("temperature", it) }
         options.topP?.let { generationConfig.put("topP", it) }
         if (options.stop.isNotEmpty()) {
@@ -133,17 +153,24 @@ class GeminiLLMClient(
     /**
      * 解析 Gemini 非流式完整响应。
      */
-    private fun String.toGeminiResponse(fallbackModel: String): LLMGenerationResponse {
+    private fun String.toGeminiResponse(
+        fallbackModel: String,
+        includeReasoningInContent: Boolean
+    ): LLMGenerationResponse {
         val json = JSONObject(this)
         val candidates = json.optJSONArray("candidates")
-        val content = candidates
+        val parts = candidates
             ?.optJSONObject(0)
             ?.optJSONObject("content")
             ?.optJSONArray("parts")
-            ?.joinTextFields()
-            .orEmpty()
+        val content = parts?.joinGeminiTextParts(thought = false).orEmpty()
+        val reasoningContent = parts?.joinGeminiTextParts(thought = true).orEmpty()
         return LLMGenerationResponse(
-            content = content,
+            content = if (includeReasoningInContent) {
+                mergeReasoningContent(reasoningContent, content)
+            } else {
+                content
+            },
             model = fallbackModel,
             provider = mProvider.providerType,
             finishReason = candidates
@@ -154,27 +181,45 @@ class GeminiLLMClient(
         )
     }
 
-    /**
-     * 解析 Gemini SSE 行。
-     */
-    private fun String.toGeminiStreamEvent(): LLMStreamEvent? {
-        if (!startsWith("data:")) return null
-        val data = removePrefix("data:").trim()
-        val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        val candidate = json.optJSONArray("candidates")
-            ?.optJSONObject(0)
-            ?: return null
-        val text = candidate
-            .optJSONObject("content")
-            ?.optJSONArray("parts")
-            ?.joinTextFields()
-            .orEmpty()
-        if (text.isBlank()) {
-            return candidate.optString("finishReason")
-                .takeIf { it.isNotBlank() }
-                ?.let { LLMStreamEvent.Finished(rawChunk = data, finishReason = it) }
+    private fun JSONArray.joinGeminiTextParts(thought: Boolean): String {
+        return buildString {
+            for (index in 0 until length()) {
+                val part = optJSONObject(index) ?: continue
+                if (part.optBoolean("thought") == thought) append(part.optString("text"))
+            }
         }
-        return LLMStreamEvent.Delta(content = text, rawChunk = data)
     }
 
+}
+
+/** 解析 Gemini SSE 行，并按 thought 标记分离构思摘要与最终文本。 */
+internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
+    if (!line.startsWith("data:")) return emptyList()
+    val data = line.removePrefix("data:").trim()
+    val json = parseStreamJsonObject(data) ?: return emptyList()
+    val candidate = json.arrayOrNull("candidates")
+        ?.firstOrNull()
+        ?.takeIf { it.isJsonObject }
+        ?.asJsonObject
+        ?: return emptyList()
+    val parts = candidate
+        .objectOrNull("content")
+        ?.arrayOrNull("parts")
+    return buildList {
+        // Gemini 通过 thought 标记区分思考摘要与最终文本，顺序必须原样保留
+        if (parts != null) {
+            for (element in parts) {
+                val part = element.takeIf { it.isJsonObject }?.asJsonObject ?: continue
+                val text = part.cleanString("text").takeIf { it.isNotBlank() } ?: continue
+                if (part.booleanOrFalse("thought")) {
+                    add(LLMProviderStreamPart.Reasoning(text, data))
+                } else {
+                    add(LLMProviderStreamPart.Text(text, data))
+                }
+            }
+        }
+        candidate.cleanString("finishReason").takeIf { it.isNotBlank() }?.let {
+            add(LLMProviderStreamPart.Finished(rawChunk = data, finishReason = it))
+        }
+    }
 }

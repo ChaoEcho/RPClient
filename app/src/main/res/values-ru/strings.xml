@@ -889,6 +889,14 @@
     <string name="story_continuation_guidance">Указание для продолжения</string>
     <string name="story_continuation_guidance_placeholder">Опишите, что должно произойти дальше (необязательно)</string>
     <string name="story_stop_generation">Остановить</string>
+    <string name="story_generation_status_preparing">Подготовка контекста истории…</string>
+    <string name="story_generation_status_waiting">Ожидание ответа модели…</string>
+    <string name="story_generation_status_connected">Модель подключена, идёт обработка…</string>
+    <string name="story_generation_status_reasoning">Планирование следующего фрагмента…</string>
+    <string name="story_generation_status_writing">Написание этой главы…</string>
+    <string name="story_generation_status_applying">Завершение и сохранение текста…</string>
+    <string name="story_generation_elapsed_seconds">%1$d с</string>
+    <string name="story_generation_slow_hint">Модель всё ещё работает. Можно подождать или остановить генерацию.</string>
     <string name="story_undo">Отменить последнее изменение</string>
     <string name="story_redo">Повторить последнее изменение</string>
     <string name="story_discard">Удалить</string>

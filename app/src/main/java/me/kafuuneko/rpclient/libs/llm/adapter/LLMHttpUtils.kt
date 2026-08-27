@@ -1,16 +1,21 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
+import me.kafuuneko.rpclient.libs.llm.LLMHttpStatusException
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
+import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
-import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
-import me.kafuuneko.rpclient.libs.llm.LLMHttpStatusException
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -63,7 +68,10 @@ internal suspend fun OkHttpClient.await(request: Request): String {
 /**
  * 按行读取 SSE/行流响应。调用方负责解析各模型服务的 data 内容。
  */
-internal fun OkHttpClient.streamLines(request: Request): Flow<String> = flow {
+internal fun OkHttpClient.streamLines(
+    request: Request,
+    onConnected: suspend () -> Unit = {}
+): Flow<String> = flow {
     val response = withContext(Dispatchers.IO) { newCall(request).execute() }
     response.use {
         val body = it.body ?: throw LLMEmptyResponseException()
@@ -71,6 +79,7 @@ internal fun OkHttpClient.streamLines(request: Request): Flow<String> = flow {
             val errorBody = withContext(Dispatchers.IO) { body.string() }
             throw LLMHttpStatusException(it.code, errorBody.ifBlank { it.message })
         }
+        onConnected()
         while (true) {
             val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
             emit(line)
@@ -98,13 +107,163 @@ internal fun List<String>.toJsonArray(): JSONArray {
  * Gemini 的 parts 与 Anthropic 的 content 都使用对象数组承载文本，因此在此统一读取。
  */
 internal fun JSONArray.joinTextFields(type: String? = null): String {
+    return joinStringFields(field = "text", type = type)
+}
+
+/** 按可选类型拼接响应对象数组中的指定字符串字段。 */
+internal fun JSONArray.joinStringFields(field: String, type: String? = null): String {
     return buildString {
         for (index in 0 until length()) {
             val block = optJSONObject(index) ?: continue
             if (type == null || block.optString("type") == type) {
-                append(block.optString("text"))
+                append(block.optString(field))
             }
         }
+    }
+}
+
+/** 按聊天兼容格式合并推理和正文，推理为空时保持原正文不变。 */
+internal fun mergeReasoningContent(reasoningContent: String, content: String): String {
+    if (reasoningContent.isBlank()) return content
+    return "<think>\n$reasoningContent\n</think>\n\n$content".trim()
+}
+
+/** 使用纯 JVM 可测试的 Gson 解析模型服务流式 JSON 对象。 */
+internal fun parseStreamJsonObject(value: String): JsonObject? {
+    return runCatching { JsonParser.parseString(value).asJsonObject }.getOrNull()
+}
+
+/** 安全读取 Gson 对象中的子对象。 */
+internal fun JsonObject.objectOrNull(name: String): JsonObject? {
+    val element = get(name) ?: return null
+    return element.takeIf { it.isJsonObject }?.asJsonObject
+}
+
+/** 安全读取 Gson 对象中的数组。 */
+internal fun JsonObject.arrayOrNull(name: String): JsonArray? {
+    val element = get(name) ?: return null
+    return element.takeIf { it.isJsonArray }?.asJsonArray
+}
+
+/** 将缺失、JSON null 或伪 null 字符串统一读取为空文本。 */
+internal fun JsonObject.cleanString(name: String): String {
+    val element = get(name) ?: return ""
+    if (element.isJsonNull || !element.isJsonPrimitive) return ""
+    return cleanContentString(runCatching { element.asString }.getOrDefault(""))
+}
+
+/** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
+internal fun cleanContentString(value: String): String {
+    return if (value.equals("null", ignoreCase = true)) "" else value
+}
+
+/** 安全读取 Gson 对象中的布尔值。 */
+internal fun JsonObject.booleanOrFalse(name: String): Boolean {
+    val element = get(name) ?: return false
+    if (!element.isJsonPrimitive) return false
+    return runCatching { element.asBoolean }.getOrDefault(false)
+}
+
+/** 协议解析器输出的正文、推理或完成片段。 */
+internal sealed class LLMProviderStreamPart {
+    data class Text(
+        val content: String,
+        val rawChunk: String
+    ) : LLMProviderStreamPart()
+
+    data class Reasoning(
+        val content: String,
+        val rawChunk: String,
+        val kind: LLMReasoningKind = LLMReasoningKind.Detailed
+    ) : LLMProviderStreamPart()
+
+    data class Finished(
+        val rawChunk: String? = null,
+        val finishReason: String? = null,
+        val model: String? = null
+    ) : LLMProviderStreamPart()
+}
+
+/**
+ * 将协议推理片段映射为结构化事件或兼容的 `<think>` 正文块。
+ *
+ * - 故事写作只捕获独立推理事件，避免内部构思污染稿件；
+ * - 聊天继续按原有标签格式保存，保持展示、Regex 与历史上下文兼容；
+ * - 流在推理阶段结束时统一补齐闭合标签。
+ */
+internal class LLMStreamPartMapper(
+    private val includeReasoningInContent: Boolean,
+    private val captureReasoning: Boolean
+) {
+    private var mIsThinking = false
+
+    /** 将单个协议片段转换为一个或多个通用流事件。 */
+    fun map(part: LLMProviderStreamPart): List<LLMStreamEvent> {
+        return when (part) {
+            is LLMProviderStreamPart.Text -> mapText(part)
+            is LLMProviderStreamPart.Reasoning -> mapReasoning(part)
+            is LLMProviderStreamPart.Finished -> buildList {
+                closeReasoning()?.let(::add)
+                add(
+                    LLMStreamEvent.Finished(
+                        rawChunk = part.rawChunk,
+                        finishReason = part.finishReason,
+                        model = part.model
+                    )
+                )
+            }
+        }
+    }
+
+    /** 在响应流未发送完成块时关闭兼容思考标签。 */
+    fun finish(): LLMStreamEvent.Delta? {
+        return closeReasoning()
+    }
+
+    private fun mapText(
+        part: LLMProviderStreamPart.Text
+    ): List<LLMStreamEvent> {
+        if (part.content.isBlank()) return emptyList()
+        val prefix = closeReasoning()?.content.orEmpty()
+        return listOf(
+            LLMStreamEvent.Delta(
+                content = prefix + part.content,
+                rawChunk = part.rawChunk
+            )
+        )
+    }
+
+    private fun mapReasoning(
+        part: LLMProviderStreamPart.Reasoning
+    ): List<LLMStreamEvent> {
+        if (part.content.isBlank()) return emptyList()
+        if (includeReasoningInContent) {
+            val content = if (mIsThinking) part.content else "<think>\n${part.content}"
+            mIsThinking = true
+            return listOf(
+                LLMStreamEvent.Delta(
+                    content = content,
+                    rawChunk = part.rawChunk
+                )
+            )
+        }
+        if (!captureReasoning) return emptyList()
+        return listOf(
+            LLMStreamEvent.ReasoningDelta(
+                content = part.content,
+                rawChunk = part.rawChunk,
+                kind = part.kind
+            )
+        )
+    }
+
+    private fun closeReasoning(): LLMStreamEvent.Delta? {
+        if (!mIsThinking) return null
+        mIsThinking = false
+        return LLMStreamEvent.Delta(
+            content = "\n</think>\n\n",
+            rawChunk = "reasoning_close"
+        )
     }
 }
 

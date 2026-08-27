@@ -972,6 +972,14 @@
     <string name="story_settings_load_failed">故事设置加载失败</string>
     <string name="story_settings_save_failed">故事设置保存失败</string>
     <string name="story_stop_generation">停止</string>
+    <string name="story_generation_status_preparing">正在整理故事上下文…</string>
+    <string name="story_generation_status_waiting">正在等待模型响应…</string>
+    <string name="story_generation_status_connected">模型已连接，正在处理…</string>
+    <string name="story_generation_status_reasoning">正在构思下一段…</string>
+    <string name="story_generation_status_writing">正在写入本章节…</string>
+    <string name="story_generation_status_applying">正在整理并保存正文…</string>
+    <string name="story_generation_elapsed_seconds">%1$d 秒</string>
+    <string name="story_generation_slow_hint">模型仍在处理，可以继续等待或停止生成。</string>
     <string name="story_delete_failed">故事删除失败</string>
     <string name="story_not_found">这个故事已不存在</string>
     <string name="story_save_failed">故事保存失败</string>

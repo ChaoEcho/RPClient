@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.LLMClient
@@ -53,25 +54,26 @@ class OpenAICompatibleLLMClient(
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val model = request.model ?: mProvider.model
         return flow {
-            var isThinking = false
             // 构建带 stream=true 的 HTTP 请求与参数补丁
             val httpRequest = buildRequest(request, model, stream = true)
             val rawChunks = JSONArray()
+            val partMapper = LLMStreamPartMapper(
+                includeReasoningInContent = request.includeReasoningInContent,
+                captureReasoning = request.captureReasoning
+            )
             runCatching {
                 // 逐行消费 SSE 数据流
-                mOkHttpClient.streamLines(httpRequest.request).collect { line ->
+                mOkHttpClient.streamLines(
+                    request = httpRequest.request,
+                    onConnected = { emit(LLMStreamEvent.Connected) }
+                ).collect { line ->
                     rawChunks.put(line)
-                    val event = line.toOpenAIStreamEvent(
-                        includeReasoningInContent = request.includeReasoningInContent,
-                        isThinking = isThinking,
-                        onThinkingStateChange = { isThinking = it }
-                    ) ?: return@collect
-                    emit(event)
+                    parseOpenAIStreamParts(line).forEach { part ->
+                        partMapper.map(part).forEach { emit(it) }
+                    }
                 }
-                // 若流式结束时思考块未闭合，补充闭合标签
-                if (request.includeReasoningInContent && isThinking) {
-                    emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
-                }
+                // 兼容未发送完成块便直接关闭连接的模型服务
+                partMapper.finish()?.let { emit(it) }
             }.onSuccess {
                 // 记录成功的请求与完整 SSE 原始块日志
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
@@ -168,59 +170,6 @@ class OpenAICompatibleLLMClient(
         )
     }
 
-    /**
-     * 解析 OpenAI-compatible SSE 行。
-     */
-    private fun String.toOpenAIStreamEvent(
-        includeReasoningInContent: Boolean,
-        isThinking: Boolean,
-        onThinkingStateChange: (Boolean) -> Unit
-    ): LLMStreamEvent? {
-        if (!startsWith("data:")) return null
-        val data = removePrefix("data:").trim()
-        if (data == "[DONE]") return LLMStreamEvent.Finished(rawChunk = this)
-        val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        val choice = json.optJSONArray("choices")?.optJSONObject(0) ?: return null
-        val deltaObject = choice.optJSONObject("delta")
-        val finishReason = choice.optCleanString("finish_reason")
-        val actualModel = json.optCleanString("model")
-        if (deltaObject == null) {
-            return finishReason.takeIf { it.isNotBlank() }?.let {
-                LLMStreamEvent.Finished(data, it, actualModel)
-            }
-        }
-        // 解析思考块增量
-        val reasoningContent = deltaObject.optReasoningContent()
-        if (reasoningContent.isNotBlank()) {
-            if (!includeReasoningInContent) return null
-            val content = if (isThinking) reasoningContent else "<think>\n$reasoningContent"
-            onThinkingStateChange(true)
-            return LLMStreamEvent.Delta(content = content, rawChunk = data)
-        }
-        // 解析常规正文增量
-        val content = deltaObject.optContentString("content").orEmpty()
-        if (content.isBlank()) {
-            return finishReason.takeIf { it.isNotBlank() }?.let {
-                LLMStreamEvent.Finished(data, it, actualModel)
-            }
-        }
-        val mergedContent = if (includeReasoningInContent && isThinking) "\n</think>\n\n$content" else content
-        onThinkingStateChange(false)
-        return LLMStreamEvent.Delta(content = mergedContent, rawChunk = data)
-    }
-
-    private fun JSONObject.optReasoningContent(): String {
-        return optContentString("reasoning_content")
-            .ifBlank { optContentString("reasoning") }
-            .ifBlank { optContentString("reasoningContent") }
-    }
-
-    private fun JSONObject.optCleanString(name: String): String {
-        if (!has(name) || isNull(name)) return ""
-        val value = optString(name).trim()
-        return if (value.equals("null", ignoreCase = true)) "" else value
-    }
-
     private fun mergeReasoningContent(
         reasoningContent: String,
         content: String,
@@ -238,6 +187,54 @@ class OpenAICompatibleLLMClient(
     }
 }
 
+/** 解析 OpenAI-compatible SSE 行并保留同一增量中的推理与正文。 */
+internal fun parseOpenAIStreamParts(line: String): List<LLMProviderStreamPart> {
+    if (!line.startsWith("data:")) return emptyList()
+    val data = line.removePrefix("data:").trim()
+    if (data == "[DONE]") {
+        return listOf(LLMProviderStreamPart.Finished(rawChunk = line))
+    }
+    val json = parseStreamJsonObject(data) ?: return emptyList()
+    val choice = json.arrayOrNull("choices")
+        ?.firstOrNull()
+        ?.takeIf { it.isJsonObject }
+        ?.asJsonObject
+        ?: return emptyList()
+    val deltaObject = choice.objectOrNull("delta")
+    val finishReason = choice.cleanString("finish_reason")
+    val actualModel = json.cleanString("model")
+    return buildList {
+        // 部分兼容网关会在同一个增量中同时返回推理和正文，两者都必须保留
+        deltaObject?.reasoningContent()?.takeIf { it.isNotBlank() }?.let {
+            add(LLMProviderStreamPart.Reasoning(it, data))
+        }
+        deltaObject?.cleanString("content")?.takeIf { it.isNotBlank() }?.let {
+            add(LLMProviderStreamPart.Text(it, data))
+        }
+        finishReason.takeIf { it.isNotBlank() }?.let {
+            add(LLMProviderStreamPart.Finished(data, it, actualModel))
+        }
+    }
+}
+
+private fun JsonObject.reasoningContent(): String {
+    return cleanString("reasoning_content")
+        .ifBlank { cleanString("reasoning") }
+        .ifBlank { cleanString("reasoningContent") }
+}
+
+private fun JSONObject.optReasoningContent(): String {
+    return optContentString("reasoning_content")
+        .ifBlank { optContentString("reasoning") }
+        .ifBlank { optContentString("reasoningContent") }
+}
+
+private fun JSONObject.optCleanString(name: String): String {
+    if (!has(name) || isNull(name)) return ""
+    val value = optString(name).trim()
+    return if (value.equals("null", ignoreCase = true)) "" else value
+}
+
 /**
  * 读取 OpenAI Compatible 的文本字段。
  *
@@ -247,11 +244,6 @@ class OpenAICompatibleLLMClient(
 internal fun JSONObject.optContentString(name: String): String {
     if (!has(name) || isNull(name)) return ""
     return cleanContentString(optString(name))
-}
-
-/** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
-internal fun cleanContentString(value: String): String {
-    return if (value.equals("null", ignoreCase = true)) "" else value
 }
 
 /**

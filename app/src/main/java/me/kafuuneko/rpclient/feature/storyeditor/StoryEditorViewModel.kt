@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor
 
+import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +47,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEvent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -1244,6 +1246,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         stopGeneration()
     }
 
+    /** 展开或收起当前生成任务的模型构思内容。 */
+    @UiIntentObserver(StoryEditorUiIntent.ToggleGenerationReasoning::class)
+    private fun onToggleGenerationReasoning() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.generationState !is StoryGenerationState.Streaming) return
+        val active = mActiveGeneration ?: return
+        if (active.reasoningText.isBlank()) return
+        val updated = active.copy(isReasoningExpanded = !active.isReasoningExpanded)
+        mActiveGeneration = updated
+        publishStreamingState(
+            active = updated,
+            characterCount = uiState.contentState.characterCount
+        )
+    }
+
     /**
      * 将生成失败或中断时保存的局部文本（Recoverable Partial）插入正文末尾。
      */
@@ -1717,14 +1734,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             previousEditedRange = mDocumentFlow.value?.latestEditedRange,
             previousWorldInfoStates = mWorldInfoStates.toList(),
             previousWorldInfoGenerationStep = story.worldInfoGenerationStep,
-            nextWorldInfoStates = promptBuildResult.nextWorldInfoStates
+            nextWorldInfoStates = promptBuildResult.nextWorldInfoStates,
+            startedAtElapsedRealtime = SystemClock.elapsedRealtime()
         )
         mRecoverableGeneration = null
         mActiveGeneration = active
         // 5. 切换 UI 为生成中流式状态
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         current.copy(
-            generationState = StoryGenerationState.Streaming(""),
+            generationState = active.toStreamingState(),
             dialogState = StoryEditorDialogState.None
         ).setup()
         // 6. 启动生成协程
@@ -1765,11 +1783,28 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     request = request,
                     routingSessionKey = mStory?.id?.let { "story:$it" }
                 ).collect { event ->
-                    if (event is LLMStreamEvent.Delta) {
-                        // 累积局部文本并刷新编辑器预览
-                        active = active.copy(partialText = active.partialText + event.content)
-                        mActiveGeneration = active
-                        updateStreamingState(active)
+                    // 展开状态可由用户在两次流事件之间修改；先合并最新交互状态，避免旧快照将其覆盖。
+                    active = active.withLatestInteractionState(mActiveGeneration)
+                    when (event) {
+                        LLMStreamEvent.Connected -> {
+                            if (active.phase == StoryGenerationPhase.AwaitingResponse) {
+                                active = active.copy(phase = StoryGenerationPhase.Connected)
+                                mActiveGeneration = active
+                                updateStreamingStatus(active)
+                            }
+                        }
+                        is LLMStreamEvent.ReasoningDelta -> {
+                            active = active.appendReasoning(event.content)
+                            mActiveGeneration = active
+                            updateStreamingStatus(active)
+                        }
+                        is LLMStreamEvent.Delta -> {
+                            // 只有最终正文增量允许进入稿件预览和可恢复局部结果
+                            active = active.appendGeneratedText(event.content)
+                            mActiveGeneration = active
+                            updateStreamingPreview(active)
+                        }
+                        is LLMStreamEvent.Finished -> Unit
                     }
                 }
             } else {
@@ -1778,9 +1813,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     request = request,
                     routingSessionKey = mStory?.id?.let { "story:$it" }
                 )
-                active = active.copy(partialText = response.content)
+                active = active.appendGeneratedText(response.content)
                 mActiveGeneration = active
-                updateStreamingState(active)
+                updateStreamingPreview(active)
             }
             // 标记进入结果落库应用阶段
             applyingResult = true
@@ -1808,15 +1843,46 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      *
      * @param active 当前活跃生成快照
      */
-    private fun updateStreamingState(active: ActiveStoryGeneration) {
+    private fun updateStreamingPreview(active: ActiveStoryGeneration) {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         val previewContent = active.previewContent()
         publishDocument(previewContent, active.previousEditedRange)
+        publishStreamingState(active, previewContent.length)
+    }
+
+    /**
+     * 仅更新连接或推理阶段状态，不触碰正文文档流。
+     *
+     * @param active 当前活跃生成快照
+     */
+    private fun updateStreamingStatus(active: ActiveStoryGeneration) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        publishStreamingState(active, uiState.contentState.characterCount)
+    }
+
+    /**
+     * 将轻量生成进度发布到页面状态。
+     *
+     * 完整推理只保存在活跃任务快照中；折叠时 UiState 仅携带短预览，避免长段私密
+     * 构思持续占用可重放页面状态。
+     *
+     * @param active 当前活跃生成快照
+     * @param characterCount 当前编辑器应展示的字符数
+     */
+    private fun publishStreamingState(
+        active: ActiveStoryGeneration,
+        characterCount: Int
+    ) {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        // 仅在用户主动展开时向展示状态提供受限长度的推理详情
+        val reasoningDetail = if (active.isReasoningExpanded) {
+            active.reasoningText.trim()
+        } else {
+            ""
+        }
         uiState.copy(
-            contentState = uiState.contentState.copy(characterCount = previewContent.length),
-            generationState = StoryGenerationState.Streaming(
-                partialText = active.partialText
-            )
+            contentState = uiState.contentState.copy(characterCount = characterCount),
+            generationState = active.toStreamingState(reasoningDetail)
         ).setup()
     }
 
@@ -1872,7 +1938,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     ) {
         publishDocument(active.sourceContent, active.previousEditedRange)
         // 缓存可挽救的部分
-        mRecoverableGeneration = active.takeIf { it.partialText.isNotBlank() }
+        mRecoverableGeneration = active
+            .takeIf { it.partialText.isNotBlank() }
+            ?.withoutReasoning()
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         uiState.copy(
             contentState = uiState.contentState.copy(
@@ -1942,7 +2010,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 提交冲突处理
         if (applied == null) {
             publishDocument(active.sourceContent, active.previousEditedRange)
-            mRecoverableGeneration = active.copy(partialText = result)
+            mRecoverableGeneration = active.copy(partialText = result).withoutReasoning()
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
             current.copy(
                 contentState = current.contentState.copy(
@@ -2685,8 +2753,64 @@ private data class ActiveStoryGeneration(
     val previousWorldInfoStates: List<StoryLorebookRuntimeState>,
     val previousWorldInfoGenerationStep: Int,
     val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
-    val partialText: String = ""
+    val startedAtElapsedRealtime: Long,
+    val partialText: String = "",
+    val reasoningText: String = "",
+    val phase: StoryGenerationPhase = StoryGenerationPhase.AwaitingResponse,
+    val isReasoningExpanded: Boolean = false
 ) {
+    /** 追加模型构思，并在正文已经开始后保持写作阶段不倒退。 */
+    fun appendReasoning(content: String): ActiveStoryGeneration {
+        val nextReasoning = (reasoningText + content).takeLast(MAX_REASONING_DISPLAY_CHARS)
+        return copy(
+            reasoningText = nextReasoning,
+            phase = if (phase == StoryGenerationPhase.Writing) {
+                StoryGenerationPhase.Writing
+            } else {
+                StoryGenerationPhase.Reasoning
+            }
+        )
+    }
+
+    /** 追加最终正文，并保持用户当前选择的构思展开状态。 */
+    fun appendGeneratedText(content: String): ActiveStoryGeneration {
+        return copy(
+            partialText = partialText + content,
+            phase = StoryGenerationPhase.Writing
+        )
+    }
+
+    /**
+     * 合并同一任务的最新交互状态。
+     *
+     * 模型文本由收包协程持有，而展开状态可由 UI Intent 独立更新；每次处理流事件前合并，
+     * 防止协程中的旧快照覆盖用户刚刚完成的操作。
+     */
+    fun withLatestInteractionState(latest: ActiveStoryGeneration?): ActiveStoryGeneration {
+        if (latest?.token !== token) return this
+        return copy(isReasoningExpanded = latest.isReasoningExpanded)
+    }
+
+    /** 构造只包含当前展示所需推理信息的流式页面状态。 */
+    fun toStreamingState(reasoningDetail: String = ""): StoryGenerationState.Streaming {
+        return StoryGenerationState.Streaming(
+            partialText = partialText,
+            phase = phase,
+            startedAtElapsedRealtime = startedAtElapsedRealtime,
+            reasoningPreview = reasoningText.toReasoningPreview(),
+            reasoningDetail = reasoningDetail,
+            isReasoningExpanded = isReasoningExpanded
+        )
+    }
+
+    /** 清除只属于活跃请求的推理信息，避免失败恢复快照延长其内存生命周期。 */
+    fun withoutReasoning(): ActiveStoryGeneration {
+        return copy(
+            reasoningText = "",
+            isReasoningExpanded = false
+        )
+    }
+
     /** 生成拼接了增量续写预览文本的完整正文。 */
     fun previewContent(): String {
         val previewText = prepareStoryContinuationText(sourceContent, partialText)
@@ -2701,7 +2825,24 @@ private data class ActiveStoryGeneration(
             end = target.start + text.length
         )
     }
+
+    private companion object {
+        /** 防止异常服务返回无限推理文本并长期占用编辑器内存。 */
+        const val MAX_REASONING_DISPLAY_CHARS = 24_000
+    }
 }
+
+/** 将推理文本压缩为状态卡使用的单行最近片段。 */
+private fun String.toReasoningPreview(): String {
+    val normalized = lineSequence()
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .joinToString(" ")
+    if (normalized.length <= REASONING_PREVIEW_CHARS) return normalized
+    return "…${normalized.takeLast(REASONING_PREVIEW_CHARS - 1)}"
+}
+
+private const val REASONING_PREVIEW_CHARS = 220
 
 /** 编辑器初始化时一次性读取的 Story 与关联状态。 */
 private data class LoadedStory(

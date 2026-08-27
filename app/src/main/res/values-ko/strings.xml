@@ -897,6 +897,14 @@
     <string name="story_settings_load_failed">이야기 설정을 불러올 수 없습니다</string>
     <string name="story_settings_save_failed">이야기 설정을 저장할 수 없습니다</string>
     <string name="story_stop_generation">중지</string>
+    <string name="story_generation_status_preparing">스토리 컨텍스트 준비 중…</string>
+    <string name="story_generation_status_waiting">모델 응답을 기다리는 중…</string>
+    <string name="story_generation_status_connected">모델 연결됨, 처리 중…</string>
+    <string name="story_generation_status_reasoning">다음 내용을 구상하는 중…</string>
+    <string name="story_generation_status_writing">이 챕터를 작성하는 중…</string>
+    <string name="story_generation_status_applying">본문을 정리하고 저장하는 중…</string>
+    <string name="story_generation_elapsed_seconds">%1$d초</string>
+    <string name="story_generation_slow_hint">모델이 계속 처리 중입니다. 기다리거나 생성을 중지할 수 있습니다.</string>
     <string name="story_delete_failed">이야기를 삭제할 수 없습니다</string>
     <string name="story_not_found">이 이야기는 더 이상 존재하지 않습니다</string>
     <string name="story_save_failed">이야기를 저장할 수 없습니다</string>

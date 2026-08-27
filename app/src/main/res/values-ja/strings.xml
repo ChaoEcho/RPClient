@@ -898,6 +898,14 @@
     <string name="story_settings_load_failed">ストーリー設定を読み込めませんでした</string>
     <string name="story_settings_save_failed">ストーリー設定を保存できませんでした</string>
     <string name="story_stop_generation">停止</string>
+    <string name="story_generation_status_preparing">物語のコンテキストを準備中…</string>
+    <string name="story_generation_status_waiting">モデルの応答を待っています…</string>
+    <string name="story_generation_status_connected">モデルに接続済み、処理中…</string>
+    <string name="story_generation_status_reasoning">次の展開を構想中…</string>
+    <string name="story_generation_status_writing">この章を執筆中…</string>
+    <string name="story_generation_status_applying">本文を整えて保存中…</string>
+    <string name="story_generation_elapsed_seconds">%1$d 秒</string>
+    <string name="story_generation_slow_hint">モデルは処理を続けています。そのまま待つか、生成を停止できます。</string>
     <string name="story_delete_failed">ストーリーを削除できませんでした</string>
     <string name="story_not_found">このストーリーは存在しません</string>
     <string name="story_save_failed">ストーリーを保存できませんでした</string>

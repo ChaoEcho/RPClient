@@ -975,6 +975,14 @@
     <string name="story_continuation_guidance">Continuation guidance</string>
     <string name="story_continuation_guidance_placeholder">Describe what should happen next (optional)</string>
     <string name="story_stop_generation">Stop</string>
+    <string name="story_generation_status_preparing">Preparing story context…</string>
+    <string name="story_generation_status_waiting">Waiting for the model to respond…</string>
+    <string name="story_generation_status_connected">Model connected, processing…</string>
+    <string name="story_generation_status_reasoning">Planning the next passage…</string>
+    <string name="story_generation_status_writing">Writing into this chapter…</string>
+    <string name="story_generation_status_applying">Finishing and saving the passage…</string>
+    <string name="story_generation_elapsed_seconds">%1$d s</string>
+    <string name="story_generation_slow_hint">The model is still working. You can keep waiting or stop.</string>
     <string name="story_undo">Undo last edit</string>
     <string name="story_redo">Redo last edit</string>
     <string name="story_discard">Discard</string>

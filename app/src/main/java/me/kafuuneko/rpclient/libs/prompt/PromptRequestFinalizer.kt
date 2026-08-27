@@ -54,6 +54,7 @@ class PromptRequestFinalizer(
         model: String?,
         options: LLMGenerationOptions,
         includeReasoningInContent: Boolean,
+        captureReasoning: Boolean = includeReasoningInContent,
         maxContextTokens: Int,
         maxResponseTokens: Int,
         postProcessingMode: PromptPostProcessingMode,
@@ -90,6 +91,7 @@ class PromptRequestFinalizer(
                         model = model,
                         options = options,
                         includeReasoningInContent = includeReasoningInContent,
+                        captureReasoning = captureReasoning,
                         isPromptFinalized = true
                     ),
                     inspection = PromptInspection(

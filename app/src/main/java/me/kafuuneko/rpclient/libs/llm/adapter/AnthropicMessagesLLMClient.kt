@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.LLMClient
@@ -40,7 +41,10 @@ class AnthropicMessagesLLMClient(
         }.onFailure {
             mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
         }.getOrThrow()
-        return raw.toAnthropicResponse(model)
+        return raw.toAnthropicResponse(
+            fallbackModel = model,
+            includeReasoningInContent = request.includeReasoningInContent
+        )
     }
 
     /**
@@ -51,11 +55,22 @@ class AnthropicMessagesLLMClient(
         return flow {
             val httpRequest = buildRequest(request, model, stream = true)
             val rawChunks = JSONArray()
+            val partMapper = LLMStreamPartMapper(
+                includeReasoningInContent = request.includeReasoningInContent,
+                captureReasoning = request.captureReasoning
+            )
             runCatching {
-                mOkHttpClient.streamLines(httpRequest.request).collect { line ->
+                mOkHttpClient.streamLines(
+                    request = httpRequest.request,
+                    onConnected = { emit(LLMStreamEvent.Connected) }
+                ).collect { line ->
                     rawChunks.put(line)
-                    emit(line.toAnthropicStreamEvent() ?: return@collect)
+                    parseAnthropicStreamParts(line).forEach { part ->
+                        partMapper.map(part).forEach { emit(it) }
+                    }
                 }
+                // 兼容未发送 message_stop 便关闭连接的代理服务
+                partMapper.finish()?.let { emit(it) }
             }.onSuccess {
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
@@ -117,10 +132,22 @@ class AnthropicMessagesLLMClient(
     /**
      * 解析 Anthropic 非流式完整响应。
      */
-    private fun String.toAnthropicResponse(fallbackModel: String): LLMGenerationResponse {
+    private fun String.toAnthropicResponse(
+        fallbackModel: String,
+        includeReasoningInContent: Boolean
+    ): LLMGenerationResponse {
         val json = JSONObject(this)
+        val blocks = json.optJSONArray("content")
+        val content = blocks?.joinTextFields(type = "text").orEmpty()
+        val reasoningContent = blocks
+            ?.joinStringFields(field = "thinking", type = "thinking")
+            .orEmpty()
         return LLMGenerationResponse(
-            content = json.optJSONArray("content")?.joinTextFields(type = "text").orEmpty(),
+            content = if (includeReasoningInContent) {
+                mergeReasoningContent(reasoningContent, content)
+            } else {
+                content
+            },
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
             finishReason = json.optString("stop_reason").takeIf { it.isNotBlank() },
@@ -128,23 +155,38 @@ class AnthropicMessagesLLMClient(
         )
     }
 
-    /**
-     * 解析 Anthropic SSE 行。非 data 行会被忽略。
-     */
-    private fun String.toAnthropicStreamEvent(): LLMStreamEvent? {
-        if (!startsWith("data:")) return null
-        val data = removePrefix("data:").trim()
-        val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        if (json.optString("type") == "message_stop") {
-            return LLMStreamEvent.Finished(rawChunk = data)
-        }
-        val delta = json.optJSONObject("delta") ?: return null
-        delta.optString("stop_reason").takeIf { it.isNotBlank() }?.let {
-            return LLMStreamEvent.Finished(rawChunk = data, finishReason = it)
-        }
-        val text = delta.optString("text")
-        if (text.isBlank()) return null
-        return LLMStreamEvent.Delta(content = text, rawChunk = data)
-    }
+}
 
+/** 解析 Anthropic Messages SSE 行中的 thinking、text 与完成事件。 */
+internal fun parseAnthropicStreamParts(line: String): List<LLMProviderStreamPart> {
+    if (!line.startsWith("data:")) return emptyList()
+    val data = line.removePrefix("data:").trim()
+    val json = parseStreamJsonObject(data) ?: return emptyList()
+    if (json.cleanString("type") == "message_stop") {
+        return listOf(LLMProviderStreamPart.Finished(rawChunk = data))
+    }
+    val delta = json.objectOrNull("delta")
+    val contentBlock = json.objectOrNull("content_block")
+    return buildList {
+        // content_block_start 可能携带首段内容，不能只等待后续 delta
+        contentBlock?.toAnthropicProviderPart(data)?.let(::add)
+        delta?.toAnthropicProviderPart(data)?.let(::add)
+        delta?.cleanString("stop_reason")?.takeIf { it.isNotBlank() }?.let {
+            add(LLMProviderStreamPart.Finished(rawChunk = data, finishReason = it))
+        }
+    }
+}
+
+private fun JsonObject.toAnthropicProviderPart(rawChunk: String): LLMProviderStreamPart? {
+    return when (cleanString("type")) {
+        "thinking", "thinking_delta" -> cleanString("thinking")
+            .takeIf { it.isNotBlank() }
+            ?.let { LLMProviderStreamPart.Reasoning(it, rawChunk) }
+        "text", "text_delta" -> cleanString("text")
+            .takeIf { it.isNotBlank() }
+            ?.let { LLMProviderStreamPart.Text(it, rawChunk) }
+        else -> cleanString("text")
+            .takeIf { it.isNotBlank() }
+            ?.let { LLMProviderStreamPart.Text(it, rawChunk) }
+    }
 }

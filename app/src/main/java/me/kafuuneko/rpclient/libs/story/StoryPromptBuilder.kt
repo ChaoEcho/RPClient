@@ -181,6 +181,7 @@ class StoryPromptBuilder(
                     topP = context.provider.topP
                 ),
                 includeReasoningInContent = false,
+                captureReasoning = true,
                 maxContextTokens = context.provider.contextTokens,
                 maxResponseTokens = context.provider.maxTokens,
                 postProcessingMode = PromptPostProcessingMode.fromOrdinal(

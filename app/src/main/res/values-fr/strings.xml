@@ -901,6 +901,14 @@
     <string name="story_settings_load_failed">Impossible de charger les réglages de l’histoire</string>
     <string name="story_settings_save_failed">Impossible d’enregistrer les réglages de l’histoire</string>
     <string name="story_stop_generation">Arrêter</string>
+    <string name="story_generation_status_preparing">Préparation du contexte de l’histoire…</string>
+    <string name="story_generation_status_waiting">Attente de la réponse du modèle…</string>
+    <string name="story_generation_status_connected">Modèle connecté, traitement en cours…</string>
+    <string name="story_generation_status_reasoning">Planification du prochain passage…</string>
+    <string name="story_generation_status_writing">Rédaction de ce chapitre…</string>
+    <string name="story_generation_status_applying">Finalisation et enregistrement du texte…</string>
+    <string name="story_generation_elapsed_seconds">%1$d s</string>
+    <string name="story_generation_slow_hint">Le modèle travaille toujours. Vous pouvez patienter ou arrêter la génération.</string>
     <string name="story_delete_failed">Impossible de supprimer l’histoire</string>
     <string name="story_not_found">Cette histoire n’existe plus</string>
     <string name="story_save_failed">Impossible d’enregistrer l’histoire</string>

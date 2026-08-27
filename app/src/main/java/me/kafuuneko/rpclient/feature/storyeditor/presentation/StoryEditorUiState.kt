@@ -88,7 +88,13 @@ sealed class StoryGenerationState {
     data object Idle : StoryGenerationState()
     data object Preparing : StoryGenerationState()
     data class Streaming(
-        val partialText: String
+        val partialText: String,
+        val phase: StoryGenerationPhase,
+        /** 生成开始时的单调时钟值，仅用于计算当前任务耗时。 */
+        val startedAtElapsedRealtime: Long,
+        val reasoningPreview: String = "",
+        val reasoningDetail: String = "",
+        val isReasoningExpanded: Boolean = false
     ) : StoryGenerationState()
     data object Applying : StoryGenerationState()
     data class Failed(
@@ -96,6 +102,14 @@ sealed class StoryGenerationState {
         val recoverablePartial: String = "",
         val detail: String = ""
     ) : StoryGenerationState()
+}
+
+/** 流式故事生成中由真实协议事件驱动的当前阶段。 */
+enum class StoryGenerationPhase {
+    AwaitingResponse,
+    Connected,
+    Reasoning,
+    Writing
 }
 
 /** 用户可恢复或重试的续写失败类型。 */

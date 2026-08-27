@@ -63,6 +63,7 @@ sealed class StoryEditorUiIntent {
     data class ChangeContinuationGuidance(val value: String) : StoryEditorUiIntent()
     data class ContinueStory(val snapshot: StoryEditorSnapshot) : StoryEditorUiIntent()
     data object StopGeneration : StoryEditorUiIntent()
+    data object ToggleGenerationReasoning : StoryEditorUiIntent()
     data object InsertRecoverablePartial : StoryEditorUiIntent()
     data object CopyRecoverablePartial : StoryEditorUiIntent()
     data object DiscardRecoverablePartial : StoryEditorUiIntent()
