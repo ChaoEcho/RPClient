@@ -2594,7 +2594,9 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 读取角色关联关系与世界书
         val relations = mStoryRepository.getStoryCharacterCandidates(story.id)
             .associateBy { it.character.id }
-        val lorebooks = mLorebookRepository.getAllLorebooks()
+        val lorebooksWithEntries = mLorebookRepository.getAllLorebooksWithEntries()
+        val lorebooks = lorebooksWithEntries.map { it.lorebook }
+        val entriesByLorebookId = lorebooksWithEntries.associate { it.lorebook.id to it.entries }
         val lorebookNames = lorebooks.associate { it.id to it.name }
         val selectedEntries = mStoryRepository.getStoryLorebookEntryCandidates(story.id)
             .associateBy { it.entry.id }
@@ -2628,7 +2630,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 StoryLorebookGroupItem(
                     id = lorebook.id,
                     name = lorebook.name,
-                    entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id).map { entry ->
+                    entries = entriesByLorebookId[lorebook.id].orEmpty().map { entry ->
                         StoryLorebookEntryItem(
                             id = entry.id,
                             name = entry.name,

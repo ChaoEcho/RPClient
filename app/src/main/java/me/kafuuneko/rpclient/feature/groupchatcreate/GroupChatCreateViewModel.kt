@@ -29,6 +29,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -75,29 +76,31 @@ class GroupChatCreateViewModel :
                     greetings = it.getChatFirstMessageList()
                 )
             }
-            val lorebookGroups = mLorebookRepository.getAllLorebooks().map { lorebook ->
-                GroupChatLorebookGroupItem(
-                    lorebookId = lorebook.id,
-                    lorebookName = lorebook.name,
-                    entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id)
-                        .sortedBy { it.order }
-                        .map { entry ->
-                            GroupChatLorebookEntryItem(
-                                id = entry.id,
-                                lorebookId = lorebook.id,
-                                lorebookName = lorebook.name,
-                                name = entry.name,
-                                content = entry.content,
-                                keywords = entry.getKeywordList(),
-                                secondaryKeywords = entry.getSecondaryKeywordList(),
-                                constant = entry.constant,
-                                order = entry.order,
-                                depth = entry.depth,
-                                enabled = false
-                            )
-                        }
-                )
-            }.filter { it.entries.isNotEmpty() }
+            val lorebookGroups = mLorebookRepository.getAllLorebooksWithEntries()
+                .map { lorebookWithEntries ->
+                    val lorebook = lorebookWithEntries.lorebook
+                    GroupChatLorebookGroupItem(
+                        lorebookId = lorebook.id,
+                        lorebookName = lorebook.name,
+                        entries = lorebookWithEntries.entries
+                            .sortedBy { it.order }
+                            .map { entry ->
+                                GroupChatLorebookEntryItem(
+                                    id = entry.id,
+                                    lorebookId = lorebook.id,
+                                    lorebookName = lorebook.name,
+                                    name = entry.name,
+                                    content = entry.content,
+                                    keywords = entry.getKeywordList(),
+                                    secondaryKeywords = entry.getSecondaryKeywordList(),
+                                    constant = entry.constant,
+                                    order = entry.order,
+                                    depth = entry.depth,
+                                    enabled = false
+                                )
+                            }
+                    )
+                }.filter { it.entries.isNotEmpty() }
             characters to lorebookGroups
         }
         // 渲染就绪状态
@@ -382,25 +385,17 @@ class GroupChatCreateViewModel :
     /** 根据检索关键词多字段过滤世界书分组与条目。 */
     private fun List<GroupChatLorebookGroupItem>.filterForQuery(
         query: String
-    ): List<GroupChatLorebookGroupItem> {
-        val normalized = query.trim()
-        if (normalized.isBlank()) return this
-        return mapNotNull { group ->
-            val groupMatches = group.lorebookName.contains(normalized, ignoreCase = true)
-            val matchingEntries = group.entries.filter { entry ->
-                entry.lorebookName.contains(normalized, ignoreCase = true) ||
-                    entry.name.contains(normalized, ignoreCase = true) ||
-                    entry.content.contains(normalized, ignoreCase = true) ||
-                    entry.keywords.any { it.contains(normalized, ignoreCase = true) } ||
-                    entry.secondaryKeywords.any { it.contains(normalized, ignoreCase = true) }
-            }
-            when {
-                groupMatches -> group
-                matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
-                else -> null
-            }
-        }
-    }
+    ): List<GroupChatLorebookGroupItem> = filterLorebookGroups(
+        query = query,
+        groupName = { it.lorebookName },
+        entries = { it.entries },
+        entrySearchFields = { entry ->
+            sequenceOf(entry.lorebookName, entry.name, entry.content) +
+                entry.keywords.asSequence() +
+                entry.secondaryKeywords.asSequence()
+        },
+        copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    )
 
     /**
      * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。

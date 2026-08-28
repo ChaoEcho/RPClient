@@ -63,7 +63,6 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.HourglassTop
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.MoreVert
@@ -159,6 +158,7 @@ import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
 import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -718,46 +718,6 @@ private fun GenerationProblemBanner(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun NoProviderBanner(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
-        contentColor = MaterialTheme.colorScheme.onErrorContainer
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Info,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = stringResource(R.string.no_model_provider_banner),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-            )
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.model.LorebookEntryCount
 
 /** 世界书条目的基础访问接口，不负责触发扫描、预算裁剪或导入兼容转换。 */
 @Dao
@@ -16,6 +17,27 @@ interface LorebookEntryDao : MutableDao<LorebookEntry> {
      */
     @Query("SELECT * FROM lorebook_entries WHERE lorebookId = :lorebookId ORDER BY `order` ASC, id ASC")
     suspend fun getEntriesByLorebookId(lorebookId: Long): List<LorebookEntry>
+
+    /** 一次查询所有世界书条目，供世界书列表和选择器批量组装数据。 */
+    @Query(
+        "SELECT * FROM lorebook_entries " +
+            "ORDER BY lorebookId ASC, `order` ASC, id ASC"
+    )
+    suspend fun getAllEntries(): List<LorebookEntry>
+
+    /** 一次聚合所有世界书的条目数量，避免列表页对每本世界书发起独立查询。 */
+    @Query(
+        "SELECT lorebookId, COUNT(*) AS count FROM lorebook_entries " +
+            "GROUP BY lorebookId"
+    )
+    suspend fun getEntryCounts(): List<LorebookEntryCount>
+
+    /** 根据多个条目 ID 批量读取世界书条目，保持关联查询为固定次数。 */
+    @Query(
+        "SELECT * FROM lorebook_entries WHERE id IN (:ids) " +
+            "ORDER BY `order` ASC, id ASC"
+    )
+    suspend fun getEntriesByIds(ids: List<Long>): List<LorebookEntry>
 
     /**
      * 根据条目 id 查询世界书条目。

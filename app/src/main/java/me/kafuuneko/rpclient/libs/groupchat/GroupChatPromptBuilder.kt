@@ -32,8 +32,8 @@ import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
-import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
+import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -118,7 +118,8 @@ class GroupChatPromptBuilder(
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
-        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default }
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
     /**
      * 构建可直接发送给模型的群聊生成请求。
@@ -172,11 +173,9 @@ class GroupChatPromptBuilder(
         // 执行世界书 Prompt 阶段 Regex 替换
         val activatedWorldInfo = rawWorldInfo
             .mapEntryContent { entry ->
-                val result = mRegexRuntime.execute(
+                val result = mRegexProcessor.applyWorldInfo(
                     input = entry.content,
                     scripts = context.regexScripts,
-                    placement = RegexPlacement.WorldInfo,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros
                 )
                 regexHits += result.hits
@@ -200,18 +199,17 @@ class GroupChatPromptBuilder(
         val history = sanitizeHistory(context.messages).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
-                GroupChatMessage.Source.User -> mRegexRuntime.execute(
+                GroupChatMessage.Source.User -> mRegexProcessor.applyPrompt(
                     input = message.content,
+                    source = RegexMessageSource.User,
                     scripts = context.regexScripts,
-                    placement = RegexPlacement.UserInput,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros,
                     depth = depth
                 )
-                GroupChatMessage.Source.Character -> mRegexRuntime.executeAiMessage(
+                GroupChatMessage.Source.Character -> mRegexProcessor.applyPrompt(
                     input = message.content,
+                    source = RegexMessageSource.Character,
                     scripts = context.regexScripts,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros,
                     depth = depth
                 )

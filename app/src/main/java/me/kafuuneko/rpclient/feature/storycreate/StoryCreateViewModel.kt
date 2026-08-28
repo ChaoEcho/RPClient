@@ -26,6 +26,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -241,14 +242,15 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     /** 从数据库拉取所有世界书及其有效条目，以及全量候选角色。 */
     private suspend fun loadOptions(): StoryCreateOptions {
         val userName = AppModel.resolvedUserName
-        val lorebooks = mLorebookRepository.getAllLorebooks()
-        val lorebookNames = lorebooks.associate { it.id to it.name }
+        val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
+        val lorebookNames = lorebooks.associate { it.lorebook.id to it.lorebook.name }
         // 构建包含条目列表的世界书分组项
-        val groups = lorebooks.map { lorebook ->
+        val groups = lorebooks.map { lorebookWithEntries ->
+            val lorebook = lorebookWithEntries.lorebook
             StoryCreateLorebookGroupItem(
                 lorebookId = lorebook.id,
                 lorebookName = lorebook.name,
-                entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id)
+                entries = lorebookWithEntries.entries
                     .sortedBy { it.order }
                     .map { entry ->
                         StoryCreateLorebookEntryItem(
@@ -297,23 +299,16 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     /** 根据检索文本对世界书分组及条目进行匹配过滤。 */
     private fun List<StoryCreateLorebookGroupItem>.filterForQuery(
         query: String
-    ): List<StoryCreateLorebookGroupItem> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return mapNotNull { group ->
-            val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
-            val entries = group.entries.filter { entry ->
-                entry.name.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.content.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.keywords.any { it.contains(normalizedQuery, ignoreCase = true) }
-            }
-            when {
-                groupMatches -> group
-                entries.isNotEmpty() -> group.copy(entries = entries)
-                else -> null
-            }
-        }
-    }
+    ): List<StoryCreateLorebookGroupItem> = filterLorebookGroups(
+        query = query,
+        groupName = { it.lorebookName },
+        entries = { it.entries },
+        entrySearchFields = { entry ->
+            sequenceOf(entry.lorebookName, entry.name, entry.content) +
+                entry.keywords.asSequence()
+        },
+        copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    )
 
     /** 根据检索文本匹配角色名称、简介或标签。 */
     private fun List<StoryCreateCharacterItem>.filterCharactersForQuery(

@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.character.LorebookCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.model.LorebookWithEntries
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
@@ -55,6 +56,26 @@ class LorebookRepository(
      */
     suspend fun getEntriesByLorebookId(lorebookId: Long): List<LorebookEntry> {
         return mLorebookEntryDao.getEntriesByLorebookId(lorebookId)
+    }
+
+    /** 批量获取全部世界书及其条目，底层固定为一次主体查询和一次条目查询。 */
+    suspend fun getAllLorebooksWithEntries(): List<LorebookWithEntries> {
+        return mAppDatabase.withTransaction {
+            val lorebooks = mLorebookDao.getAllLorebooks()
+            val entriesByLorebookId = mLorebookEntryDao.getAllEntries()
+                .groupBy { it.lorebookId }
+            lorebooks.map { lorebook ->
+                LorebookWithEntries(
+                    lorebook = lorebook,
+                    entries = entriesByLorebookId[lorebook.id].orEmpty()
+                )
+            }
+        }
+    }
+
+    /** 批量获取所有世界书的条目数量，底层只执行一条聚合查询。 */
+    suspend fun getLorebookEntryCounts(): Map<Long, Int> {
+        return mLorebookEntryDao.getEntryCounts().associate { it.lorebookId to it.count }
     }
 
     /**

@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -60,9 +61,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         // 在 IO 线程并发查询角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
-            val lorebooks = mLorebookRepository.getAllLorebooks()
-            val groups = lorebooks.map { lorebook ->
-                val entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id)
+            val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
+            val groups = lorebooks.map { lorebookWithEntries ->
+                val lorebook = lorebookWithEntries.lorebook
+                val entries = lorebookWithEntries.entries
                     .sortedBy { it.order }
                     .map { entry ->
                         ChatCreateLorebookEntryItem(
@@ -335,28 +337,18 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     /** 根据关键词多字段过滤世界书分组与条目。 */
     private fun List<ChatCreateLorebookGroupItem>.filterForQuery(
         query: String
-    ): List<ChatCreateLorebookGroupItem> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return mapNotNull { group ->
-            val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
-            val matchingEntries = group.entries.filter { entry ->
-                entry.lorebookName.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.name.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.content.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.keywords.any { it.contains(normalizedQuery, ignoreCase = true) } ||
-                    entry.secondaryKeywords.any {
-                        it.contains(normalizedQuery, ignoreCase = true)
-                    } ||
-                    entry.category.any { it.contains(normalizedQuery, ignoreCase = true) }
-            }
-            when {
-                groupMatches -> group
-                matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
-                else -> null
-            }
-        }
-    }
+    ): List<ChatCreateLorebookGroupItem> = filterLorebookGroups(
+        query = query,
+        groupName = { it.lorebookName },
+        entries = { it.entries },
+        entrySearchFields = { entry ->
+            sequenceOf(entry.lorebookName, entry.name, entry.content) +
+                entry.keywords.asSequence() +
+                entry.secondaryKeywords.asSequence() +
+                entry.category.asSequence()
+        },
+        copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    )
 
     /** 开场白解析结果包装类。 */
     private data class FirstMessageSelection(val value: String?)

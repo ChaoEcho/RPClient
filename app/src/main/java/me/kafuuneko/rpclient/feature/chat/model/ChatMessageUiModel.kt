@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
-import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.model.MessageContentPart
 
 /** 单聊消息的最终 UI 模型，正文已拆分为普通文本和可折叠推理块。 */
 data class ChatMessageUiModel(

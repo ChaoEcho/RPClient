@@ -49,8 +49,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
+import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
@@ -64,8 +64,9 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggleAll
-import me.kafuuneko.rpclient.ui.message.toMessageContentParts
+import me.kafuuneko.rpclient.model.toMessageContentParts
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -100,7 +101,7 @@ class GroupChatViewModel :
     private val mOutputSanitizer by inject<GroupChatOutputSanitizer>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mRegexRepository by inject<RegexScriptRepository>()
-    private val mRegexRuntime by inject<RegexScriptRuntime>()
+    private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的群聊会话 ID。 */
@@ -1352,12 +1353,11 @@ class GroupChatViewModel :
             trimOtherSpeakers = data.session.trimOtherSpeakers
         )
         // 执行持久化前的 Source 阶段正则
-        val regexedPart = mRegexRuntime.executeAiMessage(
+        val regexedPart = mRegexProcessor.applyAiResponse(
             input = sanitizedPart,
             scripts = mStreamingRegexScripts,
-            mode = RegexExecutionMode.Source,
             macros = mStreamingRegexMacros
-        ).text
+        )
         mStreamingContent = regexedPart
         mStreamingRegexApplied = true
         // 持久化最终内容并更新世界书激活快照
@@ -1413,11 +1413,12 @@ class GroupChatViewModel :
     private fun updateStreamingState(content: String) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val messageId = mStreamingMessageId ?: return
-        val displayContent = mRegexRuntime.executeDisplayMessage(
+        val displayContent = mRegexProcessor.applyDisplay(
             input = content,
+            source = RegexMessageSource.Character,
             scripts = mStreamingRegexScripts,
             macros = mStreamingRegexMacros
-        ).text
+        )
         uiState.copy(
             conversationState = uiState.conversationState.copy(
                 messages = uiState.conversationState.messages.map {
@@ -1580,11 +1581,10 @@ class GroupChatViewModel :
             .map { it.character.characterLorebookId }
             .filter { it > 0L }
             .toSet()
-        // 读取全部世界书并过滤出当前会话激活的条目及实体
-        val lorebooks = mLorebookRepository.getAllLorebooks()
-        val allEntries = lorebooks.flatMap {
-            mLorebookRepository.getEntriesByLorebookId(it.id)
-        }
+        // 批量读取全部世界书及条目，再过滤当前会话需要的资源。
+        val lorebooksWithEntries = mLorebookRepository.getAllLorebooksWithEntries()
+        val lorebooks = lorebooksWithEntries.map { it.lorebook }
+        val allEntries = lorebooksWithEntries.flatMap { it.entries }
         val entries = allEntries.filter {
             it.id in selectedEntryIds || it.lorebookId in characterLorebookIds
         }
@@ -1709,11 +1709,13 @@ class GroupChatViewModel :
         val enabledEntryIds = mGroupChatRepository
             .getSessionLorebookEntryIds(data.session)
             .toSet()
-        val lorebookGroups = mLorebookRepository.getAllLorebooks().map { lorebook ->
+        val lorebooksWithEntries = mLorebookRepository.getAllLorebooksWithEntries()
+        val lorebookGroups = lorebooksWithEntries.map { lorebookWithEntries ->
+            val lorebook = lorebookWithEntries.lorebook
             GroupChatLorebookGroupItem(
                 lorebookId = lorebook.id,
                 lorebookName = lorebook.name,
-                entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id).map {
+                entries = lorebookWithEntries.entries.map {
                     GroupChatLorebookEntryItem(
                         id = it.id,
                         lorebookId = lorebook.id,
@@ -1824,19 +1826,20 @@ class GroupChatViewModel :
             val macros = groupRegexMacros(this, characterName)
             val depth = messages.lastIndex - index
             val displayContent = when (message.source) {
-                GroupChatMessage.Source.User -> mRegexRuntime.executeDisplayMessage(
-                    message.content,
-                    scripts,
-                    macros,
-                    depth,
-                    RegexPlacement.UserInput
-                ).text
-                GroupChatMessage.Source.Character -> mRegexRuntime.executeDisplayMessage(
-                    message.content,
-                    scripts,
-                    macros,
-                    depth
-                ).text
+                GroupChatMessage.Source.User -> mRegexProcessor.applyDisplay(
+                    input = message.content,
+                    source = RegexMessageSource.User,
+                    scripts = scripts,
+                    macros = macros,
+                    depth = depth
+                )
+                GroupChatMessage.Source.Character -> mRegexProcessor.applyDisplay(
+                    input = message.content,
+                    source = RegexMessageSource.Character,
+                    scripts = scripts,
+                    macros = macros,
+                    depth = depth
+                )
                 GroupChatMessage.Source.System -> message.content
             }
             GroupChatMessageItem(
@@ -1869,28 +1872,7 @@ class GroupChatViewModel :
             data,
             data.members.firstOrNull()?.character?.name.orEmpty()
         )
-        // 若以 '/' 开头，优先执行指令宏替换
-        val slashProcessed = if (input.startsWith('/')) {
-            mRegexRuntime.execute(
-                input,
-                scripts,
-                RegexPlacement.SlashCommand,
-                RegexExecutionMode.Source,
-                macros,
-                isEdit = isEdit
-            ).text
-        } else {
-            input
-        }
-        // 执行用户输入端正则替换
-        return mRegexRuntime.execute(
-            slashProcessed,
-            scripts,
-            RegexPlacement.UserInput,
-            RegexExecutionMode.Source,
-            macros,
-            isEdit = isEdit
-        ).text
+        return mRegexProcessor.applyUserInput(input, scripts, macros, isEdit)
     }
 
     /**
@@ -1908,13 +1890,12 @@ class GroupChatViewModel :
         characterName: String,
         isEdit: Boolean = false
     ): String {
-        return mRegexRuntime.executeAiMessage(
+        return mRegexProcessor.applyAiResponse(
             input,
             mRegexRepository.activeScripts(data.members.map { it.character }),
-            RegexExecutionMode.Source,
             groupRegexMacros(data, characterName),
             isEdit = isEdit
-        ).text
+        )
     }
 
     /**
@@ -1922,12 +1903,11 @@ class GroupChatViewModel :
      */
     private fun applyStreamingAiRegex() {
         if (mStreamingRegexApplied || mStreamingContent.isBlank()) return
-        val processed = mRegexRuntime.executeAiMessage(
-            mStreamingContent,
-            mStreamingRegexScripts,
-            RegexExecutionMode.Source,
-            mStreamingRegexMacros
-        ).text
+        val processed = mRegexProcessor.applyAiResponse(
+            input = mStreamingContent,
+            scripts = mStreamingRegexScripts,
+            macros = mStreamingRegexMacros
+        )
         mStreamingContent = processed
         mStreamingRegexApplied = true
     }
@@ -1985,27 +1965,17 @@ class GroupChatViewModel :
      */
     private fun List<GroupChatLorebookGroupItem>.filterForQuery(
         query: String
-    ): List<GroupChatLorebookGroupItem> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return mapNotNull { group ->
-            val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
-            val matchingEntries = group.entries.filter { entry ->
-                entry.lorebookName.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.name.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.content.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.keywords.any { it.contains(normalizedQuery, ignoreCase = true) } ||
-                    entry.secondaryKeywords.any {
-                        it.contains(normalizedQuery, ignoreCase = true)
-                    }
-            }
-            when {
-                groupMatches -> group
-                matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
-                else -> null
-            }
-        }
-    }
+    ): List<GroupChatLorebookGroupItem> = filterLorebookGroups(
+        query = query,
+        groupName = { it.lorebookName },
+        entries = { it.entries },
+        entrySearchFields = { entry ->
+            sequenceOf(entry.lorebookName, entry.name, entry.content) +
+                entry.keywords.asSequence() +
+                entry.secondaryKeywords.asSequence()
+        },
+        copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    )
 
     /**
      * 群聊世界书上下文数据模型。

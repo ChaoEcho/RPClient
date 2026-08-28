@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.ui.message
+package me.kafuuneko.rpclient.ui.widgets
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -35,6 +35,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kafuuneko.rpclient.utils.MarkdownBlock
+import me.kafuuneko.rpclient.utils.MarkdownInline
+import me.kafuuneko.rpclient.utils.MarkdownParser
 
 /**
  * 渲染聊天消息支持的轻量 Markdown 子集。
@@ -48,7 +51,7 @@ fun MarkdownMessageText(
     isUser: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val blocks = remember(content) { content.parseMarkdownBlocks() }
+    val blocks = remember(content) { MarkdownParser.parseBlocks(content) }
     val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val linkColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
     val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -142,7 +145,7 @@ private fun MarkdownInlineText(
     val text = remember(content, color, narrationColor, linkColor, strongColor) {
         buildAnnotatedString {
             appendMarkdownInline(
-                source = content,
+                parts = MarkdownParser.parseInline(content),
                 textColor = color,
                 narrationColor = narrationColor,
                 linkColor = linkColor,
@@ -267,260 +270,56 @@ private fun MarkdownListBlock(
     }
 }
 
-private sealed class MarkdownBlock {
-    data class Paragraph(val content: String) : MarkdownBlock()
-    data class Heading(val level: Int, val content: String) : MarkdownBlock()
-    data class Code(val language: String?, val content: String) : MarkdownBlock()
-    data class Quote(val content: String) : MarkdownBlock()
-    data class ListBlock(val items: List<MarkdownListItem>) : MarkdownBlock()
-    data object Divider : MarkdownBlock()
-}
-
-private data class MarkdownListItem(
-    val marker: String,
-    val content: String
-)
-
-private val headingRegex = Regex("""^(#{1,6})\s+(.+)$""")
-private val unorderedListRegex = Regex("""^\s*[-*+]\s+(.+)$""")
-private val orderedListRegex = Regex("""^\s*(\d+)[.)]\s+(.+)$""")
-private val dividerRegex = Regex("""^\s*([-*_])(\s*\1){2,}\s*$""")
-
-/**
- * 单次顺序扫描消息正文并切分受支持的块级 Markdown。
- *
- * 未闭合代码围栏会消费到消息末尾，适配流式生成中的中间状态；其余无法识别的语法
- * 统一保留为段落文本，避免模型输出因解析失败而丢失。
- */
-private fun String.parseMarkdownBlocks(): List<MarkdownBlock> {
-    val lines = replace("\r\n", "\n").replace('\r', '\n').lines()
-    val blocks = mutableListOf<MarkdownBlock>()
-    var index = 0
-
-    while (index < lines.size) {
-        val line = lines[index]
-        val trimmed = line.trim()
-
-        if (trimmed.isBlank()) {
-            index += 1
-            continue
-        }
-
-        if (line.trimStart().startsWith("```")) {
-            val fence = line.trimStart()
-            val language = fence.removePrefix("```").trim().takeIf { it.isNotBlank() }
-            val codeLines = mutableListOf<String>()
-            index += 1
-            while (index < lines.size && !lines[index].trimStart().startsWith("```")) {
-                codeLines += lines[index]
-                index += 1
-            }
-            if (index < lines.size) index += 1
-            blocks += MarkdownBlock.Code(language = language, content = codeLines.joinToString("\n"))
-            continue
-        }
-
-        if (dividerRegex.matches(line)) {
-            blocks += MarkdownBlock.Divider
-            index += 1
-            continue
-        }
-
-        headingRegex.matchEntire(trimmed)?.let { match ->
-            blocks += MarkdownBlock.Heading(
-                level = match.groupValues[1].length,
-                content = match.groupValues[2].trim().trimEnd('#').trim()
-            )
-            index += 1
-            continue
-        }
-
-        if (line.trimStart().startsWith(">")) {
-            val quoteLines = mutableListOf<String>()
-            while (index < lines.size && lines[index].trimStart().startsWith(">")) {
-                quoteLines += lines[index].trimStart().removePrefix(">").trimStart()
-                index += 1
-            }
-            blocks += MarkdownBlock.Quote(quoteLines.joinToString("\n").trim())
-            continue
-        }
-
-        if (line.isListLine()) {
-            val items = mutableListOf<MarkdownListItem>()
-            while (index < lines.size && lines[index].isListLine()) {
-                val current = lines[index]
-                val ordered = orderedListRegex.matchEntire(current)
-                val unordered = unorderedListRegex.matchEntire(current)
-                if (ordered != null) {
-                    items += MarkdownListItem("${ordered.groupValues[1]}.", ordered.groupValues[2])
-                } else if (unordered != null) {
-                    items += MarkdownListItem("-", unordered.groupValues[1])
-                }
-                index += 1
-            }
-            blocks += MarkdownBlock.ListBlock(items)
-            continue
-        }
-
-        val paragraphLines = mutableListOf<String>()
-        while (index < lines.size && lines[index].trim().isNotBlank() && !lines[index].startsMarkdownBlock()) {
-            paragraphLines += lines[index].trimEnd()
-            index += 1
-        }
-        blocks += MarkdownBlock.Paragraph(paragraphLines.joinToString("\n").trim())
-    }
-
-    return blocks
-}
-
-private fun String.startsMarkdownBlock(): Boolean {
-    val trimmedStart = trimStart()
-    val trimmed = trim()
-    return trimmedStart.startsWith("```") ||
-        trimmedStart.startsWith(">") ||
-        dividerRegex.matches(this) ||
-        headingRegex.matches(trimmed) ||
-        isListLine()
-}
-
-private fun String.isListLine(): Boolean {
-    return unorderedListRegex.matches(this) || orderedListRegex.matches(this)
-}
-
-/**
- * 从左到右解析受支持的行内标记并直接写入 AnnotatedString。
- *
- * 动作描写（*...* 或 _..._）采用弱化斜体；粗体（**...**）加粗而不加底色；
- * 保证流式文本追加闭合符之前不会吞掉后续内容。
- */
+/** 将纯 Markdown 行内模型映射为带有 Compose 样式的 AnnotatedString。 */
 private fun AnnotatedString.Builder.appendMarkdownInline(
-    source: String,
+    parts: List<MarkdownInline>,
     textColor: Color,
     narrationColor: Color,
     linkColor: Color,
     strongColor: Color
 ) {
-    var index = 0
-    while (index < source.length) {
-        when {
-            source.startsWith("`", index) -> {
-                val end = source.indexOf('`', startIndex = index + 1)
-                if (end == -1) {
-                    append(source[index])
-                    index += 1
-                } else {
-                    withStyle(
-                        SpanStyle(
-                            fontFamily = FontFamily.Monospace,
-                            background = textColor.copy(alpha = 0.10f)
-                        )
-                    ) {
-                        append(source.substring(index + 1, end))
-                    }
-                    index = end + 1
-                }
+    // 解析器已经完成语法判断，这里只把纯模型映射为 Compose 样式。
+    parts.forEach { part ->
+        when (part) {
+            is MarkdownInline.Text -> append(part.content)
+            is MarkdownInline.Code -> withStyle(
+                SpanStyle(
+                    fontFamily = FontFamily.Monospace,
+                    background = textColor.copy(alpha = 0.10f)
+                )
+            ) {
+                append(part.content)
             }
 
-            source.startsWith("**", index) -> {
-                index = appendDelimitedMarkdown(source, index, "**", textColor, narrationColor, linkColor, strongColor) {
-                    SpanStyle(
-                        color = strongColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            is MarkdownInline.Strong -> withStyle(
+                SpanStyle(
+                    color = strongColor,
+                    fontWeight = FontWeight.Bold
+                )
+            ) {
+                appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
-            source.startsWith("__", index) -> {
-                index = appendDelimitedMarkdown(source, index, "__", textColor, narrationColor, linkColor, strongColor) {
-                    SpanStyle(
-                        color = strongColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            is MarkdownInline.Emphasis -> withStyle(
+                SpanStyle(
+                    fontStyle = FontStyle.Italic,
+                    color = narrationColor
+                )
+            ) {
+                appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
-            source.startsWith("~~", index) -> {
-                index = appendDelimitedMarkdown(source, index, "~~", textColor, narrationColor, linkColor, strongColor) {
-                    SpanStyle(textDecoration = TextDecoration.LineThrough)
-                }
+            is MarkdownInline.Strikethrough -> withStyle(
+                SpanStyle(textDecoration = TextDecoration.LineThrough)
+            ) {
+                appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
-            source[index] == '*' -> {
-                index = appendDelimitedMarkdown(source, index, "*", textColor, narrationColor, linkColor, strongColor) {
-                    SpanStyle(
-                        fontStyle = FontStyle.Italic,
-                        color = narrationColor
-                    )
-                }
-            }
-
-            source[index] == '_' -> {
-                index = appendDelimitedMarkdown(source, index, "_", textColor, narrationColor, linkColor, strongColor) {
-                    SpanStyle(
-                        fontStyle = FontStyle.Italic,
-                        color = narrationColor
-                    )
-                }
-            }
-
-            source[index] == '[' -> {
-                val labelEnd = source.indexOf(']', startIndex = index + 1)
-                val urlStart = labelEnd + 1
-                if (labelEnd != -1 && urlStart < source.length && source[urlStart] == '(') {
-                    val urlEnd = source.indexOf(')', startIndex = urlStart + 1)
-                    if (urlEnd != -1) {
-                        withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
-                            appendMarkdownInline(
-                                source = source.substring(index + 1, labelEnd),
-                                textColor = textColor,
-                                narrationColor = narrationColor,
-                                linkColor = linkColor,
-                                strongColor = strongColor
-                            )
-                        }
-                        index = urlEnd + 1
-                    } else {
-                        append(source[index])
-                        index += 1
-                    }
-                } else {
-                    append(source[index])
-                    index += 1
-                }
-            }
-
-            else -> {
-                append(source[index])
-                index += 1
+            is MarkdownInline.Link -> withStyle(
+                SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+            ) {
+                appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
         }
-    }
-}
-
-/**
- * 追加一段允许嵌套的定界样式，并返回下一个扫描位置。
- *
- * 未找到闭合定界符时只消费首字符，让主扫描器继续保留其余原文。
- */
-private fun AnnotatedString.Builder.appendDelimitedMarkdown(
-    source: String,
-    start: Int,
-    delimiter: String,
-    textColor: Color,
-    narrationColor: Color,
-    linkColor: Color,
-    strongColor: Color,
-    style: () -> SpanStyle
-): Int {
-    val contentStart = start + delimiter.length
-    val end = source.indexOf(delimiter, startIndex = contentStart)
-    return if (end == -1) {
-        append(source[start])
-        start + 1
-    } else {
-        withStyle(style()) {
-            appendMarkdownInline(source.substring(contentStart, end), textColor, narrationColor, linkColor, strongColor)
-        }
-        end + delimiter.length
     }
 }

@@ -139,8 +139,15 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun getStoryLorebookEntryCandidates(
         storyId: Long
     ): List<StoryLorebookEntryCandidate> = mAppDatabase.withTransaction {
-        mStoryLorebookEntryDao.getByStoryId(storyId).mapNotNull { relation ->
-            mLorebookEntryDao.getEntryById(relation.lorebookEntryId)?.let { entry ->
+        val relations = mStoryLorebookEntryDao.getByStoryId(storyId)
+        if (relations.isEmpty()) return@withTransaction emptyList()
+        // 批量读取条目，避免按故事关联关系逐条访问世界书表。
+        val entriesById = mLorebookEntryDao
+            .getEntriesByIds(relations.map { it.lorebookEntryId })
+            .associateBy { it.id }
+        // 按关联表原有顺序重建候选项，避免批量查询改变 Prompt 顺序。
+        relations.mapNotNull { relation ->
+            entriesById[relation.lorebookEntryId]?.let { entry ->
                 StoryLorebookEntryCandidate(relation, entry)
             }
         }
@@ -752,10 +759,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         require(lorebookSelections.distinctBy { it.lorebookEntryId }.size == lorebookSelections.size) {
             "Story lorebook entry selections must be unique"
         }
-        lorebookSelections.forEach { selection ->
-            requireNotNull(mLorebookEntryDao.getEntryById(selection.lorebookEntryId)) {
-                "Lorebook entry does not exist"
-            }
+        val lorebookEntryIds = lorebookSelections.map { it.lorebookEntryId }
+        val existingLorebookEntryIds = if (lorebookEntryIds.isEmpty()) {
+            emptySet()
+        } else {
+            mLorebookEntryDao.getEntriesByIds(lorebookEntryIds).mapTo(mutableSetOf()) { it.id }
+        }
+        require(existingLorebookEntryIds.size == lorebookEntryIds.size) {
+            "Lorebook entry does not exist"
         }
         return NormalizedStoryConfiguration(lorebookSelections, characterSelections)
     }

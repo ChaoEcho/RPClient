@@ -96,7 +96,9 @@ class StoryArchiveRepository(
             // 读取现有角色与世界书条目进行指纹/名称关联匹配
             val characters = mCharacterDao.getAllCharacters()
             val lorebooks = mLorebookDao.getAllLorebooks()
-            val entries = lorebooks.flatMap { mLorebookEntryDao.getEntriesByLorebookId(it.id) }
+            val lorebookIds = lorebooks.mapTo(mutableSetOf()) { it.id }
+            val entries = mLorebookEntryDao.getAllEntries()
+                .filter { it.lorebookId in lorebookIds }
             val matchedCharacters = matchCharacters(draft.characterHints, characters)
             val matchedEntries = matchLorebookEntries(
                 hints = draft.lorebookHints,
@@ -223,8 +225,16 @@ class StoryArchiveRepository(
         }
         // 读取关联世界书条目列表并生成指纹提示
         val lorebooks = mLorebookDao.getAllLorebooks().associateBy { it.id }
-        val selectedEntries = mStoryLorebookEntryDao.getByStoryId(storyId).mapNotNull { relation ->
-            mLorebookEntryDao.getEntryById(relation.lorebookEntryId)?.let { entry ->
+        val selectedRelations = mStoryLorebookEntryDao.getByStoryId(storyId)
+        val selectedEntriesById = if (selectedRelations.isEmpty()) {
+            emptyMap()
+        } else {
+            mLorebookEntryDao
+                .getEntriesByIds(selectedRelations.map { it.lorebookEntryId })
+                .associateBy { it.id }
+        }
+        val selectedEntries = selectedRelations.mapNotNull { relation ->
+            selectedEntriesById[relation.lorebookEntryId]?.let { entry ->
                 relation to entry
             }
         }

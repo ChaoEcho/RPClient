@@ -53,8 +53,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
-import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
+import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
@@ -68,6 +68,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
@@ -99,7 +100,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mRegexRepository by inject<RegexScriptRepository>()
-    private val mRegexRuntime by inject<RegexScriptRuntime>()
+    private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mContext by inject<Context>()
 
@@ -1803,23 +1804,24 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val displayMessages = messages.mapIndexed { index, message ->
             val depth = messages.lastIndex - index
             val result = when (message.source) {
-                ChatMessage.Source.User -> mRegexRuntime.executeDisplayMessage(
-                    message.content,
-                    regexScripts,
-                    regexMacros,
-                    depth,
-                    RegexPlacement.UserInput
+                ChatMessage.Source.User -> mRegexProcessor.applyDisplay(
+                    input = message.content,
+                    source = RegexMessageSource.User,
+                    scripts = regexScripts,
+                    macros = regexMacros,
+                    depth = depth
                 )
-                ChatMessage.Source.Char -> mRegexRuntime.executeDisplayMessage(
-                    message.content,
-                    regexScripts,
-                    regexMacros,
-                    depth
+                ChatMessage.Source.Char -> mRegexProcessor.applyDisplay(
+                    input = message.content,
+                    source = RegexMessageSource.Character,
+                    scripts = regexScripts,
+                    macros = regexMacros,
+                    depth = depth
                 )
                 ChatMessage.Source.System,
                 ChatMessage.Source.Summary -> null
             }
-            if (result == null) message else message.copy(content = result.text)
+            if (result == null) message else message.copy(content = result)
         }
         // 获取摘要、世界书及角色头像资源
         val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
@@ -1933,9 +1935,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 获取数据库中全部世界书及其所有条目的聚合数据。
      */
     private suspend fun getAllLorebookEntries(): ChatLorebookEntryData {
-        val lorebooks = mLorebookRepository.getAllLorebooks()
-        val entries = lorebooks.flatMap { mLorebookRepository.getEntriesByLorebookId(it.id) }
-        return ChatLorebookEntryData(lorebooks.associateBy { it.id }, entries)
+        val lorebooksWithEntries = mLorebookRepository.getAllLorebooksWithEntries()
+        return ChatLorebookEntryData(
+            lorebooks = lorebooksWithEntries.associate { it.lorebook.id to it.lorebook },
+            entries = lorebooksWithEntries.flatMap { it.entries }
+        )
     }
 
     /**
@@ -1990,28 +1994,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             session.userDescription,
             character.scenario
         )
-        // 若以 '/' 开头，优先执行指令宏替换
-        val slashProcessed = if (input.startsWith('/')) {
-            mRegexRuntime.execute(
-                input,
-                scripts,
-                RegexPlacement.SlashCommand,
-                RegexExecutionMode.Source,
-                macros,
-                isEdit = isEdit
-            ).text
-        } else {
-            input
-        }
-        // 执行用户输入端正则替换
-        return mRegexRuntime.execute(
-            slashProcessed,
-            scripts,
-            RegexPlacement.UserInput,
-            RegexExecutionMode.Source,
-            macros,
-            isEdit = isEdit
-        ).text
+        return mRegexProcessor.applyUserInput(input, scripts, macros, isEdit)
     }
 
     /**
@@ -2029,11 +2012,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ): String {
         val session = mChatRepository.getSessionById(sessionId) ?: return input
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
-        // 执行 AI 角色消息 Source 阶段正则
-        return mRegexRuntime.executeAiMessage(
+        return mRegexProcessor.applyAiResponse(
             input = input,
             scripts = mRegexRepository.activeScripts(listOf(character)),
-            mode = RegexExecutionMode.Source,
             macros = RegexScriptRuntime.macros(
                 session.userName,
                 character.name,
@@ -2041,7 +2022,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 character.scenario
             ),
             isEdit = isEdit
-        ).text
+        )
     }
 
     /**
@@ -2075,34 +2056,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 最终持久化文本
      */
     private fun applyStreamingGeneratedRegex(snapshot: ActiveStreamingGeneration): String {
-        // 若非用户输入，按 AI 消息执行 Source 正则
-        if (snapshot.output.source() != ChatMessage.Source.User) {
-            return mRegexRuntime.executeAiMessage(
-                input = snapshot.content,
-                scripts = snapshot.regexScripts,
-                mode = RegexExecutionMode.Source,
-                macros = snapshot.regexMacros
-            ).text
-        }
-        // 若为模仿用户生成，按用户输入时序执行正则
-        val slashProcessed = if (snapshot.content.startsWith('/')) {
-            mRegexRuntime.execute(
-                input = snapshot.content,
-                scripts = snapshot.regexScripts,
-                placement = RegexPlacement.SlashCommand,
-                mode = RegexExecutionMode.Source,
-                macros = snapshot.regexMacros
-            ).text
-        } else {
-            snapshot.content
-        }
-        return mRegexRuntime.execute(
-            input = slashProcessed,
+        return mRegexProcessor.applyGenerated(
+            input = snapshot.content,
+            source = snapshot.output.source().toRegexMessageSource(),
             scripts = snapshot.regexScripts,
-            placement = RegexPlacement.UserInput,
-            mode = RegexExecutionMode.Source,
             macros = snapshot.regexMacros
-        ).text
+        )
     }
 
     /**
@@ -2112,20 +2071,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 用于 UI 展示的替换文本
      */
     private fun applyStreamingDisplayRegex(snapshot: ActiveStreamingGeneration): String {
-        return if (snapshot.output.source() == ChatMessage.Source.User) {
-            mRegexRuntime.executeDisplayMessage(
-                snapshot.content,
-                snapshot.regexScripts,
-                snapshot.regexMacros,
-                bodyPlacement = RegexPlacement.UserInput
-            ).text
-        } else {
-            mRegexRuntime.executeDisplayMessage(
-                snapshot.content,
-                snapshot.regexScripts,
-                snapshot.regexMacros
-            ).text
-        }
+        return mRegexProcessor.applyDisplay(
+            input = snapshot.content,
+            source = snapshot.output.source().toRegexMessageSource(),
+            scripts = snapshot.regexScripts,
+            macros = snapshot.regexMacros
+        )
     }
 
     /**
@@ -2138,27 +2089,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private fun List<ChatLorebookGroupItem>.filterForQuery(
         query: String
-    ): List<ChatLorebookGroupItem> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return mapNotNull { group ->
-            val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
-            val matchingEntries = group.entries.filter { entry ->
-                entry.lorebookName.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.name.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.content.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.keywords.any { it.contains(normalizedQuery, ignoreCase = true) } ||
-                    entry.secondaryKeywords.any {
-                        it.contains(normalizedQuery, ignoreCase = true)
-                    }
-            }
-            when {
-                groupMatches -> group
-                matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
-                else -> null
-            }
-        }
-    }
+    ): List<ChatLorebookGroupItem> = filterLorebookGroups(
+        query = query,
+        groupName = { it.lorebookName },
+        entries = { it.entries },
+        entrySearchFields = { entry ->
+            sequenceOf(entry.lorebookName, entry.name, entry.content) +
+                entry.keywords.asSequence() +
+                entry.secondaryKeywords.asSequence()
+        },
+        copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    )
 
     /**
      * 自动总结流程所需的数据包装类。
@@ -2233,4 +2174,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val regexMacros: Map<String, String>,
         val worldInfoStateJson: String
     )
+}
+
+/** 将单聊消息来源映射为 Regex 流水线需要的有限来源集合。 */
+private fun ChatMessage.Source.toRegexMessageSource(): RegexMessageSource {
+    return if (this == ChatMessage.Source.User) {
+        RegexMessageSource.User
+    } else {
+        RegexMessageSource.Character
+    }
 }

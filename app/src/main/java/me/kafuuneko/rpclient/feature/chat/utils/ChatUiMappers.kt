@@ -15,7 +15,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
-import me.kafuuneko.rpclient.ui.message.toMessageContentParts
+import me.kafuuneko.rpclient.model.toMessageContentParts
 
 /** 映射世界书 UI 分组所需的书籍索引与条目集合。 */
 data class ChatLorebookEntryData(

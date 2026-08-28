@@ -22,8 +22,8 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
-import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
+import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
@@ -46,7 +46,8 @@ class ChatPromptBuilder(
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
-        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default }
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
     /**
      * 构建最终提交给模型的请求。
@@ -96,11 +97,9 @@ class ChatPromptBuilder(
         // 对激活的世界书条目内容执行 Prompt 阶段 Regex 替换
         val activatedWorldInfo = rawWorldInfo
             .mapEntryContent { entry ->
-                val result = mRegexRuntime.execute(
+                val result = mRegexProcessor.applyWorldInfo(
                     input = entry.content,
                     scripts = context.regexScripts,
-                    placement = RegexPlacement.WorldInfo,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros
                 )
                 regexHits += result.hits
@@ -128,18 +127,17 @@ class ChatPromptBuilder(
         val historyMessages = context.messages.sanitizeThinkBlocks().mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
-                ChatMessage.Source.User -> mRegexRuntime.execute(
+                ChatMessage.Source.User -> mRegexProcessor.applyPrompt(
                     input = message.content,
+                    source = RegexMessageSource.User,
                     scripts = context.regexScripts,
-                    placement = RegexPlacement.UserInput,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros,
                     depth = depth
                 )
-                ChatMessage.Source.Char -> mRegexRuntime.executeAiMessage(
+                ChatMessage.Source.Char -> mRegexProcessor.applyPrompt(
                     input = message.content,
+                    source = RegexMessageSource.Character,
                     scripts = context.regexScripts,
-                    mode = RegexExecutionMode.Prompt,
                     macros = regexMacros,
                     depth = depth
                 )
@@ -600,11 +598,10 @@ class ChatPromptBuilder(
         }.toMutableList()
         // 若存在当前用户正在输入的消息，执行正则替换并作为末尾 User 消息加入
         context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {
-            val regexResult = mRegexRuntime.execute(
+            val regexResult = mRegexProcessor.applyPrompt(
                 input = it,
+                source = RegexMessageSource.User,
                 scripts = context.regexScripts,
-                placement = RegexPlacement.UserInput,
-                mode = RegexExecutionMode.Prompt,
                 macros = RegexScriptRuntime.macros(
                     context.userName,
                     context.character.name,

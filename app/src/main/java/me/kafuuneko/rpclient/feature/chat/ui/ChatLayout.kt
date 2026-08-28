@@ -115,12 +115,13 @@ import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
-import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
-import me.kafuuneko.rpclient.ui.message.MessageContentPart
+import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
@@ -1734,46 +1735,6 @@ private fun chatStatusText(
         stringResource(R.string.no_model_configured)
     } else {
         generationState.label(streamEnabled)
-    }
-}
-
-@Composable
-private fun NoProviderBanner(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
-        contentColor = MaterialTheme.colorScheme.onErrorContainer
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Info,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = stringResource(R.string.no_model_provider_banner),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-            )
-        }
     }
 }
 

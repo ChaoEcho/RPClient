@@ -40,6 +40,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -129,6 +130,7 @@ internal val appModules = module {
     singleOf(::RegexScriptCodec)
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)
+    singleOf(::RegexMessageProcessor)
 
     // 业务数据升级
     singleOf(::AndroidAppVersionCodeProvider)

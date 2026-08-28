@@ -98,12 +98,14 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
     private suspend fun refreshLorebooks() {
         if (!isStateOf<WorldBookListUiState.Normal>()) return
         val generation = ++mRefreshGeneration
-        // 在 IO 线程并发查询所有世界书及其关联条目数
+        // 在 IO 线程一次读取世界书与条目计数，避免按世界书逐项查询。
         val items = withContext(Dispatchers.IO) {
-            mLorebookRepository.getAllLorebooks().map { lorebook ->
+            val lorebooks = mLorebookRepository.getAllLorebooks()
+            val entryCounts = mLorebookRepository.getLorebookEntryCounts()
+            lorebooks.map { lorebook ->
                 WorldBookListItem.from(
                     lorebook = lorebook,
-                    entryCount = mLorebookRepository.getEntriesByLorebookId(lorebook.id).size
+                    entryCount = entryCounts[lorebook.id] ?: 0
                 )
             }
         }

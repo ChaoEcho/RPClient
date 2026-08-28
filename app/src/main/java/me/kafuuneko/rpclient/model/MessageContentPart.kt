@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.ui.message
+package me.kafuuneko.rpclient.model
 
 /**
  * 一条消息在展示层拆分出的正文或推理片段。
