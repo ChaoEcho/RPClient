@@ -799,6 +799,8 @@
     <string name="generation_error_http">Сервис модели вернул HTTP %1$d.</string>
     <string name="generation_error_network">Не удалось связаться с сервисом модели. Проверьте сеть и повторите попытку.</string>
     <string name="generation_error_empty_response">Модель вернула пустой ответ.</string>
+    <string name="model_request_failed_title">Ошибка запроса к модели</string>
+    <string name="model_request_failed_desc">%1$s\n\nОткройте настройки модели, чтобы проверить ключ API, базовый URL, имя модели и права учётной записи, либо выберите другую конфигурацию.</string>
     <string name="data_management">Управление данными</string>
     <string name="import_chat">Импортировать чат</string>
     <string name="import_chat_desc">Импортировать чат SillyTavern или RPClient в формате JSONL</string>

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor
 
+import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
@@ -79,8 +83,6 @@ import me.kafuuneko.rpclient.libs.story.prepareStoryContinuationText
 import me.kafuuneko.rpclient.libs.story.storyTextHash
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
-import me.kafuuneko.rpclient.libs.llm.UnavailableLLMProviderSelectionException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -123,6 +125,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private val mStorySummaryPromptBuilder by inject<StorySummaryPromptBuilder>()
     private val mStoryOutputSanitizer by inject<StoryOutputSanitizer>()
     private val mStoryArchiveRepository by inject<StoryArchiveRepository>()
+    private val mContext by inject<Context>()
 
     /** 正文文档流，供 Compose 编辑器组件监听并双向同步文本内容与最新编辑范围。 */
     private val mDocumentFlow = MutableStateFlow<StoryEditorDocument?>(null)
@@ -887,13 +890,17 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 解析总结专用的 LLM Provider
         val provider = try {
             withContext(Dispatchers.IO) { mProviderSelectionResolver.requireSummaryProvider() }
-        } catch (_: UnavailableLLMProviderSelectionException) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.generation_error_summary_provider_unavailable
-            ).tryEmit()
-            return
-        } catch (_: NoEnabledLLMProviderException) {
-            AppViewEvent.PopupToastMessageByResId(R.string.generation_error_no_provider).tryEmit()
+        } catch (error: Exception) {
+            val failure = error.toGenerationFailurePresentation(
+                mContext,
+                R.string.story_summary_failed
+            ) ?: throw error
+            val guideDialog = failure.modelSettingsGuide?.toStoryDialogState()
+            if (guideDialog != null) {
+                uiState.copy(dialogState = guideDialog).setup()
+            } else {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            }
             return
         }
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
@@ -1205,7 +1212,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (uiState.generationState !is StoryGenerationState.Idle) return
         if (!uiState.contentState.editable) return
         if (!uiState.hasAvailableProvider) {
-            uiState.copy(dialogState = StoryEditorDialogState.NoProviderGuide).setup()
+            val guide = noProviderModelSettingsGuide(mContext)
+            uiState.copy(dialogState = guide.toStoryDialogState()).setup()
             return
         }
         acceptEditorSnapshot(intent.snapshot)
@@ -1611,12 +1619,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             ).setup()
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
-            // 发生异常时关闭总结弹窗并提示错误
+        } catch (error: Exception) {
+            // 发生异常时关闭加载弹窗，配置类错误改为展示可跳转的引导
             val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
             if (uiState.dialogState != StoryEditorDialogState.SummarizingStory) return
-            uiState.copy(dialogState = StoryEditorDialogState.None).setup()
-            AppViewEvent.PopupToastMessageByResId(R.string.story_summary_failed).tryEmit()
+            val failure = error.toGenerationFailurePresentation(
+                mContext,
+                R.string.story_summary_failed
+            ) ?: throw error
+            val guideDialog = failure.modelSettingsGuide?.toStoryDialogState()
+            uiState.copy(
+                dialogState = guideDialog ?: StoryEditorDialogState.None
+            ).setup()
+            if (guideDialog == null) {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            }
         } finally {
             mSummaryJob = null
         }
@@ -1709,15 +1726,22 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 dialogState = StoryEditorDialogState.None
             ).setup()
             return
-        } catch (_: Exception) {
-            // 常规构建异常处理
-            AppViewEvent.PopupToastMessageByResId(R.string.story_generation_failed).tryEmit()
+        } catch (error: Exception) {
+            // 常规构建异常处理；配置在准备期间失效时仍提供修复入口
+            val failure = error.toGenerationFailurePresentation(
+                mContext,
+                R.string.story_generation_failed
+            ) ?: throw error
+            val guideDialog = failure.modelSettingsGuide?.toStoryDialogState()
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
             current.copy(
                 contentState = current.contentState.copy(editable = true),
                 generationState = StoryGenerationState.Failed(StoryGenerationFailure.Setup),
-                dialogState = StoryEditorDialogState.None
+                dialogState = guideDialog ?: StoryEditorDialogState.None
             ).setup()
+            if (guideDialog == null) {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            }
             return
         }
         val (provider, promptBuildResult) = buildResult
@@ -1825,13 +1849,23 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             mCancelledGeneration = active
             throw error
         } catch (error: Exception) {
+            val reason = if (applyingResult) {
+                StoryGenerationFailure.ApplyResult
+            } else {
+                error.toStoryGenerationFailure()
+            }
+            val guideDialog = if (applyingResult) {
+                null
+            } else {
+                error.toGenerationFailurePresentation(
+                    mContext,
+                    R.string.story_generation_provider_failed_without_partial
+                )?.modelSettingsGuide?.toStoryDialogState()
+            }
             showGenerationFailure(
                 active = active,
-                reason = if (applyingResult) {
-                    StoryGenerationFailure.ApplyResult
-                } else {
-                    error.toStoryGenerationFailure()
-                }
+                reason = reason,
+                dialogState = guideDialog ?: StoryEditorDialogState.None
             )
         } finally {
             if (mActiveGeneration?.token === initial.token) mActiveGeneration = null
@@ -1934,7 +1968,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun showGenerationFailure(
         active: ActiveStoryGeneration,
-        reason: StoryGenerationFailure
+        reason: StoryGenerationFailure,
+        dialogState: StoryEditorDialogState = StoryEditorDialogState.None
     ) {
         publishDocument(active.sourceContent, active.previousEditedRange)
         // 缓存可挽救的部分
@@ -1950,7 +1985,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             generationState = StoryGenerationState.Failed(
                 reason = reason,
                 recoverablePartial = active.partialText
-            )
+            ),
+            dialogState = dialogState
         ).setup()
     }
 
@@ -2960,6 +2996,11 @@ internal fun StoryEditorStructureState.moveChapterForDrag(
 /** 生成容器内从零开始且连续的章节排序值。 */
 private fun List<StoryChapterOutlineItem>.normalizeChapterOrder(): List<StoryChapterOutlineItem> {
     return mapIndexed { index, chapter -> chapter.copy(sortOrder = index) }
+}
+
+/** 将公共模型配置引导转换为故事页面的对话框状态。 */
+private fun ModelSettingsGuideContent.toStoryDialogState(): StoryEditorDialogState.ModelSettingsGuide {
+    return StoryEditorDialogState.ModelSettingsGuide(title = title, message = message)
 }
 
 

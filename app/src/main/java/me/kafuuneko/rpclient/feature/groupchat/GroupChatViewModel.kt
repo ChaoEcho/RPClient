@@ -11,7 +11,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.toGenerationFailureMessage
+import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
@@ -335,7 +337,8 @@ class GroupChatViewModel :
     private suspend fun ensureProviderConfigured(): Boolean {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return false
         if (!uiState.hasAvailableProvider) {
-            refreshState(dialogState = GroupChatDialogState.NoProviderGuide)
+            val guide = noProviderModelSettingsGuide(mContext)
+            refreshState(dialogState = guide.toGroupChatDialogState())
             return false
         }
         return true
@@ -1111,15 +1114,19 @@ class GroupChatViewModel :
                 refreshState(generationState = GroupChatGenerationState.Idle)
             }.onFailure { throwable ->
                 // 异常处理：收尾未落库内容并报错
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     R.string.continue_generation_failed
                 ) ?: return@onFailure
+                val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
                 persistOrDeleteStreamingMessage()
                 refreshState(
-                    generationState = GroupChatGenerationState.Failed(message)
+                    generationState = GroupChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: GroupChatDialogState.None
                 )
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1235,15 +1242,19 @@ class GroupChatViewModel :
                 refreshState(generationState = GroupChatGenerationState.Idle)
             }.onFailure { throwable ->
                 // 异常处理：收尾当前流式消息并更新失败状态
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     R.string.generation_failed
                 ) ?: return@onFailure
+                val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
                 persistOrDeleteStreamingMessage()
                 refreshState(
-                    generationState = GroupChatGenerationState.Failed(message)
+                    generationState = GroupChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: GroupChatDialogState.None
                 )
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1537,12 +1548,16 @@ class GroupChatViewModel :
                 AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
             }
         }.onFailure { throwable ->
-            val message = throwable.toGenerationFailureMessage(
+            val failure = throwable.toGenerationFailurePresentation(
                 mContext,
                 R.string.summary_failed
             ) ?: throw throwable
-            if (showToast) {
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+            val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
+            if (guideDialog != null) {
+                val uiState = getOrNull<GroupChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = guideDialog).setup()
+            } else if (showToast) {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
             }
         }
     }
@@ -2000,4 +2015,9 @@ class GroupChatViewModel :
         /** 自动群聊模式下，两轮生成之间的短暂缓冲延时（毫秒）。 */
         const val AUTO_MODE_DELAY_MS = 500L
     }
+}
+
+/** 将公共模型配置引导转换为群聊页面的对话框状态。 */
+private fun ModelSettingsGuideContent.toGroupChatDialogState(): GroupChatDialogState.ModelSettingsGuide {
+    return GroupChatDialogState.ModelSettingsGuide(title = title, message = message)
 }

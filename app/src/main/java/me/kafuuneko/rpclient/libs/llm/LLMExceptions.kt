@@ -26,6 +26,12 @@ class LLMHttpStatusException(
     }
 }
 
+/** 模型请求构建或响应解析失败，原始异常仅作为内部原因保留。 */
+class LLMRequestException(cause: Throwable) : IllegalStateException(
+    "The model request could not be completed",
+    cause
+)
+
 /** 不依赖 Android 资源且只包含安全字段的生成失败分类。 */
 sealed class GenerationFailure {
     data object NoProvider : GenerationFailure()
@@ -36,6 +42,7 @@ sealed class GenerationFailure {
     data object Forbidden : GenerationFailure()
     data object RateLimited : GenerationFailure()
     data class HttpFailure(val statusCode: Int) : GenerationFailure()
+    data object RequestFailure : GenerationFailure()
     data object Network : GenerationFailure()
     data object EmptyResponse : GenerationFailure()
     data object Unknown : GenerationFailure()
@@ -62,6 +69,7 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
             429 -> GenerationFailure.RateLimited
             else -> GenerationFailure.HttpFailure(throwable.statusCode)
         }
+        is LLMRequestException -> GenerationFailure.RequestFailure
         is IOException -> GenerationFailure.Network
         is LLMEmptyResponseException -> GenerationFailure.EmptyResponse
         else -> GenerationFailure.Unknown

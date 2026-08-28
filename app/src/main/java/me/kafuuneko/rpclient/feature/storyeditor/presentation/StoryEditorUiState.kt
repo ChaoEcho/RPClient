@@ -150,7 +150,10 @@ sealed class StoryEditorPageState {
 /** 编辑器业务对话框状态。 */
 sealed class StoryEditorDialogState {
     data object None : StoryEditorDialogState()
-    data object NoProviderGuide : StoryEditorDialogState()
+    data class ModelSettingsGuide(
+        val title: String,
+        val message: String
+    ) : StoryEditorDialogState()
     data class PromptInspector(val inspection: PromptInspection) : StoryEditorDialogState()
     data object FileActions : StoryEditorDialogState()
     data class ImportPreview(val preview: StoryImportPreview) : StoryEditorDialogState()

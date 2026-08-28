@@ -97,7 +97,10 @@ sealed class GroupChatLoadState {
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
     data object None : GroupChatDialogState()
-    data object NoProviderGuide : GroupChatDialogState()
+    data class ModelSettingsGuide(
+        val title: String,
+        val message: String
+    ) : GroupChatDialogState()
     data class PromptInspector(val inspection: PromptInspection) : GroupChatDialogState()
     data class DeleteMessageConfirm(val messageId: Long) : GroupChatDialogState()
     data class DeleteSessionConfirm(val title: String) : GroupChatDialogState()

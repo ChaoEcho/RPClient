@@ -798,6 +798,8 @@
     <string name="generation_error_http">Le service de modèle a renvoyé HTTP %1$d.</string>
     <string name="generation_error_network">Impossible de joindre le service de modèle. Vérifiez le réseau et réessayez.</string>
     <string name="generation_error_empty_response">Le modèle a renvoyé une réponse vide.</string>
+    <string name="model_request_failed_title">Échec de la requête au modèle</string>
+    <string name="model_request_failed_desc">%1$s\n\nOuvrez les paramètres du modèle pour vérifier la clé API, l’URL de base, le nom du modèle et les autorisations du compte, ou changez de configuration.</string>
     <string name="data_management">Gestion des données</string>
     <string name="import_chat">Importer une discussion</string>
     <string name="import_chat_desc">Importer une discussion JSONL SillyTavern ou RPClient</string>

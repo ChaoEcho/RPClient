@@ -796,6 +796,8 @@
     <string name="generation_error_http">模型服務回傳 HTTP %1$d。</string>
     <string name="generation_error_network">無法連線模型服務，請檢查網路後重試。</string>
     <string name="generation_error_empty_response">模型回傳了空回應。</string>
+    <string name="model_request_failed_title">模型請求失敗</string>
+    <string name="model_request_failed_desc">%1$s\n\n可前往「模型設定」檢查 API Key、Base URL、模型名稱和帳號權限，或切換其他設定後重試。</string>
     <string name="data_management">資料管理</string>
     <string name="import_chat">匯入對話</string>
     <string name="import_chat_desc">匯入酒館或 RPClient 的 JSONL 對話</string>

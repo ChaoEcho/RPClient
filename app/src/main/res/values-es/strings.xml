@@ -864,6 +864,8 @@
     <string name="generation_error_http">El servicio de modelo devolvió el estado HTTP %1$d.</string>
     <string name="generation_error_network">No se pudo conectar con el servicio de modelo. Compruebe la red e inténtelo de nuevo.</string>
     <string name="generation_error_empty_response">El modelo devolvió una respuesta vacía.</string>
+    <string name="model_request_failed_title">Error en la solicitud del modelo</string>
+    <string name="model_request_failed_desc">%1$s\n\nAbra la configuración del modelo para comprobar la clave API, la URL base, el nombre del modelo y los permisos de la cuenta, o cambie de configuración.</string>
     <string name="data_management">Gestión de datos</string>
     <string name="import_chat">Importar chat</string>
     <string name="import_chat_desc">Importar un chat JSONL de SillyTavern o RPClient</string>

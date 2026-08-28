@@ -798,6 +798,8 @@
     <string name="generation_error_http">Der Modelldienst hat HTTP %1$d zurückgegeben.</string>
     <string name="generation_error_network">Der Modelldienst ist nicht erreichbar. Prüfe das Netzwerk und versuche es erneut.</string>
     <string name="generation_error_empty_response">Das Modell hat eine leere Antwort zurückgegeben.</string>
+    <string name="model_request_failed_title">Modellanfrage fehlgeschlagen</string>
+    <string name="model_request_failed_desc">%1$s\n\nÖffne die Modelleinstellungen, um API-Schlüssel, Basis-URL, Modellnamen und Kontoberechtigungen zu prüfen, oder wechsle zu einer anderen Konfiguration.</string>
     <string name="data_management">Datenverwaltung</string>
     <string name="import_chat">Chat importieren</string>
     <string name="import_chat_desc">SillyTavern- oder RPClient-Chat als JSONL importieren</string>

@@ -865,6 +865,8 @@
     <string name="generation_error_http">The model service returned HTTP %1$d.</string>
     <string name="generation_error_network">Could not reach the model service. Check the network and try again.</string>
     <string name="generation_error_empty_response">The model returned an empty response.</string>
+    <string name="model_request_failed_title">Model request failed</string>
+    <string name="model_request_failed_desc">%1$s\n\nOpen Model Settings to check the API key, base URL, model name, and account permissions, or switch to another configuration.</string>
     <string name="data_management">Data management</string>
     <string name="import_chat">Import chat</string>
     <string name="import_chat_desc">Import a SillyTavern or RPClient JSONL chat</string>

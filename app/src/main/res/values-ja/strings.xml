@@ -797,6 +797,8 @@
     <string name="generation_error_http">モデルサービスが HTTP %1$d を返しました。</string>
     <string name="generation_error_network">モデルサービスに接続できません。ネットワークを確認して再試行してください。</string>
     <string name="generation_error_empty_response">モデルから空の応答が返されました。</string>
+    <string name="model_request_failed_title">モデルリクエストに失敗しました</string>
+    <string name="model_request_failed_desc">%1$s\n\nモデル設定で API キー、ベース URL、モデル名、アカウント権限を確認するか、別の設定に切り替えて再試行してください。</string>
     <string name="data_management">データ管理</string>
     <string name="import_chat">チャットをインポート</string>
     <string name="import_chat_desc">SillyTavern または RPClient の JSONL チャットをインポート</string>

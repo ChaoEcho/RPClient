@@ -1170,10 +1170,10 @@ private fun EditorDialogSwitch(
 ) {
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
-        StoryEditorDialogState.NoProviderGuide -> AppConfirmDialog(
+        is StoryEditorDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
-            title = stringResource(R.string.no_model_provider_title),
-            message = stringResource(R.string.no_model_provider_desc),
+            title = dialogState.title,
+            message = dialogState.message,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { StoryEditorUiIntent.OpenProviderSettings.emit() }

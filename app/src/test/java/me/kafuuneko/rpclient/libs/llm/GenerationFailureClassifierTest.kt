@@ -53,6 +53,10 @@ class GenerationFailureClassifierTest {
             GenerationFailure.HttpFailure(500),
             classifyGenerationFailure(LLMHttpStatusException(500))
         )
+        assertEquals(
+            GenerationFailure.RequestFailure,
+            classifyGenerationFailure(LLMRequestException(IllegalStateException("secret")))
+        )
         assertEquals(GenerationFailure.Network, classifyGenerationFailure(IOException("secret")))
         assertEquals(
             GenerationFailure.EmptyResponse,

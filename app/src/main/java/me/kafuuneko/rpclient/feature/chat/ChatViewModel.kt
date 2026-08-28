@@ -16,7 +16,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.toGenerationFailureMessage
+import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
@@ -309,17 +311,21 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 失败状态
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     R.string.generation_failed
                 ) ?: return@onFailure
+                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = "",
                     isExpanded = uiState.lorebookState.isExpanded,
-                    generationState = ChatGenerationState.Failed(message)
+                    generationState = ChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: ChatDialogState.None
                 )
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1054,9 +1060,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
         } else null
         if (provider == null) {
+            val guide = noProviderModelSettingsGuide(mContext)
             refreshUiState(
                 sessionId = sessionId,
-                dialogState = ChatDialogState.NoProviderGuide
+                dialogState = guide.toChatDialogState()
             )
             return false
         }
@@ -1138,15 +1145,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 状态
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     R.string.regenerate_failed
                 ) ?: return@onFailure
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(message)
+                    generationState = ChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: ChatDialogState.None
                 )
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1216,15 +1227,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 val errorResId = if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     errorResId
                 ) ?: return@onFailure
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(message)
+                    generationState = ChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: ChatDialogState.None
                 )
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1282,15 +1297,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 检查自动总结
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
-                val message = throwable.toGenerationFailureMessage(
+                val failure = throwable.toGenerationFailurePresentation(
                     mContext,
                     R.string.impersonation_failed
                 ) ?: return@onFailure
-                AppViewEvent.PopupToastMessage(message).tryEmit()
+                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(message)
+                    generationState = ChatGenerationState.Failed(failure.message),
+                    dialogState = guideDialog ?: ChatDialogState.None
                 )
+                if (guideDialog == null) {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
         }
     }
@@ -1630,11 +1649,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure { throwable ->
-            val message = throwable.toGenerationFailureMessage(
+            val failure = throwable.toGenerationFailurePresentation(
                 mContext,
                 R.string.summary_failed
             ) ?: throw throwable
-            AppViewEvent.PopupToastMessage(message).tryEmit()
+            val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
+            if (guideDialog != null) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = guideDialog).setup()
+            } else {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            }
         }
     }
 
@@ -2174,6 +2199,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val regexMacros: Map<String, String>,
         val worldInfoStateJson: String
     )
+}
+
+/** 将公共模型配置引导转换为单聊页面的对话框状态。 */
+private fun ModelSettingsGuideContent.toChatDialogState(): ChatDialogState.ModelSettingsGuide {
+    return ChatDialogState.ModelSettingsGuide(title = title, message = message)
 }
 
 /** 将单聊消息来源映射为 Regex 流水线需要的有限来源集合。 */

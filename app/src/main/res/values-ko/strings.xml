@@ -796,6 +796,8 @@
     <string name="generation_error_http">모델 서비스가 HTTP %1$d을 반환했습니다.</string>
     <string name="generation_error_network">모델 서비스에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
     <string name="generation_error_empty_response">모델이 빈 응답을 반환했습니다.</string>
+    <string name="model_request_failed_title">모델 요청 실패</string>
+    <string name="model_request_failed_desc">%1$s\n\n모델 구성에서 API 키, 기본 URL, 모델 이름, 계정 권한을 확인하거나 다른 구성으로 전환한 후 다시 시도하세요.</string>
     <string name="data_management">데이터 관리</string>
     <string name="import_chat">채팅 가져오기</string>
     <string name="import_chat_desc">SillyTavern 또는 RPClient JSONL 채팅 가져오기</string>

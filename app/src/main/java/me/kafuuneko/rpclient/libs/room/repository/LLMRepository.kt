@@ -1,10 +1,14 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.LLMRequestException
 import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
 import me.kafuuneko.rpclient.libs.llm.RoutingSessionId
+import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
@@ -33,7 +37,11 @@ internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 /**
  * 模型配置与生成调用的统一业务入口。
  *
- * 该类负责默认模型配置初始化、当前模型配置同步和 Prompt 最终化兜底；
+ * 核心职责：
+ * - 初始化默认模型配置并同步当前选择。
+ * - 在请求前执行 Prompt 最终化兜底。
+ * - 将模型调用内部的未知异常收敛为脱敏请求错误。
+ *
  * HTTP 协议细节由 [LLMClientFactory] 创建的适配器承担。
  */
 class LLMRepository(
@@ -200,9 +208,13 @@ class LLMRepository(
         request: LLMGenerationRequest,
         routingSessionKey: String? = null
     ): LLMGenerationResponse {
-        return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        return try {
+            mLLMClientFactory.create(provider.toConfig()).generate(
+                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            ).requireNonEmptyContent()
+        } catch (error: Exception) {
+            throw error.asModelRequestException()
+        }
     }
 
     /**
@@ -239,7 +251,12 @@ class LLMRepository(
     ): Flow<LLMStreamEvent> {
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
             request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        ).requireNonEmptyContent().catch { error ->
+            if (error is Exception) {
+                throw error.asModelRequestException()
+            }
+            throw error
+        }
     }
 
     /**
@@ -278,6 +295,15 @@ class LLMRepository(
             mLLMProviderDao.insertOrReplaceAll(createDefaultLLMProviders())
         }
         AppModel.llmDefaultProvidersInitialized = true
+    }
+}
+
+/** 仅包装尚未分类的模型调用异常，保留网络、HTTP、空响应和取消语义。 */
+private fun Exception.asModelRequestException(): Exception {
+    return if (classifyGenerationFailure(this) == GenerationFailure.Unknown) {
+        LLMRequestException(this)
+    } else {
+        this
     }
 }
 

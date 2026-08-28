@@ -88,7 +88,10 @@ sealed class ChatDialogState {
         val messageId: String
     ) : ChatDialogState()
 
-    data object NoProviderGuide : ChatDialogState()
+    data class ModelSettingsGuide(
+        val title: String,
+        val message: String
+    ) : ChatDialogState()
 }
 
 /**
