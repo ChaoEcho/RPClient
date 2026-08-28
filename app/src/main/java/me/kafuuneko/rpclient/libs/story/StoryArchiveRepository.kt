@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.dao.getEntriesByIdsChunked
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -175,8 +176,14 @@ class StoryArchiveRepository(
         markdown: Boolean
     ) {
         // 输出故事总标题
-        if (markdown) writer.write("# ${plan.storyTitle}\n") else writer.write(plan.storyTitle)
-        writer.write("\n\n")
+        withContext(Dispatchers.IO) {
+            if (markdown) {
+                writer.write("# ${plan.storyTitle}\n")
+            } else {
+                writer.write(plan.storyTitle)
+            }
+            writer.write("\n\n")
+        }
         // 依次输出未分卷章节
         val ungrouped = plan.chapters.filter { it.volumeId == null }
         ungrouped.forEach { chapter ->
@@ -204,13 +211,15 @@ class StoryArchiveRepository(
         val chapter = requireNotNull(mStoryChapterDao.getById(overview.id)) {
             "Story chapter disappeared during export"
         }
-        if (markdown) {
-            writer.write("${"#".repeat(headingLevel)} ${chapter.title}\n\n")
-        } else {
-            writer.write("-- ${chapter.title} --\n\n")
+        withContext(Dispatchers.IO) {
+            if (markdown) {
+                writer.write("${"#".repeat(headingLevel)} ${chapter.title}\n\n")
+            } else {
+                writer.write("-- ${chapter.title} --\n\n")
+            }
+            writer.write(chapter.content)
+            writer.write("\n\n")
         }
-        writer.write(chapter.content)
-        writer.write("\n\n")
     }
 
     private suspend fun buildArchive(storyId: Long): StoryArchive {
@@ -230,7 +239,7 @@ class StoryArchiveRepository(
             emptyMap()
         } else {
             mLorebookEntryDao
-                .getEntriesByIds(selectedRelations.map { it.lorebookEntryId })
+                .getEntriesByIdsChunked(selectedRelations.map { it.lorebookEntryId })
                 .associateBy { it.id }
         }
         val selectedEntries = selectedRelations.mapNotNull { relation ->
@@ -310,8 +319,9 @@ class StoryArchiveRepository(
                 hint.fingerprint.equals(ChatCharacterMatcher.fingerprintOf(it), ignoreCase = true)
             }
             val match = fingerprintMatches.singleOrNull()
-                ?: characters.filter { it.name.trim().equals(hint.name.trim(), ignoreCase = true) }
-                    .singleOrNull()
+                ?: characters.singleOrNull {
+                    it.name.trim().equals(hint.name.trim(), ignoreCase = true)
+                }
             match?.takeIf { selected.add(it.id) }?.id?.let { it to hint }
         }
     }
@@ -328,12 +338,12 @@ class StoryArchiveRepository(
                 hint.fingerprint.equals(fingerprintOf(it), ignoreCase = true)
             }
             val match = fingerprintMatches.singleOrNull()
-                ?: entries.filter { entry ->
+                ?: entries.singleOrNull { entry ->
                     entry.name.trim().equals(hint.entryName.trim(), ignoreCase = true) &&
-                        lorebookNames[entry.lorebookId]
-                            ?.trim()
-                            ?.equals(hint.lorebookName.trim(), ignoreCase = true) == true
-                }.singleOrNull()
+                            lorebookNames[entry.lorebookId]
+                                ?.trim()
+                                ?.equals(hint.lorebookName.trim(), ignoreCase = true) == true
+                }
             match?.takeIf { selectedEntryIds.add(it.id) }?.id
         }
     }

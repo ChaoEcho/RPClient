@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.dao.getEntriesByIdsChunked
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.Story
@@ -143,7 +144,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         if (relations.isEmpty()) return@withTransaction emptyList()
         // 批量读取条目，避免按故事关联关系逐条访问世界书表。
         val entriesById = mLorebookEntryDao
-            .getEntriesByIds(relations.map { it.lorebookEntryId })
+            .getEntriesByIdsChunked(relations.map { it.lorebookEntryId })
             .associateBy { it.id }
         // 按关联表原有顺序重建候选项，避免批量查询改变 Prompt 顺序。
         relations.mapNotNull { relation ->
@@ -763,7 +764,8 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val existingLorebookEntryIds = if (lorebookEntryIds.isEmpty()) {
             emptySet()
         } else {
-            mLorebookEntryDao.getEntriesByIds(lorebookEntryIds).mapTo(mutableSetOf()) { it.id }
+            mLorebookEntryDao.getEntriesByIdsChunked(lorebookEntryIds)
+                .mapTo(mutableSetOf()) { it.id }
         }
         require(existingLorebookEntryIds.size == lorebookEntryIds.size) {
             "Lorebook entry does not exist"

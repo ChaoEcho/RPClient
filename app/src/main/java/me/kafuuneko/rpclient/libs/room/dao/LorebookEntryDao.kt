@@ -83,3 +83,22 @@ interface LorebookEntryDao : MutableDao<LorebookEntry> {
     @Query("DELETE FROM lorebook_entries WHERE lorebookId = :lorebookId")
     suspend fun deleteEntriesByLorebookId(lorebookId: Long)
 }
+
+/**
+ * 按安全批次读取指定 ID 的世界书条目。
+ *
+ * Android SQLite 单条语句最多绑定 999 个参数；调用方通常使用该方法读取故事关联的
+ * 全量条目，因此必须拆分列表，避免大规模世界书配置触发 SQLite bind 参数异常。
+ * 返回顺序与 [getEntriesByIds] 的 `ORDER BY order, id` 保持一致。
+ */
+suspend fun LorebookEntryDao.getEntriesByIdsChunked(ids: List<Long>): List<LorebookEntry> {
+    val distinctIds = ids.distinct()
+    if (distinctIds.isEmpty()) return emptyList()
+    return distinctIds
+        .chunked(SQLITE_IN_QUERY_BATCH_SIZE)
+        .flatMap { getEntriesByIds(it) }
+        .sortedWith(compareBy<LorebookEntry> { it.order }.thenBy { it.id })
+}
+
+/** 为绑定参数留出余量，避免接近 SQLite 的 999 项上限。 */
+private const val SQLITE_IN_QUERY_BATCH_SIZE = 900

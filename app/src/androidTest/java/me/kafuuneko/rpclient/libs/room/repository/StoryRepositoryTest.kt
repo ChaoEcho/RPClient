@@ -120,6 +120,32 @@ class StoryRepositoryTest {
     }
 
     @Test
+    fun configuration_supportsMoreThanSqliteInQueryLimitLorebookEntries() = runBlocking {
+        val lorebookId = mDatabase.getLorebookDao().insertOrReplace(Lorebook(name = "Large world"))
+        val entries = (0 until 1_000).map { index ->
+            LorebookEntry(
+                lorebookId = lorebookId,
+                name = "Entry $index",
+                keywords = "[]",
+                secondaryKeywords = "[]",
+                order = index,
+                depth = 0,
+                category = "[]",
+                content = "Content $index"
+            )
+        }
+        val entryIds = mDatabase.getLorebookEntryDao().insertOrReplaceAll(entries)
+
+        val storyId = mRepository.createStoryWithConfiguration(
+            title = "Large story",
+            lorebookSelections = entryIds.map(::StoryLorebookEntrySelection),
+            characterSelections = emptyList()
+        )
+
+        assertEquals(1_000, mRepository.getStoryLorebookEntryCandidates(storyId).size)
+    }
+
+    @Test
     fun generatedEdit_updatesAndRestoresEntryRuntimeStateAtomically() = runBlocking {
         val entryId = insertLorebookEntry()
         val storyId = mRepository.createStoryWithConfiguration(
