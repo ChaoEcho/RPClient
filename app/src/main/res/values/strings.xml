@@ -860,9 +860,14 @@
     <string name="generation_error_no_provider">No enabled model configuration is available.</string>
     <string name="generation_error_prompt_budget">The required prompt (%1$d tokens) exceeds the available input budget (%2$d tokens).</string>
     <string name="generation_error_unauthorized">The model service rejected the credentials.</string>
+    <string name="generation_error_unauthorized_named">The model service for configuration “%1$s” rejected the credentials.</string>
     <string name="generation_error_forbidden">The model service denied this request.</string>
+    <string name="generation_error_forbidden_named">The model service for configuration “%1$s” denied this request.</string>
     <string name="generation_error_rate_limited">The model service is busy. Try again later.</string>
+    <string name="generation_error_rate_limited_named">The model service for configuration “%1$s” is busy. Try again later.</string>
+    <string name="generation_error_request_failed_named">The model request for configuration “%1$s” failed.</string>
     <string name="generation_error_http">The model service returned HTTP %1$d.</string>
+    <string name="generation_error_http_named">The model service for configuration “%1$s” returned HTTP %2$d.</string>
     <string name="generation_error_network">Could not reach the model service. Check the network and try again.</string>
     <string name="generation_error_empty_response">The model returned an empty response.</string>
     <string name="model_request_failed_title">Model request failed</string>
@@ -1044,7 +1049,9 @@
     <string name="prompt_story_summarize_desc">Controls how the story summary is updated</string>
     <string name="prompt_source_story_summary">Story summary</string>
     <string name="generation_error_character_provider_unavailable">The model configuration bound to this character is disabled or no longer exists.</string>
+    <string name="generation_error_character_provider_unavailable_named">The model configuration “%1$s” bound to this character is disabled.</string>
     <string name="generation_error_summary_provider_unavailable">The selected summary model configuration is disabled or no longer exists.</string>
+    <string name="generation_error_summary_provider_unavailable_named">The selected summary model configuration “%1$s” is disabled.</string>
     <string name="follow_global_model">Follow global model</string>
     <string name="character_model_config">Character model configuration</string>
     <string name="character_model_config_helper">Used for this character’s replies. Disabled configurations remain bound until changed.</string>

@@ -32,6 +32,15 @@ class LLMRequestException(cause: Throwable) : IllegalStateException(
     cause
 )
 
+/** 为模型调用异常附加可安全展示的配置名称，不包含凭据或请求内容。 */
+class LLMProviderRequestException(
+    val providerName: String,
+    val requestCause: Throwable
+) : IllegalStateException(
+    "The model request failed for the selected configuration",
+    requestCause
+)
+
 /** 不依赖 Android 资源且只包含安全字段的生成失败分类。 */
 sealed class GenerationFailure {
     data object NoProvider : GenerationFailure()
@@ -54,6 +63,7 @@ sealed class GenerationFailure {
 fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
     if (throwable is CancellationException) return null
     return when (throwable) {
+        is LLMProviderRequestException -> classifyGenerationFailure(throwable.requestCause)
         is NoEnabledLLMProviderException -> GenerationFailure.NoProvider
         is UnavailableLLMProviderSelectionException -> when (throwable.scope) {
             LLMProviderSelectionScope.Character -> GenerationFailure.CharacterProviderUnavailable

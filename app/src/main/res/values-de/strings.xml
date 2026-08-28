@@ -793,9 +793,14 @@
     <string name="generation_error_no_provider">Es ist keine aktivierte Modellkonfiguration verfügbar.</string>
     <string name="generation_error_prompt_budget">Der erforderliche Prompt (%1$d Token) überschreitet das verfügbare Eingabebudget (%2$d Token).</string>
     <string name="generation_error_unauthorized">Der Modelldienst hat die Anmeldedaten abgelehnt.</string>
+    <string name="generation_error_unauthorized_named">Der Modelldienst der Konfiguration „%1$s“ hat die Anmeldedaten abgelehnt.</string>
     <string name="generation_error_forbidden">Der Modelldienst hat diese Anfrage abgelehnt.</string>
+    <string name="generation_error_forbidden_named">Der Modelldienst der Konfiguration „%1$s“ hat diese Anfrage abgelehnt.</string>
     <string name="generation_error_rate_limited">Der Modelldienst ist ausgelastet. Versuche es später erneut.</string>
+    <string name="generation_error_rate_limited_named">Der Modelldienst der Konfiguration „%1$s“ ist ausgelastet. Versuche es später erneut.</string>
+    <string name="generation_error_request_failed_named">Die Modellanfrage der Konfiguration „%1$s“ ist fehlgeschlagen.</string>
     <string name="generation_error_http">Der Modelldienst hat HTTP %1$d zurückgegeben.</string>
+    <string name="generation_error_http_named">Der Modelldienst der Konfiguration „%1$s“ hat HTTP %2$d zurückgegeben.</string>
     <string name="generation_error_network">Der Modelldienst ist nicht erreichbar. Prüfe das Netzwerk und versuche es erneut.</string>
     <string name="generation_error_empty_response">Das Modell hat eine leere Antwort zurückgegeben.</string>
     <string name="model_request_failed_title">Modellanfrage fehlgeschlagen</string>
@@ -1018,7 +1023,9 @@
     <string name="active_entries_count">%1$d aktiv</string>
     <string name="change_avatar">Avatar ändern</string>
     <string name="generation_error_character_provider_unavailable">Die an diesen Charakter gebundene Modellkonfiguration ist deaktiviert oder nicht mehr vorhanden.</string>
+    <string name="generation_error_character_provider_unavailable_named">Die an diesen Charakter gebundene Modellkonfiguration „%1$s“ ist deaktiviert.</string>
     <string name="generation_error_summary_provider_unavailable">Die ausgewählte Modellkonfiguration für Zusammenfassungen ist deaktiviert oder nicht mehr vorhanden.</string>
+    <string name="generation_error_summary_provider_unavailable_named">Die ausgewählte Modellkonfiguration „%1$s“ für Zusammenfassungen ist deaktiviert.</string>
     <string name="follow_global_model">Globalem Modell folgen</string>
     <string name="character_model_config">Modellkonfiguration des Charakters</string>
     <string name="character_model_config_helper">Wird für Antworten dieses Charakters verwendet. Deaktivierte Konfigurationen bleiben bis zur Änderung gebunden.</string>

@@ -791,9 +791,14 @@
     <string name="generation_error_no_provider">沒有可用的已啟用模型設定。</string>
     <string name="generation_error_prompt_budget">提示詞需要 %1$d 個 token，超過可用輸入預算 %2$d 個 token。</string>
     <string name="generation_error_unauthorized">模型服務拒絕了目前的憑證。</string>
+    <string name="generation_error_unauthorized_named">「%1$s」設定的模型服務拒絕了目前的憑證。</string>
     <string name="generation_error_forbidden">模型服務拒絕了這次請求。</string>
+    <string name="generation_error_forbidden_named">「%1$s」設定的模型服務拒絕了這次請求。</string>
     <string name="generation_error_rate_limited">模型服務目前忙碌，請稍後重試。</string>
+    <string name="generation_error_rate_limited_named">「%1$s」設定的模型服務目前忙碌，請稍後重試。</string>
+    <string name="generation_error_request_failed_named">「%1$s」設定的模型請求失敗。</string>
     <string name="generation_error_http">模型服務回傳 HTTP %1$d。</string>
+    <string name="generation_error_http_named">「%1$s」設定的模型服務回傳 HTTP %2$d。</string>
     <string name="generation_error_network">無法連線模型服務，請檢查網路後重試。</string>
     <string name="generation_error_empty_response">模型回傳了空回應。</string>
     <string name="model_request_failed_title">模型請求失敗</string>
@@ -1038,7 +1043,9 @@
     <string name="active_entries_count">已啟用 %1$d 個</string>
     <string name="change_avatar">更換頭像</string>
     <string name="generation_error_character_provider_unavailable">綁定到此角色的模型設定已停用或不存在。</string>
+    <string name="generation_error_character_provider_unavailable_named">綁定到此角色的「%1$s」模型設定已停用。</string>
     <string name="generation_error_summary_provider_unavailable">所選摘要模型設定已停用或不存在。</string>
+    <string name="generation_error_summary_provider_unavailable_named">所選摘要模型設定「%1$s」已停用。</string>
     <string name="follow_global_model">跟隨全域模型</string>
     <string name="character_model_config">角色模型設定</string>
     <string name="character_model_config_helper">用於此角色的回覆；停用後仍保留綁定，直到手動變更。</string>

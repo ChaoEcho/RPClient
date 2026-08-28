@@ -794,9 +794,14 @@
     <string name="generation_error_no_provider">Нет доступной включённой конфигурации модели.</string>
     <string name="generation_error_prompt_budget">Требуемый промпт (%1$d токенов) превышает доступный бюджет ввода (%2$d токенов).</string>
     <string name="generation_error_unauthorized">Сервис модели отклонил учётные данные.</string>
+    <string name="generation_error_unauthorized_named">Сервис модели из конфигурации «%1$s» отклонил учётные данные.</string>
     <string name="generation_error_forbidden">Сервис модели отклонил этот запрос.</string>
+    <string name="generation_error_forbidden_named">Сервис модели из конфигурации «%1$s» отклонил этот запрос.</string>
     <string name="generation_error_rate_limited">Сервис модели занят. Повторите попытку позже.</string>
+    <string name="generation_error_rate_limited_named">Сервис модели из конфигурации «%1$s» занят. Повторите попытку позже.</string>
+    <string name="generation_error_request_failed_named">Запрос к модели из конфигурации «%1$s» завершился ошибкой.</string>
     <string name="generation_error_http">Сервис модели вернул HTTP %1$d.</string>
+    <string name="generation_error_http_named">Сервис модели из конфигурации «%1$s» вернул HTTP %2$d.</string>
     <string name="generation_error_network">Не удалось связаться с сервисом модели. Проверьте сеть и повторите попытку.</string>
     <string name="generation_error_empty_response">Модель вернула пустой ответ.</string>
     <string name="model_request_failed_title">Ошибка запроса к модели</string>
@@ -1021,7 +1026,9 @@
     <string name="active_entries_count">Активно: %1$d</string>
     <string name="change_avatar">Сменить аватар</string>
     <string name="generation_error_character_provider_unavailable">Конфигурация модели, привязанная к этому персонажу, отключена или больше не существует.</string>
+    <string name="generation_error_character_provider_unavailable_named">Конфигурация модели «%1$s», привязанная к этому персонажу, отключена.</string>
     <string name="generation_error_summary_provider_unavailable">Выбранная конфигурация модели для суммаризации отключена или больше не существует.</string>
+    <string name="generation_error_summary_provider_unavailable_named">Выбранная конфигурация модели «%1$s» для суммаризации отключена.</string>
     <string name="follow_global_model">Использовать глобальную модель</string>
     <string name="character_model_config">Конфигурация модели персонажа</string>
     <string name="character_model_config_helper">Используется для ответов этого персонажа. Отключённая конфигурация остаётся привязанной до изменения.</string>

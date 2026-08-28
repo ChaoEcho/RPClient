@@ -842,9 +842,14 @@
     <string name="generation_error_no_provider">没有可用的已启用模型配置。</string>
     <string name="generation_error_prompt_budget">提示词需要 %1$d 个 token，超过可用输入预算 %2$d 个 token。</string>
     <string name="generation_error_unauthorized">模型服务拒绝了当前凭据。</string>
+    <string name="generation_error_unauthorized_named">“%1$s”配置的模型服务拒绝了当前凭据。</string>
     <string name="generation_error_forbidden">模型服务拒绝了这次请求。</string>
+    <string name="generation_error_forbidden_named">“%1$s”配置的模型服务拒绝了这次请求。</string>
     <string name="generation_error_rate_limited">模型服务当前繁忙，请稍后重试。</string>
+    <string name="generation_error_rate_limited_named">“%1$s”配置的模型服务当前繁忙，请稍后重试。</string>
+    <string name="generation_error_request_failed_named">“%1$s”配置的模型请求失败。</string>
     <string name="generation_error_http">模型服务返回 HTTP %1$d。</string>
+    <string name="generation_error_http_named">“%1$s”配置的模型服务返回 HTTP %2$d。</string>
     <string name="generation_error_network">无法连接模型服务，请检查网络后重试。</string>
     <string name="generation_error_empty_response">模型返回了空响应。</string>
     <string name="model_request_failed_title">模型请求失败</string>
@@ -1040,7 +1045,9 @@
     <string name="openrouter_allow_fallbacks">允许上游供应商回退</string>
     <string name="openrouter_session_affinity_note">自动模式下，RPClient 会为每个对话发送稳定的匿名会话 ID 以启用粘性路由；启用首选上游供应商后，其顺序设置优先。</string>
     <string name="generation_error_character_provider_unavailable">绑定到此角色的模型配置已停用或不存在。</string>
+    <string name="generation_error_character_provider_unavailable_named">绑定到此角色的“%1$s”模型配置已停用。</string>
     <string name="generation_error_summary_provider_unavailable">所选摘要模型配置已停用或不存在。</string>
+    <string name="generation_error_summary_provider_unavailable_named">所选摘要模型配置“%1$s”已停用。</string>
     <string name="follow_global_model">跟随全局模型</string>
     <string name="character_model_config">角色模型配置</string>
     <string name="character_model_config_helper">用于此角色的回复；停用后仍保留绑定，直至手动更改。</string>

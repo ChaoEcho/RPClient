@@ -859,9 +859,14 @@
     <string name="generation_error_no_provider">No hay ninguna configuración de modelo habilitada disponible.</string>
     <string name="generation_error_prompt_budget">El prompt requerido (%1$d tokens) supera el presupuesto de entrada disponible (%2$d tokens).</string>
     <string name="generation_error_unauthorized">El servicio de modelo rechazó las credenciales.</string>
+    <string name="generation_error_unauthorized_named">El servicio de modelo de la configuración «%1$s» rechazó las credenciales.</string>
     <string name="generation_error_forbidden">El servicio de modelo denegó esta solicitud.</string>
+    <string name="generation_error_forbidden_named">El servicio de modelo de la configuración «%1$s» denegó esta solicitud.</string>
     <string name="generation_error_rate_limited">El servicio de modelo está ocupado. Inténtelo más tarde.</string>
+    <string name="generation_error_rate_limited_named">El servicio de modelo de la configuración «%1$s» está ocupado. Inténtelo más tarde.</string>
+    <string name="generation_error_request_failed_named">La solicitud de modelo de la configuración «%1$s» falló.</string>
     <string name="generation_error_http">El servicio de modelo devolvió el estado HTTP %1$d.</string>
+    <string name="generation_error_http_named">El servicio de modelo de la configuración «%1$s» devolvió el estado HTTP %2$d.</string>
     <string name="generation_error_network">No se pudo conectar con el servicio de modelo. Compruebe la red e inténtelo de nuevo.</string>
     <string name="generation_error_empty_response">El modelo devolvió una respuesta vacía.</string>
     <string name="model_request_failed_title">Error en la solicitud del modelo</string>
@@ -1044,7 +1049,9 @@
     <string name="prompt_story_summarize_desc">Controla cómo se actualiza el resumen de la historia</string>
     <string name="prompt_source_story_summary">Resumen de la historia</string>
     <string name="generation_error_character_provider_unavailable">La configuración de modelo vinculada a este personaje está desactivada o ya no existe.</string>
+    <string name="generation_error_character_provider_unavailable_named">La configuración de modelo «%1$s» vinculada a este personaje está desactivada.</string>
     <string name="generation_error_summary_provider_unavailable">La configuración de modelo de resumen seleccionada está desactivada o ya no existe.</string>
+    <string name="generation_error_summary_provider_unavailable_named">La configuración de modelo de resumen «%1$s» seleccionada está desactivada.</string>
     <string name="follow_global_model">Seguir modelo global</string>
     <string name="character_model_config">Configuración de modelo del personaje</string>
     <string name="character_model_config_helper">Utilizada para las respuestas de este personaje. Las configuraciones desactivadas siguen vinculadas hasta que se cambien.</string>

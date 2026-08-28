@@ -1,10 +1,12 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.LLMProviderRequestException
 import me.kafuuneko.rpclient.libs.llm.LLMRequestException
 import me.kafuuneko.rpclient.libs.llm.NoEnabledLLMProviderException
 import me.kafuuneko.rpclient.libs.llm.RoutingSessionId
@@ -213,7 +215,7 @@ class LLMRepository(
                 request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
             ).requireNonEmptyContent()
         } catch (error: Exception) {
-            throw error.asModelRequestException()
+            throw error.withProviderRequestContext(provider.name)
         }
     }
 
@@ -253,7 +255,7 @@ class LLMRepository(
             request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
         ).requireNonEmptyContent().catch { error ->
             if (error is Exception) {
-                throw error.asModelRequestException()
+                throw error.withProviderRequestContext(provider.name)
             }
             throw error
         }
@@ -305,6 +307,15 @@ private fun Exception.asModelRequestException(): Exception {
     } else {
         this
     }
+}
+
+/** 为非取消请求错误附加模型配置名称，供页面给出准确修复提示。 */
+private fun Exception.withProviderRequestContext(providerName: String): Exception {
+    if (this is CancellationException || this is LLMProviderRequestException) return this
+    return LLMProviderRequestException(
+        providerName = providerName,
+        requestCause = asModelRequestException()
+    )
 }
 
 /**

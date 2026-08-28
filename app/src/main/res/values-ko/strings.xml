@@ -791,9 +791,14 @@
     <string name="generation_error_no_provider">사용 가능한 활성 모델 구성이 없습니다.</string>
     <string name="generation_error_prompt_budget">필요한 프롬프트(%1$d 토큰)가 사용 가능한 입력 예산(%2$d 토큰)을 초과합니다.</string>
     <string name="generation_error_unauthorized">모델 서비스가 인증 정보를 거부했습니다.</string>
+    <string name="generation_error_unauthorized_named">“%1$s” 모델 설정의 서비스가 인증 정보를 거부했습니다.</string>
     <string name="generation_error_forbidden">모델 서비스가 이 요청을 거부했습니다.</string>
+    <string name="generation_error_forbidden_named">“%1$s” 모델 설정의 서비스가 이 요청을 거부했습니다.</string>
     <string name="generation_error_rate_limited">모델 서비스가 혼잡합니다. 나중에 다시 시도하세요.</string>
+    <string name="generation_error_rate_limited_named">“%1$s” 모델 설정의 서비스가 혼잡합니다. 나중에 다시 시도하세요.</string>
+    <string name="generation_error_request_failed_named">“%1$s” 모델 설정의 요청에 실패했습니다.</string>
     <string name="generation_error_http">모델 서비스가 HTTP %1$d을 반환했습니다.</string>
+    <string name="generation_error_http_named">“%1$s” 모델 설정의 서비스가 HTTP %2$d을 반환했습니다.</string>
     <string name="generation_error_network">모델 서비스에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
     <string name="generation_error_empty_response">모델이 빈 응답을 반환했습니다.</string>
     <string name="model_request_failed_title">모델 요청 실패</string>
@@ -1014,7 +1019,9 @@
     <string name="active_entries_count">%1$d개 활성화</string>
     <string name="change_avatar">아바타 변경</string>
     <string name="generation_error_character_provider_unavailable">이 캐릭터에 연결된 모델 설정이 비활성화되었거나 더 이상 존재하지 않습니다.</string>
+    <string name="generation_error_character_provider_unavailable_named">이 캐릭터에 연결된 “%1$s” 모델 설정이 비활성화되었습니다.</string>
     <string name="generation_error_summary_provider_unavailable">선택한 요약 모델 설정이 비활성화되었거나 더 이상 존재하지 않습니다.</string>
+    <string name="generation_error_summary_provider_unavailable_named">선택한 “%1$s” 요약 모델 설정이 비활성화되었습니다.</string>
     <string name="follow_global_model">전역 모델 따르기</string>
     <string name="character_model_config">캐릭터 모델 설정</string>
     <string name="character_model_config_helper">이 캐릭터의 답변에 사용합니다. 비활성화된 설정도 변경할 때까지 연결이 유지됩니다.</string>

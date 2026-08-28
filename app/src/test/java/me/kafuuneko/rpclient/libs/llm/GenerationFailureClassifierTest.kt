@@ -57,6 +57,15 @@ class GenerationFailureClassifierTest {
             GenerationFailure.RequestFailure,
             classifyGenerationFailure(LLMRequestException(IllegalStateException("secret")))
         )
+        assertEquals(
+            GenerationFailure.Unauthorized,
+            classifyGenerationFailure(
+                LLMProviderRequestException(
+                    providerName = "Role model",
+                    requestCause = LLMHttpStatusException(401)
+                )
+            )
+        )
         assertEquals(GenerationFailure.Network, classifyGenerationFailure(IOException("secret")))
         assertEquals(
             GenerationFailure.EmptyResponse,

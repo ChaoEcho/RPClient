@@ -793,9 +793,14 @@
     <string name="generation_error_no_provider">Aucune configuration de modèle activée n’est disponible.</string>
     <string name="generation_error_prompt_budget">Le prompt requis (%1$d jetons) dépasse le budget d’entrée disponible (%2$d jetons).</string>
     <string name="generation_error_unauthorized">Le service de modèle a rejeté les identifiants.</string>
+    <string name="generation_error_unauthorized_named">Le service de modèle de la configuration « %1$s » a rejeté les identifiants.</string>
     <string name="generation_error_forbidden">Le service de modèle a refusé cette requête.</string>
+    <string name="generation_error_forbidden_named">Le service de modèle de la configuration « %1$s » a refusé cette requête.</string>
     <string name="generation_error_rate_limited">Le service de modèle est occupé. Réessayez plus tard.</string>
+    <string name="generation_error_rate_limited_named">Le service de modèle de la configuration « %1$s » est occupé. Réessayez plus tard.</string>
+    <string name="generation_error_request_failed_named">La requête au modèle de la configuration « %1$s » a échoué.</string>
     <string name="generation_error_http">Le service de modèle a renvoyé HTTP %1$d.</string>
+    <string name="generation_error_http_named">Le service de modèle de la configuration « %1$s » a renvoyé HTTP %2$d.</string>
     <string name="generation_error_network">Impossible de joindre le service de modèle. Vérifiez le réseau et réessayez.</string>
     <string name="generation_error_empty_response">Le modèle a renvoyé une réponse vide.</string>
     <string name="model_request_failed_title">Échec de la requête au modèle</string>
@@ -1018,7 +1023,9 @@
     <string name="active_entries_count">%1$d actives</string>
     <string name="change_avatar">Changer l’avatar</string>
     <string name="generation_error_character_provider_unavailable">La configuration de modèle liée à ce personnage est désactivée ou n’existe plus.</string>
+    <string name="generation_error_character_provider_unavailable_named">La configuration de modèle « %1$s » liée à ce personnage est désactivée.</string>
     <string name="generation_error_summary_provider_unavailable">La configuration de modèle sélectionnée pour les résumés est désactivée ou n’existe plus.</string>
+    <string name="generation_error_summary_provider_unavailable_named">La configuration de modèle « %1$s » sélectionnée pour les résumés est désactivée.</string>
     <string name="follow_global_model">Suivre le modèle global</string>
     <string name="character_model_config">Configuration du modèle du personnage</string>
     <string name="character_model_config_helper">Utilisée pour les réponses de ce personnage. Une configuration désactivée reste liée jusqu’à modification.</string>

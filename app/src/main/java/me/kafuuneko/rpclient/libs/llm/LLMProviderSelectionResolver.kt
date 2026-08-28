@@ -9,7 +9,8 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 /** 显式模型配置不可用时，用于区分角色回复和摘要两类可行动错误。 */
 class UnavailableLLMProviderSelectionException(
     val scope: LLMProviderSelectionScope,
-    val providerId: Long
+    val providerId: Long,
+    val providerName: String? = null
 ) : IllegalStateException("Selected LLM provider is unavailable")
 
 /** 模型配置选择的业务作用域。 */
@@ -60,9 +61,13 @@ class LLMProviderSelectionResolver(
         providerId: Long,
         scope: LLMProviderSelectionScope
     ): LLMProvider {
-        return mLLMRepository.getProviderById(providerId)
-            ?.takeIf { it.isEnabled }
-            ?: throw UnavailableLLMProviderSelectionException(scope, providerId)
+        val provider = mLLMRepository.getProviderById(providerId)
+        return provider?.takeIf { it.isEnabled }
+            ?: throw UnavailableLLMProviderSelectionException(
+                scope = scope,
+                providerId = providerId,
+                providerName = provider?.name
+            )
     }
 
     private suspend fun getCharacterProviderId(character: Character): Long {

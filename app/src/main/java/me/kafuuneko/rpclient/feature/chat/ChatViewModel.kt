@@ -1051,15 +1051,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return true 表示已就绪可调用，false 表示已拦截并弹窗引导
      */
     private suspend fun ensureProviderConfigured(sessionId: Long, characterId: Long): Boolean {
+        // 加载角色实体以解析角色绑定或全局默认配置
         val character = withContext(Dispatchers.IO) {
             mCharacterRepository.getCharacterById(characterId)
         }
-        val provider = if (character != null) {
-            withContext(Dispatchers.IO) {
-                mProviderSelectionResolver.getCharacterProviderOrNull(character)
-            }
-        } else null
-        if (provider == null) {
+        if (character == null) {
             val guide = noProviderModelSettingsGuide(mContext)
             refreshUiState(
                 sessionId = sessionId,
@@ -1067,7 +1063,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
             return false
         }
-        return true
+        // 通过严格选择保留已停用角色绑定的配置名称，供错误对话框准确定位
+        val providerError = runCatching {
+            withContext(Dispatchers.IO) {
+                mProviderSelectionResolver.requireCharacterProvider(character)
+            }
+        }.exceptionOrNull() ?: return true
+        val failure = providerError.toGenerationFailurePresentation(
+            mContext,
+            R.string.generation_failed
+        ) ?: throw providerError
+        // 只拦截具有模型配置修复入口的已知选择错误
+        val guide = failure.modelSettingsGuide ?: throw providerError
+        refreshUiState(
+            sessionId = sessionId,
+            dialogState = guide.toChatDialogState()
+        )
+        return false
     }
 
     /**
