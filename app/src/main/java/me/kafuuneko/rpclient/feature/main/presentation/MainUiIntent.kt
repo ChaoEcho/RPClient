@@ -3,10 +3,10 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import android.net.Uri
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {

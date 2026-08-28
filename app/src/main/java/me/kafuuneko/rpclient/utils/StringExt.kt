@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.utils
+package me.kafuuneko.rpclient.utils
 
 private val ThinkBlockRegex = Regex("<think>[\\s\\S]*?(</think>|$)", RegexOption.IGNORE_CASE)
 

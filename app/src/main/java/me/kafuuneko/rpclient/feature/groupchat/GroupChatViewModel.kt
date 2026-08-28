@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.feature.groupchat
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -46,8 +45,8 @@ import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatMessageSource
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
@@ -64,8 +63,8 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.utils.formatTimestamp
-import me.kafuuneko.rpclient.libs.utils.toggleAll
+import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.ui.message.toMessageContentParts
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject

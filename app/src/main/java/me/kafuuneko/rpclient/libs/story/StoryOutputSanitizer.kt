@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.story
 
-import me.kafuuneko.rpclient.libs.utils.removeThinkBlocks
+import me.kafuuneko.rpclient.utils.removeThinkBlocks
 
 /** 只移除可确定为模型包装内容的输出，不改写正文标点和排版。 */
 class StoryOutputSanitizer {

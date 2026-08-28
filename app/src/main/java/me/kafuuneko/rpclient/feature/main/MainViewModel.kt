@@ -70,11 +70,11 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
@@ -85,8 +85,8 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
-import me.kafuuneko.rpclient.libs.utils.formatTimestamp
-import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
+import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

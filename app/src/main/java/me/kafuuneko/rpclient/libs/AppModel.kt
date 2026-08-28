@@ -3,8 +3,8 @@ package me.kafuuneko.rpclient.libs
 import com.chibatching.kotpref.KotprefModel
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 
 /**
  * 应用级持久偏好模型。

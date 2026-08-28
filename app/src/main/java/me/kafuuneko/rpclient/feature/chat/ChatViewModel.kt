@@ -47,10 +47,10 @@ import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
-import me.kafuuneko.rpclient.libs.prompt.PromptGenerationMode
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
@@ -67,10 +67,10 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import me.kafuuneko.rpclient.libs.utils.formatTimestamp
-import me.kafuuneko.rpclient.libs.utils.toggle
-import me.kafuuneko.rpclient.libs.utils.toggleAll
-import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.utils.toggleAll
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

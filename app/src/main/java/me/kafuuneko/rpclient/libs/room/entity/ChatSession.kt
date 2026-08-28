@@ -5,7 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
+import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
  * 单聊会话实体。

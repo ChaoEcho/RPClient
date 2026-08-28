@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.image
+package me.kafuuneko.rpclient.model
 
 /**
  * 原图坐标系中的正方形裁剪选区。

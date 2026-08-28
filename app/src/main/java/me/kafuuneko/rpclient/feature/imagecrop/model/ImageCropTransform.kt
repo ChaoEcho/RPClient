@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.imagecrop.model
 
-import me.kafuuneko.rpclient.libs.image.SquareCropSelection
+import me.kafuuneko.rpclient.model.SquareCropSelection
 
 /** 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。 */
 data class ImageCropTransform(

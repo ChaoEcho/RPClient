@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime

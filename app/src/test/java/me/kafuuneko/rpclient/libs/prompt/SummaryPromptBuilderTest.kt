@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.prompt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import org.junit.Test
 
 class SummaryPromptBuilderTest {

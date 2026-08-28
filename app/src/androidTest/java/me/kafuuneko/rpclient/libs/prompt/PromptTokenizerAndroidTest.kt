@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import org.junit.Assert.assertEquals
 import org.junit.Test

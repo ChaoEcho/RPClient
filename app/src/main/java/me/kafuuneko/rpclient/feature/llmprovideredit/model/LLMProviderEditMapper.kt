@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.utils.formatJsonPretty
 

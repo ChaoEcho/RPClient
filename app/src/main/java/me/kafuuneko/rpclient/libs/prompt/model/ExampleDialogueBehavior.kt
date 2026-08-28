@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.model
 
 /** 示例对话在 Prompt 预算中的保留策略。 */
 enum class ExampleDialogueBehavior(val persistedValue: Int) {

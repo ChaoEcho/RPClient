@@ -4,6 +4,13 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

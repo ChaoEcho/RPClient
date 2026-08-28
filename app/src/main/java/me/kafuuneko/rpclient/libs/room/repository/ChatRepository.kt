@@ -6,7 +6,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
-import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
+import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
  * 构建对话上下文时使用的总结快照及其后的普通消息。

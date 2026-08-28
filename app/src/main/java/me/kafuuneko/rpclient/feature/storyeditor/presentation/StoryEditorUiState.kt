@@ -7,7 +7,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
 /** 章节编辑器页面状态树；当前章节正文由独立文档状态桥接，不复制到此处。 */
 sealed class StoryEditorUiState {

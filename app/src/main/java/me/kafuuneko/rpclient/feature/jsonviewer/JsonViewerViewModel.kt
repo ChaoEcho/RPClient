@@ -11,7 +11,7 @@ import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.libs.core.CoreViewModel
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.utils.toPreview
+import me.kafuuneko.rpclient.utils.toPreview
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener

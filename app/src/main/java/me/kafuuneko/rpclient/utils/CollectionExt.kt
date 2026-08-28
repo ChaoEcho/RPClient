@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.utils
+package me.kafuuneko.rpclient.utils
 
 /** 返回替换指定下标后的新列表；下标无效时保持原列表。 */
 fun <T> List<T>.updateAt(index: Int, value: T): List<T> {

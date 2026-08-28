@@ -3,21 +3,20 @@ package me.kafuuneko.rpclient.libs.groupchat
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehaviorProvider
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.PromptMessageDraft
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
-import me.kafuuneko.rpclient.libs.prompt.PromptRetentionPolicy
-import me.kafuuneko.rpclient.libs.prompt.PromptSource
-import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
@@ -44,7 +43,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
-import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /**
  * 构建一次群聊生成请求所需的完整上下文。

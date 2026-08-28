@@ -14,9 +14,9 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.utils.orSingleBlank
-import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
-import me.kafuuneko.rpclient.libs.utils.updateAt
+import me.kafuuneko.rpclient.utils.orSingleBlank
+import me.kafuuneko.rpclient.utils.removeAtOrSelf
+import me.kafuuneko.rpclient.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

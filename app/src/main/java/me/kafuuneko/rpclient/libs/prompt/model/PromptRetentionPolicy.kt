@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.model
 
 /** 单聊和群聊共享的 Prompt 保留优先级策略与常量定义。 */
 internal object PromptRetentionPolicy {

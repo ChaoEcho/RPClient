@@ -3,8 +3,20 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.usesCharacterReplyTask
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -13,7 +25,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
-import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /**
  * 单角色聊天 Prompt 构建器。

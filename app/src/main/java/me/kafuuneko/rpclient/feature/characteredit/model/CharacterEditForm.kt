@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.characteredit.model
 
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.Character
-import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
+import me.kafuuneko.rpclient.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
 
 /**

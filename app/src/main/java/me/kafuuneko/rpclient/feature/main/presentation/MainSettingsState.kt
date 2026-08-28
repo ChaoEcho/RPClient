@@ -2,10 +2,10 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
 data class MainSettingsState(

@@ -7,7 +7,7 @@ import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
 sealed class GroupChatUiState {

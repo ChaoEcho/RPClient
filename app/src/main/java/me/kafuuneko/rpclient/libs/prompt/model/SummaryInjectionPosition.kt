@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.model
 
 /**
  * 摘要在 Prompt 中的注入位置。

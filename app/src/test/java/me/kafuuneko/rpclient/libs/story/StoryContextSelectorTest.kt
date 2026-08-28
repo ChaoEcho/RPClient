@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.libs.story
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext

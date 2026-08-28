@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -19,7 +19,6 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingSelection
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
@@ -27,9 +26,9 @@ import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.utils.toggle
-import me.kafuuneko.rpclient.libs.utils.toggleAll
-import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.utils.toggleAll
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

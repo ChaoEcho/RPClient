@@ -9,7 +9,7 @@ import android.net.Uri
 import androidx.core.graphics.scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.libs.image.SquareCropSelection
+import me.kafuuneko.rpclient.model.SquareCropSelection
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 import java.io.ByteArrayInputStream

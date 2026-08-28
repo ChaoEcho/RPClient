@@ -25,8 +25,8 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
-import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
-import me.kafuuneko.rpclient.libs.utils.toggle
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.toggle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

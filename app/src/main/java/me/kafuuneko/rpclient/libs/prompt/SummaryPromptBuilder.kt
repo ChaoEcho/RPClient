@@ -5,11 +5,12 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /** 单聊总结请求与其实际覆盖消息使用同一次预算选择结果。 */
 data class SummaryPromptBuildResult(

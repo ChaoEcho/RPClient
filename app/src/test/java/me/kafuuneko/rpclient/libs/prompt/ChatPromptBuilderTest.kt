@@ -3,6 +3,14 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession

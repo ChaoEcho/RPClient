@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 
 /** 模型配置编辑页的字段变更、连接测试和保存意图。 */
 sealed class LLMProviderEditUiIntent {

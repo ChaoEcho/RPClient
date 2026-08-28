@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.utils
+package me.kafuuneko.rpclient.utils
 
 import java.text.SimpleDateFormat
 import java.util.Date

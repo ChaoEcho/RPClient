@@ -3,6 +3,12 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionItem
+import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
+import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 最终可发送请求及其同源检查报告。 */
@@ -45,7 +51,7 @@ class PromptRequestFinalizer(
      * - 校验上下文上限与回复 Token 预留的合法性；
      * - 过滤空消息并循环执行“消息后处理 -> Token 统计 -> 超额判定”；
      * - 若满足预算则封装并返回 [PromptFinalizationResult] 及详细检查报告；
-     * - 若超额则按保留优先级（[PromptMessageDraft.retentionPriority]）最低者淘汰一条非必需消息并重新计算；
+     * - 若超额则按保留优先级（[me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft.retentionPriority]）最低者淘汰一条非必需消息并重新计算；
      * - 若所有可丢弃消息均淘汰后依然超限，则抛出 [PromptBudgetExceededException]。
      */
     fun finalize(

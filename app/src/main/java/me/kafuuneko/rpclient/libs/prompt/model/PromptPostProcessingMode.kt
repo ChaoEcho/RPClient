@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.model
 
 /**
  * Prompt 发送前的通用后处理模式。

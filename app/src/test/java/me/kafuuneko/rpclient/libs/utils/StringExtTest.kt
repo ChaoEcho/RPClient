@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.utils
 
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

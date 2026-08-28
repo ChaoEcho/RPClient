@@ -28,8 +28,8 @@ import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer

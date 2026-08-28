@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
@@ -47,13 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.prompt.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.PromptInspectionItem
-import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
-import me.kafuuneko.rpclient.libs.prompt.PromptOmittedItem
-import me.kafuuneko.rpclient.libs.prompt.PromptSource
-import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionItem
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 
 /** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的现代化调试对话框。 */
 @Composable

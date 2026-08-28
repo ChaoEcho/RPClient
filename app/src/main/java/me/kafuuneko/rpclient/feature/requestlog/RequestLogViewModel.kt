@@ -11,7 +11,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.model.LLMRequestLogOverview
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
-import me.kafuuneko.rpclient.libs.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.formatTimestamp
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

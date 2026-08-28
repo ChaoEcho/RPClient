@@ -36,7 +36,7 @@ import androidx.compose.ui.res.stringResource
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
-import me.kafuuneko.rpclient.libs.utils.toggle
+import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
