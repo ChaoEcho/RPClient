@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -91,6 +92,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,6 +115,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSpeechState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.utils.toggle
@@ -276,6 +280,7 @@ private fun ChatNormal(
                     character = state.character,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
                     imageGenerationState = state.conversationState.imageGenerationState,
+                    speechState = state.conversationState.speechState,
                     fileRepository = fileRepository,
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
@@ -698,6 +703,7 @@ private fun MessageBubble(
     character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
     imageGenerationState: ChatImageGenerationState,
+    speechState: ChatSpeechState,
     fileRepository: FileRepository?,
     editing: Boolean,
     editingDraft: String,
@@ -705,6 +711,10 @@ private fun MessageBubble(
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
+    val showSpeechButton = message.role == MessageRole.Assistant &&
+        !message.isStreaming &&
+        !editing &&
+        message.parts.filterIsInstance<MessageContentPart.Text>().any { it.content.isNotBlank() }
     var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
@@ -730,88 +740,108 @@ private fun MessageBubble(
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Surface(
-                modifier = Modifier
-                    .widthIn(max = if (isUser) 310.dp else 295.dp)
-                    .clickable {
-                        if (!editing) {
-                            showActions = !showActions
-                        }
-                    },
-                shape = when (message.role) {
-                    MessageRole.User -> RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = 18.dp,
-                        bottomEnd = 4.dp
-                    )
-
-                    MessageRole.Assistant -> RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = 4.dp,
-                        bottomEnd = 18.dp
-                    )
-
-                    MessageRole.Narrator -> RoundedCornerShape(14.dp)
-                },
-                color = when (message.role) {
-                    MessageRole.User -> MaterialTheme.colorScheme.primary
-                    MessageRole.Assistant -> MaterialTheme.colorScheme.surface
-                    MessageRole.Narrator -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-                },
-                border = when (message.role) {
-                    MessageRole.User -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                    MessageRole.Assistant -> BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-                    )
-
-                    MessageRole.Narrator -> BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                    )
-                },
-                shadowElevation = if (isUser) 1.5.dp else 0.5.dp
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                Surface(
+                    modifier = Modifier
+                        .widthIn(
+                            max = when {
+                                isUser -> 310.dp
+                                showSpeechButton -> 246.dp
+                                else -> 295.dp
+                            }
+                        )
+                        .clickable {
+                            if (!editing) showActions = !showActions
+                        },
+                    shape = when (message.role) {
+                        MessageRole.User -> RoundedCornerShape(
+                            topStart = 18.dp,
+                            topEnd = 18.dp,
+                            bottomStart = 18.dp,
+                            bottomEnd = 4.dp
+                        )
+                        MessageRole.Assistant -> RoundedCornerShape(
+                            topStart = 18.dp,
+                            topEnd = 18.dp,
+                            bottomStart = 4.dp,
+                            bottomEnd = 18.dp
+                        )
+                        MessageRole.Narrator -> RoundedCornerShape(14.dp)
+                    },
+                    color = when (message.role) {
+                        MessageRole.User -> MaterialTheme.colorScheme.primary
+                        MessageRole.Assistant -> MaterialTheme.colorScheme.surface
+                        MessageRole.Narrator -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                    },
+                    border = when (message.role) {
+                        MessageRole.User -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                        MessageRole.Assistant -> BorderStroke(
+                            0.5.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+                        )
+                        MessageRole.Narrator -> BorderStroke(
+                            0.5.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                        )
+                    },
+                    shadowElevation = if (isUser) 1.5.dp else 0.5.dp
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
-                        Text(
-                            text = message.speaker,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = message.time,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = message.speaker,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (isUser) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = message.time,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isUser) {
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                                }
+                            )
+                        }
+                        if (editing) {
+                            MessageEditContent(
+                                draft = editingDraft,
+                                isUser = isUser,
+                                emit = emit
+                            )
+                        } else {
+                            MessageContent(
+                                message = message,
+                                expandedThinkBlockIds = expandedThinkBlockIds,
+                                imageGenerationState = imageGenerationState,
+                                fileRepository = fileRepository,
+                                isUser = isUser,
+                                emit = emit
+                            )
+                        }
                     }
-                    if (editing) {
-                        MessageEditContent(
-                            draft = editingDraft,
-                            isUser = isUser,
-                            emit = emit
-                        )
-                    } else {
-                        MessageContent(
-                            message = message,
-                            expandedThinkBlockIds = expandedThinkBlockIds,
-                            imageGenerationState = imageGenerationState,
-                            fileRepository = fileRepository,
-                            isUser = isUser,
-                            emit = emit
-                        )
-                    }
+                }
+                if (showSpeechButton) {
+                    MessageSpeechButton(
+                        messageId = message.id,
+                        speechState = speechState,
+                        emit = emit
+                    )
                 }
             }
 
@@ -840,6 +870,61 @@ private fun MessageBubble(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MessageSpeechButton(
+    messageId: String,
+    speechState: ChatSpeechState,
+    emit: ChatUiIntent.() -> Unit
+) {
+    val isLoading = speechState is ChatSpeechState.Loading && speechState.messageId == messageId
+    if (isLoading) {
+        val description = stringResource(R.string.tts_loading)
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(17.dp),
+                strokeWidth = 2.dp
+            )
+        }
+        return
+    }
+
+    val isPlaying = speechState is ChatSpeechState.Playing && speechState.messageId == messageId
+    SpeechIconButton(
+        icon = if (isPlaying) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.VolumeUp,
+        contentDescription = stringResource(
+            if (isPlaying) R.string.tts_stop else R.string.tts_speak_message
+        ),
+        onClick = {
+            if (isPlaying) ChatUiIntent.StopSpeech.emit()
+            else ChatUiIntent.SpeakMessage(messageId).emit()
+        }
+    )
+}
+
+@Composable
+private fun SpeechIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(36.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

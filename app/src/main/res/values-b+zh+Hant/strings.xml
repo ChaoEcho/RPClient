@@ -1080,4 +1080,43 @@
     <string name="image_generation_in_progress">已有圖片生成任務正在進行。</string>
     <string name="image_generation_failed">圖片生成失敗。</string>
     <string name="generated_image_content_description">生成的角色扮演場景圖片</string>
+
+    <!-- 語音與朗讀 -->
+    <string name="tts_settings_title">語音與朗讀</string>
+    <string name="tts_settings_subtitle">選擇語音服務、聲音與朗讀風格</string>
+    <string name="tts_provider">語音服務</string>
+    <string name="tts_provider_system">系統語音</string>
+    <string name="tts_provider_system_description">使用裝置上已安裝的語音</string>
+    <string name="tts_provider_mimo">小米 MiMo</string>
+    <string name="tts_provider_mimo_description">使用 MiMo TTS 產生富有表現力的語音</string>
+    <string name="tts_provider_azure">Azure 語音</string>
+    <string name="tts_provider_azure_description">使用 Microsoft Azure 神經網路語音</string>
+    <string name="tts_language">語言</string>
+    <string name="tts_voice">聲音</string>
+    <string name="tts_mimo_voice_default">MiMo 預設</string>
+    <string name="tts_mimo_voice_bingtang">冰糖（中文女聲）</string>
+    <string name="tts_mimo_voice_moli">茉莉（中文女聲）</string>
+    <string name="tts_mimo_voice_soda">蘇打（中文男聲）</string>
+    <string name="tts_mimo_voice_baihua">白樺（中文男聲）</string>
+    <string name="tts_mimo_voice_mia">Mia（英文女聲）</string>
+    <string name="tts_mimo_voice_chloe">Chloe（英文女聲）</string>
+    <string name="tts_mimo_voice_milo">Milo（英文男聲）</string>
+    <string name="tts_mimo_voice_dean">Dean（英文男聲）</string>
+    <string name="tts_speech_rate">語速</string>
+    <string name="tts_pitch">音調</string>
+    <string name="tts_preview">試聽</string>
+    <string name="tts_stop">停止朗讀</string>
+    <string name="tts_preview_text">這是一段所選聲音的試聽文字。</string>
+    <string name="tts_preview_text_label">試聽文字</string>
+    <string name="tts_preview_failed">無法試聽語音。</string>
+    <string name="tts_api_key">API 金鑰</string>
+    <string name="tts_base_url">Base URL</string>
+    <string name="tts_mimo_instructions">表演指示</string>
+    <string name="tts_temperature">溫度</string>
+    <string name="tts_azure_region">Azure 區域</string>
+    <string name="tts_system_voices_unavailable">此裝置上沒有可用的系統語音。</string>
+    <string name="tts_speak_message">朗讀訊息</string>
+    <string name="tts_loading">正在準備語音</string>
+    <string name="tts_no_speakable_text">這則訊息沒有可朗讀的正文。</string>
+    <string name="tts_speech_failed">無法朗讀這則訊息。</string>
 </resources>

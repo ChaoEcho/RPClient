@@ -24,6 +24,10 @@ sealed class ChatUiIntent {
 
     data class GenerateImage(val messageId: String) : ChatUiIntent()
 
+    data class SpeakMessage(val messageId: String) : ChatUiIntent()
+
+    data object StopSpeech : ChatUiIntent()
+
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
     data object OpenSessionLore : ChatUiIntent()

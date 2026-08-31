@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -1460,7 +1461,10 @@ private fun SettingsPage(
         }
         item { ImageGenerationSettingsPanel(state.imageGenerationState, emit) }
 
-        // ================= 4. 提示词与上下文记忆 =================
+        // ================= 4. 语音与朗读 =================
+        item { TtsSettingsEntryCard { MainUiIntent.OpenTtsSettings.emit() } }
+
+        // ================= 5. 提示词与上下文记忆 =================
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }
@@ -1469,7 +1473,7 @@ private fun SettingsPage(
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { SummaryPanel(state.summaryState, emit) }
 
-        // ================= 5. 数据与系统 =================
+        // ================= 6. 数据与系统 =================
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
@@ -2498,6 +2502,28 @@ private fun DebugPanel(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun TtsSettingsEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.AutoMirrored.Rounded.VolumeUp,
+            iconColor = Color(0xFF8B5CF6),
+            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            title = stringResource(R.string.tts_settings_title),
+            subtitle = stringResource(R.string.tts_settings_subtitle),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
     }
 }
 

@@ -23,11 +23,13 @@ import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatImageGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
+import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSpeechState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
@@ -78,6 +80,8 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.tts.TtsService
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggle
@@ -115,6 +119,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
+    private val mTtsService by inject<TtsService>()
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
@@ -123,6 +128,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mGenerationJob: Job? = null
     /** 当前唯一的图片生成任务；图片请求不会取消或阻塞正文生成。 */
     private var mImageGenerationJob: Job? = null
+    /** 当前朗读任务；新请求、编辑或删除目标消息时会立即取消。 */
+    private var mSpeechJob: Job? = null
+    /** 朗读请求令牌，防止旧任务收尾覆盖新任务的 UI 状态。 */
+    private var mSpeechRequestId: Long = 0L
     /** 将 Application 级生成快照重新投影到当前页面，页面销毁时仅停止观察，不停止生成。 */
     private var mGenerationObserverJob: Job? = null
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
@@ -194,6 +203,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ?.takeIf { it.sessionId == sessionId }
                     ?.state ?: uiState.conversationState.generationState,
                 imageGenerationState = uiState.conversationState.imageGenerationState,
+                speechState = uiState.conversationState.speechState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = uiState.conversationState.editingMessageId,
                 editingMessageDraft = uiState.conversationState.editingMessageDraft,
@@ -207,7 +217,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
+        val currentSpeechState = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.speechState ?: refreshed.conversationState.speechState
         refreshed.copy(
+            conversationState = refreshed.conversationState.copy(speechState = currentSpeechState),
             dialogState = refreshed.dialogState.resolveExportDialogState(
                 isExportActive = mChatExportJob?.isActive == true
             )
@@ -233,6 +246,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             uiState.copy(page = ChatPage.Conversation).setup()
             return
         }
+        stopSpeechInternal()
         ChatUiState.finished(uiStateFlow.value).setup()
     }
 
@@ -623,6 +637,63 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /** 朗读指定的已完成助手消息，只拼接普通正文片段。 */
+    @UiIntentObserver(ChatUiIntent.SpeakMessage::class)
+    private fun onSpeakMessage(intent: ChatUiIntent.SpeakMessage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val message = uiState.conversationState.messages
+            .firstOrNull { it.id == intent.messageId } ?: return
+        if (message.role != MessageRole.Assistant) return
+        if (message.isStreaming || uiState.conversationState.editingMessageId == message.id) return
+
+        val text = message.parts
+            .filterIsInstance<MessageContentPart.Text>()
+            .joinToString("\n") { it.content }
+            .trim()
+        if (text.isBlank()) {
+            AppViewEvent.PopupToastMessageByResId(R.string.tts_no_speakable_text).tryEmit()
+            return
+        }
+
+        stopSpeechInternal(updateUi = false)
+        val requestId = mSpeechRequestId
+        val currentState = getOrNull<ChatUiState.Normal>() ?: return
+        currentState.copy(
+            conversationState = currentState.conversationState.copy(
+                speechState = ChatSpeechState.Loading(message.id)
+            )
+        ).setup()
+        mSpeechJob = viewModelScope.launch {
+            try {
+                mTtsService.speak(text) {
+                    updateSpeechState(requestId, ChatSpeechState.Playing(message.id))
+                }
+            } catch (_: CancellationException) {
+                return@launch
+            } catch (error: Throwable) {
+                if (requestId == mSpeechRequestId) {
+                    val detail = error.message?.takeIf { it.isNotBlank() }
+                    if (detail == null) {
+                        AppViewEvent.PopupToastMessageByResId(R.string.tts_speech_failed).tryEmit()
+                    } else {
+                        AppViewEvent.PopupToastMessage(detail).tryEmit()
+                    }
+                }
+            } finally {
+                if (requestId == mSpeechRequestId) {
+                    mSpeechJob = null
+                    updateSpeechState(requestId, ChatSpeechState.Idle)
+                }
+            }
+        }
+    }
+
+    /** 停止当前朗读并恢复所有消息的空闲图标。 */
+    @UiIntentObserver(ChatUiIntent.StopSpeech::class)
+    private fun onStopSpeech() {
+        stopSpeechInternal()
+    }
+
     /**
      * 从指定历史消息处创建独立的分支会话（Branching）。
      *
@@ -933,6 +1004,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             loadState = ChatLoadState.Deleting,
             dialogState = ChatDialogState.None
         ).setup()
+        stopSpeechInternal()
         // 异步物理删除会话及关联数据
         withContext(Dispatchers.IO) {
             mChatRepository.deleteSession(sessionId)
@@ -975,6 +1047,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         uiState.copy(dialogState = ChatDialogState.None).setup()
+        if (uiState.conversationState.speechState.messageIdOrNull() == intent.messageId) {
+            stopSpeechInternal()
+        }
         val messageId = intent.messageId.toLongOrNull() ?: return
         withContext(Dispatchers.IO) {
             mChatRepository.deleteMessage(messageId)
@@ -1143,6 +1218,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .firstOrNull { it.id == intent.messageId } ?: return
         // 流式生成中的消息禁止编辑
         if (message.isStreaming) return
+        if (uiState.conversationState.speechState.messageIdOrNull() == message.id) {
+            stopSpeechInternal()
+        }
         // 异步从数据库拉取未经 Display 正则修改的原始文本
         val rawContent = withContext(Dispatchers.IO) {
             val sessionId = mSessionId ?: return@withContext null
@@ -1150,9 +1228,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 .firstOrNull { it.id.toString() == intent.messageId }
                 ?.content
         } ?: return
-        // 将 UI 切换至消息编辑状态并填入原始草稿
-        uiState.copy(
-            conversationState = uiState.conversationState.copy(
+        // 将 UI 切换至消息编辑状态并填入原始草稿，保留异步读取期间的最新朗读状态。
+        val currentState = getOrNull<ChatUiState.Normal>() ?: return
+        currentState.copy(
+            conversationState = currentState.conversationState.copy(
                 editingMessageId = message.id,
                 editingMessageDraft = rawContent
             )
@@ -2038,6 +2117,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
         imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
+        speechState: ChatSpeechState = ChatSpeechState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: String? = null,
         editingMessageDraft: String = "",
@@ -2110,6 +2190,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 inputDraft = inputDraft,
                 generationState = generationState,
                 imageGenerationState = imageGenerationState,
+                speechState = speechState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft
@@ -2147,6 +2228,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?.conversationState?.generationState ?: ChatGenerationState.Idle,
         imageGenerationState: ChatImageGenerationState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.imageGenerationState ?: ChatImageGenerationState.Idle,
+        speechState: ChatSpeechState = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.speechState ?: ChatSpeechState.Idle,
         expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.expandedThinkBlockIds ?: emptySet(),
         editingMessageId: String? = getOrNull<ChatUiState.Normal>()
@@ -2165,13 +2248,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 loadState = loadState,
                 generationState = generationState,
                 imageGenerationState = imageGenerationState,
+                speechState = speechState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
                 dialogState = dialogState
             )
         } ?: return
-        nextState.setup()
+        val currentSpeechState = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.speechState ?: speechState
+        nextState.copy(
+            conversationState = nextState.conversationState.copy(speechState = currentSpeechState)
+        ).setup()
         val trackedSessionId = mGenerationCoordinator.snapshot.value?.sessionId
         if (mGenerationCoordinator.activeSessionId() == sessionId || trackedSessionId == sessionId) {
             mGenerationCoordinator.publish(sessionId, generationState)
@@ -2202,6 +2290,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             lorebooks = lorebooksWithEntries.associate { it.lorebook.id to it.lorebook },
             entries = lorebooksWithEntries.flatMap { it.entries }
         )
+    }
+
+    override fun onCleared() {
+        stopSpeechInternal(updateUi = false)
+        super.onCleared()
+    }
+
+    /** 仅在令牌仍匹配当前请求时更新朗读状态。 */
+    private fun updateSpeechState(requestId: Long, speechState: ChatSpeechState) {
+        if (requestId != mSpeechRequestId) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(speechState = speechState)
+        ).setup()
+    }
+
+    /** 使旧任务失效、取消协程并停止底层合成或播放。 */
+    private fun stopSpeechInternal(updateUi: Boolean = true) {
+        mSpeechRequestId += 1L
+        mSpeechJob?.cancel()
+        mSpeechJob = null
+        mTtsService.stop()
+        if (!updateUi) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.conversationState.speechState == ChatSpeechState.Idle) return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(speechState = ChatSpeechState.Idle)
+        ).setup()
     }
 
     /**
@@ -2443,6 +2559,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val regexMacros: Map<String, String>,
         val worldInfoStateJson: String
     )
+}
+
+private fun ChatSpeechState.messageIdOrNull(): String? {
+    return when (this) {
+        is ChatSpeechState.Loading -> messageId
+        is ChatSpeechState.Playing -> messageId
+        ChatSpeechState.Idle -> null
+    }
 }
 
 /** 将公共模型配置引导转换为单聊页面的对话框状态。 */
