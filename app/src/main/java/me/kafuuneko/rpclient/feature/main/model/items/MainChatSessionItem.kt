@@ -9,5 +9,6 @@ data class MainChatSessionItem(
     val preview: String,
     val messageCount: Int,
     val updatedAt: String,
-    override val latestTime: Long
+    override val latestTime: Long,
+    val isGenerating: Boolean = false
 ) : MainHomeContentItem

@@ -20,6 +20,8 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     /** 记录系统导出选择器对应的角色；结果交付或取消后立即清空，避免串到下一次导出。 */
     private var mPendingExportCharacterId: Long? = null
+    /** 记录单文件 JSON 更新选择器对应的目标角色。 */
+    private var mPendingUpdateCharacterId: Long? = null
 
     /** 把一次性选择的一组角色卡 URI 交给 ViewModel 执行解析和独立事务导入。 */
     private val mImportCharacterCardLauncher = registerForActivityResult(
@@ -27,6 +29,16 @@ class CharacterListActivity : CoreActivityWithEvent() {
     ) { uris ->
         if (uris.isEmpty()) return@registerForActivityResult
         mViewModel.emit(CharacterListUiIntent.ImportCharacterCards(uris))
+    }
+
+    /** 将单个 JSON 文件与明确选择的现有角色配对。 */
+    private val mUpdateCharacterJsonLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        val characterId = mPendingUpdateCharacterId ?: return@registerForActivityResult
+        mPendingUpdateCharacterId = null
+        uri ?: return@registerForActivityResult
+        mViewModel.emit(CharacterListUiIntent.UpdateCharacterJson(characterId, uri))
     }
 
     /** 将 JSON 导出目的 URI 与发起选择时的角色 ID 配对。 */
@@ -71,6 +83,11 @@ class CharacterListActivity : CoreActivityWithEvent() {
                 mImportCharacterCardLauncher.launch(
                     arrayOf("application/json", "text/*", "image/png", "image/*")
                 )
+            }
+
+            is CharacterListViewEvent.OpenCharacterCardUpdater -> {
+                mPendingUpdateCharacterId = viewEvent.characterId
+                mUpdateCharacterJsonLauncher.launch(arrayOf("application/json", "text/json", "text/plain"))
             }
 
             is CharacterListViewEvent.OpenCharacterCardJsonExporter -> {

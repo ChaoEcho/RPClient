@@ -1,0 +1,108 @@
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "角色名称（例：艾莉丝）",
+    "description": "角色人设、背景故事与详细外貌描述",
+    "personality": "角色核心性格、心理特征与说话习惯",
+    "scenario": "当前对话发生的情境、世界观背景或初始剧情设定",
+    "first_mes": "角色发送的第一条初始消息（开场白）",
+    "mes_example": "<START>\n<USER>: 你好！\n<BOT>: 你好呀，今天想聊些什么呢？",
+    "creator_notes": "创作者编写的角色使用说明、提示词推荐或备注信息（仅作元数据展示）",
+    "system_prompt": "角色专属系统提示词（留空则默认使用全局提示词，支持使用 {{original}} 继承全局）",
+    "post_history_instructions": "后置提示词（插入在对话历史末尾，用于强制角色格式或行动约束）",
+    "alternate_greetings": [
+      "备用开场白 1：在酒馆角落与你相遇...",
+      "备用开场白 2：在喧闹的市集中撞见了你..."
+    ],
+    "tags": [
+      "奇幻",
+      "原创",
+      "冒险"
+    ],
+    "creator": "创作者署名",
+    "character_version": "1.0.0",
+    "extensions": {
+      "rpclient": {
+        "image_generation": {
+          "visual_description": "银色长发，碧绿色双眸，身着缀有星月纹样的深蓝色法袍，手持晶莹法杖，身材修长优雅"
+        }
+      },
+      "depth_prompt": {
+        "prompt": "深度提示词（Character's Note，如：保持神秘感）",
+        "depth": 4,
+        "role": "system"
+      },
+      "regex_scripts": [
+        {
+          "id": "regex-example-1",
+          "scriptName": "隐藏元数据标签",
+          "findRegex": "/<meta>.*?<\\/meta>/gs",
+          "replaceString": "",
+          "trimStrings": [],
+          "placement": [
+            2
+          ],
+          "disabled": false,
+          "markdownOnly": true,
+          "promptOnly": false,
+          "runOnEdit": false,
+          "substituteRegex": 0,
+          "minDepth": null,
+          "maxDepth": null
+        }
+      ]
+    },
+    "character_book": {
+      "name": "艾莉丝的专属世界书",
+      "description": "艾莉丝角色卡绑定的背景设定与专有名词词条",
+      "scan_depth": 2,
+      "token_budget": 500,
+      "recursive_scanning": true,
+      "extensions": {},
+      "entries": [
+        {
+          "keys": [
+            "银月法杖",
+            "法杖"
+          ],
+          "secondary_keys": [
+            "魔力",
+            "水晶"
+          ],
+          "comment": "关于银月法杖的背景设定",
+          "content": "银月法杖是由极北寒冰与秘银铸造而成的法器，能够聚集月光魔力。",
+          "constant": false,
+          "selectiveLogic": 0,
+          "order": 100,
+          "position": "after_char",
+          "depth": 4,
+          "role": "system",
+          "probability": 100,
+          "disable": false,
+          "extensions": {
+            "match_character_description": true,
+            "match_persona_description": false,
+            "match_character_personality": true,
+            "match_scenario": true,
+            "match_creator_notes": false,
+            "use_group_scoring": false,
+            "group": "",
+            "group_override": false,
+            "group_weight": null,
+            "prevent_recursion": false,
+            "delay_until_recursion": false,
+            "scan_depth": null,
+            "case_sensitive": null,
+            "match_whole_words": null,
+            "sticky": null,
+            "cooldown": null,
+            "delay": null,
+            "outlet_name": "",
+            "triggers": []
+          }
+        }
+      ]
+    }
+  }
+}

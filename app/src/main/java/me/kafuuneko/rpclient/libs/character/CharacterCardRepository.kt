@@ -100,6 +100,52 @@ class CharacterCardRepository(
         }
     }
 
+    /**
+     * 使用已解析的角色卡完整更新现有角色。
+     *
+     * 角色主键、头像和模型配置关联保持不变；内嵌世界书始终作为新世界书保存并重新绑定，
+     * 旧世界书及已有会话的条目选择不做修改。更新失败时清理本次新增的世界书。
+     */
+    suspend fun updateFromDraft(characterId: Long, draft: CharacterCardImportDraft): Long =
+        withContext(Dispatchers.IO) {
+            val current = mCharacterRepository.getCharacterById(characterId)
+                ?: error("Character not found")
+            var newLorebookId = 0L
+            try {
+                val parsed = draft.card
+                newLorebookId = parsed.embeddedLorebook?.let { book ->
+                    mLorebookRepository.saveImport(
+                        book.copy(
+                            lorebook = book.lorebook.copy(
+                                name = book.lorebook.name.ifBlank {
+                                    "${parsed.character.name}'s Lorebook"
+                                }
+                            )
+                        )
+                    )
+                } ?: 0L
+                mCharacterRepository.saveCharacter(
+                    parsed.character.copy(
+                        id = current.id,
+                        avatar = current.avatar,
+                        characterLorebookId = newLorebookId,
+                        extensionsJson = mRegexCodec.injectIntoCharacterExtensions(
+                            parsed.character.extensionsJson,
+                            parsed.regexScripts
+                        )
+                    )
+                )
+            } catch (error: Exception) {
+                withContext(NonCancellable) {
+                    if (newLorebookId != 0L) {
+                        runCatching { mLorebookRepository.deleteLorebook(newLorebookId) }
+                    }
+                }
+                throw error
+            }
+            characterId
+        }
+
     /** 读取并导入角色卡；无需在写入前检查解析结果时使用。 */
     suspend fun importFromUri(uri: Uri): Long = withContext(Dispatchers.IO) {
         saveImport(readImportFromUri(uri))

@@ -154,6 +154,7 @@ private fun CharacterListNormal(
                     character = character,
                     selected = character.id == state.selectedCharacterId,
                     onClick = { CharacterListUiIntent.SelectCharacter(character.id).emit() },
+                    onUpdate = { CharacterListUiIntent.UpdateCharacterJsonClick(character.id).emit() },
                     onExport = { CharacterListUiIntent.ExportCharacterJsonClick(character.id).emit() }
                 )
             }
@@ -194,6 +195,22 @@ private fun DialogSwitch(
             }
         )
         // 结果统计属于可恢复页面状态，不使用易丢失的瞬时 Toast
+        is CharacterListDialogState.ConfirmCharacterUpdate -> AppWarningDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.update_character_confirm_title),
+            message = stringResource(
+                R.string.update_character_confirm_message,
+                dialogState.currentName,
+                dialogState.importedName,
+                stringResource(
+                    if (dialogState.hasEmbeddedLorebook) R.string.update_character_worldbook_added
+                    else R.string.update_character_worldbook_detached
+                )
+            ),
+            confirmText = stringResource(android.R.string.ok),
+            dismissText = stringResource(android.R.string.cancel),
+            onConfirm = { CharacterListUiIntent.ConfirmUpdateCharacter.emit() }
+        )
         is CharacterListDialogState.BatchImportResult -> AppDialogScaffold(
             onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.batch_import_character_result_title),
@@ -253,8 +270,10 @@ private fun LoadingRow(loadState: CharacterListLoadState) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         CircularProgressIndicator()
-        // 普通列表加载与导出保持简洁，只有批量导入显示阶段计数
-        if (loadState is CharacterListLoadState.Importing) {
+        // 普通列表加载与导出保持简洁，批量导入显示阶段计数。
+        if (loadState == CharacterListLoadState.Updating) {
+            Text(stringResource(R.string.updating_character))
+        } else if (loadState is CharacterListLoadState.Importing) {
             val messageRes = when (loadState.stage) {
                 CharacterImportStage.Reading -> R.string.batch_import_character_reading_progress
                 CharacterImportStage.Saving -> R.string.batch_import_character_saving_progress
@@ -320,6 +339,7 @@ private fun CharacterListCard(
     character: CharacterListItem,
     selected: Boolean,
     onClick: () -> Unit,
+    onUpdate: () -> Unit,
     onExport: () -> Unit
 ) {
     Card(
@@ -393,6 +413,23 @@ private fun CharacterListCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 RpTagRow(character.tags, maxCount = 4)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onUpdate) {
+                Icon(
+                    imageVector = Icons.Rounded.FileDownload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.update_character_from_json))
             }
         }
     }

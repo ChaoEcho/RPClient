@@ -1,0 +1,14 @@
+{
+  "name": "角色名称（或 char_name）",
+  "description": "角色人设与设定（或 char_persona）",
+  "personality": "角色性格特征",
+  "scenario": "场景设定（或 world_scenario）",
+  "first_mes": "开场白（或 char_greeting）",
+  "mes_example": "对话示例（或 example_dialogue）",
+  "creator_notes": "创作者说明（或 creatorcomment）",
+  "creator": "创作者署名",
+  "tags": [
+    "标签1",
+    "标签2"
+  ]
+}

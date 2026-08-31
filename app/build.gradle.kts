@@ -1,3 +1,7 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,6 +22,10 @@ val hasReleaseSigning = listOf(
     releaseKeyPassword
 ).all { !it.isNullOrBlank() }
 
+fun getBuildTimestamp(): String {
+    return SimpleDateFormat("yyyyMMdd.HHmmss", Locale.getDefault()).format(Date())
+}
+
 android {
     namespace = "me.kafuuneko.rpclient"
     compileSdk {
@@ -32,6 +40,7 @@ android {
         targetSdk = 36
         versionCode = 20260203
         versionName = "2026.2.3"
+        buildConfigField("String", "BUILD_TIME", "\"${getBuildTimestamp()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -69,7 +78,9 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+
     sourceSets["androidTest"].assets.directories.add("$projectDir/schemas")
 }
 
@@ -120,4 +131,31 @@ dependencies {
     // model-aware local tokenization
     implementation(libs.jtokkit)
 
+}
+
+tasks.configureEach {
+    if (name.startsWith("package") && (name.endsWith("Debug") || name.endsWith("Release")) && !name.contains("AndroidTest")) {
+        val variantName = if (name.endsWith("Debug")) "debug" else "release"
+        doLast {
+            val variantDir = layout.buildDirectory.dir("outputs/apk/$variantName").get().asFile
+            if (!variantDir.exists()) return@doLast
+            val timestamp = getBuildTimestamp()
+            variantDir.listFiles()?.forEach { file ->
+                if (file.isFile && file.extension == "apk") {
+                    // Extract base clean prefix e.g. "app-debug" or "app-release-unsigned"
+                    val cleanBase = when {
+                        file.name.startsWith("app-debug") -> "app-debug"
+                        file.name.startsWith("app-release-unsigned") -> "app-release-unsigned"
+                        file.name.startsWith("app-release") -> "app-release"
+                        else -> file.nameWithoutExtension.substringBefore('-')
+                    }
+                    val newName = "$cleanBase-$timestamp.apk"
+                    val targetFile = File(variantDir, newName)
+                    if (file.name != newName) {
+                        file.renameTo(targetFile)
+                    }
+                }
+            }
+        }
+    }
 }
