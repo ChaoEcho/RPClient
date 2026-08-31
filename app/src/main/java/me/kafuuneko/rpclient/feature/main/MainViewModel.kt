@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -66,6 +67,9 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationSnapshot
+import me.kafuuneko.rpclient.libs.chat.generation.isGenerating
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -116,12 +120,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mStoryRepository by inject<StoryRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
+    private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
     private val mContext by inject<Context>()
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
     private var mPendingChatImport: ChatArchive? = null
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
     private var mChatImportJob: Job? = null
+    /** 首页观察 Application 级单聊生成状态的任务。 */
+    private var mGenerationObserverJob: Job? = null
 
     /** 初始化主页与设置页全量状态。 */
     @UiIntentObserver(MainUiIntent.Init::class)
@@ -132,9 +139,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
-            homeState = buildHomeState(),
+            homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshot.value),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
+        observeGeneration()
     }
 
     /** 页面从后台恢复可见时触发，增量刷新首页列表与设置项。 */
@@ -145,7 +153,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
-        val homeState = buildHomeState()
+        val homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
         val settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.mergeResumeRefresh(
@@ -261,6 +269,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             uiState.homeState.selectionState as? MainHomeSelectionState.Selecting ?: return
         val selections = selectionState.selectedItems
         if (selections.isEmpty()) return
+        val activeSessionId = mGenerationCoordinator.activeSessionId()
+        if (activeSessionId != null && selections.any {
+                it.type == MainHomeItemType.Chat && it.itemId.toLongOrNull() == activeSessionId
+            }
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.cannot_delete_generating_chat).tryEmit()
+            return
+        }
         uiState.copy(dialogState = dialog.copy(isDeleting = true)).setup()
         try {
             // 在 IO 线程遍历删除选中的各项会话
@@ -279,7 +295,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+                homeState = homeState
+                    .preserveCollapsedGroupsFrom(current.homeState)
+                    .withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -344,7 +362,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+                homeState = homeState
+                    .preserveCollapsedGroupsFrom(current.homeState)
+                    .withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -490,7 +510,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 // 更新首页会话列表并关闭导入弹窗
                 current.copy(
-                    homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
+                    homeState = homeState
+                        .preserveCollapsedGroupsFrom(current.homeState)
+                        .withGenerationSnapshot(mGenerationCoordinator.snapshot.value),
                     dialogState = if (
                         current.dialogState is MainDialogState.ImportChatCharacterSelection
                     ) {
@@ -1461,6 +1483,47 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.update(intValue)
         ).setup()
+    }
+
+    /** 观察唯一单聊生成任务，并只更新首页对应会话卡片的轻量状态。 */
+    private fun observeGeneration() {
+        if (mGenerationObserverJob?.isActive == true) return
+        mGenerationObserverJob = viewModelScope.launch {
+            mGenerationCoordinator.snapshot.collect { snapshot ->
+                val uiState = getOrNull<MainUiState.Normal>() ?: return@collect
+                uiState.copy(
+                    homeState = uiState.homeState.withGenerationSnapshot(snapshot)
+                ).setup()
+            }
+        }
+    }
+
+    /** 同步分组列表和“全部”列表中的重复单聊展示模型。 */
+    private fun MainHomeState.withGenerationSnapshot(
+        snapshot: ChatGenerationSnapshot?
+    ): MainHomeState {
+        val generatingSessionId = snapshot
+            ?.takeIf { it.state.isGenerating() }
+            ?.sessionId
+            ?.toString()
+        fun MainChatSessionItem.markGeneration() = copy(
+            isGenerating = id == generatingSessionId
+        )
+
+        val recentChats = when (val recent = recentChatsState) {
+            MainRecentChatsState.Empty -> recent
+            is MainRecentChatsState.Content -> recent.copy(
+                sessionGroups = recent.sessionGroups.map { group ->
+                    group.copy(sessions = group.sessions.map { it.markGeneration() })
+                }
+            )
+        }
+        return copy(
+            recentChatsState = recentChats,
+            allRecentItems = allRecentItems.map { item ->
+                if (item is MainChatSessionItem) item.markGeneration() else item
+            }
+        )
     }
 
     /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */

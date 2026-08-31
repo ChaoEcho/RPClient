@@ -37,12 +37,19 @@ sealed class CharacterListDialogState {
         val successCount: Int,
         val failureCount: Int
     ) : CharacterListDialogState()
+
+    data class ConfirmCharacterUpdate(
+        val currentName: String,
+        val importedName: String,
+        val hasEmbeddedLorebook: Boolean
+    ) : CharacterListDialogState()
 }
 
 /** 角色列表读取或导入期间的阻塞状态。 */
 sealed class CharacterListLoadState {
     data object None : CharacterListLoadState()
     data object Loading : CharacterListLoadState()
+    data object Updating : CharacterListLoadState()
 
     data class Importing(
         val stage: CharacterImportStage,

@@ -9,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
@@ -93,6 +94,7 @@ internal val appModules = module {
     }
 
     single { Gson() }
+    singleOf(::ChatGenerationCoordinator)
 
     singleOf(::LLMClientFactory)
     singleOf(::LLMProviderSelectionResolver)

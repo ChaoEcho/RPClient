@@ -11,6 +11,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +42,9 @@ import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationSnapshot
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationStartResult
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -81,7 +85,7 @@ import org.koin.core.component.inject
  * 单角色聊天页面的 ViewModel（状态持有者与业务控制器）。
  *
  * 核心职责：
- * - 会话生命周期管理：初始化加载、页面恢复（Resume）、返回拦截（导出保护/取消生成）。
+ * - 会话生命周期管理：初始化加载、页面恢复（Resume）、返回处理（导出保护/后台续跑）。
  * - 消息流转与持久化：发送、重生成、续写、模仿用户、单条编辑、消息与会话删除、会话分叉（Branch）。
  * - 大模型调用与流式控制：Prompt 构建、Token 预算裁剪监测、流式增量接收与 UI 实时渲染、NonCancellable 安全落库。
  * - 正则脚本双阶段处理：持久化前的 Source 正则与渲染时的 Display 正则分离。
@@ -104,12 +108,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
+    private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
     private var mSessionId: Long? = null
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
+    /** 将 Application 级生成快照重新投影到当前页面，页面销毁时仅停止观察，不停止生成。 */
+    private var mGenerationObserverJob: Job? = null
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
     private var mSummaryJob: Job? = null
     /** 用户主动触发的对话归档导出任务 Job；运行期间阻止页面退出以防写入不完整文件。 */
@@ -140,12 +147,21 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         mSessionId = sessionId
-        val loaded = withContext(Dispatchers.IO) { loadNormalState(sessionId) }
+        mLastPromptInspection = mGenerationCoordinator.getPromptInspection(sessionId)
+        val generationSnapshot = mGenerationCoordinator.snapshot.value
+            ?.takeIf { it.sessionId == sessionId }
+        val loaded = withContext(Dispatchers.IO) {
+            loadNormalState(
+                sessionId = sessionId,
+                generationState = generationSnapshot?.state ?: ChatGenerationState.Idle
+            )
+        }
         if (loaded == null) {
             finishWithToast(R.string.session_not_found)
             return
         }
         loaded.setup()
+        observeGeneration(sessionId)
     }
 
     /**
@@ -166,7 +182,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 page = uiState.page,
                 isExpanded = uiState.lorebookState.isExpanded,
                 loadState = uiState.loadState,
-                generationState = uiState.conversationState.generationState,
+                generationState = mGenerationCoordinator.snapshot.value
+                    ?.takeIf { it.sessionId == sessionId }
+                    ?.state ?: uiState.conversationState.generationState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = uiState.conversationState.editingMessageId,
                 editingMessageDraft = uiState.conversationState.editingMessageDraft,
@@ -175,7 +193,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         // 若会话已被删除，则取消任务并结束页面
         if (refreshed == null) {
-            mGenerationJob?.cancel()
+            mGenerationCoordinator.stop(sessionId)
             ChatUiState.finished(uiStateFlow.value).setup()
             return
         }
@@ -193,7 +211,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 拦截与响应逻辑：
      * - 若当前正在导出聊天记录，拦截退出并提示正在导出。
      * - 若当前处于设置页（[ChatPage.Settings]），则切回对话页（[ChatPage.Conversation]）。
-     * - 若正在生成，安全取消生成协程并等待其 NonCancellable 收尾完成后退出页面。
+     * - 退出页面不会取消 Application 级生成任务；重新进入同一会话时会恢复生成状态。
      */
     @UiIntentObserver(ChatUiIntent.Back::class)
     private suspend fun onBack() {
@@ -206,7 +224,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             uiState.copy(page = ChatPage.Conversation).setup()
             return
         }
-        cancelActiveGeneration()
         ChatUiState.finished(uiStateFlow.value).setup()
     }
 
@@ -263,13 +280,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             continueLastAssistantMessage(sessionId)
             return
         }
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() != null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
 
         // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 // 执行用户输入端 Source 正则
                 val input = withContext(Dispatchers.IO) {
@@ -352,10 +369,65 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 若有活跃任务被取消返回 true，否则返回 false
      */
     private suspend fun cancelActiveGeneration(): Boolean {
-        val job = mGenerationJob ?: return false
-        if (!job.isActive) return false
-        job.cancelAndJoin()
-        return true
+        val sessionId = mSessionId ?: return false
+        return mGenerationCoordinator.stop(sessionId)
+    }
+
+    /** 在 Application 级作用域启动生成；并发冲突时统一提示而不创建第二个任务。 */
+    private fun launchGeneration(
+        sessionId: Long,
+        block: suspend () -> Unit
+    ): Job? {
+        return when (val result = mGenerationCoordinator.launch(sessionId, block)) {
+            is ChatGenerationStartResult.Started -> result.job
+            is ChatGenerationStartResult.Busy -> {
+                AppViewEvent.PopupToastMessageByResId(
+                    R.string.generation_already_running
+                ).tryEmit()
+                null
+            }
+        }
+    }
+
+    /**
+     * 观察进程内生成快照，使离开后重新创建的 ChatViewModel 能恢复 Requesting/Streaming/终态。
+     * 当前 ViewModel 自己发起的任务继续走原有高保真 Display 正则渲染路径，避免原始快照覆盖它。
+     */
+    private fun observeGeneration(sessionId: Long) {
+        mGenerationObserverJob?.cancel()
+        mGenerationObserverJob = viewModelScope.launch {
+            mGenerationCoordinator.snapshot.collect { snapshot ->
+                if (snapshot?.sessionId != sessionId) return@collect
+                if (mGenerationJob?.isActive == true) return@collect
+                applyGenerationSnapshot(snapshot)
+            }
+        }
+    }
+
+    /** 将 Application 级快照投影到新页面；终态会重读数据库以展示最终持久化结果。 */
+    private suspend fun applyGenerationSnapshot(snapshot: ChatGenerationSnapshot) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        when (val state = snapshot.state) {
+            ChatGenerationState.Requesting -> uiState.copy(
+                conversationState = uiState.conversationState.copy(generationState = state)
+            ).setup()
+
+            is ChatGenerationState.Streaming -> uiState.copy(
+                conversationState = uiState.conversationState.copy(
+                    generationState = state,
+                    messages = uiState.conversationState.messages.replaceStreamingMessage(
+                        state.messageId,
+                        state.content
+                    )
+                )
+            ).setup()
+
+            ChatGenerationState.Idle,
+            is ChatGenerationState.Failed -> refreshUiState(
+                sessionId = snapshot.sessionId,
+                generationState = state
+            )
+        }
     }
 
     /**
@@ -428,7 +500,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val messageId = intent.messageId.toLongOrNull() ?: return
         // 拦截并发生成
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -552,9 +624,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ExportChatClick::class)
     private fun onExportChatClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
         // 校验是否正处于忙碌或已在导出中
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -582,7 +655,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         // 校验前置互斥状态
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -626,7 +699,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSummarizeNow() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
@@ -640,7 +713,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onRestorePreviousSummary() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true || mSummaryJob?.isActive == true) return
+        if (mGenerationCoordinator.activeSessionId() == sessionId || mSummaryJob?.isActive == true) return
         val restored = withContext(Dispatchers.IO) {
             mChatRepository.restorePreviousSummary(sessionId)
         }
@@ -684,7 +757,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
     private fun onDeleteSessionClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isActive == true) {
+        val sessionId = mSessionId ?: return
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             return
         }
@@ -714,7 +788,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         // 生成中禁止删除
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -741,7 +815,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DeleteMessageClick::class)
     private fun onDeleteMessageClick(intent: ChatUiIntent.DeleteMessageClick) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isActive == true) {
+        val sessionId = mSessionId ?: return
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             return
         }
@@ -759,7 +834,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onConfirmDeleteMessage(intent: ChatUiIntent.ConfirmDeleteMessage) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() == sessionId) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -1097,7 +1172,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截：若已有生成任务在运行则拒绝
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() != null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1115,7 +1190,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 启动重生成协程任务
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 // 更新 UI 为请求中状态
                 refreshUiState(
@@ -1188,7 +1263,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() != null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1202,7 +1277,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
         // 启动续写任务
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 refreshUiState(
                     sessionId = sessionId,
@@ -1268,12 +1343,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationCoordinator.activeSessionId() != null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
         // 启动模仿用户生成任务
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 refreshUiState(
                     sessionId = sessionId,
@@ -1388,7 +1463,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *   - 流式接收 Delta 期间：仅执行临时 Display 正则供 UI 高频渲染，不写数据库。
      *   - 收尾阶段：在 finally 块中，对完整的原始累计文本执行一次 Source 正则后再落库。
      * - 异常与取消保障：
-     *   - 收尾运行在 [NonCancellable] 上下文中，确保用户点击“停止”或退出页面时，已收到的部分内容（partial）绝不丢失，能够被安全持久化。
+     *   - 收尾运行在 [NonCancellable] 上下文中，确保用户点击“停止”或请求异常时，已收到的部分内容（partial）绝不丢失，能够被安全持久化。
      *   - 若在首个 Delta 到达前就被取消，占位消息将被干净清理（deleteEmptyPlaceholder = true）。
      *
      * @param sessionId 会话 ID
@@ -1482,6 +1557,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                                 )
                             )
                         ).setup()
+                        mGenerationCoordinator.publish(
+                            sessionId,
+                            ChatGenerationState.Streaming(active.messageId, active.content)
+                        )
                     }
                     LLMStreamEvent.Connected,
                     is LLMStreamEvent.ReasoningDelta,
@@ -1572,8 +1651,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
-            val job = launchSummaryJob(sessionId, showToast = false)
-            job.join()
+            // 自动总结属于本轮 Application 级生成的一部分，不能切回 viewModelScope，
+            // 否则离开页面会在正文完成后取消总结。
+            summarizeSession(sessionId, showToast = false)
         }
     }
 
@@ -1770,6 +1850,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private fun recordPromptInspection(inspection: PromptInspection) {
         mLastPromptInspection = inspection
+        mSessionId?.let { mGenerationCoordinator.recordPromptInspection(it, inspection) }
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(hasPromptInspection = true).setup()
         // 检查是否存在世界书超限或上下文被裁剪项
@@ -1951,6 +2032,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         } ?: return
         nextState.setup()
+        val trackedSessionId = mGenerationCoordinator.snapshot.value?.sessionId
+        if (mGenerationCoordinator.activeSessionId() == sessionId || trackedSessionId == sessionId) {
+            mGenerationCoordinator.publish(sessionId, generationState)
+        }
     }
 
     /**

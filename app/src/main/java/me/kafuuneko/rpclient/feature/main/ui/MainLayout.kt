@@ -67,6 +67,7 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -1081,15 +1082,24 @@ private fun LazyItemScope.RecentChatSessionCard(
             if (!multiSelectMode) MainUiIntent.EnterMultiSelect(selection).emit()
         },
         trailingContent = {
-            HomeItemMenu(
-                onRename = {
-                    MainUiIntent.ShowRenameItemDialog(selection).emit()
-                },
-                onDelete = {
-                    MainUiIntent.EnterMultiSelect(selection).emit()
-                    MainUiIntent.ShowDeleteSelectedDialog.emit()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (session.isGenerating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
-            )
+                HomeItemMenu(
+                    onRename = {
+                        MainUiIntent.ShowRenameItemDialog(selection).emit()
+                    },
+                    onDelete = {
+                        MainUiIntent.EnterMultiSelect(selection).emit()
+                        MainUiIntent.ShowDeleteSelectedDialog.emit()
+                    }
+                )
+            }
         }
     )
 }

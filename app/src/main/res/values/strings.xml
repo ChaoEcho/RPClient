@@ -175,6 +175,15 @@
     <string name="batch_import_character_saving_progress">Importing %1$d/%2$d</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
+    <string name="update_character_from_json">Update character from JSON</string>
+    <string name="update_character_confirm_title">Update character card?</string>
+    <string name="update_character_confirm_message">“%1$s” will be overwritten with fields and regex scripts from “%2$s”. The avatar, model binding, chats, and memories will be preserved. %3$s</string>
+    <string name="update_character_worldbook_added">The embedded lorebook will be added as a new book and rebound; the old book will not be deleted.</string>
+    <string name="update_character_worldbook_detached">This JSON has no embedded lorebook. The character will be unbound from its current book; the old book will not be deleted.</string>
+    <string name="update_character_success">Character updated</string>
+    <string name="update_character_failed">Failed to update character</string>
+    <string name="updating_character">Updating character</string>
+    <string name="cannot_delete_generating_chat">Stop generation before deleting this chat</string>
     <string name="import_world_book">Import world book</string>
     <string name="export_world_book">Export world book</string>
     <string name="import_world_book_success">World book imported</string>
