@@ -22,6 +22,11 @@ import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
+import me.kafuuneko.rpclient.libs.tts.AzureTtsProvider
+import me.kafuuneko.rpclient.libs.tts.MimoTtsProvider
+import me.kafuuneko.rpclient.libs.tts.SystemTtsProvider
+import me.kafuuneko.rpclient.libs.tts.TtsAudioCache
+import me.kafuuneko.rpclient.libs.tts.TtsService
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
@@ -98,6 +103,11 @@ internal val appModules = module {
     singleOf(::ChatGenerationCoordinator)
 
     singleOf(::OpenAICompatibleImageClient)
+    singleOf(::SystemTtsProvider)
+    singleOf(::MimoTtsProvider)
+    singleOf(::AzureTtsProvider)
+    singleOf(::TtsAudioCache)
+    singleOf(::TtsService)
     singleOf(::LLMClientFactory)
     singleOf(::LLMProviderSelectionResolver)
     singleOf(::LLMModelCatalogClientFactory)

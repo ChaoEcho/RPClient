@@ -165,6 +165,28 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // OpenRouter 会话粘性使用的匿名安装 ID；不会发送原值，只发送按会话哈希后的 ID。
     var llmRoutingInstallationId by stringPref(default = "")
 
+    // 全局 TTS 服务类型；首版由所有单聊角色共用。
+    var ttsProvider by stringPref(default = "system")
+
+    // Android 系统 TTS 语言、声音与韵律设置。
+    var ttsSystemLanguageTag by stringPref(default = "")
+    var ttsSystemVoiceName by stringPref(default = "")
+    var ttsSystemSpeechRate by floatPref(default = 1f)
+    var ttsSystemPitch by floatPref(default = 1f)
+
+    // 小米 MiMo TTS 配置。
+    var ttsMimoBaseUrl by stringPref(default = "https://api.xiaomimimo.com/v1")
+    var ttsMimoApiKey by stringPref(default = "")
+    var ttsMimoVoice by stringPref(default = "mimo_default")
+    var ttsMimoInstructions by stringPref(default = "")
+    var ttsMimoTemperature by floatPref(default = 0.8f)
+
+    // Azure Speech TTS 配置。
+    var ttsAzureApiKey by stringPref(default = "")
+    var ttsAzureRegion by stringPref(default = "")
+    var ttsAzureVoice by stringPref(default = "zh-CN-XiaoxiaoNeural")
+    var ttsAzureSpeechRate by floatPref(default = 1f)
+
     // OpenAI-compatible 图像生成服务的基础 URL。
     var imageGenerationBaseUrl by stringPref(default = "https://api.openai.com/v1")
 

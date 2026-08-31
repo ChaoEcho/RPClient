@@ -1096,4 +1096,43 @@
     <string name="image_generation_in_progress">An image is already being generated.</string>
     <string name="image_generation_failed">Image generation failed.</string>
     <string name="generated_image_content_description">Generated roleplay scene</string>
+
+    <!-- Text-to-speech -->
+    <string name="tts_settings_title">Voice &amp; reading</string>
+    <string name="tts_settings_subtitle">Choose a speech service, voice, and speaking style</string>
+    <string name="tts_provider">Speech service</string>
+    <string name="tts_provider_system">System text-to-speech</string>
+    <string name="tts_provider_system_description">Use voices installed on this device</string>
+    <string name="tts_provider_mimo">Xiaomi MiMo</string>
+    <string name="tts_provider_mimo_description">Generate expressive speech with MiMo TTS</string>
+    <string name="tts_provider_azure">Azure Speech</string>
+    <string name="tts_provider_azure_description">Use Microsoft Azure neural voices</string>
+    <string name="tts_language">Language</string>
+    <string name="tts_voice">Voice</string>
+    <string name="tts_mimo_voice_default">MiMo default</string>
+    <string name="tts_mimo_voice_bingtang">冰糖 (Chinese, female)</string>
+    <string name="tts_mimo_voice_moli">茉莉 (Chinese, female)</string>
+    <string name="tts_mimo_voice_soda">苏打 (Chinese, male)</string>
+    <string name="tts_mimo_voice_baihua">白桦 (Chinese, male)</string>
+    <string name="tts_mimo_voice_mia">Mia (English, female)</string>
+    <string name="tts_mimo_voice_chloe">Chloe (English, female)</string>
+    <string name="tts_mimo_voice_milo">Milo (English, male)</string>
+    <string name="tts_mimo_voice_dean">Dean (English, male)</string>
+    <string name="tts_speech_rate">Speaking speed</string>
+    <string name="tts_pitch">Pitch</string>
+    <string name="tts_preview">Preview</string>
+    <string name="tts_stop">Stop reading</string>
+    <string name="tts_preview_text">This is a preview of the selected voice.</string>
+    <string name="tts_preview_text_label">Preview text</string>
+    <string name="tts_preview_failed">Unable to preview speech.</string>
+    <string name="tts_api_key">API key</string>
+    <string name="tts_base_url">Base URL</string>
+    <string name="tts_mimo_instructions">Performance instructions</string>
+    <string name="tts_temperature">Temperature</string>
+    <string name="tts_azure_region">Azure region</string>
+    <string name="tts_system_voices_unavailable">No system voices are available on this device.</string>
+    <string name="tts_speak_message">Read message aloud</string>
+    <string name="tts_loading">Preparing speech</string>
+    <string name="tts_no_speakable_text">This message has no text that can be read aloud.</string>
+    <string name="tts_speech_failed">Unable to read this message aloud.</string>
 </resources>

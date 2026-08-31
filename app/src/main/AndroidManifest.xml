@@ -4,6 +4,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".RPClientApp"
         android:allowBackup="true"
@@ -16,6 +22,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".feature.tts.TtsSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.about.AboutActivity"
             android:exported="false"

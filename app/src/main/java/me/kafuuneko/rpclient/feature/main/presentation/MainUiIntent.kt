@@ -144,6 +144,8 @@ sealed class MainUiIntent {
 
     data object OpenRequestLogs : MainUiIntent()
 
+    data object OpenTtsSettings : MainUiIntent()
+
     data object OpenAbout : MainUiIntent()
 
     data class EnterMultiSelect(val item: MainHomeItemSelection) : MainUiIntent()

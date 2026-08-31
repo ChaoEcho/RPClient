@@ -45,12 +45,20 @@ sealed class ChatImageGenerationState {
     data class Failed(val messageId: String, val message: String) : ChatImageGenerationState()
 }
 
+/** 单聊页面唯一的消息朗读状态，不进入消息模型或数据库。 */
+sealed interface ChatSpeechState {
+    data object Idle : ChatSpeechState
+    data class Loading(val messageId: String) : ChatSpeechState
+    data class Playing(val messageId: String) : ChatSpeechState
+}
+
 /** 单聊消息列表、输入与生成生命周期子状态。 */
 data class ChatConversationState(
     val messages: List<ChatMessageUiModel>,
     val inputDraft: String = "",
     val generationState: ChatGenerationState = ChatGenerationState.Idle,
     val imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
+    val speechState: ChatSpeechState = ChatSpeechState.Idle,
     val expandedThinkBlockIds: Set<String> = emptySet(),
     val editingMessageId: String? = null,
     val editingMessageDraft: String = ""

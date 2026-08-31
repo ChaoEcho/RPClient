@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
+import me.kafuuneko.rpclient.feature.tts.TtsSettingsActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
@@ -834,6 +835,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    /** 打开全局语音与朗读设置。 */
+    @UiIntentObserver(MainUiIntent.OpenTtsSettings::class)
+    private fun onOpenTtsSettings() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(TtsSettingsActivity::class.java).tryEmit()
     }
 
     /** 打开关于软件页面。 */
