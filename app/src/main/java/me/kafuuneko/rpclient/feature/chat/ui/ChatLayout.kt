@@ -1378,6 +1378,7 @@ private fun ChatInputBar(
                     enabled = hasAssistantMessage && !isGenerating,
                     onClick = { ChatUiIntent.SummarizeNow.emit() }
                 )
+                // TODO: 快捷操作栏支持一键为最新角色回复生成图片 (GenerateImage for latest assistant message)
             }
 
             Row(
