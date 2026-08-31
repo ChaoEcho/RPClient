@@ -42,7 +42,8 @@ data class ChatSummaryGenerationContext(
  */
 class ChatRepository(
     private val mAppDatabase: AppDatabase,
-    private val mGson: Gson
+    private val mGson: Gson,
+    private val mFileRepository: FileRepository
 ) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
@@ -212,7 +213,8 @@ class ChatRepository(
                     id = 0L,
                     sessionId = branchSessionId,
                     createTime = createTime + index,
-                    coveredMessageId = null
+                    coveredMessageId = null,
+                    imageFileUuid = null
                 )
             }
             val insertedMessageIds = if (copiedMessages.isNotEmpty()) {
@@ -232,7 +234,8 @@ class ChatRepository(
                         id = 0L,
                         sessionId = branchSessionId,
                         createTime = createTime + copiedMessages.size,
-                        coveredMessageId = copiedBoundaryId
+                        coveredMessageId = copiedBoundaryId,
+                        imageFileUuid = null
                     )
                 )
             }
@@ -380,10 +383,15 @@ class ChatRepository(
      * @param id 会话 id。
      */
     suspend fun deleteSession(id: Long) {
-        mAppDatabase.withTransaction {
+        val imageFileUuids = mAppDatabase.withTransaction {
+            val uuids = mChatMessageDao.getMessagesBySessionId(id)
+                .mapNotNull(ChatMessage::imageFileUuid)
+                .distinct()
             mChatMessageDao.deleteMessagesBySessionId(id)
             mChatSessionDao.deleteSessionById(id)
+            uuids
         }
+        deleteImageFiles(imageFileUuids)
     }
 
     /**
@@ -618,16 +626,18 @@ class ChatRepository(
         commitTime: Long = System.currentTimeMillis()
     ): Long? {
         require(source != ChatMessage.Source.Summary) { "Generation output cannot be a summary" }
-        return mAppDatabase.withTransaction {
+        val result = mAppDatabase.withTransaction {
+            var oldImageFileUuid: String? = null
             // 空正文处理：按需清理占位消息并直接返回
             if (content.isBlank()) {
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
                     if (placeholder?.sessionId == sessionId && placeholder.content.isBlank()) {
+                        oldImageFileUuid = placeholder.imageFileUuid
                         mChatMessageDao.deleteMessageById(messageId)
                     }
                 }
-                return@withTransaction null
+                return@withTransaction null to oldImageFileUuid
             }
 
             // 插入新消息或更新已有消息并失效旧总结
@@ -647,7 +657,8 @@ class ChatRepository(
                 require(message.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
                     "Generation target must be a regular message in the same session"
                 }
-                mChatMessageDao.updateMessageContent(messageId, content)
+                oldImageFileUuid = message.imageFileUuid
+                mChatMessageDao.update(message.copy(content = content, imageFileUuid = null))
                 mChatMessageDao.deleteSummariesCoveringMessage(sessionId, messageId)
                 messageId
             }
@@ -657,8 +668,10 @@ class ChatRepository(
                 latestTime = commitTime,
                 worldInfoStateJson = worldInfoStateJson
             )
-            committedMessageId
+            committedMessageId to oldImageFileUuid
         }
+        deleteImageFiles(result.second)
+        return result.first
     }
 
     /**
@@ -683,35 +696,70 @@ class ChatRepository(
         return message.id
     }
 
-    /**
-     * 更新已有消息。
-     *
-     * @param message 要更新的消息。
-     */
+    /** 更新已有消息，并在编辑带图 Char 消息时清理旧图片。 */
     suspend fun updateMessage(message: ChatMessage) {
-        mAppDatabase.withTransaction {
+        val oldImageFileUuid = mAppDatabase.withTransaction {
             val current = mChatMessageDao.getMessageById(message.id)
-            mChatMessageDao.update(message)
+            val updated = message.normalizedImageForUpdate(current)
+            mChatMessageDao.update(updated)
             if (current != null && current.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(current.sessionId, current.id)
             }
+            current?.imageFileUuid?.takeIf { it != updated.imageFileUuid }
         }
+        deleteImageFiles(oldImageFileUuid)
     }
 
-    /**
-     * 修改消息正文。
-     *
-     * @param id 消息 id。
-     * @param content 新的消息正文。
-     */
+    /** 修改消息正文；编辑 Char 消息会解除并删除其派生图片。 */
     suspend fun updateMessageContent(id: Long, content: String) {
-        mAppDatabase.withTransaction {
-            val message = mChatMessageDao.getMessageById(id) ?: return@withTransaction
-            mChatMessageDao.updateMessageContent(id, content)
+        val oldImageFileUuid = mAppDatabase.withTransaction {
+            val message = mChatMessageDao.getMessageById(id)
+                ?: return@withTransaction null
+            val updated = message.copy(
+                content = content,
+                imageFileUuid = when {
+                    message.source == ChatMessage.Source.Summary -> null
+                    message.source == ChatMessage.Source.Char && message.content != content -> null
+                    else -> message.imageFileUuid
+                }
+            )
+            mChatMessageDao.update(updated)
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
             }
+            message.imageFileUuid?.takeIf { it != updated.imageFileUuid }
         }
+        deleteImageFiles(oldImageFileUuid)
+    }
+
+    /**
+     * 将新图片附加到正文仍与生成时一致的 Char 消息。
+     *
+     * 旧图片只在数据库提交成功后删除；拒绝时新图片仍由调用方负责。
+     */
+    suspend fun replaceMessageImage(
+        messageId: Long,
+        expectedContent: String,
+        newFileUuid: String
+    ): Boolean {
+        val result = mAppDatabase.withTransaction {
+            val current = mChatMessageDao.getMessageById(messageId)
+                ?: return@withTransaction false to null
+            if (current.source != ChatMessage.Source.Char || current.content != expectedContent) {
+                return@withTransaction false to null
+            }
+            val updatedRows = mChatMessageDao.updateImageIfContentMatches(
+                messageId = messageId,
+                expectedContent = expectedContent,
+                newFileUuid = newFileUuid
+            )
+            if (updatedRows != 1) return@withTransaction false to null
+            true to current.imageFileUuid
+        }
+        if (result.first && result.second != null && result.second != newFileUuid) {
+            mFileRepository.deleteFile(result.second!!)
+        }
+        return result.first
     }
 
     /**
@@ -791,7 +839,11 @@ class ChatRepository(
             } else {
                 val latestMessageId = mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
                 if (current != null && current.coveredMessageId == latestMessageId) {
-                    mChatMessageDao.updateMessageContent(current.id, content)
+                    mChatMessageDao.updateSummary(
+                        id = current.id,
+                        content = content,
+                        coveredMessageId = current.coveredMessageId ?: latestMessageId
+                    )
                     return@withTransaction
                 }
                 mChatMessageDao.insertOrReplace(
@@ -829,22 +881,49 @@ class ChatRepository(
      * @param id 消息 id。
      */
     suspend fun deleteMessage(id: Long) {
-        mAppDatabase.withTransaction {
-            val message = mChatMessageDao.getMessageById(id) ?: return@withTransaction
+        val imageFileUuid = mAppDatabase.withTransaction {
+            val message = mChatMessageDao.getMessageById(id)
+                ?: return@withTransaction null
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
             }
             mChatMessageDao.deleteMessageById(id)
+            message.imageFileUuid
         }
+        deleteImageFiles(imageFileUuid)
     }
 
-    /**
-     * 删除指定会话下的全部消息。
-     *
-     * @param sessionId 会话 id。
-     */
+    /** 删除指定会话下的全部消息及其关联图片。 */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
-        mChatMessageDao.deleteMessagesBySessionId(sessionId)
+        val imageFileUuids = mAppDatabase.withTransaction {
+            val uuids = mChatMessageDao.getMessagesBySessionId(sessionId)
+                .mapNotNull(ChatMessage::imageFileUuid)
+                .distinct()
+            mChatMessageDao.deleteMessagesBySessionId(sessionId)
+            uuids
+        }
+        deleteImageFiles(imageFileUuids)
+    }
+
+    private suspend fun deleteImageFiles(imageFileUuid: String?) {
+        if (imageFileUuid != null) mFileRepository.deleteFile(imageFileUuid)
+    }
+
+    private suspend fun deleteImageFiles(imageFileUuids: Iterable<String>) {
+        imageFileUuids.distinct().forEach { mFileRepository.deleteFile(it) }
+    }
+
+    private fun ChatMessage.normalizedImageForUpdate(current: ChatMessage?): ChatMessage {
+        if (source == ChatMessage.Source.Summary) return copy(imageFileUuid = null)
+        if (current == null) return copy(imageFileUuid = null)
+        if (current.source == ChatMessage.Source.Char && source == ChatMessage.Source.Char) {
+            return if (content == current.content) {
+                copy(imageFileUuid = current.imageFileUuid)
+            } else {
+                copy(imageFileUuid = null)
+            }
+        }
+        return copy(imageFileUuid = null)
     }
 
     private fun String.toLorebookEntryIds(): List<Long> {

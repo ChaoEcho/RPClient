@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatImageGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
@@ -50,6 +51,10 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
+import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
+import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
+import me.kafuuneko.rpclient.libs.imagegeneration.buildImagePrompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
@@ -103,6 +108,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mLLMRepository by inject<LLMRepository>()
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mFileRepository by inject<FileRepository>()
+    private val mImageClient by inject<OpenAICompatibleImageClient>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mRegexRepository by inject<RegexScriptRepository>()
@@ -115,6 +121,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mSessionId: Long? = null
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
+    /** 当前唯一的图片生成任务；图片请求不会取消或阻塞正文生成。 */
+    private var mImageGenerationJob: Job? = null
     /** 将 Application 级生成快照重新投影到当前页面，页面销毁时仅停止观察，不停止生成。 */
     private var mGenerationObserverJob: Job? = null
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
@@ -185,6 +193,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generationState = mGenerationCoordinator.snapshot.value
                     ?.takeIf { it.sessionId == sessionId }
                     ?.state ?: uiState.conversationState.generationState,
+                imageGenerationState = uiState.conversationState.imageGenerationState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = uiState.conversationState.editingMessageId,
                 editingMessageDraft = uiState.conversationState.editingMessageDraft,
@@ -484,15 +493,141 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         regenerateLastAssistantMessage(sessionId)
     }
 
+    /** 为指定的角色消息生成或重新生成一张图片；重试与再生成共用同一 Intent。 */
+    @UiIntentObserver(ChatUiIntent.GenerateImage::class)
+    private suspend fun onGenerateImage(intent: ChatUiIntent.GenerateImage) {
+        if (mImageGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
+            return
+        }
+        if (!isStateOf<ChatUiState.Normal>()) return
+        val sessionId = mSessionId ?: return
+        val targetId = intent.messageId.toLongOrNull() ?: return
+
+        // Install the job before any suspending preparation work so a second image request
+        // cannot pass the guard while the first request is loading its prompt context.
+        mImageGenerationJob = viewModelScope.launch {
+            var newUuid: String? = null
+            try {
+                val preparation = withContext(Dispatchers.IO) {
+                    val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
+                    val messages = mChatRepository.getMessagesBySessionId(sessionId)
+                    val targetIndex = messages.indexOfFirst { it.id == targetId }
+                    val target = messages.getOrNull(targetIndex)
+                    if (target == null || target.sessionId != sessionId || target.source != ChatMessage.Source.Char) {
+                        return@withContext null
+                    }
+                    if (mActiveStreamingGeneration?.messageId == target.id) return@withContext null
+                    val character = mCharacterRepository.getCharacterById(session.characterId)
+                        ?: return@withContext null
+                    val recentUserMessage = messages
+                        .take(targetIndex)
+                        .lastOrNull { it.source == ChatMessage.Source.User }
+                        ?.content
+                        .orEmpty()
+                    val prompt = buildImagePrompt(
+                        characterName = character.name,
+                        characterDescription = character.description,
+                        scenario = character.scenario,
+                        recentUserMessage = recentUserMessage,
+                        assistantReply = target.content,
+                        stylePrompt = AppModel.imageGenerationStylePrompt
+                    )
+                    ImageGenerationPreparation(
+                        target = target,
+                        prompt = prompt,
+                        config = ImageGenerationConfig(
+                            baseUrl = AppModel.imageGenerationBaseUrl,
+                            apiKey = AppModel.imageGenerationApiKey,
+                            model = AppModel.imageGenerationModel,
+                            size = AppModel.imageGenerationSize
+                        )
+                    )
+                }
+                if (preparation == null || mSessionId != sessionId) return@launch
+                if (preparation.config.baseUrl.isBlank() || preparation.config.model.isBlank()) {
+                    refreshUiState(
+                        sessionId = sessionId,
+                        imageGenerationState = ChatImageGenerationState.Failed(
+                            intent.messageId,
+                            mContext.getString(R.string.image_generation_not_configured)
+                        )
+                    )
+                    return@launch
+                }
+
+                val current = getOrNull<ChatUiState.Normal>()
+                    ?.takeIf { it.session.id == sessionId }
+                    ?: return@launch
+                current.copy(
+                    conversationState = current.conversationState.copy(
+                        imageGenerationState = ChatImageGenerationState.Generating(intent.messageId)
+                    )
+                ).setup()
+
+                val generated: GeneratedImage = mImageClient.generate(
+                    config = preparation.config,
+                    prompt = preparation.prompt
+                )
+                val replaced = withContext(NonCancellable + Dispatchers.IO) {
+                    newUuid = mFileRepository.saveBytes(generated.bytes, generated.mimeType)
+                    val attached = mChatRepository.replaceMessageImage(
+                        messageId = preparation.target.id,
+                        expectedContent = preparation.target.content,
+                        newFileUuid = requireNotNull(newUuid)
+                    )
+                    if (!attached) mFileRepository.deleteFile(requireNotNull(newUuid))
+                    newUuid = null
+                    attached
+                }
+                if (!replaced) {
+                    if (mSessionId == sessionId) {
+                        refreshUiState(
+                            sessionId = sessionId,
+                            imageGenerationState = ChatImageGenerationState.Idle
+                        )
+                    }
+                    return@launch
+                }
+                if (mSessionId == sessionId) {
+                    refreshUiState(
+                        sessionId = sessionId,
+                        imageGenerationState = ChatImageGenerationState.Idle
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                newUuid?.let { uuid ->
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        mFileRepository.deleteFile(uuid)
+                    }
+                }
+                throw cancelled
+            } catch (error: Throwable) {
+                newUuid?.let { uuid ->
+                    withContext(Dispatchers.IO) { mFileRepository.deleteFile(uuid) }
+                }
+                if (mSessionId == sessionId) {
+                    val message = error.message?.takeIf { it.isNotBlank() }
+                        ?: mContext.getString(R.string.image_generation_failed)
+                    refreshUiState(
+                        sessionId = sessionId,
+                        imageGenerationState = ChatImageGenerationState.Failed(
+                            intent.messageId,
+                            message
+                        )
+                    )
+                }
+            } finally {
+                mImageGenerationJob = null
+            }
+        }
+    }
+
     /**
      * 从指定历史消息处创建独立的分支会话（Branching）。
      *
-     * 业务流程：
-     * - 拦截并发：生成中禁止分叉。
-     * - 在数据库事务中截取截至该消息的历史记录，复制到全新会话中，并保留该边界处有效的摘要。
-     * - 当前会话状态保持不变，通过 [ChatViewEvent.OpenSession] 一次性事件导航打开新会话。
-     *
-     * @param intent 包含分叉截断消息 ID 的意图
+     * 在数据库事务中截取截至该消息的历史记录，复制到全新会话中并保留有效摘要，
+     * 然后通过 [ChatViewEvent.OpenSession] 打开新会话。
      */
     @UiIntentObserver(ChatUiIntent.BranchFromMessage::class)
     private suspend fun onBranchFromMessage(intent: ChatUiIntent.BranchFromMessage) {
@@ -1902,6 +2037,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
+        imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: String? = null,
         editingMessageDraft: String = "",
@@ -1973,6 +2109,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 ),
                 inputDraft = inputDraft,
                 generationState = generationState,
+                imageGenerationState = imageGenerationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft
@@ -2008,6 +2145,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.generationState ?: ChatGenerationState.Idle,
+        imageGenerationState: ChatImageGenerationState = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.imageGenerationState ?: ChatImageGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.expandedThinkBlockIds ?: emptySet(),
         editingMessageId: String? = getOrNull<ChatUiState.Normal>()
@@ -2025,6 +2164,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,
+                imageGenerationState = imageGenerationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
@@ -2253,6 +2393,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         /** 更新覆盖已有的消息记录（如重新生成） */
         data class Update(val messageId: Long) : GenerationOutput()
     }
+
+    /** 图片生成请求在启动时冻结的目标消息、提示词和配置。 */
+    private data class ImageGenerationPreparation(
+        val target: ChatMessage,
+        val prompt: String,
+        val config: ImageGenerationConfig
+    )
 
     /**
      * 获取当前生成目标对应的消息来源。

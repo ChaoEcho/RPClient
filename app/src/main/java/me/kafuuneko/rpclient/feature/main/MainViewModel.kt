@@ -35,6 +35,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersS
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
+import me.kafuuneko.rpclient.feature.main.presentation.MainImageGenerationSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
@@ -949,6 +950,78 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 修改图像生成服务的 OpenAI-compatible 基础 URL。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageGenerationBaseUrl::class)
+    private fun onChangeImageGenerationBaseUrl(intent: MainUiIntent.ChangeImageGenerationBaseUrl) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.imageGenerationBaseUrl = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageGenerationState = uiState.settingsState.imageGenerationState.copy(
+                    baseUrl = intent.value
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改图像生成服务的 API Key。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageGenerationApiKey::class)
+    private fun onChangeImageGenerationApiKey(intent: MainUiIntent.ChangeImageGenerationApiKey) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.imageGenerationApiKey = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageGenerationState = uiState.settingsState.imageGenerationState.copy(
+                    apiKey = intent.value
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改图像生成模型名。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageGenerationModel::class)
+    private fun onChangeImageGenerationModel(intent: MainUiIntent.ChangeImageGenerationModel) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.imageGenerationModel = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageGenerationState = uiState.settingsState.imageGenerationState.copy(
+                    model = intent.value
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改图像生成尺寸。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageGenerationSize::class)
+    private fun onChangeImageGenerationSize(intent: MainUiIntent.ChangeImageGenerationSize) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.imageGenerationSize = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageGenerationState = uiState.settingsState.imageGenerationState.copy(
+                    size = intent.value
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改图像生成风格提示词。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageGenerationStylePrompt::class)
+    private fun onChangeImageGenerationStylePrompt(
+        intent: MainUiIntent.ChangeImageGenerationStylePrompt
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.imageGenerationStylePrompt = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageGenerationState = uiState.settingsState.imageGenerationState.copy(
+                    stylePrompt = intent.value
+                )
+            )
+        ).setup()
+    }
+
     /** 切换是否启用长对话自动总结功能。 */
     @UiIntentObserver(MainUiIntent.ToggleAutoSummaryEnabled::class)
     private fun onToggleAutoSummaryEnabled(intent: MainUiIntent.ToggleAutoSummaryEnabled) {
@@ -1337,6 +1410,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
+            imageGenerationState = MainImageGenerationSettingsState(
+                baseUrl = AppModel.imageGenerationBaseUrl,
+                apiKey = AppModel.imageGenerationApiKey,
+                model = AppModel.imageGenerationModel,
+                size = AppModel.imageGenerationSize,
+                stylePrompt = AppModel.imageGenerationStylePrompt
+            ),
             promptBehaviorState = MainPromptBehaviorState(
                 providerPostProcessingState = selectedProvider?.let {
                     MainProviderPostProcessingState.Available(it.postProcessingMode())

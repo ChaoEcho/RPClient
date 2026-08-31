@@ -200,6 +200,22 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     @Query("SELECT * FROM chat_messages WHERE id = :id")
     suspend fun getMessageById(id: Long): ChatMessage?
 
+    /** 仅当消息仍是指定正文的 Char 消息时附加生成图片。 */
+    @Query(
+        """
+        UPDATE chat_messages
+        SET imageFileUuid = :newFileUuid
+        WHERE id = :messageId
+          AND source = 'Char'
+          AND content = :expectedContent
+        """
+    )
+    suspend fun updateImageIfContentMatches(
+        messageId: Long,
+        expectedContent: String,
+        newFileUuid: String
+    ): Int
+
     /**
      * 获取指定会话下的消息数量。
      *
@@ -237,7 +253,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     @Query(
         """
         UPDATE chat_messages
-        SET content = :content, coveredMessageId = :coveredMessageId
+        SET content = :content, coveredMessageId = :coveredMessageId, imageFileUuid = NULL
         WHERE id = :id AND source = 'Summary'
         """
     )

@@ -82,6 +82,16 @@ sealed class MainUiIntent {
 
     data class SelectProvider(val providerId: Long) : MainUiIntent()
 
+    data class ChangeImageGenerationBaseUrl(val value: String) : MainUiIntent()
+
+    data class ChangeImageGenerationApiKey(val value: String) : MainUiIntent()
+
+    data class ChangeImageGenerationModel(val value: String) : MainUiIntent()
+
+    data class ChangeImageGenerationSize(val value: String) : MainUiIntent()
+
+    data class ChangeImageGenerationStylePrompt(val value: String) : MainUiIntent()
+
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
 
     data class SelectPostProcessingMode(val mode: PromptPostProcessingMode) : MainUiIntent()

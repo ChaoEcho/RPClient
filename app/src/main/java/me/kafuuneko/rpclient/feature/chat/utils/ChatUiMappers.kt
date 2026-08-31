@@ -95,7 +95,8 @@ fun List<ChatMessage>.toChatMessageItems(
             parts = message.content.toMessageContentParts(message.id.toString()),
             time = message.createTime.formatTimestamp("HH:mm"),
             tokenCount = (message.content.length / 3).coerceAtLeast(1),
-            isStreaming = message.id == streamingMessageId
+            isStreaming = message.id == streamingMessageId,
+            imageFileUuid = message.imageFileUuid
         )
     }
 }

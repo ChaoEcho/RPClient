@@ -36,11 +36,21 @@ sealed class ChatUiState {
     }
 }
 
+/** 单聊图片生成生命周期；与正文生成状态完全独立。 */
+sealed class ChatImageGenerationState {
+    data object Idle : ChatImageGenerationState()
+
+    data class Generating(val messageId: String) : ChatImageGenerationState()
+
+    data class Failed(val messageId: String, val message: String) : ChatImageGenerationState()
+}
+
 /** 单聊消息列表、输入与生成生命周期子状态。 */
 data class ChatConversationState(
     val messages: List<ChatMessageUiModel>,
     val inputDraft: String = "",
     val generationState: ChatGenerationState = ChatGenerationState.Idle,
+    val imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
     val expandedThinkBlockIds: Set<String> = emptySet(),
     val editingMessageId: String? = null,
     val editingMessageDraft: String = ""

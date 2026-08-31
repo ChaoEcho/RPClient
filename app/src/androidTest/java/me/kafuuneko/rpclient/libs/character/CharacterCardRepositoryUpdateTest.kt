@@ -49,7 +49,7 @@ class CharacterCardRepositoryUpdateTest {
             .build()
         characterRepository = CharacterRepository(database, gson, regexCodec)
         lorebookRepository = LorebookRepository(database, gson, context)
-        chatRepository = ChatRepository(database, gson)
+        chatRepository = ChatRepository(database, gson, FileRepository(context, database))
         regexRepository = RegexScriptRepository(context, gson, database, regexCodec)
         repository = CharacterCardRepository(
             context,
