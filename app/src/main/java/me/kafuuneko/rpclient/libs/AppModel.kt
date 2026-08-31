@@ -165,6 +165,21 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // OpenRouter 会话粘性使用的匿名安装 ID；不会发送原值，只发送按会话哈希后的 ID。
     var llmRoutingInstallationId by stringPref(default = "")
 
+    // OpenAI-compatible 图像生成服务的基础 URL。
+    var imageGenerationBaseUrl by stringPref(default = "https://api.openai.com/v1")
+
+    // OpenAI-compatible 图像生成服务的 API Key。
+    var imageGenerationApiKey by stringPref(default = "")
+
+    // OpenAI-compatible 图像生成模型名。
+    var imageGenerationModel by stringPref(default = "gpt-image-2")
+
+    // OpenAI-compatible 图像生成尺寸。
+    var imageGenerationSize by stringPref(default = "1024x1024")
+
+    // 图像生成风格提示词。
+    var imageGenerationStylePrompt by stringPref(default = "")
+
     // 主提示词（Main Prompt），注入每次普通对话生成的系统区。
     var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)
 

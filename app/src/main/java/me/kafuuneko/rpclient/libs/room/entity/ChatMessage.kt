@@ -39,6 +39,8 @@ data class ChatMessage(
     val content: String,
     // Summary 消息覆盖到的最后一条普通消息 id；普通消息固定为 null，0 表示空总结不覆盖消息。
     val coveredMessageId: Long? = null,
+    // 关联的生成图片文件 UUID；Summary 与非 Char 消息固定为空。
+    val imageFileUuid: String? = null,
 ) {
     /** 数据层消息来源；Summary 不会直接作为普通聊天历史返回。 */
     enum class Source { Char, User, System, Summary }

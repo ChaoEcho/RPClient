@@ -1066,4 +1066,19 @@
     <string name="no_model_provider_desc">RPClient はローカルファーストのクライアントであり、組み込みの AI モデルは含まれていません。チャットを開始するには、モデル設定で API キー（OpenAI、Gemini、Claude、DeepSeek など）を設定して有効にしてください。</string>
     <string name="no_model_provider_banner">モデルが設定されていません。タップして API キーを設定してください。</string>
     <string name="go_to_model_settings">設定する</string>
+
+    <string name="image_generation">画像生成</string>
+    <string name="image_generation_base_url">ベースURL</string>
+    <string name="image_generation_api_key">APIキー</string>
+    <string name="image_generation_model">画像モデル</string>
+    <string name="image_generation_size">画像サイズ</string>
+    <string name="image_generation_style_prompt">スタイルプロンプト</string>
+    <string name="generate_image">画像を生成</string>
+    <string name="regenerate_image">画像を再生成</string>
+    <string name="image_generating">画像を生成中…</string>
+    <string name="image_generation_retry">再試行</string>
+    <string name="image_generation_not_configured">先に設定で画像生成のベースURLとモデルを構成してください。</string>
+    <string name="image_generation_in_progress">すでに画像を生成しています。</string>
+    <string name="image_generation_failed">画像の生成に失敗しました。</string>
+    <string name="generated_image_content_description">生成されたロールプレイシーン</string>
 </resources>

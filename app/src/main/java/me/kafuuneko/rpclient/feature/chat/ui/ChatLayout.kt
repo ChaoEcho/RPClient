@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -73,6 +74,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -82,6 +84,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -104,6 +107,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatImageGenerationState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
@@ -127,11 +131,13 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 
 /** 单角色聊天页 Compose 入口，根据页面状态切换会话区与设置区。 */
 @Composable
 fun ChatLayout(
     uiState: ChatUiState,
+    fileRepository: FileRepository? = null,
     emit: ChatUiIntent.() -> Unit
 ) {
     BackHandler(enabled = uiState is ChatUiState.Normal) { ChatUiIntent.Back.emit() }
@@ -144,11 +150,11 @@ fun ChatLayout(
             )
         }
 
-        is ChatUiState.Finished -> ChatLayout(uiState.previous) {}
+        is ChatUiState.Finished -> ChatLayout(uiState.previous, fileRepository) {}
 
         is ChatUiState.Normal -> {
             when (uiState.page) {
-                ChatPage.Conversation -> ChatNormal(uiState, emit)
+                ChatPage.Conversation -> ChatNormal(uiState, fileRepository, emit)
                 ChatPage.Settings -> ChatSettingsPage(
                     session = uiState.session,
                     lorebookState = uiState.lorebookState,
@@ -164,6 +170,7 @@ fun ChatLayout(
 @Composable
 private fun ChatNormal(
     state: ChatUiState.Normal,
+    fileRepository: FileRepository?,
     emit: ChatUiIntent.() -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -268,6 +275,8 @@ private fun ChatNormal(
                     message = message,
                     character = state.character,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
+                    imageGenerationState = state.conversationState.imageGenerationState,
+                    fileRepository = fileRepository,
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
                     isFirstMessage = index == 0,
@@ -688,6 +697,8 @@ private fun MessageBubble(
     message: ChatMessageUiModel,
     character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
+    imageGenerationState: ChatImageGenerationState,
+    fileRepository: FileRepository?,
     editing: Boolean,
     editingDraft: String,
     isFirstMessage: Boolean,
@@ -795,6 +806,8 @@ private fun MessageBubble(
                         MessageContent(
                             message = message,
                             expandedThinkBlockIds = expandedThinkBlockIds,
+                            imageGenerationState = imageGenerationState,
+                            fileRepository = fileRepository,
                             isUser = isUser,
                             emit = emit
                         )
@@ -834,6 +847,8 @@ private fun MessageBubble(
 private fun MessageContent(
     message: ChatMessageUiModel,
     expandedThinkBlockIds: Set<String>,
+    imageGenerationState: ChatImageGenerationState,
+    fileRepository: FileRepository?,
     isUser: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -861,6 +876,150 @@ private fun MessageContent(
                     isThinking = message.isStreaming && !part.isComplete,
                     emit = emit
                 )
+            }
+        }
+        if (message.role == MessageRole.Assistant) {
+            MessageImageContent(
+                message = message,
+                imageGenerationState = imageGenerationState,
+                fileRepository = fileRepository,
+                emit = emit
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageImageContent(
+    message: ChatMessageUiModel,
+    imageGenerationState: ChatImageGenerationState,
+    fileRepository: FileRepository?,
+    emit: ChatUiIntent.() -> Unit
+) {
+    val isGenerating = imageGenerationState is ChatImageGenerationState.Generating &&
+        imageGenerationState.messageId == message.id
+    val failure = (imageGenerationState as? ChatImageGenerationState.Failed)
+        ?.takeIf { it.messageId == message.id }
+    val fileUuid = message.imageFileUuid
+
+    if (fileUuid == null && !isGenerating && failure == null) return
+
+    if (fileUuid == null) {
+        if (isGenerating) {
+            ImageGenerationPlaceholder()
+        } else if (failure != null) {
+            ImageGenerationFailure(
+                message = failure.message,
+                emit = emit,
+                messageId = message.id,
+                placeholder = true
+            )
+        }
+        return
+    }
+
+    val sampledBitmap = produceState<ImageBitmap?>(initialValue = null, fileUuid) {
+        value = fileRepository?.loadSampledBitmap(
+            uuid = fileUuid,
+            requestedWidthPx = 800,
+            requestedHeightPx = 600
+        )?.asImageBitmap()
+    }.value
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+    ) {
+        if (sampledBitmap != null) {
+            Image(
+                bitmap = sampledBitmap,
+                contentDescription = stringResource(R.string.generated_image_content_description),
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.FillWidth
+            )
+        } else {
+            ImageLoadingPlaceholder()
+        }
+        if (isGenerating) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(7.dp).size(16.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+        }
+    }
+    if (failure != null) {
+        ImageGenerationFailure(
+            message = failure.message,
+            emit = emit,
+            messageId = message.id,
+            placeholder = false
+        )
+    }
+}
+
+@Composable
+private fun ImageLoadingPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(4f / 3f)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
+    )
+}
+
+@Composable
+private fun ImageGenerationPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(4f / 3f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)),
+        contentAlignment = Alignment.Center
+    ) {
+        StreamingStatus(
+            text = stringResource(R.string.image_generating),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ImageGenerationFailure(
+    message: String,
+    messageId: String,
+    placeholder: Boolean,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (placeholder) Modifier.aspectRatio(4f / 3f) else Modifier),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = message.ifBlank { stringResource(R.string.image_generation_failed) },
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            TextButton(onClick = { ChatUiIntent.GenerateImage(messageId).emit() }) {
+                Text(stringResource(R.string.image_generation_retry))
             }
         }
     }
@@ -1100,6 +1259,21 @@ private fun MessageActions(
                 tint = iconColor
             )
         }
+        if (message.role == MessageRole.Assistant && !message.isStreaming) {
+            IconButton(
+                onClick = { ChatUiIntent.GenerateImage(message.id).emit() },
+                modifier = Modifier.size(30.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.AutoAwesome,
+                    contentDescription = stringResource(
+                        if (message.imageFileUuid == null) R.string.generate_image else R.string.regenerate_image
+                    ),
+                    modifier = Modifier.size(17.dp),
+                    tint = iconColor
+                )
+            }
+        }
         if (!isFirstMessage) {
             IconButton(
                 onClick = { ChatUiIntent.BranchFromMessage(message.id).emit() },
@@ -1204,6 +1378,7 @@ private fun ChatInputBar(
                     enabled = hasAssistantMessage && !isGenerating,
                     onClick = { ChatUiIntent.SummarizeNow.emit() }
                 )
+                // TODO: 快捷操作栏支持一键为最新角色回复生成图片 (GenerateImage for latest assistant message)
             }
 
             Row(

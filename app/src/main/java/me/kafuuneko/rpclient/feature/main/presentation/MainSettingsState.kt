@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 data class MainSettingsState(
     val identityState: MainUserIdentityState,
     val providerState: MainProviderSettingsState,
+    val imageGenerationState: MainImageGenerationSettingsState,
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
     val summaryState: MainSummarySettingsState,
@@ -53,6 +54,15 @@ data class MainGenerationParametersState(
     val topP: Float,
     val maxTokens: Int,
     val contextTokens: Int
+)
+
+/** OpenAI-compatible 图像生成配置面板状态。 */
+data class MainImageGenerationSettingsState(
+    val baseUrl: String,
+    val apiKey: String,
+    val model: String,
+    val size: String,
+    val stylePrompt: String
 )
 
 /** Prompt 行为面板状态。 */

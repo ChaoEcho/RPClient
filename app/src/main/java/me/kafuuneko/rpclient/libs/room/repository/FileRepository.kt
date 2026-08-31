@@ -74,6 +74,14 @@ class FileRepository(
         }
     }
 
+    /** 从字节数组保存数据到本地，并复用流存储的哈希去重逻辑。 */
+    suspend fun saveBytes(bytes: ByteArray, mimeType: String? = null): String =
+        withContext(Dispatchers.IO) {
+            ByteArrayInputStream(bytes).use { inputStream ->
+                saveStream(inputStream, mimeType)
+            }
+        }
+
     /**
      * 从输入流保存数据到本地。
      *

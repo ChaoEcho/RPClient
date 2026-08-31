@@ -28,7 +28,7 @@ class ChatRepositorySummaryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ChatRepository(database, Gson())
+        repository = ChatRepository(database, Gson(), FileRepository(context, database))
 
         val characterId = database.getCharacterDao().insertOrReplace(
             Character(

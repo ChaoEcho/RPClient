@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
@@ -96,6 +97,7 @@ internal val appModules = module {
     single { Gson() }
     singleOf(::ChatGenerationCoordinator)
 
+    singleOf(::OpenAICompatibleImageClient)
     singleOf(::LLMClientFactory)
     singleOf(::LLMProviderSelectionResolver)
     singleOf(::LLMModelCatalogClientFactory)

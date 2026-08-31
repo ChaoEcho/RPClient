@@ -1070,4 +1070,19 @@
     <string name="no_model_provider_desc">RPClient ist ein lokaler Client und enthält keine integrierten KI-Modelle. Bitte konfiguriere und aktiviere einen API-Schlüssel (z. B. OpenAI, Gemini, Claude, DeepSeek) in den Modelleinstellungen, um zu chatten.</string>
     <string name="no_model_provider_banner">Kein Modell konfiguriert. Tippe hier, um einen API-Schlüssel einzurichten.</string>
     <string name="go_to_model_settings">Konfigurieren</string>
+
+    <string name="image_generation">Bildgenerierung</string>
+    <string name="image_generation_base_url">Basis-URL</string>
+    <string name="image_generation_api_key">API-Schlüssel</string>
+    <string name="image_generation_model">Bildmodell</string>
+    <string name="image_generation_size">Bildgröße</string>
+    <string name="image_generation_style_prompt">Stil-Prompt</string>
+    <string name="generate_image">Bild generieren</string>
+    <string name="regenerate_image">Bild neu generieren</string>
+    <string name="image_generating">Bild wird generiert…</string>
+    <string name="image_generation_retry">Erneut versuchen</string>
+    <string name="image_generation_not_configured">Konfigurieren Sie zuerst eine Basis-URL und ein Modell für die Bildgenerierung in den Einstellungen.</string>
+    <string name="image_generation_in_progress">Es wird bereits ein Bild generiert.</string>
+    <string name="image_generation_failed">Bildgenerierung fehlgeschlagen.</string>
+    <string name="generated_image_content_description">Generierte Rollenspielszene</string>
 </resources>

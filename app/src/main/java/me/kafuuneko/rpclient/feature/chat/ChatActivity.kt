@@ -19,9 +19,13 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
-class ChatActivity : CoreActivityWithEvent() {
+class ChatActivity : CoreActivityWithEvent(), KoinComponent {
+    private val mFileRepository by inject<FileRepository>()
     private val mViewModel by viewModels<ChatViewModel>()
 
     /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
@@ -43,6 +47,7 @@ class ChatActivity : CoreActivityWithEvent() {
 
         ChatLayout(
             uiState = uiState,
+            fileRepository = mFileRepository,
             emit = { mViewModel.emit(this) }
         )
     }

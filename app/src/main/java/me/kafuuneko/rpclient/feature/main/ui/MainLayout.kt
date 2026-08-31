@@ -101,6 +101,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -122,6 +123,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
+import me.kafuuneko.rpclient.feature.main.presentation.MainImageGenerationSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
@@ -1452,7 +1454,13 @@ private fun SettingsPage(
             }
         }
 
-        // ================= 3. 提示词与上下文记忆 =================
+        // ================= 3. 图像生成 =================
+        item {
+            RpSectionHeader(title = stringResource(R.string.image_generation))
+        }
+        item { ImageGenerationSettingsPanel(state.imageGenerationState, emit) }
+
+        // ================= 4. 提示词与上下文记忆 =================
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }
@@ -1461,13 +1469,69 @@ private fun SettingsPage(
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { SummaryPanel(state.summaryState, emit) }
 
-        // ================= 4. 数据与系统 =================
+        // ================= 5. 数据与系统 =================
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun ImageGenerationSettingsPanel(
+    state: MainImageGenerationSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    RpSettingsGroup {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = state.baseUrl,
+                onValueChange = { MainUiIntent.ChangeImageGenerationBaseUrl(it).emit() },
+                label = { Text(stringResource(R.string.image_generation_base_url)) },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = state.apiKey,
+                onValueChange = { MainUiIntent.ChangeImageGenerationApiKey(it).emit() },
+                label = { Text(stringResource(R.string.image_generation_api_key)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = state.model,
+                onValueChange = { MainUiIntent.ChangeImageGenerationModel(it).emit() },
+                label = { Text(stringResource(R.string.image_generation_model)) },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = state.size,
+                onValueChange = { MainUiIntent.ChangeImageGenerationSize(it).emit() },
+                label = { Text(stringResource(R.string.image_generation_size)) },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = state.stylePrompt,
+                onValueChange = { MainUiIntent.ChangeImageGenerationStylePrompt(it).emit() },
+                label = { Text(stringResource(R.string.image_generation_style_prompt)) },
+                minLines = 3,
+                maxLines = 6,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -2622,6 +2686,13 @@ private fun MainLayoutPreview() {
                         avatarState = MainUserAvatarState.None
                     ),
                     providerState = MainProviderSettingsState.Empty,
+                    imageGenerationState = MainImageGenerationSettingsState(
+                        baseUrl = "https://api.openai.com/v1",
+                        apiKey = "",
+                        model = "gpt-image-2",
+                        size = "1024x1024",
+                        stylePrompt = ""
+                    ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,
@@ -2690,6 +2761,13 @@ private fun MainSettingsLayoutPreview() {
                             maxTokens = 4096,
                             contextTokens = 32768
                         )
+                    ),
+                    imageGenerationState = MainImageGenerationSettingsState(
+                        baseUrl = "https://api.openai.com/v1",
+                        apiKey = "sk-example",
+                        model = "gpt-image-2",
+                        size = "1024x1024",
+                        stylePrompt = "Soft cinematic lighting"
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Available(

@@ -11,5 +11,6 @@ data class ChatMessageUiModel(
     val parts: List<MessageContentPart>,
     val time: String,
     val tokenCount: Int,
-    val isStreaming: Boolean = false
+    val isStreaming: Boolean = false,
+    val imageFileUuid: String? = null
 )

@@ -1065,4 +1065,19 @@
     <string name="no_model_provider_desc">RPClient 是本機端工具，不包含內建模型服務。請先在「模型設定」中新增並啟用您的 API Key（如 OpenAI、Gemini、Claude、DeepSeek 等）即可開始對話。</string>
     <string name="no_model_provider_banner">尚未設定模型服務，點擊前往設定 API Key</string>
     <string name="go_to_model_settings">前往設定</string>
+
+    <string name="image_generation">圖片生成</string>
+    <string name="image_generation_base_url">Base URL</string>
+    <string name="image_generation_api_key">API 金鑰</string>
+    <string name="image_generation_model">圖片模型</string>
+    <string name="image_generation_size">圖片尺寸</string>
+    <string name="image_generation_style_prompt">風格提示詞</string>
+    <string name="generate_image">生成圖片</string>
+    <string name="regenerate_image">重新生成圖片</string>
+    <string name="image_generating">正在生成圖片…</string>
+    <string name="image_generation_retry">重試</string>
+    <string name="image_generation_not_configured">請先在設定中配置圖片生成 Base URL 和模型。</string>
+    <string name="image_generation_in_progress">已有圖片生成任務正在進行。</string>
+    <string name="image_generation_failed">圖片生成失敗。</string>
+    <string name="generated_image_content_description">生成的角色扮演場景圖片</string>
 </resources>

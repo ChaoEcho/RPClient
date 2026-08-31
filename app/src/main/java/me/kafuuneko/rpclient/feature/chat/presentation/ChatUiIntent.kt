@@ -22,6 +22,8 @@ sealed class ChatUiIntent {
 
     data class RegenerateFromMessage(val messageId: String) : ChatUiIntent()
 
+    data class GenerateImage(val messageId: String) : ChatUiIntent()
+
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
     data object OpenSessionLore : ChatUiIntent()
