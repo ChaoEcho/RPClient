@@ -57,6 +57,13 @@ class LLMProviderSelectionResolver(
         return requireExplicitProvider(providerId, LLMProviderSelectionScope.Summary)
     }
 
+    /** 解析图片场景提示词配置；未单独设置时跟随角色实际使用的聊天配置。 */
+    suspend fun requireImagePromptProvider(character: Character): LLMProvider {
+        val providerId = AppModel.imagePromptLLMProvider
+        if (providerId == 0L) return requireCharacterProvider(character)
+        return requireExplicitProvider(providerId, LLMProviderSelectionScope.Character)
+    }
+
     private suspend fun requireExplicitProvider(
         providerId: Long,
         scope: LLMProviderSelectionScope

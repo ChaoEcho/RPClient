@@ -1082,6 +1082,11 @@
     <string name="image_generation_model">Модель изображения</string>
     <string name="image_generation_size">Размер изображения</string>
     <string name="image_generation_style_prompt">Стилевой промпт</string>
+    <string name="image_prompt_model">Модель промпта сцены</string>
+    <string name="image_prompt_model_helper">Преобразует последнюю реплику чата в краткое описание визуальной сцены перед генерацией изображения.</string>
+    <string name="image_prompt_follow_chat_model">Использовать текущую модель чата</string>
+    <string name="image_saved">Изображение сохранено</string>
+    <string name="image_save_failed">Не удалось сохранить созданное изображение</string>
     <string name="generate_image">Создать изображение</string>
     <string name="regenerate_image">Создать изображение заново</string>
     <string name="image_generating">Создание изображения…</string>

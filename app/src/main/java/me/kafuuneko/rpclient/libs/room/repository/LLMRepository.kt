@@ -147,6 +147,9 @@ class LLMRepository(
         if (AppModel.summaryLLMProvider == id) {
             AppModel.summaryLLMProvider = 0L
         }
+        if (AppModel.imagePromptLLMProvider == id) {
+            AppModel.imagePromptLLMProvider = 0L
+        }
         syncCurrentProvider()
     }
 

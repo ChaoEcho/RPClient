@@ -1076,6 +1076,11 @@
     <string name="image_generation_model">圖片模型</string>
     <string name="image_generation_size">圖片尺寸</string>
     <string name="image_generation_style_prompt">風格提示詞</string>
+    <string name="image_prompt_model">圖片提示詞模型</string>
+    <string name="image_prompt_model_helper">在生成圖片前，將最近對話整理為簡潔的可見場景描述。</string>
+    <string name="image_prompt_follow_chat_model">跟隨目前對話模型</string>
+    <string name="image_saved">圖片已儲存</string>
+    <string name="image_save_failed">儲存圖片失敗</string>
     <string name="generate_image">生成圖片</string>
     <string name="send_and_generate_image">傳送並生成圖片</string>
     <string name="regenerate_image">重新生成圖片</string>

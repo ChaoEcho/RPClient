@@ -1078,6 +1078,11 @@
     <string name="image_generation_model">Modèle d’image</string>
     <string name="image_generation_size">Taille de l’image</string>
     <string name="image_generation_style_prompt">Prompt de style</string>
+    <string name="image_prompt_model">Modèle de prompt de scène</string>
+    <string name="image_prompt_model_helper">Résume le dernier échange de discussion en une scène visible concise avant de générer l’image.</string>
+    <string name="image_prompt_follow_chat_model">Suivre le modèle de discussion actuel</string>
+    <string name="image_saved">Image enregistrée</string>
+    <string name="image_save_failed">Impossible d’enregistrer l’image générée</string>
     <string name="generate_image">Générer une image</string>
     <string name="regenerate_image">Régénérer l’image</string>
     <string name="image_generating">Génération de l’image…</string>

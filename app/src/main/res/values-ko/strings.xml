@@ -1072,6 +1072,11 @@
     <string name="image_generation_model">이미지 모델</string>
     <string name="image_generation_size">이미지 크기</string>
     <string name="image_generation_style_prompt">스타일 프롬프트</string>
+    <string name="image_prompt_model">장면 프롬프트 모델</string>
+    <string name="image_prompt_model_helper">이미지를 생성하기 전에 최근 대화를 간결하고 시각적인 장면으로 정리합니다.</string>
+    <string name="image_prompt_follow_chat_model">현재 대화 모델 따르기</string>
+    <string name="image_saved">이미지가 저장되었습니다</string>
+    <string name="image_save_failed">생성된 이미지를 저장하지 못했습니다</string>
     <string name="generate_image">이미지 생성</string>
     <string name="regenerate_image">이미지 다시 생성</string>
     <string name="image_generating">이미지 생성 중…</string>

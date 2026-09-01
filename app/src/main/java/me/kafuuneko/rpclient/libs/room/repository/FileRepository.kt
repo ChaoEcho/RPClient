@@ -1,12 +1,17 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import androidx.exifinterface.media.ExifInterface
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.graphics.scale
+import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.model.SquareCropSelection
@@ -19,6 +24,9 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -147,6 +155,111 @@ class FileRepository(
         val entity = mFileDao.getByUuid(uuid) ?: return@withContext null
         val file = File(mRepositoryDir, entity.hash)
         if (file.exists()) file else null
+    }
+
+    /**
+     * 将图片原始字节导出到系统 Pictures/RPClient 目录。
+     *
+     * 通过 MediaStore 写入，避免先解码或重新压缩图片；Android 29 及以上使用
+     * RELATIVE_PATH 和 IS_PENDING，旧版本则写入 Pictures/RPClient 的物理路径。
+     */
+    suspend fun saveImageToPictures(uuid: String): Boolean = withContext(Dispatchers.IO) {
+        val entity = mFileDao.getByUuid(uuid) ?: return@withContext false
+        val sourceFile = File(mRepositoryDir, entity.hash)
+        if (!sourceFile.isFile) return@withContext false
+
+        val (mimeType, extension) = resolveImageExportFormat(entity.mimeType, sourceFile)
+            ?: return@withContext false
+        val displayName = "RPClient_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.$extension"
+        val resolver = mContext.contentResolver
+        val legacyTargetFile = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            try {
+                val targetDirectory = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                    "RPClient"
+                )
+                if (!targetDirectory.exists() &&
+                    !targetDirectory.mkdirs() &&
+                    !targetDirectory.isDirectory
+                ) {
+                    return@withContext false
+                }
+                if (!targetDirectory.isDirectory) return@withContext false
+                File(targetDirectory, displayName)
+            } catch (_: Exception) {
+                return@withContext false
+            }
+        } else {
+            null
+        }
+
+        var insertedUri: Uri? = null
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(
+                        MediaStore.Images.Media.RELATIVE_PATH,
+                        "${Environment.DIRECTORY_PICTURES}/RPClient"
+                    )
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                } else {
+                    put(MediaStore.Images.Media.DATA, legacyTargetFile?.absolutePath)
+                }
+            }
+            insertedUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: return@withContext false
+
+            resolver.openOutputStream(insertedUri, "w")?.use { outputStream ->
+                FileInputStream(sourceFile).use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            } ?: throw IllegalStateException("Unable to open MediaStore output stream")
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val pendingValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.IS_PENDING, 0)
+                }
+                if (resolver.update(insertedUri, pendingValues, null, null) <= 0) {
+                    throw IllegalStateException("Unable to publish MediaStore image")
+                }
+            } else {
+                MediaScannerConnection.scanFile(
+                    mContext,
+                    arrayOf(requireNotNull(legacyTargetFile).absolutePath),
+                    arrayOf(mimeType),
+                    null
+                )
+            }
+            true
+        } catch (_: Exception) {
+            insertedUri?.let { uri ->
+                runCatching { resolver.delete(uri, null, null) }
+            }
+            false
+        }
+    }
+
+    /** 仅允许支持的图片 MIME；未知值根据源文件头检测，不伪造 PNG 元数据。 */
+    private fun resolveImageExportFormat(mimeType: String?, sourceFile: File): Pair<String, String>? {
+        return when (mimeType?.substringBefore(';')?.trim()?.lowercase(Locale.US)) {
+            "image/png" -> "image/png" to "png"
+            "image/jpeg", "image/jpg" -> "image/jpeg" to "jpg"
+            "image/webp" -> "image/webp" to "webp"
+            else -> runCatching {
+                BitmapFactory.Options().apply { inJustDecodeBounds = true }.also { options ->
+                    BitmapFactory.decodeFile(sourceFile.absolutePath, options)
+                }.outMimeType?.lowercase(Locale.US)
+            }.getOrNull()?.let { detectedMimeType ->
+                when (detectedMimeType) {
+                    "image/png" -> "image/png" to "png"
+                    "image/jpeg", "image/jpg" -> "image/jpeg" to "jpg"
+                    "image/webp" -> "image/webp" to "webp"
+                    else -> null
+                }
+            }
+        }
     }
 
     /** 在文件存储边界内解码图片，调用方无需接触私有物理路径。 */
