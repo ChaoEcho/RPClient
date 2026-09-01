@@ -37,6 +37,12 @@ class CharacterEditActivity : CoreActivityWithEvent() {
         }
     }
 
+    /** 选择用于覆盖当前角色内容的 JSON 角色卡。 */
+    private val mCharacterUpdateFilePickerLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { mViewModel.emit(CharacterEditUiIntent.UpdateCharacterJsonSelected(it)) }
+        }
+
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
     @Composable
@@ -68,6 +74,11 @@ class CharacterEditActivity : CoreActivityWithEvent() {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
             CharacterEditViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
+            CharacterEditViewEvent.OpenCharacterUpdateFilePicker -> {
+                mCharacterUpdateFilePickerLauncher.launch(
+                    arrayOf("application/json", "text/json", "text/plain")
+                )
+            }
             is CharacterEditViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(

@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
+import android.net.Uri
+
 /** 角色创建/编辑页面的字段变更、文件选择、保存与删除意图。 */
 sealed class CharacterEditUiIntent {
     data class Init(val characterId: Long?) : CharacterEditUiIntent()
@@ -9,6 +11,12 @@ sealed class CharacterEditUiIntent {
     data object Back : CharacterEditUiIntent()
 
     data object PickAvatarClick : CharacterEditUiIntent()
+
+    data object ChooseAvatarFromAlbum : CharacterEditUiIntent()
+
+    data object GenerateAvatar : CharacterEditUiIntent()
+
+    data object RestoreDefaultAvatar : CharacterEditUiIntent()
 
     data class AvatarCropped(val fileUuid: String) : CharacterEditUiIntent()
 
@@ -76,6 +84,24 @@ sealed class CharacterEditUiIntent {
 
     data object SaveCharacter : CharacterEditUiIntent()
 
+    data object UpdateCharacterClick : CharacterEditUiIntent()
+
+    data object PasteUpdateJsonClick : CharacterEditUiIntent()
+
+    data object PickUpdateJsonFileClick : CharacterEditUiIntent()
+
+    data class UpdateCharacterJsonSelected(val uri: Uri) : CharacterEditUiIntent()
+
+    data class ChangeUpdateJsonDraft(val value: String) : CharacterEditUiIntent()
+
+    data object ConfirmUpdateJson : CharacterEditUiIntent()
+
+    data object UpdateCharacterWithGlobalLorebookBudget : CharacterEditUiIntent()
+
+    data object UpdateCharacterWithOriginalLorebookBudget : CharacterEditUiIntent()
+
+    data object ConfirmCharacterUpdate : CharacterEditUiIntent()
+
     data object DeleteCharacterClick : CharacterEditUiIntent()
 
     data object ConfirmDeleteCharacter : CharacterEditUiIntent()
@@ -85,6 +111,8 @@ sealed class CharacterEditUiIntent {
     data object ConfirmDeleteCharacterWithLorebook : CharacterEditUiIntent()
 
     data object ConfirmDiscardChanges : CharacterEditUiIntent()
+
+    data object DismissActionDialog : CharacterEditUiIntent()
 
     data object DismissDialog : CharacterEditUiIntent()
 }

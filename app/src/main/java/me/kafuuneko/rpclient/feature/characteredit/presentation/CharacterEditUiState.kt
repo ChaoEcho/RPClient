@@ -22,6 +22,7 @@ sealed class CharacterEditUiState {
         val loadState: CharacterEditLoadState = CharacterEditLoadState.None,
         val dialogState: CharacterEditDialogState = CharacterEditDialogState.None,
         val avatarImage: ImageBitmap? = null,
+        val isAvatarGenerating: Boolean = false,
         val availableLorebooks: List<CharacterLorebookItem> = emptyList(),
         val availableProviders: List<CharacterProviderItem> = emptyList()
     ) : CharacterEditUiState()
@@ -53,6 +54,23 @@ sealed class CharacterEditLoadState {
 /** 角色编辑页当前显示的业务对话框。 */
 sealed class CharacterEditDialogState {
     data object None : CharacterEditDialogState()
+
+    data object AvatarActions : CharacterEditDialogState()
+
+    data object UpdateSource : CharacterEditDialogState()
+
+    data class UpdateJsonEditor(val draftText: String) : CharacterEditDialogState()
+
+    data class LowEmbeddedLorebookBudgetConfirm(
+        val importedTokenBudget: Int
+    ) : CharacterEditDialogState()
+
+    data class ConfirmCharacterUpdate(
+        val currentName: String,
+        val importedName: String,
+        val hasEmbeddedLorebook: Boolean,
+        val willDiscardUnsavedChanges: Boolean
+    ) : CharacterEditDialogState()
 
     data class DeleteConfirm(
         val characterName: String

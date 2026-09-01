@@ -65,7 +65,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private val mVisibleAvatars = mutableMapOf<Long, LoadedAvatar>()
     private val mAvatarCache = AvatarBitmapCache(MAX_AVATAR_CACHE_BYTES)
     private var mPendingImport: CharacterCardImportBatch? = null
-    private var mPendingUpdate: PendingCharacterUpdate? = null
 
     /** 初始化角色列表，进入加载中状态并拉取数据库数据。 */
     @UiIntentObserver(CharacterListUiIntent.Init::class)
@@ -91,7 +90,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         mRefreshGeneration++
         mTransferJob?.cancel()
         mPendingImport = null
-        mPendingUpdate = null
         cancelAvatarLoads()
         CharacterListUiState.finished(uiStateFlow.value).setup()
     }
@@ -234,88 +232,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 打开单文件 JSON 选择器，目标角色由事件携带，禁止按名称自动匹配。 */
-    @UiIntentObserver(CharacterListUiIntent.UpdateCharacterJsonClick::class)
-    private fun onUpdateCharacterJsonClick(intent: CharacterListUiIntent.UpdateCharacterJsonClick) {
-        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.loadState != CharacterListLoadState.None || uiState.dialogState != CharacterListDialogState.None) return
-        if (uiState.characters.none { it.id == intent.characterId }) return
-        CharacterListViewEvent.OpenCharacterCardUpdater(intent.characterId).tryEmit()
-    }
-
-    /** 解析更新 JSON；解析完成前不修改任何持久化数据。 */
-    @UiIntentObserver(CharacterListUiIntent.UpdateCharacterJson::class)
-    private fun onUpdateCharacterJson(intent: CharacterListUiIntent.UpdateCharacterJson) {
-        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
-        val current = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
-        val token = Any()
-        mTransferToken = token
-        uiState.copy(loadState = CharacterListLoadState.Loading).setup()
-        mTransferJob = viewModelScope.launch {
-            try {
-                val draft = mCharacterCardRepository.readImportFromUri(intent.uri)
-                mPendingUpdate = PendingCharacterUpdate(intent.characterId, current.name, draft)
-                val lowBudget = LorebookImportPolicy.requiresLowBudgetConfirmation(draft.card)
-                getOrNull<CharacterListUiState.Normal>()?.copy(
-                    loadState = CharacterListLoadState.None,
-                    dialogState = if (lowBudget) {
-                        CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm(
-                            importedTokenBudget = requireNotNull(draft.card.embeddedLorebook).lorebook.tokenBudget,
-                            affectedCharacterCount = 1
-                        )
-                    } else {
-                        pendingUpdateDialog(requireNotNull(mPendingUpdate))
-                    }
-                )?.setup()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                mPendingUpdate = null
-                AppViewEvent.PopupToastMessageByResId(R.string.update_character_failed).tryEmit()
-                refreshCharacters(selectedCharacterId = intent.characterId)
-            } finally {
-                finishTransfer(token)
-            }
-        }
-    }
-
-    /** 确认完整覆盖角色字段并开始保存。 */
-    @UiIntentObserver(CharacterListUiIntent.ConfirmUpdateCharacter::class)
-    private fun onConfirmUpdateCharacter() {
-        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.dialogState !is CharacterListDialogState.ConfirmCharacterUpdate) return
-        val pending = mPendingUpdate ?: return
-        mPendingUpdate = null
-        val token = Any()
-        mTransferToken = token
-        uiState.copy(loadState = CharacterListLoadState.Updating, dialogState = CharacterListDialogState.None).setup()
-        mTransferJob = viewModelScope.launch {
-            try {
-                // 用户确认后保证多步持久化完整收尾；离开页面只停止后续 UI 刷新。
-                withContext(NonCancellable) {
-                    mCharacterCardRepository.updateFromDraft(pending.characterId, pending.draft)
-                }
-                refreshCharacters(selectedCharacterId = pending.characterId)
-                AppViewEvent.PopupToastMessageByResId(R.string.update_character_success).tryEmit()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                refreshCharacters(selectedCharacterId = pending.characterId)
-                AppViewEvent.PopupToastMessageByResId(R.string.update_character_failed).tryEmit()
-            } finally {
-                finishTransfer(token)
-            }
-        }
-    }
-
-    private fun pendingUpdateDialog(pending: PendingCharacterUpdate) =
-        CharacterListDialogState.ConfirmCharacterUpdate(
-            currentName = pending.currentName,
-            importedName = pending.draft.card.character.name,
-            hasEmbeddedLorebook = pending.draft.card.embeddedLorebook != null
-        )
-
     /** 用户确认将内嵌世界书改为跟随全局预算并继续导入。 */
     @UiIntentObserver(CharacterListUiIntent.ImportCharacterWithGlobalLorebookBudget::class)
     private fun onImportCharacterWithGlobalLorebookBudget() {
@@ -336,17 +252,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private fun continuePendingTransfer(followGlobal: Boolean) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState !is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm) return
-        val update = mPendingUpdate
-        if (update != null) {
-            val resolved = update.copy(
-                draft = update.draft.copy(
-                    card = LorebookImportPolicy.resolveBudget(update.draft.card, followGlobal)
-                )
-            )
-            mPendingUpdate = resolved
-            uiState.copy(dialogState = pendingUpdateDialog(resolved)).setup()
-            return
-        }
         val batch = mPendingImport ?: return
         mPendingImport = null
         val token = Any()
@@ -395,10 +300,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
-            uiState.dialogState !is CharacterListDialogState.ConfirmCharacterUpdate
-        ) return
-        if (uiState.dialogState is CharacterListDialogState.ConfirmCharacterUpdate) mPendingUpdate = null
+        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
 
@@ -811,9 +713,3 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         const val MAX_AVATAR_CACHE_BYTES = 16L * 1024L * 1024L
     }
 }
-
-private data class PendingCharacterUpdate(
-    val characterId: Long,
-    val currentName: String,
-    val draft: CharacterCardImportDraft
-)

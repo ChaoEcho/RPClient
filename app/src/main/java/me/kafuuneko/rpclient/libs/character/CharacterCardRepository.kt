@@ -35,6 +35,15 @@ class CharacterCardRepository(
     /** 无状态格式映射器，在 Repository 生命周期内复用。 */
     private val mMapper = CharacterCardMapper(mGson, mRegexCodec)
 
+    /** 从 JSON 文本解析角色卡，但不保存头像或业务实体。 */
+    suspend fun readImportFromJson(json: String): CharacterCardImportDraft = withContext(Dispatchers.IO) {
+        CharacterCardImportDraft(
+            card = mMapper.parseCharacter(json),
+            avatarSourceUri = null,
+            avatarMimeType = "image/png"
+        )
+    }
+
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft = withContext(Dispatchers.IO) {
         val bytes = mContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
@@ -45,8 +54,7 @@ class CharacterCardRepository(
             isPng -> CharacterCardPngCodec.readCharacterJson(bytes)
             else -> bytes.toString(Charsets.UTF_8)
         }
-        CharacterCardImportDraft(
-            card = mMapper.parseCharacter(json),
+        readImportFromJson(json).copy(
             avatarSourceUri = uri.takeIf { isPng || mime.startsWith("image/") },
             avatarMimeType = mime.ifBlank { "image/png" }
         )

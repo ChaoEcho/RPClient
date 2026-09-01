@@ -29,11 +29,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Image as ImageIcon
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -87,8 +93,12 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptF
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
+import me.kafuuneko.rpclient.ui.dialog.AppCodeEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
+import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
@@ -122,7 +132,7 @@ fun CharacterEditLayout(
         is CharacterEditUiState.Finished -> CharacterEditLayout(uiState.previous) {}
         is CharacterEditUiState.Normal -> {
             CharacterEditNormal(uiState, emit)
-            DialogSwitch(uiState.dialogState, emit)
+            DialogSwitch(uiState, emit)
         }
     }
 }
@@ -147,6 +157,9 @@ private fun CharacterEditNormal(
             },
             onBack = { CharacterEditUiIntent.Back.emit() },
             actions = {
+                if (state.mode == CharacterEditMode.Edit) {
+                    TopBarUpdateButton(state.loadState, emit)
+                }
                 TopBarSaveButton(state.mode, state.loadState, emit)
             }
         )
@@ -179,6 +192,7 @@ private fun CharacterEditNormal(
                     HeroHeaderPanel(
                         form = state.form,
                         avatarImage = state.avatarImage,
+                        isAvatarGenerating = state.isAvatarGenerating,
                         availableLorebooks = state.availableLorebooks,
                         loadState = state.loadState,
                         emit = emit
@@ -253,6 +267,7 @@ private fun LoadingPanel() {
 private fun HeroHeaderPanel(
     form: CharacterEditForm,
     avatarImage: ImageBitmap?,
+    isAvatarGenerating: Boolean,
     availableLorebooks: List<CharacterLorebookItem>,
     loadState: CharacterEditLoadState,
     emit: CharacterEditUiIntent.() -> Unit
@@ -306,7 +321,9 @@ private fun HeroHeaderPanel(
                 Box(
                     modifier = Modifier
                         .size(92.dp)
-                        .clickable { CharacterEditUiIntent.PickAvatarClick.emit() }
+                        .clickable(enabled = loadState == CharacterEditLoadState.None) {
+                            CharacterEditUiIntent.PickAvatarClick.emit()
+                        }
                 ) {
                     AvatarPreview(
                         avatarText = form.avatarText(),
@@ -314,21 +331,33 @@ private fun HeroHeaderPanel(
                         image = avatarImage,
                         size = 92
                     )
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(28.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        shadowElevation = 3.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Edit,
-                                contentDescription = stringResource(R.string.change_avatar),
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
+                    if (isAvatarGenerating) {
+                        Surface(
+                            modifier = Modifier.matchParentSize(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(28.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            shadowElevation = 3.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = stringResource(R.string.change_avatar),
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -819,12 +848,134 @@ private fun TopBarSaveButton(
 }
 
 @Composable
-private fun DialogSwitch(
-    dialogState: CharacterEditDialogState,
+private fun TopBarUpdateButton(
+    loadState: CharacterEditLoadState,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
+    IconButton(
+        enabled = loadState == CharacterEditLoadState.None,
+        onClick = { CharacterEditUiIntent.UpdateCharacterClick.emit() }
+    ) {
+        Icon(
+            Icons.Rounded.Sync,
+            contentDescription = stringResource(R.string.character_update_from_card)
+        )
+    }
+}
+
+@Composable
+private fun DialogSwitch(
+    state: CharacterEditUiState.Normal,
+    emit: CharacterEditUiIntent.() -> Unit
+) {
+    val dialogState = state.dialogState
     when (dialogState) {
         CharacterEditDialogState.None -> Unit
+        CharacterEditDialogState.AvatarActions -> {
+            AppActionListDialog(
+                onDismissRequest = { CharacterEditUiIntent.DismissActionDialog.emit() },
+                title = stringResource(R.string.choose_avatar),
+                badgeIcon = Icons.Rounded.ImageIcon,
+                actions = buildList {
+                    add(
+                        AppActionItem(
+                            icon = Icons.Rounded.ImageIcon,
+                            title = stringResource(R.string.choose_from_gallery),
+                            enabled = !state.isAvatarGenerating,
+                            onClick = { CharacterEditUiIntent.ChooseAvatarFromAlbum.emit() }
+                        )
+                    )
+                    add(
+                        AppActionItem(
+                            icon = Icons.Rounded.AutoAwesome,
+                            title = stringResource(R.string.generate_avatar_with_ai),
+                            enabled = !state.isAvatarGenerating,
+                            onClick = { CharacterEditUiIntent.GenerateAvatar.emit() }
+                        )
+                    )
+                    if (state.form.avatar.isNotBlank()) {
+                        add(
+                            AppActionItem(
+                                icon = Icons.Rounded.RestartAlt,
+                                title = stringResource(R.string.restore_default_avatar),
+                                enabled = !state.isAvatarGenerating,
+                                onClick = { CharacterEditUiIntent.RestoreDefaultAvatar.emit() }
+                            )
+                        )
+                    }
+                }
+            )
+        }
+        CharacterEditDialogState.UpdateSource -> AppActionListDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissActionDialog.emit() },
+            title = stringResource(R.string.update_character),
+            subtitle = stringResource(R.string.choose_character_card_source),
+            badgeIcon = Icons.Rounded.Sync,
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.ContentPaste,
+                    title = stringResource(R.string.paste_character_card_json),
+                    subtitle = stringResource(R.string.paste_character_card_json_description),
+                    onClick = { CharacterEditUiIntent.PasteUpdateJsonClick.emit() }
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.FileUpload,
+                    title = stringResource(R.string.choose_character_card_file),
+                    subtitle = stringResource(R.string.choose_character_card_file_description),
+                    onClick = { CharacterEditUiIntent.PickUpdateJsonFileClick.emit() }
+                )
+            )
+        )
+        is CharacterEditDialogState.UpdateJsonEditor -> AppCodeEditorDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.update_json_editor_title),
+            value = dialogState.draftText,
+            onValueChange = { CharacterEditUiIntent.ChangeUpdateJsonDraft(it).emit() },
+            confirmEnabled = dialogState.draftText.isNotBlank(),
+            onConfirm = { CharacterEditUiIntent.ConfirmUpdateJson.emit() }
+        )
+        is CharacterEditDialogState.LowEmbeddedLorebookBudgetConfirm -> AppWarningDialog(
+            onDismissRequest = {
+                CharacterEditUiIntent.UpdateCharacterWithOriginalLorebookBudget.emit()
+            },
+            title = stringResource(R.string.low_world_book_budget_title),
+            message = stringResource(
+                R.string.low_world_book_budget_message,
+                dialogState.importedTokenBudget
+            ),
+            confirmText = stringResource(R.string.follow_global_budget),
+            dismissText = stringResource(R.string.keep_imported_budget),
+            onConfirm = {
+                CharacterEditUiIntent.UpdateCharacterWithGlobalLorebookBudget.emit()
+            }
+        )
+        is CharacterEditDialogState.ConfirmCharacterUpdate -> {
+            val worldbookMessage = stringResource(
+                if (dialogState.hasEmbeddedLorebook) {
+                    R.string.update_character_worldbook_added
+                } else {
+                    R.string.update_character_worldbook_detached
+                }
+            )
+            val updateMessage = stringResource(
+                R.string.update_character_confirm_message,
+                dialogState.currentName,
+                dialogState.importedName,
+                worldbookMessage
+            )
+            AppWarningDialog(
+                onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+                title = stringResource(R.string.confirm_character_update),
+                message = if (dialogState.willDiscardUnsavedChanges) {
+                    updateMessage + "\n\n" + stringResource(R.string.confirm_character_update_unsaved_message)
+                } else {
+                    updateMessage
+                },
+                confirmText = stringResource(android.R.string.ok),
+                dismissText = stringResource(android.R.string.cancel),
+                onConfirm = { CharacterEditUiIntent.ConfirmCharacterUpdate.emit() }
+            )
+        }
         is CharacterEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_character_title),

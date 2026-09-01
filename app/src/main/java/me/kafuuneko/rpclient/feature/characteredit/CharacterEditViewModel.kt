@@ -1,6 +1,10 @@
 package me.kafuuneko.rpclient.feature.characteredit
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.asImageBitmap
 import me.kafuuneko.rpclient.R
@@ -16,9 +20,15 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiI
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
+import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
+import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
+import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
+import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -47,6 +57,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mFileRepository by inject<FileRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+    private val mCharacterCardRepository by inject<CharacterCardRepository>()
+    private val mImageClient by inject<OpenAICompatibleImageClient>()
+    private var mPendingUpdate: CharacterCardImportDraft? = null
 
     /** 初始化编辑页，拉取候选世界书与提供商列表，并加载目标角色或新建空表单。 */
     @UiIntentObserver(CharacterEditUiIntent.Init::class)
@@ -163,10 +176,20 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         finishEditing()
     }
 
-    /** 触发系统图片选择器以选取角色头像。 */
+    /** 打开头像来源操作面板。 */
     @UiIntentObserver(CharacterEditUiIntent.PickAvatarClick::class)
     private fun onPickAvatarClick() {
-        if (!isStateOf<CharacterEditUiState.Normal>()) return
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterEditLoadState.None) return
+        uiState.copy(dialogState = CharacterEditDialogState.AvatarActions).setup()
+    }
+
+    /** 从头像操作面板进入既有相册选择与裁剪流程。 */
+    @UiIntentObserver(CharacterEditUiIntent.ChooseAvatarFromAlbum::class)
+    private fun onChooseAvatarFromAlbum() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterEditDialogState.AvatarActions || uiState.isAvatarGenerating) return
+        uiState.copy(dialogState = CharacterEditDialogState.None).setup()
         CharacterEditViewEvent.OpenAvatarPicker.tryEmit()
     }
 
@@ -178,33 +201,77 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
      */
     @UiIntentObserver(CharacterEditUiIntent.AvatarCropped::class)
     private suspend fun onAvatarCropped(intent: CharacterEditUiIntent.AvatarCropped) {
-        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        uiState.copy(loadState = CharacterEditLoadState.Saving).setup()
-        // 裁剪页已保存新文件；这里只清理当前表单不再引用的上一份临时头像。
-        runCatching {
-            withContext(Dispatchers.IO) {
-                if (
-                    uiState.form.avatar.isNotBlank() &&
-                    uiState.form.avatar != uiState.form.originalAvatar &&
-                    uiState.form.avatar != intent.fileUuid
-                ) {
-                    mFileRepository.deleteFile(uiState.form.avatar)
-                }
-            }
-        }.getOrElse {
-            val latestState = getOrNull<CharacterEditUiState.Normal>() ?: return
-            latestState.copy(loadState = CharacterEditLoadState.None).setup()
+        if (!replaceDraftAvatar(intent.fileUuid)) {
             AppViewEvent.PopupToastMessageByResId(R.string.character_avatar_save_failed).tryEmit()
+        }
+    }
+
+    /** 清空自定义头像，恢复既有首字母与稳定色默认头像。 */
+    @UiIntentObserver(CharacterEditUiIntent.RestoreDefaultAvatar::class)
+    private suspend fun onRestoreDefaultAvatar() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterEditDialogState.AvatarActions || uiState.isAvatarGenerating) return
+        uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+        if (!replaceDraftAvatar("")) {
+            AppViewEvent.PopupToastMessageByResId(R.string.character_avatar_save_failed).tryEmit()
+        }
+    }
+
+    /** 根据当前尚未保存的角色表单直接生成方形头像。 */
+    @UiIntentObserver(CharacterEditUiIntent.GenerateAvatar::class)
+    private fun onGenerateAvatar() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (
+            uiState.dialogState != CharacterEditDialogState.AvatarActions ||
+            uiState.isAvatarGenerating
+        ) return
+
+        val config = ImageGenerationConfig(
+            baseUrl = AppModel.imageGenerationBaseUrl,
+            apiKey = AppModel.imageGenerationApiKey,
+            model = AppModel.imageGenerationModel,
+            size = AppModel.imageGenerationSize
+        )
+        if (config.baseUrl.isBlank() || config.model.isBlank()) {
+            uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_not_configured).tryEmit()
             return
         }
-        // 更新表单头像 UUID 并重新解码位图渲染
-        val latestState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        val form = latestState.form.copy(avatar = intent.fileUuid)
-        latestState.copy(
-            form = form,
-            avatarImage = form.resolveAvatarImage(),
-            loadState = CharacterEditLoadState.None
+
+        val prompt = buildAvatarPrompt(uiState.form, AppModel.imageGenerationStylePrompt)
+        uiState.copy(
+            dialogState = CharacterEditDialogState.None,
+            isAvatarGenerating = true
         ).setup()
+        viewModelScope.launch {
+            var generatedUuid: String? = null
+            try {
+                val generated = mImageClient.generate(config, prompt)
+                generatedUuid = mFileRepository.saveBytes(generated.bytes, generated.mimeType)
+                val avatarUuid = requireNotNull(generatedUuid)
+                generatedUuid = null // replaceDraftAvatar now owns cleanup for this file.
+                val attached = replaceDraftAvatar(avatarUuid)
+                if (!attached) error("Generated avatar could not be attached")
+            } catch (cancellation: CancellationException) {
+                generatedUuid?.let { uuid ->
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        mFileRepository.deleteFile(uuid)
+                    }
+                }
+                throw cancellation
+            } catch (_: Exception) {
+                generatedUuid?.let { uuid ->
+                    withContext(Dispatchers.IO) { mFileRepository.deleteFile(uuid) }
+                }
+                AppViewEvent.PopupToastMessageByResId(R.string.avatar_generation_failed).tryEmit()
+            } finally {
+                getOrNull<CharacterEditUiState.Normal>()?.let { latestState ->
+                    if (latestState.isAvatarGenerating) {
+                        latestState.copy(isAvatarGenerating = false).setup()
+                    }
+                }
+            }
+        }
     }
 
     /** 修改角色名称。 */
@@ -387,6 +454,112 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 打开角色卡更新来源选择，仅已有角色可用。 */
+    @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterClick::class)
+    private fun onUpdateCharacterClick() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.mode != CharacterEditMode.Edit || uiState.loadState != CharacterEditLoadState.None) return
+        mPendingUpdate = null
+        uiState.copy(dialogState = CharacterEditDialogState.UpdateSource).setup()
+    }
+
+    /** 从来源选择面板进入 JSON 粘贴编辑器。 */
+    @UiIntentObserver(CharacterEditUiIntent.PasteUpdateJsonClick::class)
+    private fun onPasteUpdateJsonClick() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterEditDialogState.UpdateSource) return
+        uiState.copy(dialogState = CharacterEditDialogState.UpdateJsonEditor("")).setup()
+    }
+
+    /** 从来源选择面板打开系统 JSON 文件选择器。 */
+    @UiIntentObserver(CharacterEditUiIntent.PickUpdateJsonFileClick::class)
+    private fun onPickUpdateJsonFileClick() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterEditDialogState.UpdateSource) return
+        uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+        CharacterEditViewEvent.OpenCharacterUpdateFilePicker.tryEmit()
+    }
+
+    /** 更新粘贴 JSON 编辑器草稿。 */
+    @UiIntentObserver(CharacterEditUiIntent.ChangeUpdateJsonDraft::class)
+    private fun onChangeUpdateJsonDraft(intent: CharacterEditUiIntent.ChangeUpdateJsonDraft) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? CharacterEditDialogState.UpdateJsonEditor ?: return
+        uiState.copy(dialogState = dialog.copy(draftText = intent.value)).setup()
+    }
+
+    /** 解析粘贴的角色卡 JSON；失败时保留编辑器与原草稿。 */
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmUpdateJson::class)
+    private suspend fun onConfirmUpdateJson() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? CharacterEditDialogState.UpdateJsonEditor ?: return
+        try {
+            prepareCharacterUpdate(mCharacterCardRepository.readImportFromJson(dialog.draftText))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.invalid_character_card_json).tryEmit()
+        }
+    }
+
+    /** 解析系统文件选择器返回的 JSON 角色卡。 */
+    @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterJsonSelected::class)
+    private suspend fun onUpdateCharacterJsonSelected(intent: CharacterEditUiIntent.UpdateCharacterJsonSelected) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.mode != CharacterEditMode.Edit || uiState.loadState != CharacterEditLoadState.None) return
+        try {
+            prepareCharacterUpdate(mCharacterCardRepository.readImportFromUri(intent.uri))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.update_character_failed).tryEmit()
+        }
+    }
+
+    /** 低预算内嵌世界书改为跟随全局预算后继续确认。 */
+    @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterWithGlobalLorebookBudget::class)
+    private fun onUpdateCharacterWithGlobalLorebookBudget() {
+        resolvePendingUpdateBudget(followGlobal = true)
+    }
+
+    /** 保留低预算内嵌世界书的原固定预算后继续确认。 */
+    @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterWithOriginalLorebookBudget::class)
+    private fun onUpdateCharacterWithOriginalLorebookBudget() {
+        resolvePendingUpdateBudget(followGlobal = false)
+    }
+
+    /** 用户最终确认后覆盖持久化角色，并重新加载编辑表单而不退出页面。 */
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmCharacterUpdate::class)
+    private suspend fun onConfirmCharacterUpdate() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is CharacterEditDialogState.ConfirmCharacterUpdate) return
+        val draft = mPendingUpdate ?: return
+        val characterId = uiState.form.id.takeIf { uiState.mode == CharacterEditMode.Edit && it != 0L } ?: return
+        mPendingUpdate = null
+        uiState.copy(
+            loadState = CharacterEditLoadState.Saving,
+            dialogState = CharacterEditDialogState.None
+        ).setup()
+
+        try {
+            val (character, llmProviderId) = withContext(NonCancellable + Dispatchers.IO) {
+                uiState.form.avatar
+                    .takeIf { it.isNotBlank() && it != uiState.form.originalAvatar }
+                    ?.let { mFileRepository.deleteFile(it) }
+                mCharacterCardRepository.updateFromDraft(characterId, draft)
+                val updated = requireNotNull(mCharacterRepository.getCharacterById(characterId))
+                updated to mCharacterRepository.getLLMProviderId(characterId)
+            }
+            showReloadedCharacter(character, llmProviderId)
+            AppViewEvent.PopupToastMessageByResId(R.string.character_updated).tryEmit()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            reloadPersistedCharacterAfterFailedUpdate(characterId)
+            AppViewEvent.PopupToastMessageByResId(R.string.update_character_failed).tryEmit()
+        }
+    }
+
     /** 点击删除角色，检查是否有关联世界书并弹出相应确认对话框。 */
     @UiIntentObserver(CharacterEditUiIntent.DeleteCharacterClick::class)
     private suspend fun onDeleteCharacterClick() {
@@ -492,11 +665,167 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         finishEditing()
     }
 
-    /** 关闭当前显示的弹窗。 */
+    /** 关闭头像或更新来源操作面板；动作已切换到下一弹窗时自动忽略随后到达的关闭回调。 */
+    @UiIntentObserver(CharacterEditUiIntent.DismissActionDialog::class)
+    private fun onDismissActionDialog() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (
+            uiState.dialogState != CharacterEditDialogState.AvatarActions &&
+            uiState.dialogState != CharacterEditDialogState.UpdateSource
+        ) return
+        uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+    }
+
+    /** 关闭当前显示的非操作面板弹窗。 */
     @UiIntentObserver(CharacterEditUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (
+            uiState.dialogState is CharacterEditDialogState.UpdateJsonEditor ||
+            uiState.dialogState is CharacterEditDialogState.LowEmbeddedLorebookBudgetConfirm ||
+            uiState.dialogState is CharacterEditDialogState.ConfirmCharacterUpdate
+        ) {
+            mPendingUpdate = null
+        }
         uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+    }
+
+    /**
+     * 用新 UUID 替换当前草稿头像；相册裁剪、AI 生成和恢复默认共用同一临时文件规则。
+     *
+     * 数据库原头像仅记录在 [CharacterEditForm.originalAvatar]，这里绝不删除；当前未提交头像
+     * 被替换时立即清理。调用失败或页面已结束时，新产生的文件也会被补偿删除。
+     */
+    private suspend fun replaceDraftAvatar(fileUuid: String): Boolean {
+        val initialState = getOrNull<CharacterEditUiState.Normal>()
+        if (initialState == null) {
+            fileUuid.takeIf { it.isNotBlank() }?.let {
+                withContext(NonCancellable + Dispatchers.IO) { mFileRepository.deleteFile(it) }
+            }
+            return false
+        }
+        return try {
+            val avatarImage = fileUuid.takeIf { it.isNotBlank() }?.let {
+                withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() }
+            }
+            val latestState = getOrNull<CharacterEditUiState.Normal>() ?: run {
+                fileUuid.takeIf { it.isNotBlank() }?.let {
+                    withContext(NonCancellable + Dispatchers.IO) { mFileRepository.deleteFile(it) }
+                }
+                return false
+            }
+            withContext(Dispatchers.IO) {
+                latestState.form.avatar
+                    .takeIf {
+                        it.isNotBlank() &&
+                            it != latestState.form.originalAvatar &&
+                            it != fileUuid
+                    }
+                    ?.let { mFileRepository.deleteFile(it) }
+            }
+            val finalState = getOrNull<CharacterEditUiState.Normal>() ?: run {
+                fileUuid.takeIf { it.isNotBlank() }?.let {
+                    withContext(NonCancellable + Dispatchers.IO) { mFileRepository.deleteFile(it) }
+                }
+                return false
+            }
+            finalState.copy(
+                form = finalState.form.copy(avatar = fileUuid),
+                avatarImage = avatarImage
+            ).setup()
+            true
+        } catch (cancellation: CancellationException) {
+            fileUuid.takeIf { it.isNotBlank() }?.let {
+                withContext(NonCancellable + Dispatchers.IO) { mFileRepository.deleteFile(it) }
+            }
+            throw cancellation
+        } catch (_: Exception) {
+            fileUuid.takeIf { it.isNotBlank() }?.let {
+                withContext(NonCancellable + Dispatchers.IO) { mFileRepository.deleteFile(it) }
+            }
+            false
+        }
+    }
+
+    /** 构造无需聊天 LLM 提炼的直接头像生成提示词。 */
+    private fun buildAvatarPrompt(form: CharacterEditForm, stylePrompt: String): String {
+        return buildList {
+            add("Create a square profile avatar, head-and-shoulders portrait, single character, centered composition.")
+            form.name.trim().takeIf { it.isNotBlank() }?.let { add("Character name: $it") }
+            form.description.trim().takeIf { it.isNotBlank() }?.let { add("Appearance and description: $it") }
+            form.personality.trim().takeIf { it.isNotBlank() }?.let { add("Personality: $it") }
+            form.scenario.trim().takeIf { it.isNotBlank() }?.let { add("Setting: $it") }
+            stylePrompt.trim().takeIf { it.isNotBlank() }?.let { add("Visual style: $it") }
+            add("No text, no letters, no logo, no watermark.")
+        }.joinToString("\n")
+    }
+
+    /** 保存解析结果，并按内嵌世界书预算决定下一步确认弹窗。 */
+    private fun prepareCharacterUpdate(draft: CharacterCardImportDraft) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.mode != CharacterEditMode.Edit) return
+        mPendingUpdate = draft
+        uiState.copy(
+            dialogState = if (LorebookImportPolicy.requiresLowBudgetConfirmation(draft.card)) {
+                CharacterEditDialogState.LowEmbeddedLorebookBudgetConfirm(
+                    importedTokenBudget = requireNotNull(draft.card.embeddedLorebook).lorebook.tokenBudget
+                )
+            } else {
+                pendingUpdateDialog(uiState, draft)
+            }
+        ).setup()
+    }
+
+    /** 应用用户选择的内嵌世界书预算策略并进入最终更新确认。 */
+    private fun resolvePendingUpdateBudget(followGlobal: Boolean) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is CharacterEditDialogState.LowEmbeddedLorebookBudgetConfirm) return
+        val pending = mPendingUpdate ?: return
+        val resolved = pending.copy(
+            card = LorebookImportPolicy.resolveBudget(pending.card, followGlobal)
+        )
+        mPendingUpdate = resolved
+        uiState.copy(dialogState = pendingUpdateDialog(uiState, resolved)).setup()
+    }
+
+    /** 构造最终覆盖确认，脏表单提示只在确有未保存编辑时显示。 */
+    private fun pendingUpdateDialog(
+        uiState: CharacterEditUiState.Normal,
+        draft: CharacterCardImportDraft
+    ) = CharacterEditDialogState.ConfirmCharacterUpdate(
+        currentName = uiState.form.name,
+        importedName = draft.card.character.name,
+        hasEmbeddedLorebook = draft.card.embeddedLorebook != null,
+        willDiscardUnsavedChanges = uiState.form.hasUnsavedChangesFrom(uiState.initialForm)
+    )
+
+    /** 用数据库最新角色重置表单、基线与头像，保持当前编辑页。 */
+    private suspend fun showReloadedCharacter(character: Character, llmProviderId: Long) {
+        val latestState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val form = CharacterEditForm.from(character, llmProviderId).ensureListInputs()
+        latestState.copy(
+            form = form,
+            initialForm = form,
+            avatarImage = form.resolveAvatarImage(),
+            loadState = CharacterEditLoadState.None,
+            dialogState = CharacterEditDialogState.None
+        ).setup()
+    }
+
+    /** 更新失败后恢复数据库版本，避免表单继续引用已清理的临时头像。 */
+    private suspend fun reloadPersistedCharacterAfterFailedUpdate(characterId: Long) {
+        val persisted = withContext(Dispatchers.IO) {
+            val character = mCharacterRepository.getCharacterById(characterId)
+            character?.let { it to mCharacterRepository.getLLMProviderId(characterId) }
+        }
+        if (persisted != null) {
+            showReloadedCharacter(persisted.first, persisted.second)
+        } else {
+            getOrNull<CharacterEditUiState.Normal>()?.copy(
+                loadState = CharacterEditLoadState.None,
+                dialogState = CharacterEditDialogState.None
+            )?.setup()
+        }
     }
 
     /** 辅助方法：以不可变方式更新当前角色表单数据。 */
