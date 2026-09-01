@@ -84,6 +84,66 @@ class WebDavClientTest {
     }
 
     @Test
+    fun listBackups_sortsByModifiedAtDescendingThenNameDescendingWithNullLast() {
+        val client = clientWithInterceptor { request ->
+            response(
+                request,
+                code = 207,
+                body = """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <d:multistatus xmlns:d="DAV:">
+                        <d:response>
+                            <d:href>old.rpbackup</d:href>
+                            <d:propstat><d:prop>
+                                <d:resourcetype/>
+                                <d:getcontentlength>10</d:getcontentlength>
+                                <d:getlastmodified>Wed, 21 Oct 2015 07:28:00 GMT</d:getlastmodified>
+                            </d:prop></d:propstat>
+                        </d:response>
+                        <d:response>
+                            <d:href>null-a.rpbackup</d:href>
+                            <d:propstat><d:prop>
+                                <d:resourcetype/>
+                                <d:getcontentlength>10</d:getcontentlength>
+                            </d:prop></d:propstat>
+                        </d:response>
+                        <d:response>
+                            <d:href>new-z.rpbackup</d:href>
+                            <d:propstat><d:prop>
+                                <d:resourcetype/>
+                                <d:getcontentlength>10</d:getcontentlength>
+                                <d:getlastmodified>Wed, 21 Oct 2026 07:28:00 GMT</d:getlastmodified>
+                            </d:prop></d:propstat>
+                        </d:response>
+                        <d:response>
+                            <d:href>new-a.rpbackup</d:href>
+                            <d:propstat><d:prop>
+                                <d:resourcetype/>
+                                <d:getcontentlength>10</d:getcontentlength>
+                                <d:getlastmodified>Wed, 21 Oct 2026 07:28:00 GMT</d:getlastmodified>
+                            </d:prop></d:propstat>
+                        </d:response>
+                        <d:response>
+                            <d:href>null-z.rpbackup</d:href>
+                            <d:propstat><d:prop>
+                                <d:resourcetype/>
+                                <d:getcontentlength>10</d:getcontentlength>
+                            </d:prop></d:propstat>
+                        </d:response>
+                    </d:multistatus>
+                """.trimIndent()
+            )
+        }
+
+        val items = WebDavClient(client).listBackups(
+            WebDavConfig("https://example.test", "alice", "/RPClient/backups/"),
+            "secret"
+        )
+
+        assertEquals(listOf("new-z.rpbackup", "new-a.rpbackup", "old.rpbackup", "null-z.rpbackup", "null-a.rpbackup"), items.map { it.name })
+    }
+
+    @Test
     fun ensureCollection_createsEachNormalizedPathLevel() {
         val requests = mutableListOf<Request>()
         val client = clientWithInterceptor { request ->

@@ -77,6 +77,21 @@ class CharacterListActivity : CoreActivityWithEvent() {
                 )
             }
 
+            CharacterListViewEvent.ReadCharacterJsonFromClipboard -> {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = clipboard.primaryClip
+                val text = if (clip != null && clip.itemCount > 0) {
+                    clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
+                } else {
+                    ""
+                }
+                if (text.isBlank()) {
+                    Toast.makeText(this, R.string.character_clipboard_empty, Toast.LENGTH_SHORT).show()
+                } else {
+                    mViewModel.emit(CharacterListUiIntent.ImportCharacterJsonLoaded(text))
+                }
+            }
+
             is CharacterListViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(

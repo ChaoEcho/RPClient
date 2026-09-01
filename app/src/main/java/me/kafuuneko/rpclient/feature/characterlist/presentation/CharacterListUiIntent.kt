@@ -23,6 +23,16 @@ sealed class CharacterListUiIntent {
 
     data object ImportCharacterClick : CharacterListUiIntent()
 
+    data object PasteImportCharacterJsonClick : CharacterListUiIntent()
+
+    data class ImportCharacterJsonLoaded(val text: String) : CharacterListUiIntent()
+
+    data object PickImportCharacterFileClick : CharacterListUiIntent()
+
+    data class ChangeImportJsonDraft(val value: String) : CharacterListUiIntent()
+
+    data object ConfirmImportJson : CharacterListUiIntent()
+
     data class ImportCharacterCards(val uris: List<Uri>) : CharacterListUiIntent()
 
     data object ImportCharacterWithGlobalLorebookBudget : CharacterListUiIntent()

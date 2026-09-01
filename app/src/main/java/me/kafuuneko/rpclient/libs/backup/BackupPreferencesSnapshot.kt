@@ -75,7 +75,8 @@ data class BackupPreferencesSnapshot(
     val exampleDialogueBehavior: Int,
     val includeThinkInContext: Boolean,
     val debugModeEnabled: Boolean,
-    val autoGenerateImageAfterReply: Boolean = false
+    val autoGenerateImageAfterReply: Boolean = false,
+    val imageGenerationAvatarStylePrompt: String? = null
 ) {
     /** 将快照应用到当前安装，同时保留安装身份与升级记账。 */
     fun apply() {
@@ -104,6 +105,7 @@ data class BackupPreferencesSnapshot(
         AppModel.imageGenerationModel = imageGenerationModel
         AppModel.imageGenerationSize = imageGenerationSize
         AppModel.imageGenerationStylePrompt = imageGenerationStylePrompt
+        AppModel.imageGenerationAvatarStylePrompt = imageGenerationAvatarStylePrompt.orEmpty()
         // Prompt 和用户身份按原值恢复，不对用户文本做规范化或裁剪
         AppModel.mainPrompt = mainPrompt
         AppModel.summarizePrompt = summarizePrompt
@@ -233,6 +235,7 @@ data class BackupPreferencesSnapshot(
                 imageGenerationModel = AppModel.imageGenerationModel,
                 imageGenerationSize = AppModel.imageGenerationSize,
                 imageGenerationStylePrompt = AppModel.imageGenerationStylePrompt,
+                imageGenerationAvatarStylePrompt = AppModel.imageGenerationAvatarStylePrompt,
                 mainPrompt = AppModel.mainPrompt,
                 summarizePrompt = AppModel.summarizePrompt,
                 postHistoryInstructions = AppModel.postHistoryInstructions,

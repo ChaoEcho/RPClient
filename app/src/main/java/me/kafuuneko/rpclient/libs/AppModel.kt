@@ -207,8 +207,11 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 单聊回复完成后是否自动生成对应图片。
     var autoGenerateImageAfterReply by booleanPref(default = false)
 
-    // 图像生成风格提示词。
+    // 聊天回复图像生成风格提示词。
     var imageGenerationStylePrompt by stringPref(default = "")
+
+    // 角色头像图像生成风格提示词。
+    var imageGenerationAvatarStylePrompt by stringPref(default = "")
 
     // 主提示词（Main Prompt），注入每次普通对话生成的系统区。
     var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)

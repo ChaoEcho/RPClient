@@ -68,7 +68,7 @@ class WebDavClient(private val client: OkHttpClient) {
         }
     }
 
-    /** 列出备份目录下的 .rpbackup 文件，不返回目录或其他扩展名。 */
+    /** 列出备份目录下的 .rpbackup 文件，按修改时间降序排序（无时间戳排在最后），次级按文件名降序。 */
     fun listBackups(config: WebDavConfig, password: String): List<RemoteBackupItem> = guarded {
         val url = collectionUrl(config)
         withResponse(
@@ -178,7 +178,11 @@ class WebDavClient(private val client: OkHttpClient) {
                 size = childText(response, DAV_CONTENT_LENGTH)?.toLongOrNull() ?: 0L,
                 modifiedAt = childText(response, DAV_LAST_MODIFIED)?.let(::parseRfc1123)
             )
-        }
+        }.sortedWith(
+            compareByDescending<RemoteBackupItem> { it.modifiedAt != null }
+                .thenByDescending { it.modifiedAt ?: Long.MIN_VALUE }
+                .thenByDescending { it.name }
+        )
     }
 
     private fun remoteNameFromHref(collectionUrl: HttpUrl, href: String): String? {

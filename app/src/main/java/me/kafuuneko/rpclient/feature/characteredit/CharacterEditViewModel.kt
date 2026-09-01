@@ -27,6 +27,8 @@ import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.imagegeneration.AVATAR_IMAGE_SIZE
+import me.kafuuneko.rpclient.libs.imagegeneration.AvatarPromptBuilder
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -230,7 +232,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             baseUrl = AppModel.imageGenerationBaseUrl,
             apiKey = AppModel.imageGenerationApiKey,
             model = AppModel.imageGenerationModel,
-            size = AppModel.imageGenerationSize
+            size = AVATAR_IMAGE_SIZE
         )
         if (config.baseUrl.isBlank() || config.model.isBlank()) {
             uiState.copy(dialogState = CharacterEditDialogState.None).setup()
@@ -238,7 +240,11 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             return
         }
 
-        val prompt = buildAvatarPrompt(uiState.form, AppModel.imageGenerationStylePrompt)
+        val prompt = AvatarPromptBuilder.buildAvatarPrompt(
+            characterName = uiState.form.name,
+            characterDescription = uiState.form.description,
+            avatarStylePrompt = AppModel.imageGenerationAvatarStylePrompt
+        )
         uiState.copy(
             dialogState = CharacterEditDialogState.None,
             isAvatarGenerating = true
@@ -747,18 +753,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         }
     }
 
-    /** 构造无需聊天 LLM 提炼的直接头像生成提示词。 */
-    private fun buildAvatarPrompt(form: CharacterEditForm, stylePrompt: String): String {
-        return buildList {
-            add("Create a square profile avatar, head-and-shoulders portrait, single character, centered composition.")
-            form.name.trim().takeIf { it.isNotBlank() }?.let { add("Character name: $it") }
-            form.description.trim().takeIf { it.isNotBlank() }?.let { add("Appearance and description: $it") }
-            form.personality.trim().takeIf { it.isNotBlank() }?.let { add("Personality: $it") }
-            form.scenario.trim().takeIf { it.isNotBlank() }?.let { add("Setting: $it") }
-            stylePrompt.trim().takeIf { it.isNotBlank() }?.let { add("Visual style: $it") }
-            add("No text, no letters, no logo, no watermark.")
-        }.joinToString("\n")
-    }
+
 
     /** 保存解析结果，并按内嵌世界书预算决定下一步确认弹窗。 */
     private fun prepareCharacterUpdate(draft: CharacterCardImportDraft) {

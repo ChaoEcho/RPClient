@@ -7,7 +7,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGenerationSettingsUiIntent
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGenerationSettingsUiState
 import me.kafuuneko.rpclient.feature.imagegeneration.ui.ImageGenerationSettingsLayout
@@ -18,7 +17,7 @@ import me.kafuuneko.rpclient.libs.core.ViewEventWrapper
 class ImageGenerationSettingsActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ImageGenerationSettingsViewModel>()
 
-    override fun getViewEventFlow(): Flow<ViewEventWrapper> = emptyFlow()
+    override fun getViewEventFlow(): Flow<ViewEventWrapper> = mViewModel.viewEventFlow
 
     @Composable
     override fun ViewContent() {

@@ -167,16 +167,73 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         AppViewEvent.StartActivity(CharacterEditActivity::class.java).tryEmit()
     }
 
-    /** 触发系统文件选择器以导入角色卡文件。 */
+    /** 打开导入角色来源选择对话框。 */
     @UiIntentObserver(CharacterListUiIntent.ImportCharacterClick::class)
     private fun onImportCharacterClick() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState != CharacterListDialogState.None) return
+        uiState.copy(dialogState = CharacterListDialogState.ImportSource).setup()
+    }
+
+    /** 从来源选择面板打开系统文件选择器以导入角色卡。 */
+    @UiIntentObserver(CharacterListUiIntent.PickImportCharacterFileClick::class)
+    private fun onPickImportCharacterFileClick() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterListDialogState.ImportSource) return
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
         CharacterListViewEvent.OpenCharacterCardImporter.tryEmit()
     }
 
+    /** 从来源选择面板请求从系统剪贴板读取角色卡 JSON。 */
+    @UiIntentObserver(CharacterListUiIntent.PasteImportCharacterJsonClick::class)
+    private fun onPasteImportCharacterJsonClick() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterListDialogState.ImportSource) return
+        CharacterListViewEvent.ReadCharacterJsonFromClipboard.tryEmit()
+    }
+
+    /** 剪贴板读取成功后进入 JSON 检查/编辑对话框。 */
+    @UiIntentObserver(CharacterListUiIntent.ImportCharacterJsonLoaded::class)
+    private fun onImportCharacterJsonLoaded(intent: CharacterListUiIntent.ImportCharacterJsonLoaded) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.dialogState != CharacterListDialogState.ImportSource) return
+        uiState.copy(dialogState = CharacterListDialogState.ImportJsonEditor(intent.text)).setup()
+    }
+
+    /** 更新粘贴 JSON 导入编辑器草稿。 */
+    @UiIntentObserver(CharacterListUiIntent.ChangeImportJsonDraft::class)
+    private fun onChangeImportJsonDraft(intent: CharacterListUiIntent.ChangeImportJsonDraft) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? CharacterListDialogState.ImportJsonEditor ?: return
+        uiState.copy(dialogState = dialog.copy(draftText = intent.value)).setup()
+    }
+
+    /** 解析粘贴的角色卡 JSON；失败时保留编辑器与原草稿，成功则进入统一导入流。 */
+    @UiIntentObserver(CharacterListUiIntent.ConfirmImportJson::class)
+    private suspend fun onConfirmImportJson() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? CharacterListDialogState.ImportJsonEditor ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val draft = try {
+            mCharacterCardRepository.readImportFromJson(dialog.draftText)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.invalid_character_card_json).tryEmit()
+            return
+        }
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
+        processPreparedImportBatch(
+            CharacterCardImportBatch(
+                drafts = listOf(draft),
+                parseFailureCount = 0,
+                totalCount = 1
+            )
+        )
+    }
+
     /**
-     * 解析一批角色卡，并在需要时暂停于内嵌世界书预算确认。
+     * 解析一批角色卡文件，并在需要时暂停于内嵌世界书预算确认。
      *
      * - 各文件顺序解析，限制批量导入的瞬时内存占用。
      * - 单个文件解析失败不会阻断其余文件。
@@ -204,23 +261,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             try {
                 // 解析阶段只创建内存草稿，避免确认前产生半成品数据
                 val batch = readImportBatch(uris)
-                val lowBudgetDrafts = batch.drafts.filter {
-                    LorebookImportPolicy.requiresLowBudgetConfirmation(it.card)
-                }
-                if (lowBudgetDrafts.isNotEmpty()) {
-                    mPendingImport = batch
-                    getOrNull<CharacterListUiState.Normal>()?.copy(
-                        loadState = CharacterListLoadState.None,
-                        dialogState = CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm(
-                            importedTokenBudget = lowBudgetDrafts.minOf {
-                                requireNotNull(it.card.embeddedLorebook).lorebook.tokenBudget
-                            },
-                            affectedCharacterCount = lowBudgetDrafts.size
-                        )
-                    )?.setup()
-                } else {
-                    saveImportBatch(batch)
-                }
+                processPreparedImportBatchInternal(batch)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -242,6 +283,54 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget::class)
     private fun onImportCharacterWithOriginalLorebookBudget() {
         continuePendingTransfer(followGlobal = false)
+    }
+
+    /** 处理已就绪的角色卡导入批次（支持 URI 解析与 JSON 粘贴入口共用）。 */
+    private fun processPreparedImportBatch(batch: CharacterCardImportBatch) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val token = Any()
+        mTransferToken = token
+        uiState.copy(
+            loadState = CharacterListLoadState.Importing(
+                stage = CharacterImportStage.Saving,
+                completedCount = 0,
+                totalCount = batch.drafts.size
+            )
+        ).setup()
+        mTransferJob = viewModelScope.launch {
+            try {
+                processPreparedImportBatchInternal(batch)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
+                refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
+            } finally {
+                finishTransfer(token)
+            }
+        }
+    }
+
+    /** 检查内嵌世界书预算并在必要时弹出确认对话框，否则直接保存。 */
+    private suspend fun processPreparedImportBatchInternal(batch: CharacterCardImportBatch) {
+        val lowBudgetDrafts = batch.drafts.filter {
+            LorebookImportPolicy.requiresLowBudgetConfirmation(it.card)
+        }
+        if (lowBudgetDrafts.isNotEmpty()) {
+            mPendingImport = batch
+            getOrNull<CharacterListUiState.Normal>()?.copy(
+                loadState = CharacterListLoadState.None,
+                dialogState = CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm(
+                    importedTokenBudget = lowBudgetDrafts.minOf {
+                        requireNotNull(it.card.embeddedLorebook).lorebook.tokenBudget
+                    },
+                    affectedCharacterCount = lowBudgetDrafts.size
+                )
+            )?.setup()
+        } else {
+            saveImportBatch(batch)
+        }
     }
 
     /**
@@ -302,7 +391,9 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (
             uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
-            uiState.dialogState !is CharacterListDialogState.ExportDestination
+            uiState.dialogState !is CharacterListDialogState.ExportDestination &&
+            uiState.dialogState !is CharacterListDialogState.ImportSource &&
+            uiState.dialogState !is CharacterListDialogState.ImportJsonEditor
         ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
