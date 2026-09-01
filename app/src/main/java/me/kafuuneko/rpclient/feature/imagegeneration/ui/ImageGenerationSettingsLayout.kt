@@ -16,6 +16,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,11 +37,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGenerationSettingsUiIntent
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGenerationSettingsUiState
+import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImagePromptProviderItem
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import androidx.compose.ui.res.stringResource
 
@@ -92,6 +99,11 @@ private fun ImageGenerationSettingsContent(
         )
 
         SettingsPanel {
+            ImagePromptProviderSelector(
+                selectedProviderId = state.selectedProviderId,
+                providers = state.providers,
+                emit = emit
+            )
             SettingsTextField(
                 value = state.baseUrl,
                 label = stringResource(R.string.image_generation_base_url),
@@ -127,6 +139,75 @@ private fun ImageGenerationSettingsContent(
                 imeAction = ImeAction.Default
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImagePromptProviderSelector(
+    selectedProviderId: Long,
+    providers: List<ImagePromptProviderItem>,
+    emit: ImageGenerationSettingsUiIntent.() -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
+    val selectedLabel = selectedProvider?.displayName()
+        ?: stringResource(R.string.image_prompt_follow_chat_model)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.image_prompt_model)) },
+            supportingText = { Text(stringResource(R.string.image_prompt_model_helper)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            maxLines = 1
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.image_prompt_follow_chat_model)) },
+                onClick = {
+                    ImageGenerationSettingsUiIntent.ChangePromptProvider(0L).emit()
+                    expanded = false
+                }
+            )
+            providers.forEach { provider ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = provider.displayName(),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    onClick = {
+                        ImageGenerationSettingsUiIntent.ChangePromptProvider(provider.id).emit()
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun ImagePromptProviderItem.displayName(): String {
+    val providerName = name.trim()
+    val providerModel = model.trim()
+    return when {
+        providerName.isEmpty() -> providerModel
+        providerModel.isEmpty() -> providerName
+        else -> "$providerName · $providerModel"
     }
 }
 

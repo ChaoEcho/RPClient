@@ -1079,6 +1079,11 @@
     <string name="image_generation_model">Modelo de imagen</string>
     <string name="image_generation_size">Tamaño de imagen</string>
     <string name="image_generation_style_prompt">Indicación de estilo</string>
+    <string name="image_prompt_model">Modelo de prompt de escena</string>
+    <string name="image_prompt_model_helper">Sintetiza el último mensaje del chat en una escena visible y concisa antes de generar la imagen.</string>
+    <string name="image_prompt_follow_chat_model">Seguir el modelo de chat actual</string>
+    <string name="image_saved">Imagen guardada</string>
+    <string name="image_save_failed">No se pudo guardar la imagen generada</string>
     <string name="generate_image">Generar imagen</string>
     <string name="regenerate_image">Volver a generar la imagen</string>
     <string name="image_generating">Generando imagen…</string>

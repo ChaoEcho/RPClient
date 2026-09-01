@@ -9,8 +9,17 @@ sealed class ImageGenerationSettingsUiState {
         val apiKey: String,
         val model: String,
         val size: String,
-        val stylePrompt: String
+        val stylePrompt: String,
+        val selectedProviderId: Long = 0L,
+        val providers: List<ImagePromptProviderItem> = emptyList()
     ) : ImageGenerationSettingsUiState()
 
     data class Finished(val previous: ImageGenerationSettingsUiState) : ImageGenerationSettingsUiState()
 }
+
+/** Minimal enabled LLM provider summary shown by the image scene prompt selector. */
+data class ImagePromptProviderItem(
+    val id: Long,
+    val name: String,
+    val model: String
+)

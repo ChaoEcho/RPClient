@@ -1,6 +1,13 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -57,6 +64,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,6 +86,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -90,6 +99,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -101,7 +111,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
@@ -185,6 +199,62 @@ private fun ChatNormal(
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
+    var previewFileUuid by remember { mutableStateOf<String?>(null) }
+    var pendingSaveFileUuid by remember { mutableStateOf<String?>(null) }
+    var isSavingImage by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    fun showImageSaveResult(saved: Boolean) {
+        Toast.makeText(
+            context,
+            if (saved) R.string.image_saved else R.string.image_save_failed,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    fun saveImageNow(uuid: String) {
+        if (isSavingImage) return
+        val repository = fileRepository
+        if (repository == null) {
+            showImageSaveResult(saved = false)
+            return
+        }
+        isSavingImage = true
+        coroutineScope.launch {
+            val saved = runCatching {
+                repository.saveImageToPictures(uuid)
+            }.getOrDefault(false)
+            isSavingImage = false
+            showImageSaveResult(saved)
+        }
+    }
+
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val uuid = pendingSaveFileUuid
+        pendingSaveFileUuid = null
+        if (uuid != null) {
+            if (granted) saveImageNow(uuid) else showImageSaveResult(saved = false)
+        }
+    }
+
+    fun savePreviewImage(uuid: String) {
+        if (isSavingImage || pendingSaveFileUuid != null) return
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingSaveFileUuid = uuid
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            saveImageNow(uuid)
+        }
+    }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.canScrollForward }
@@ -289,6 +359,7 @@ private fun ChatNormal(
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
                     isFirstMessage = index == 0,
+                    onImageClick = { uuid -> previewFileUuid = uuid },
                     emit = emit
                 )
             }
@@ -304,6 +375,17 @@ private fun ChatNormal(
                 it.role == MessageRole.Assistant
             },
             emit = emit
+        )
+    }
+
+    val previewUuid = previewFileUuid
+    if (previewUuid != null) {
+        ImagePreviewDialog(
+            fileUuid = previewUuid,
+            fileRepository = fileRepository,
+            isSaving = isSavingImage,
+            onDismiss = { previewFileUuid = null },
+            onSave = { savePreviewImage(previewUuid) }
         )
     }
 }
@@ -713,6 +795,7 @@ private fun MessageBubble(
     editing: Boolean,
     editingDraft: String,
     isFirstMessage: Boolean,
+    onImageClick: (String) -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
@@ -833,8 +916,6 @@ private fun MessageBubble(
                             MessageContent(
                                 message = message,
                                 expandedThinkBlockIds = expandedThinkBlockIds,
-                                imageGenerationState = imageGenerationState,
-                                fileRepository = fileRepository,
                                 isUser = isUser,
                                 emit = emit
                             )
@@ -848,6 +929,16 @@ private fun MessageBubble(
                         emit = emit
                     )
                 }
+            }
+
+            if (message.role == MessageRole.Assistant) {
+                MessageImageContent(
+                    message = message,
+                    imageGenerationState = imageGenerationState,
+                    fileRepository = fileRepository,
+                    onImageClick = onImageClick,
+                    emit = emit
+                )
             }
 
             AnimatedVisibility(
@@ -937,8 +1028,6 @@ private fun SpeechIconButton(
 private fun MessageContent(
     message: ChatMessageUiModel,
     expandedThinkBlockIds: Set<String>,
-    imageGenerationState: ChatImageGenerationState,
-    fileRepository: FileRepository?,
     isUser: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -968,14 +1057,6 @@ private fun MessageContent(
                 )
             }
         }
-        if (message.role == MessageRole.Assistant) {
-            MessageImageContent(
-                message = message,
-                imageGenerationState = imageGenerationState,
-                fileRepository = fileRepository,
-                emit = emit
-            )
-        }
     }
 }
 
@@ -984,6 +1065,7 @@ private fun MessageImageContent(
     message: ChatMessageUiModel,
     imageGenerationState: ChatImageGenerationState,
     fileRepository: FileRepository?,
+    onImageClick: (String) -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
     val isGenerating = imageGenerationState is ChatImageGenerationState.Generating &&
@@ -994,65 +1076,170 @@ private fun MessageImageContent(
 
     if (fileUuid == null && !isGenerating && failure == null) return
 
-    if (fileUuid == null) {
-        if (isGenerating) {
-            ImageGenerationPlaceholder()
-        } else if (failure != null) {
-            ImageGenerationFailure(
-                message = failure.message,
-                emit = emit,
-                messageId = message.id,
-                placeholder = true
-            )
-        }
-        return
+    val canOpenPreview = fileUuid != null && fileRepository != null
+    val sampledBitmap = if (fileUuid != null) {
+        produceState<ImageBitmap?>(initialValue = null, fileUuid, fileRepository) {
+            value = fileRepository?.loadSampledBitmap(
+                uuid = fileUuid,
+                requestedWidthPx = 800,
+                requestedHeightPx = 600
+            )?.asImageBitmap()
+        }.value
+    } else {
+        null
     }
 
-    val sampledBitmap = produceState<ImageBitmap?>(initialValue = null, fileUuid) {
-        value = fileRepository?.loadSampledBitmap(
-            uuid = fileUuid,
-            requestedWidthPx = 800,
-            requestedHeightPx = 600
-        )?.asImageBitmap()
-    }.value
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+    Surface(
+        modifier = Modifier.widthIn(max = 295.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+        ),
+        shadowElevation = 0.5.dp
     ) {
-        if (sampledBitmap != null) {
-            Image(
-                bitmap = sampledBitmap,
-                contentDescription = stringResource(R.string.generated_image_content_description),
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.FillWidth
-            )
-        } else {
-            ImageLoadingPlaceholder()
-        }
-        if (isGenerating) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.padding(7.dp).size(16.dp),
-                    strokeWidth = 2.dp
-                )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (fileUuid == null) {
+                if (isGenerating) {
+                    ImageGenerationPlaceholder()
+                } else if (failure != null) {
+                    ImageGenerationFailure(
+                        message = failure.message,
+                        emit = emit,
+                        messageId = message.id,
+                        placeholder = true
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(enabled = canOpenPreview) {
+                            onImageClick(fileUuid)
+                        }
+                ) {
+                    if (sampledBitmap != null) {
+                        Image(
+                            bitmap = sampledBitmap,
+                            contentDescription = stringResource(R.string.generated_image_content_description),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentScale = ContentScale.FillWidth
+                        )
+                    } else {
+                        ImageLoadingPlaceholder()
+                    }
+                    if (isGenerating) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(7.dp).size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+                if (failure != null) {
+                    ImageGenerationFailure(
+                        message = failure.message,
+                        emit = emit,
+                        messageId = message.id,
+                        placeholder = false
+                    )
+                }
             }
         }
     }
-    if (failure != null) {
-        ImageGenerationFailure(
-            message = failure.message,
-            emit = emit,
-            messageId = message.id,
-            placeholder = false
+}
+
+@Composable
+private fun ImagePreviewDialog(
+    fileUuid: String,
+    fileRepository: FileRepository?,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    val previewBitmap = produceState<ImageBitmap?>(initialValue = null, fileUuid, fileRepository) {
+        value = fileRepository?.loadSampledBitmap(
+            uuid = fileUuid,
+            requestedWidthPx = 2_048,
+            requestedHeightPx = 2_048
+        )?.asImageBitmap()
+    }.value
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
         )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Black
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (previewBitmap != null) {
+                    Image(
+                        bitmap = previewBitmap,
+                        contentDescription = stringResource(R.string.generated_image_content_description),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color.White
+                    )
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.close),
+                        tint = Color.White
+                    )
+                }
+
+                TextButton(
+                    onClick = onSave,
+                    enabled = !isSaving,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 12.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.FileUpload,
+                            contentDescription = null
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.save))
+                }
+            }
+        }
     }
 }
 

@@ -39,6 +39,7 @@ class LLMProviderDeletionTest {
         Kotpref.init(context)
         AppModel.currentLLMProvider = 0L
         AppModel.summaryLLMProvider = 0L
+        AppModel.imagePromptLLMProvider = 0L
         AppModel.llmDefaultProvidersInitialized = false
         mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
@@ -68,6 +69,7 @@ class LLMProviderDeletionTest {
         mRequestLogDatabase.close()
         AppModel.currentLLMProvider = 0L
         AppModel.summaryLLMProvider = 0L
+        AppModel.imagePromptLLMProvider = 0L
         AppModel.llmDefaultProvidersInitialized = false
     }
 
@@ -89,6 +91,7 @@ class LLMProviderDeletionTest {
             llmProviderId = providerId
         )
         AppModel.summaryLLMProvider = providerId
+        AppModel.imagePromptLLMProvider = providerId
 
         mRepository.deleteProvider(providerId)
 
@@ -96,6 +99,7 @@ class LLMProviderDeletionTest {
         assertNotNull(mCharacterRepository.getCharacterById(characterId))
         assertEquals(0L, mCharacterRepository.getLLMProviderId(characterId))
         assertEquals(0L, AppModel.summaryLLMProvider)
+        assertEquals(0L, AppModel.imagePromptLLMProvider)
     }
 
     @Test
@@ -136,6 +140,60 @@ class LLMProviderDeletionTest {
             runCatching { resolver.requireSummaryProvider() }
                 .exceptionOrNull() is UnavailableLLMProviderSelectionException
         )
+    }
+
+    @Test
+    fun imagePromptProviderUsesCharacterBindingOrExplicitSelection() = runBlocking {
+        val providerAId = mRepository.saveProvider(provider("Provider A"))
+        val providerBId = mRepository.saveProvider(provider("Provider B"))
+        mRepository.updateCurrentProvider(providerAId)
+        val resolver = LLMProviderSelectionResolver(mRepository, mCharacterRepository)
+        val character = Character(
+            name = "Character",
+            avatar = "",
+            characterTags = "[]",
+            description = "",
+            personality = "",
+            scenario = "",
+            firstMessages = "",
+            examplesOfDialogue = "",
+            postHistoryInstructions = ""
+        )
+
+        val unboundCharacterId = mCharacterRepository.saveCharacterWithLLMProvider(
+            character,
+            llmProviderId = 0L
+        )
+        AppModel.imagePromptLLMProvider = 0L
+        assertEquals(
+            providerAId,
+            resolver.requireImagePromptProvider(
+                checkNotNull(mCharacterRepository.getCharacterById(unboundCharacterId))
+            ).id
+        )
+
+        val characterBoundToBId = mCharacterRepository.saveCharacterWithLLMProvider(
+            character.copy(name = "Character bound to B"),
+            llmProviderId = providerBId
+        )
+        AppModel.imagePromptLLMProvider = 0L
+        assertEquals(
+            providerBId,
+            resolver.requireImagePromptProvider(
+                checkNotNull(mCharacterRepository.getCharacterById(characterBoundToBId))
+            ).id
+        )
+
+        val characterBoundToAId = mCharacterRepository.saveCharacterWithLLMProvider(
+            character.copy(name = "Character bound to A"),
+            llmProviderId = providerAId
+        )
+        AppModel.imagePromptLLMProvider = providerBId
+        val characterBoundToA = checkNotNull(
+            mCharacterRepository.getCharacterById(characterBoundToAId)
+        )
+        assertEquals(providerAId, resolver.requireCharacterProvider(characterBoundToA).id)
+        assertEquals(providerBId, resolver.requireImagePromptProvider(characterBoundToA).id)
     }
 
     @Test

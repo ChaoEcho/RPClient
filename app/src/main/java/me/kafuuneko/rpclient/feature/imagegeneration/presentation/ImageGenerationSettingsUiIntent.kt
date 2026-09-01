@@ -10,4 +10,5 @@ sealed class ImageGenerationSettingsUiIntent {
     data class ChangeModel(val value: String) : ImageGenerationSettingsUiIntent()
     data class ChangeSize(val value: String) : ImageGenerationSettingsUiIntent()
     data class ChangeStylePrompt(val value: String) : ImageGenerationSettingsUiIntent()
+    data class ChangePromptProvider(val providerId: Long) : ImageGenerationSettingsUiIntent()
 }

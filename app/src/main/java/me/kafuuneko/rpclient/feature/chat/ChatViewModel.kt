@@ -56,8 +56,12 @@ import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
+import me.kafuuneko.rpclient.libs.imagegeneration.buildFallbackScenePrompt
 import me.kafuuneko.rpclient.libs.imagegeneration.buildImagePrompt
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
@@ -90,6 +94,13 @@ import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+
+private const val IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT = """
+Refine the latest roleplay turn into a concise English description of the visible scene for an image prompt.
+Include only visible subjects, location, current actions, pose, facial expression, spatial interaction, and relevant objects.
+Do not include art, render, or photo style; permanent character appearance; ethnicity; global color grading; watermark, UI, or text-rendering rules.
+Output only the scene description, with no labels, analysis, dialogue, or instructions.
+"""
 
 /**
  * 单角色聊天页面的 ViewModel（状态持有者与业务控制器）。
@@ -578,23 +589,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         .lastOrNull { it.source == ChatMessage.Source.User }
                         ?.content
                         .orEmpty()
-                    val prompt = buildImagePrompt(
-                        characterName = character.name,
-                        characterDescription = character.description,
-                        scenario = character.scenario,
-                        recentUserMessage = recentUserMessage,
-                        assistantReply = target.content,
-                        stylePrompt = AppModel.imageGenerationStylePrompt
-                    )
                     ImageGenerationPreparation(
                         target = target,
-                        prompt = prompt,
+                        character = character,
+                        recentUserMessage = recentUserMessage,
                         config = ImageGenerationConfig(
                             baseUrl = AppModel.imageGenerationBaseUrl,
                             apiKey = AppModel.imageGenerationApiKey,
                             model = AppModel.imageGenerationModel,
                             size = AppModel.imageGenerationSize
-                        )
+                        ),
+                        stylePrompt = AppModel.imageGenerationStylePrompt
                     )
                 }
                 if (preparation == null || mSessionId != sessionId) return@launch
@@ -618,9 +623,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 ).setup()
 
+                val scenePrompt = refineImageScene(
+                    character = preparation.character,
+                    recentUserMessage = preparation.recentUserMessage,
+                    assistantReply = preparation.target.content,
+                    sessionId = sessionId
+                )
+                val prompt = buildImagePrompt(
+                    characterName = preparation.character.name,
+                    characterDescription = preparation.character.description,
+                    scenario = preparation.character.scenario,
+                    scenePrompt = scenePrompt,
+                    stylePrompt = preparation.stylePrompt
+                )
                 val generated: GeneratedImage = mImageClient.generate(
                     config = preparation.config,
-                    prompt = preparation.prompt
+                    prompt = prompt
                 )
                 val replaced = withContext(NonCancellable + Dispatchers.IO) {
                     newUuid = mFileRepository.saveBytes(generated.bytes, generated.mimeType)
@@ -673,6 +691,75 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             } finally {
                 mImageGenerationJob = null
             }
+        }
+    }
+
+    /**
+     * Refines the latest roleplay turn into a short visible-scene description.
+     *
+     * Prompt-provider resolution and the optional request are deliberately isolated from the
+     * image-generation failure path: any non-cancellation refinement problem uses the local
+     * deterministic scene description and still lets the image request proceed.
+     */
+    private suspend fun refineImageScene(
+        character: Character,
+        recentUserMessage: String,
+        assistantReply: String,
+        sessionId: Long
+    ): String {
+        val fallback = buildFallbackScenePrompt(
+            recentUserMessage = recentUserMessage,
+            assistantReply = assistantReply
+        )
+        return try {
+            val provider = withContext(Dispatchers.IO) {
+                mProviderSelectionResolver.requireImagePromptProvider(character)
+            }
+            val response = withContext(Dispatchers.IO) {
+                mLLMRepository.generateWithProvider(
+                    provider = provider,
+                    request = LLMGenerationRequest(
+                        messages = listOf(
+                            LLMMessage(
+                                role = LLMMessageRole.System,
+                                content = IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT
+                            ),
+                            LLMMessage(
+                                role = LLMMessageRole.User,
+                                content = buildString {
+                                    appendLine("Character name:")
+                                    appendLine(character.name.trim().ifBlank { "(none)" })
+                                    appendLine()
+                                    appendLine("Character description:")
+                                    appendLine(character.description.trim().ifBlank { "(none)" })
+                                    appendLine()
+                                    appendLine("Scenario:")
+                                    appendLine(character.scenario.trim().ifBlank { "(none)" })
+                                    appendLine()
+                                    appendLine("Recent user message:")
+                                    appendLine(recentUserMessage.trim().ifBlank { "(none)" })
+                                    appendLine()
+                                    appendLine("Latest character reply:")
+                                    appendLine(assistantReply.trim().ifBlank { "(none)" })
+                                }
+                            )
+                        ),
+                        options = LLMGenerationOptions(
+                            temperature = 0.2f,
+                            maxTokens = 220
+                        ),
+                        includeReasoningInContent = false,
+                        captureReasoning = false,
+                        isPromptFinalized = true
+                    ),
+                    routingSessionKey = "image-prompt:$sessionId"
+                )
+            }
+            response.content.trim().takeIf { it.isNotEmpty() } ?: fallback
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            fallback
         }
     }
 
@@ -2578,11 +2665,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         data class Update(val messageId: Long) : GenerationOutput()
     }
 
-    /** 图片生成请求在启动时冻结的目标消息、提示词和配置。 */
+    /** 图片生成请求在启动时冻结的目标消息、角色场景上下文和配置。 */
     private data class ImageGenerationPreparation(
         val target: ChatMessage,
-        val prompt: String,
-        val config: ImageGenerationConfig
+        val character: Character,
+        val recentUserMessage: String,
+        val config: ImageGenerationConfig,
+        val stylePrompt: String
     )
 
     /**

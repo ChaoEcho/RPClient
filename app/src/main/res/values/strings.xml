@@ -1092,6 +1092,11 @@
     <string name="image_generation_model">Image model</string>
     <string name="image_generation_size">Image size</string>
     <string name="image_generation_style_prompt">Style prompt</string>
+    <string name="image_prompt_model">Scene prompt model</string>
+    <string name="image_prompt_model_helper">Refines the latest chat turn into a concise visible scene before image generation.</string>
+    <string name="image_prompt_follow_chat_model">Follow current chat model</string>
+    <string name="image_saved">Image saved</string>
+    <string name="image_save_failed">Could not save the generated image</string>
     <string name="generate_image">Generate image</string>
     <string name="send_and_generate_image">Send &amp; generate image</string>
     <string name="regenerate_image">Regenerate image</string>

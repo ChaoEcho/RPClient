@@ -159,6 +159,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 摘要专用模型配置 ID；0 表示跟随当前全局模型配置。
     var summaryLLMProvider by longPref()
 
+    // 图片场景提示词专用模型配置 ID；0 表示跟随当前聊天角色实际使用的模型配置。
+    var imagePromptLLMProvider by longPref(default = 0L)
+
     // 默认模型配置模板是否已完成首次初始化，防止用户删除全部配置后被自动重建。
     var llmDefaultProvidersInitialized by booleanPref(default = false)
 
