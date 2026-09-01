@@ -1078,12 +1078,14 @@
     <string name="go_to_model_settings">前往配置</string>
 
     <string name="image_generation">图片生成</string>
+    <string name="image_generation_settings_subtitle">配置模型、接口、尺寸与生成风格</string>
     <string name="image_generation_base_url">Base URL</string>
     <string name="image_generation_api_key">API 密钥</string>
     <string name="image_generation_model">图片模型</string>
     <string name="image_generation_size">图片尺寸</string>
     <string name="image_generation_style_prompt">风格提示词</string>
     <string name="generate_image">生成图片</string>
+    <string name="send_and_generate_image">发送并生成图片</string>
     <string name="regenerate_image">重新生成图片</string>
     <string name="image_generating">正在生成图片…</string>
     <string name="image_generation_retry">重试</string>

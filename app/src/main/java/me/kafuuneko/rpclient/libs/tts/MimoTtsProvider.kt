@@ -30,6 +30,8 @@ class MimoTtsProvider(
         val baseUrl = mimoRequest.baseUrl.trim().trimEnd('/')
         if (baseUrl.isBlank()) throw TtsException("MiMo base URL is required")
         if (mimoRequest.apiKey.isBlank()) throw TtsException("MiMo API key is required")
+        val model = mimoRequest.model.trim()
+        if (model.isBlank()) throw TtsException("MiMo model is required")
         if (mimoRequest.voice.isBlank()) throw TtsException("MiMo voice is required")
         if (mimoRequest.text.isBlank()) throw TtsException("Speech text is blank")
         if (!mimoRequest.temperature.isFinite() || mimoRequest.temperature !in 0f..1.5f) {
@@ -42,7 +44,7 @@ class MimoTtsProvider(
         }
         messages += mapOf("role" to "assistant", "content" to mimoRequest.text)
         val payload = mapOf(
-            "model" to "mimo-v2.5-tts",
+            "model" to model,
             "messages" to messages,
             "audio" to mapOf("format" to "wav", "voice" to mimoRequest.voice),
             "temperature" to mimoRequest.temperature

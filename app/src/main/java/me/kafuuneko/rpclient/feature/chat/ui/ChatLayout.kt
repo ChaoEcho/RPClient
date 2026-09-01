@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
@@ -295,6 +296,7 @@ private fun ChatNormal(
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
+            isImageGenerating = state.conversationState.imageGenerationState is ChatImageGenerationState.Generating,
             hasAssistantMessage = state.conversationState.messages.any {
                 it.role == MessageRole.Assistant
             },
@@ -1403,6 +1405,7 @@ private fun MessageActions(
 private fun ChatInputBar(
     draft: String,
     isGenerating: Boolean,
+    isImageGenerating: Boolean,
     hasAssistantMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -1440,6 +1443,12 @@ private fun ChatInputBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 QuickActionPill(
+                    icon = Icons.Rounded.ImageIcon,
+                    label = stringResource(R.string.send_and_generate_image),
+                    enabled = !isGenerating && !isImageGenerating,
+                    onClick = { ChatUiIntent.SendMessageWithImage.emit() }
+                )
+                QuickActionPill(
                     icon = Icons.Rounded.AutoAwesome,
                     label = stringResource(R.string.continue_latest_reply),
                     enabled = hasAssistantMessage && !isGenerating,
@@ -1463,7 +1472,6 @@ private fun ChatInputBar(
                     enabled = hasAssistantMessage && !isGenerating,
                     onClick = { ChatUiIntent.SummarizeNow.emit() }
                 )
-                // TODO: 快捷操作栏支持一键为最新角色回复生成图片 (GenerateImage for latest assistant message)
             }
 
             Row(

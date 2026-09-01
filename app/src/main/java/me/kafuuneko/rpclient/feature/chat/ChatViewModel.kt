@@ -293,6 +293,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SendMessage::class)
     private suspend fun onSendMessage() {
+        sendMessage(generateImageAfterReply = false)
+    }
+
+    @UiIntentObserver(ChatUiIntent.SendMessageWithImage::class)
+    private suspend fun onSendMessageWithImage() {
+        sendMessage(generateImageAfterReply = true)
+    }
+
+    private suspend fun sendMessage(generateImageAfterReply: Boolean) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
@@ -307,10 +316,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
+        val previousAssistantMessageId = if (generateImageAfterReply) {
+            withContext(Dispatchers.IO) {
+                mChatRepository.getMessagesBySessionId(sessionId)
+                    .lastOrNull { it.source == ChatMessage.Source.Char }
+                    ?.id
+            }
+        } else {
+            null
+        }
 
         // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
         mGenerationJob = launchGeneration(sessionId) {
-            runCatching {
+            var replyGenerationCompleted = false
+            val generationResult = runCatching {
                 // 执行用户输入端 Source 正则
                 val input = withContext(Dispatchers.IO) {
                     applyUserRegex(sessionId, rawInput)
@@ -347,9 +366,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         built.worldInfoStateJson
                     )
                 }
+                replyGenerationCompleted = true
                 // 检查并按需触发自动总结
                 maybeAutoSummarize(sessionId)
-            }.onFailure { throwable ->
+            }
+            generationResult.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 失败状态
                 val failure = throwable.toGenerationFailurePresentation(
                     mContext,
@@ -365,6 +386,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
+            }
+            if (generateImageAfterReply && replyGenerationCompleted) {
+                currentCoroutineContext().ensureActive()
+                val latestAssistantMessageId = withContext(Dispatchers.IO) {
+                    mChatRepository.getMessagesBySessionId(sessionId)
+                        .lastOrNull { it.source == ChatMessage.Source.Char }
+                        ?.id
+                }
+                currentCoroutineContext().ensureActive()
+                if (latestAssistantMessageId != null && latestAssistantMessageId != previousAssistantMessageId) {
+                    startImageGeneration(latestAssistantMessageId.toString())
                 }
             }
         }
@@ -510,13 +543,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 为指定的角色消息生成或重新生成一张图片；重试与再生成共用同一 Intent。 */
     @UiIntentObserver(ChatUiIntent.GenerateImage::class)
     private suspend fun onGenerateImage(intent: ChatUiIntent.GenerateImage) {
+        startImageGeneration(intent.messageId)
+    }
+
+    /** 启动指定角色消息的图片生成；手动触发与发送后的自动触发共用此路径。 */
+    private fun startImageGeneration(messageId: String) {
         if (mImageGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
             return
         }
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        val targetId = intent.messageId.toLongOrNull() ?: return
+        val targetId = messageId.toLongOrNull() ?: return
 
         // Install the job before any suspending preparation work so a second image request
         // cannot pass the guard while the first request is loading its prompt context.
@@ -563,7 +601,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     refreshUiState(
                         sessionId = sessionId,
                         imageGenerationState = ChatImageGenerationState.Failed(
-                            intent.messageId,
+                            messageId,
                             mContext.getString(R.string.image_generation_not_configured)
                         )
                     )
@@ -575,7 +613,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ?: return@launch
                 current.copy(
                     conversationState = current.conversationState.copy(
-                        imageGenerationState = ChatImageGenerationState.Generating(intent.messageId)
+                        imageGenerationState = ChatImageGenerationState.Generating(messageId)
                     )
                 ).setup()
 
@@ -626,7 +664,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     refreshUiState(
                         sessionId = sessionId,
                         imageGenerationState = ChatImageGenerationState.Failed(
-                            intent.messageId,
+                            messageId,
                             message
                         )
                     )

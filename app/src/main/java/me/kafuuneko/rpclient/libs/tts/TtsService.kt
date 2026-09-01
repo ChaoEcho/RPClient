@@ -111,6 +111,7 @@ class TtsService(
                 text = text,
                 baseUrl = AppModel.ttsMimoBaseUrl,
                 apiKey = AppModel.ttsMimoApiKey,
+                model = AppModel.ttsMimoModel,
                 voice = AppModel.ttsMimoVoice,
                 instructions = AppModel.ttsMimoInstructions,
                 temperature = AppModel.ttsMimoTemperature

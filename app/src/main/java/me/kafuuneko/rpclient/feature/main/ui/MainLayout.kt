@@ -102,7 +102,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -124,7 +123,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
-import me.kafuuneko.rpclient.feature.main.presentation.MainImageGenerationSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
@@ -1455,14 +1453,13 @@ private fun SettingsPage(
             }
         }
 
-        // ================= 3. 图像生成 =================
+        // ================= 3. 生成能力 =================
         item {
-            RpSectionHeader(title = stringResource(R.string.image_generation))
+            GenerationCapabilitiesPanel(
+                onImageClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
+                onTtsClick = { MainUiIntent.OpenTtsSettings.emit() }
+            )
         }
-        item { ImageGenerationSettingsPanel(state.imageGenerationState, emit) }
-
-        // ================= 4. 语音与朗读 =================
-        item { TtsSettingsEntryCard { MainUiIntent.OpenTtsSettings.emit() } }
 
         // ================= 5. 提示词与上下文记忆 =================
         item {
@@ -1480,62 +1477,6 @@ private fun SettingsPage(
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
-    }
-}
-
-@Composable
-private fun ImageGenerationSettingsPanel(
-    state: MainImageGenerationSettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    RpSettingsGroup {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedTextField(
-                value = state.baseUrl,
-                onValueChange = { MainUiIntent.ChangeImageGenerationBaseUrl(it).emit() },
-                label = { Text(stringResource(R.string.image_generation_base_url)) },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = state.apiKey,
-                onValueChange = { MainUiIntent.ChangeImageGenerationApiKey(it).emit() },
-                label = { Text(stringResource(R.string.image_generation_api_key)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = state.model,
-                onValueChange = { MainUiIntent.ChangeImageGenerationModel(it).emit() },
-                label = { Text(stringResource(R.string.image_generation_model)) },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = state.size,
-                onValueChange = { MainUiIntent.ChangeImageGenerationSize(it).emit() },
-                label = { Text(stringResource(R.string.image_generation_size)) },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = state.stylePrompt,
-                onValueChange = { MainUiIntent.ChangeImageGenerationStylePrompt(it).emit() },
-                label = { Text(stringResource(R.string.image_generation_style_prompt)) },
-                minLines = 3,
-                maxLines = 6,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 }
 
@@ -2506,15 +2447,35 @@ private fun DebugPanel(
 }
 
 @Composable
-private fun TtsSettingsEntryCard(onClick: () -> Unit) {
+private fun GenerationCapabilitiesPanel(
+    onImageClick: () -> Unit,
+    onTtsClick: () -> Unit
+) {
     RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.ImageIcon,
+            iconColor = MaterialTheme.colorScheme.primary,
+            iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+            title = stringResource(R.string.image_generation),
+            subtitle = stringResource(R.string.image_generation_settings_subtitle),
+            onClick = onImageClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
         RpSettingsTile(
             icon = Icons.AutoMirrored.Rounded.VolumeUp,
             iconColor = Color(0xFF8B5CF6),
             iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
             title = stringResource(R.string.tts_settings_title),
             subtitle = stringResource(R.string.tts_settings_subtitle),
-            onClick = onClick,
+            onClick = onTtsClick,
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -2712,13 +2673,6 @@ private fun MainLayoutPreview() {
                         avatarState = MainUserAvatarState.None
                     ),
                     providerState = MainProviderSettingsState.Empty,
-                    imageGenerationState = MainImageGenerationSettingsState(
-                        baseUrl = "https://api.openai.com/v1",
-                        apiKey = "",
-                        model = "gpt-image-2",
-                        size = "1024x1024",
-                        stylePrompt = ""
-                    ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,
@@ -2787,13 +2741,6 @@ private fun MainSettingsLayoutPreview() {
                             maxTokens = 4096,
                             contextTokens = 32768
                         )
-                    ),
-                    imageGenerationState = MainImageGenerationSettingsState(
-                        baseUrl = "https://api.openai.com/v1",
-                        apiKey = "sk-example",
-                        model = "gpt-image-2",
-                        size = "1024x1024",
-                        stylePrompt = "Soft cinematic lighting"
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Available(

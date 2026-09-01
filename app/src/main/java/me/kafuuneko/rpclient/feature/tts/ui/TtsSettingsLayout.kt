@@ -284,6 +284,12 @@ private fun MimoPanel(
             password = true,
             imeAction = ImeAction.Next
         )
+        SettingsTextField(
+            value = state.model,
+            label = stringResource(R.string.model_name),
+            onValueChange = { TtsSettingsUiIntent.ChangeMimoModel(it).emit() },
+            imeAction = ImeAction.Next
+        )
         val voices = listOf(
             "mimo_default" to stringResource(R.string.tts_mimo_voice_default),
             "冰糖" to stringResource(R.string.tts_mimo_voice_bingtang),

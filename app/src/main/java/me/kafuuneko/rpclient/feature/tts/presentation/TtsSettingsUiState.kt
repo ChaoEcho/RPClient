@@ -29,6 +29,7 @@ data class SystemTtsSettingsState(
 data class MimoTtsSettingsState(
     val baseUrl: String,
     val apiKey: String,
+    val model: String,
     val voice: String,
     val instructions: String,
     val temperature: Float
