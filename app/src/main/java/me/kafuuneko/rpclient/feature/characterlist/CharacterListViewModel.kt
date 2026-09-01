@@ -296,11 +296,14 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 关闭当前非阻塞结果对话框。 */
+    /** 关闭当前非阻塞对话框。 */
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult) return
+        if (
+            uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
+            uiState.dialogState !is CharacterListDialogState.ExportDestination
+        ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
 
@@ -407,14 +410,70 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
     }
 
-    /** 准备导出指定角色的 JSON 格式文件，并触发文件创建器。 */
+    /** 打开指定角色的 JSON 导出目的地选择对话框。 */
     @UiIntentObserver(CharacterListUiIntent.ExportCharacterJsonClick::class)
     private fun onExportCharacterJsonClick(intent: CharacterListUiIntent.ExportCharacterJsonClick) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (
+            uiState.loadState != CharacterListLoadState.None ||
+            mTransferJob?.isActive == true ||
+            uiState.dialogState != CharacterListDialogState.None
+        ) return
         val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
+        uiState.copy(
+            dialogState = CharacterListDialogState.ExportDestination(
+                characterId = character.id,
+                characterName = character.name
+            )
+        ).setup()
+    }
+
+    /** 将指定角色 JSON 序列化到剪贴板，并关闭导出目的地选择对话框。 */
+    @UiIntentObserver(CharacterListUiIntent.CopyCharacterJson::class)
+    private fun onCopyCharacterJson(intent: CharacterListUiIntent.CopyCharacterJson) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterListDialogState.ExportDestination
+            ?: return
+        if (
+            dialogState.characterId != intent.characterId ||
+            uiState.loadState != CharacterListLoadState.None ||
+            mTransferJob?.isActive == true
+        ) return
+
+        val token = Any()
+        mTransferToken = token
+        uiState.copy(
+            loadState = CharacterListLoadState.Loading,
+            dialogState = CharacterListDialogState.None
+        ).setup()
+        mTransferJob = viewModelScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    mCharacterCardRepository.exportJson(intent.characterId)
+                }
+                CharacterListViewEvent.CopyText(json).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_failed).tryEmit()
+            } finally {
+                finishTransfer(token)
+            }
+        }
+    }
+
+    /** 关闭导出目的地选择对话框并触发系统文件创建器。 */
+    @UiIntentObserver(CharacterListUiIntent.SaveCharacterJsonFile::class)
+    private fun onSaveCharacterJsonFile(intent: CharacterListUiIntent.SaveCharacterJsonFile) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterListDialogState.ExportDestination
+            ?: return
+        if (dialogState.characterId != intent.characterId) return
+
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
         CharacterListViewEvent.OpenCharacterCardJsonExporter(
-            characterId = intent.characterId,
-            fileName = "${character.name.ifBlank { "character" }}.json"
+            characterId = dialogState.characterId,
+            fileName = "${dialogState.characterName.ifBlank { "character" }}.json"
         ).tryEmit()
     }
 

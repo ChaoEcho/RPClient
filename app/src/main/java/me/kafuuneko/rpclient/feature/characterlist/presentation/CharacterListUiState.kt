@@ -38,6 +38,10 @@ sealed class CharacterListDialogState {
         val failureCount: Int
     ) : CharacterListDialogState()
 
+    data class ExportDestination(
+        val characterId: Long,
+        val characterName: String
+    ) : CharacterListDialogState()
 }
 
 /** 角色列表读取或导入期间的阻塞状态。 */

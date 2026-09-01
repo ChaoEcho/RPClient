@@ -445,7 +445,7 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         if (!ensureProviderConfigured()) return
-        uiState.copy(loadState = GroupChatLoadState.Summarizing).setup()
+        uiState.copy(loadState = GroupChatLoadState.PreparingSummary).setup()
         summarizeSession(uiState.sessionId, showToast = true)
         refreshState(
             page = uiState.page,
@@ -1515,15 +1515,22 @@ class GroupChatViewModel :
             val unsummarized = data.messages.filter {
                 it.id > (data.summary?.coveredMessageId ?: 0L)
             }
-            // 构建群聊增量摘要 Prompt
-            val built = mSummaryPromptBuilder.buildWithSelection(
-                session = data.session,
-                memberNames = data.members.map { it.character.name },
-                existingSummary = data.summary?.content.orEmpty(),
-                messages = unsummarized,
-                provider = provider
-            )
+            // Tokenizer 与 Prompt 选择属于 CPU 密集工作，必须离开主线程。
+            val built = withContext(Dispatchers.Default) {
+                mSummaryPromptBuilder.buildWithSelection(
+                    session = data.session,
+                    memberNames = data.members.map { it.character.name },
+                    existingSummary = data.summary?.content.orEmpty(),
+                    messages = unsummarized,
+                    provider = provider
+                )
+            }
             if (built.selectedMessages.isEmpty()) return
+            currentCoroutineContext().ensureActive()
+            val generatingState = getOrNull<GroupChatUiState.Normal>()
+            if (generatingState != null && showToast) {
+                generatingState.copy(loadState = GroupChatLoadState.GeneratingSummary).setup()
+            }
             // 调用模型生成摘要
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithProvider(

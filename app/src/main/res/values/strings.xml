@@ -167,6 +167,12 @@
     <string name="character_manager">Character Manager</string>
     <string name="import_character">Import character</string>
     <string name="export_character">Export character</string>
+    <string name="export_character_json_title">Export character card</string>
+    <string name="copy_character_json">Copy JSON to clipboard</string>
+    <string name="copy_character_json_description">Copy the complete Character Card V2 JSON</string>
+    <string name="save_character_json_file">Save as JSON file</string>
+    <string name="save_character_json_file_description">Choose a location with the system file picker</string>
+    <string name="character_card_json_clip_label">Character Card V2 JSON</string>
     <string name="import_character_success">Character imported</string>
     <string name="import_character_failed">Failed to import character</string>
     <string name="batch_import_character_result_title">Character import complete</string>
@@ -293,6 +299,9 @@
     <string name="requesting_model">Requesting model…</string>
     <string name="generating">Generating…</string>
     <string name="updating_summary">Updating summary…</string>
+    <string name="preparing_summary">Preparing summary…</string>
+    <string name="preparing_summary_desc">Organizing chat history and checking the context budget</string>
+    <string name="generating_summary_desc">Waiting for the model to generate the updated chat memory</string>
     <string name="thought_process">Thought process</string>
     <string name="thinking">Thinking…</string>
     <string name="waiting_for_response">Waiting for response…</string>

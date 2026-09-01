@@ -23,11 +23,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +63,8 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDia
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -207,6 +211,29 @@ private fun DialogSwitch(
                 )
             )
         }
+        is CharacterListDialogState.ExportDestination -> AppActionListDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.export_character_json_title),
+            badgeIcon = Icons.Rounded.FileUpload,
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.ContentCopy,
+                    title = stringResource(R.string.copy_character_json),
+                    subtitle = stringResource(R.string.copy_character_json_description),
+                    onClick = {
+                        CharacterListUiIntent.CopyCharacterJson(dialogState.characterId).emit()
+                    }
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.Save,
+                    title = stringResource(R.string.save_character_json_file),
+                    subtitle = stringResource(R.string.save_character_json_file_description),
+                    onClick = {
+                        CharacterListUiIntent.SaveCharacterJsonFile(dialogState.characterId).emit()
+                    }
+                )
+            )
+        )
     }
 }
 

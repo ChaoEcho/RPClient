@@ -48,6 +48,28 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun normalPromptUsesMessageTextWithoutLocalImageMetadata() {
+        val imageUuid = "local-image-file-uuid-should-not-leave-device"
+        val imageData = "data:image/png;base64,should-not-be-added"
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.Char, "Visible reply")
+                        .copy(imageFileUuid = imageUuid),
+                    chatMessage(2L, ChatMessage.Source.User, "Continue")
+                )
+            )
+        )
+
+        val outbound = result.request.messages.joinToString("\n") { it.content }
+        assertTrue(outbound.contains("Visible reply"))
+        assertFalse(outbound.contains(imageUuid))
+        assertFalse(outbound.contains(imageData))
+        assertFalse(outbound.contains("data:image/"))
+        assertFalse(outbound.contains("base64"))
+    }
+
+    @Test
     fun promptOnlyRegexChangesOutboundHistoryAndIsInspected() {
         val script = ScopedRegexScript(
             script = RegexScript(

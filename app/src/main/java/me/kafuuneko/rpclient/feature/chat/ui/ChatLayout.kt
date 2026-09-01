@@ -23,6 +23,7 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -136,6 +137,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSpeechState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.chat.presentation.SummaryPreparationStage
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -828,26 +830,24 @@ private fun MessageBubble(
             )
         }
 
-        Column(
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        BoxWithConstraints(
+            modifier = Modifier.weight(1f),
+            contentAlignment = if (isUser) Alignment.TopEnd else Alignment.TopStart
         ) {
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            val bubbleMaxWidth = maxWidth * when (message.role) {
+                MessageRole.User -> 0.85f
+                MessageRole.Assistant -> 0.92f
+                MessageRole.Narrator -> 0.92f
+            }
+            Column(
+                modifier = Modifier.widthIn(max = bubbleMaxWidth),
+                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Surface(
-                    modifier = Modifier
-                        .widthIn(
-                            max = when {
-                                isUser -> 310.dp
-                                showSpeechButton -> 246.dp
-                                else -> 295.dp
-                            }
-                        )
-                        .clickable {
-                            if (!editing) showActions = !showActions
-                        },
+                    modifier = Modifier.clickable {
+                        if (!editing) showActions = !showActions
+                    },
                     shape = when (message.role) {
                         MessageRole.User -> RoundedCornerShape(
                             topStart = 18.dp,
@@ -926,46 +926,52 @@ private fun MessageBubble(
                         }
                     }
                 }
+
                 if (showSpeechButton) {
-                    MessageSpeechButton(
-                        messageId = message.id,
-                        speechState = speechState,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        MessageSpeechButton(
+                            messageId = message.id,
+                            speechState = speechState,
+                            emit = emit
+                        )
+                    }
+                }
+
+                if (message.role == MessageRole.Assistant) {
+                    MessageImageContent(
+                        message = message,
+                        imageGenerationState = imageGenerationState,
+                        fileRepository = fileRepository,
+                        onImageClick = onImageClick,
                         emit = emit
                     )
                 }
-            }
 
-            if (message.role == MessageRole.Assistant) {
-                MessageImageContent(
-                    message = message,
-                    imageGenerationState = imageGenerationState,
-                    fileRepository = fileRepository,
-                    onImageClick = onImageClick,
-                    emit = emit
-                )
-            }
-
-            AnimatedVisibility(
-                visible = showActions && !editing,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                    border = BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                    ),
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.padding(top = 2.dp)
+                AnimatedVisibility(
+                    visible = showActions && !editing,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                        border = BorderStroke(
+                            0.5.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                        ),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier.padding(top = 2.dp)
                     ) {
-                        MessageActions(message, isFirstMessage, emit)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            MessageActions(message, isFirstMessage, emit)
+                        }
                     }
                 }
             }
@@ -2141,9 +2147,21 @@ private fun DialogSwitch(
             description = stringResource(R.string.export_chat_desc)
         )
 
-        ChatDialogState.Summarizing -> LoadingDialog(
-            title = stringResource(R.string.updating_summary),
-            description = stringResource(R.string.summarize_now_desc),
+        is ChatDialogState.Summarizing -> LoadingDialog(
+            title = stringResource(
+                if (dialogState.stage == SummaryPreparationStage.Preparing) {
+                    R.string.preparing_summary
+                } else {
+                    R.string.updating_summary
+                }
+            ),
+            description = stringResource(
+                if (dialogState.stage == SummaryPreparationStage.Preparing) {
+                    R.string.preparing_summary_desc
+                } else {
+                    R.string.generating_summary_desc
+                }
+            ),
             onCancel = { ChatUiIntent.CancelSummary.emit() }
         )
 

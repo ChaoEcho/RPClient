@@ -33,5 +33,9 @@ sealed class CharacterListUiIntent {
 
     data class ExportCharacterJsonClick(val characterId: Long) : CharacterListUiIntent()
 
+    data class CopyCharacterJson(val characterId: Long) : CharacterListUiIntent()
+
+    data class SaveCharacterJsonFile(val characterId: Long) : CharacterListUiIntent()
+
     data class ExportCharacterJson(val characterId: Long, val uri: Uri) : CharacterListUiIntent()
 }
