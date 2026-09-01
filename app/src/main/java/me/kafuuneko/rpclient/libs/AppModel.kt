@@ -181,6 +181,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var ttsMimoVoice by stringPref(default = "mimo_default")
     var ttsMimoInstructions by stringPref(default = "")
     var ttsMimoTemperature by floatPref(default = 0.8f)
+    var ttsMimoStreaming by booleanPref(default = true)
 
     // Azure Speech TTS 配置。
     var ttsAzureApiKey by stringPref(default = "")

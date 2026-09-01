@@ -158,6 +158,43 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate4To5_addsNullableMimoVoiceOverrideToSessions() {
+        migrationHelper.createDatabase(VoiceDatabaseName, 4).apply {
+            execSQL(
+                """
+                INSERT INTO character (
+                    id, name, avatar, characterTags, description, personality, scenario,
+                    firstMessages, examplesOfDialogue, postHistoryInstructions
+                ) VALUES (101, 'character', '', '[]', '', '', '', '[]', '', '')
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO chat_sessions (
+                    id, characterId, createTime, latestTime, lorebookEntrySet, title, userNote,
+                    userName, userDescription, worldInfoStateJson, autoSummaryPaused
+                ) VALUES (202, 101, 1, 2, '[]', 'session', '', 'user', '', '{}', 0)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            VoiceDatabaseName,
+            5,
+            true
+        )
+
+        migrated.query(
+            "SELECT mimoTtsVoiceOverride FROM chat_sessions WHERE id = 202"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertNull(cursor.getString(0))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun migrate2To3_addsCurrentStorageAndKeepsCharacters() {
         migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
             execSQL(
@@ -334,5 +371,6 @@ class AppDatabaseMigrationTest {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"
         const val ImageDatabaseName = "app-image-migration-test"
+        const val VoiceDatabaseName = "app-voice-migration-test"
     }
 }

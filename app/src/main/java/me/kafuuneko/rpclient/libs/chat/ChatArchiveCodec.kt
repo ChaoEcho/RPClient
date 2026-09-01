@@ -134,7 +134,8 @@ class ChatArchiveCodec(
             summary = rpclient
                 ?.objectOrNull(KEY_SUMMARY)
                 ?.toSummary(createTime)
-                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) }
+                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) },
+            mimoTtsVoiceOverride = rpclient?.stringValueOrNull(KEY_MIMO_TTS_VOICE_OVERRIDE)
         )
     }
 
@@ -151,6 +152,9 @@ class ChatArchiveCodec(
             addProperty(KEY_LOREBOOK_ENTRY_SET, archive.lorebookEntrySet)
             addProperty(KEY_WORLD_INFO_STATE, archive.worldInfoStateJson)
             addProperty(KEY_AUTO_SUMMARY_PAUSED, archive.autoSummaryPaused)
+            archive.mimoTtsVoiceOverride?.let {
+                addProperty(KEY_MIMO_TTS_VOICE_OVERRIDE, it)
+            }
             add(
                 KEY_CHARACTER,
                 JsonObject().apply {
@@ -335,6 +339,12 @@ class ChatArchiveCodec(
         }
     }
 
+    private fun JsonObject.stringValueOrNull(key: String): String? {
+        return elementOrNull(key)
+            ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+            ?.asString
+    }
+
     private fun JsonObject.longOrNull(key: String): Long? {
         return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
             runCatching { it.asLong }.getOrNull()
@@ -432,6 +442,7 @@ class ChatArchiveCodec(
         const val KEY_LOREBOOK_ENTRY_SET = "lorebook_entry_set"
         const val KEY_WORLD_INFO_STATE = "world_info_state_json"
         const val KEY_AUTO_SUMMARY_PAUSED = "auto_summary_paused"
+        const val KEY_MIMO_TTS_VOICE_OVERRIDE = "mimo_tts_voice_override"
         const val KEY_CHARACTER = "character"
         const val KEY_CHARACTER_NAME = "character_name"
         const val KEY_FINGERPRINT = "fingerprint"

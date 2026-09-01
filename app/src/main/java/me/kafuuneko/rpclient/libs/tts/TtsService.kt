@@ -14,6 +14,7 @@ import kotlin.coroutines.resumeWithException
 
 class TtsService(
     private val cache: TtsAudioCache,
+    private val pcmAudioPlayer: PcmAudioPlayer,
     private val systemTtsProvider: SystemTtsProvider,
     private val mimoTtsProvider: MimoTtsProvider,
     private val azureTtsProvider: AzureTtsProvider
@@ -24,7 +25,11 @@ class TtsService(
     private var activePlayer: MediaPlayer? = null
     private var playbackContinuation: CancellableContinuation<Unit>? = null
 
-    suspend fun speak(text: String, onPlaybackStarted: () -> Unit = {}) {
+    suspend fun speak(
+        text: String,
+        options: TtsSpeakOptions = TtsSpeakOptions(),
+        onPlaybackStarted: () -> Unit = {}
+    ) {
         if (text.isBlank()) return
         val sessionId = beginSession()
         val providerType = TtsProviderType.fromPersistedValue(AppModel.ttsProvider)
@@ -42,18 +47,27 @@ class TtsService(
                 )
                 TtsProviderType.Mimo,
                 TtsProviderType.Azure -> {
-                    val providerAndRequest = providerAndRequest(providerType, text)
-                    val audioFile = try {
-                        cache.getOrCreate(providerType, providerAndRequest.second) { outputFile ->
-                            providerAndRequest.first.synthesize(providerAndRequest.second, outputFile)
+                    val providerAndRequest = providerAndRequest(providerType, text, options)
+                    val request = providerAndRequest.second
+                    if (request is MimoTtsRequest &&
+                        request.streaming &&
+                        request.model == "mimo-v2.5-tts"
+                    ) {
+                        checkActive(sessionId)
+                        streamMimo(request, onPlaybackStarted)
+                    } else {
+                        val audioFile = try {
+                            cache.getOrCreate(providerType, request) { outputFile ->
+                                providerAndRequest.first.synthesize(request, outputFile)
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Throwable) {
+                            throw synthesisFailure(error)
                         }
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (error: Throwable) {
-                        throw synthesisFailure(error)
+                        checkActive(sessionId)
+                        play(sessionId, audioFile, onPlaybackStarted)
                     }
-                    checkActive(sessionId)
-                    play(sessionId, audioFile, onPlaybackStarted)
                 }
             }
         } finally {
@@ -72,6 +86,7 @@ class TtsService(
             playbackContinuation = null
             oldPlayer to oldContinuation
         }
+        pcmAudioPlayer.stop()
         systemTtsProvider.stop()
         mimoTtsProvider.stop()
         azureTtsProvider.stop()
@@ -92,6 +107,7 @@ class TtsService(
             playbackContinuation = null
             Triple(sessionId, oldPlayer, oldContinuation)
         }
+        pcmAudioPlayer.stop()
         systemTtsProvider.stop()
         mimoTtsProvider.stop()
         azureTtsProvider.stop()
@@ -104,7 +120,8 @@ class TtsService(
 
     private fun providerAndRequest(
         providerType: TtsProviderType,
-        text: String
+        text: String,
+        options: TtsSpeakOptions
     ): Pair<TtsProvider, TtsSynthesisRequest> {
         return when (providerType) {
             TtsProviderType.Mimo -> mimoTtsProvider to MimoTtsRequest(
@@ -112,9 +129,11 @@ class TtsService(
                 baseUrl = AppModel.ttsMimoBaseUrl,
                 apiKey = AppModel.ttsMimoApiKey,
                 model = AppModel.ttsMimoModel,
-                voice = AppModel.ttsMimoVoice,
+                voice = options.mimoVoiceOverride?.takeIf { it.isNotBlank() }
+                    ?: AppModel.ttsMimoVoice,
                 instructions = AppModel.ttsMimoInstructions,
-                temperature = AppModel.ttsMimoTemperature
+                temperature = AppModel.ttsMimoTemperature,
+                streaming = AppModel.ttsMimoStreaming
             )
             TtsProviderType.Azure -> azureTtsProvider to AzureTtsRequest(
                 text = text,
@@ -125,6 +144,18 @@ class TtsService(
             )
             TtsProviderType.System -> error("System TTS does not use file synthesis")
         }
+    }
+
+    private suspend fun streamMimo(
+        request: MimoTtsRequest,
+        onPlaybackStarted: () -> Unit
+    ) {
+        pcmAudioPlayer.play(
+            producer = { write ->
+                mimoTtsProvider.stream(request, write)
+            },
+            onPlaybackStarted = onPlaybackStarted
+        )
     }
 
     private fun checkActive(sessionId: Long) {

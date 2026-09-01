@@ -81,6 +81,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.tts.TtsService
+import me.kafuuneko.rpclient.libs.tts.TtsSpeakOptions
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
@@ -703,9 +704,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
         mSpeechJob = viewModelScope.launch {
             try {
-                mTtsService.speak(text) {
-                    updateSpeechState(requestId, ChatSpeechState.Playing(message.id))
-                }
+                mTtsService.speak(
+                    text = text,
+                    options = TtsSpeakOptions(uiState.session.mimoTtsVoiceOverride),
+                    onPlaybackStarted = {
+                        updateSpeechState(requestId, ChatSpeechState.Playing(message.id))
+                    }
+                )
             } catch (_: CancellationException) {
                 return@launch
             } catch (error: Throwable) {
@@ -965,6 +970,31 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             if (restored) R.string.summary_restored else R.string.no_previous_summary
         ).tryEmit()
         if (restored) refreshUiState(sessionId = sessionId)
+    }
+
+    /**
+     * 保存当前会话的 MiMo 朗读音色覆盖值。
+     *
+     * 空白值会归一化为 null，表示回退至全局 MiMo 音色；保存完成后只更新当前页面的会话快照。
+     */
+    @UiIntentObserver(ChatUiIntent.SelectMimoTtsVoice::class)
+    private suspend fun onSelectMimoTtsVoice(intent: ChatUiIntent.SelectMimoTtsVoice) {
+        val sessionId = mSessionId ?: return
+        val normalizedVoice = intent.voice?.takeIf { it.isNotBlank() }
+        val saved = withContext(Dispatchers.IO) {
+            val session = mChatRepository.getSessionById(sessionId) ?: return@withContext false
+            mChatRepository.saveSession(
+                session.copy(mimoTtsVoiceOverride = normalizedVoice)
+            )
+            true
+        }
+        if (!saved) return
+        val currentState = getOrNull<ChatUiState.Normal>() ?: return
+        currentState.copy(
+            session = currentState.session.copy(
+                mimoTtsVoiceOverride = normalizedVoice
+            )
+        ).setup()
     }
 
     /**

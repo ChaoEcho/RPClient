@@ -64,8 +64,10 @@ import me.kafuuneko.rpclient.feature.tts.presentation.SystemTtsSettingsState
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsPreviewState
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsSettingsUiIntent
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsSettingsUiState
+import me.kafuuneko.rpclient.libs.tts.MIMO_VOICES
 import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import androidx.compose.ui.res.stringResource
 
 /** Global TTS settings page with provider configuration and voice preview controls. */
@@ -290,24 +292,13 @@ private fun MimoPanel(
             onValueChange = { TtsSettingsUiIntent.ChangeMimoModel(it).emit() },
             imeAction = ImeAction.Next
         )
-        val voices = listOf(
-            "mimo_default" to stringResource(R.string.tts_mimo_voice_default),
-            "冰糖" to stringResource(R.string.tts_mimo_voice_bingtang),
-            "茉莉" to stringResource(R.string.tts_mimo_voice_moli),
-            "苏打" to stringResource(R.string.tts_mimo_voice_soda),
-            "白桦" to stringResource(R.string.tts_mimo_voice_baihua),
-            "Mia" to stringResource(R.string.tts_mimo_voice_mia),
-            "Chloe" to stringResource(R.string.tts_mimo_voice_chloe),
-            "Milo" to stringResource(R.string.tts_mimo_voice_milo),
-            "Dean" to stringResource(R.string.tts_mimo_voice_dean)
-        )
         SettingsDropdown(
             label = stringResource(R.string.tts_voice),
             selectedValue = state.voice,
-            selectedLabel = voices.firstOrNull { it.first == state.voice }?.second,
-            values = voices,
-            valueLabel = { it.second },
-            onSelect = { TtsSettingsUiIntent.ChangeMimoVoice(it.first).emit() }
+            selectedLabel = MIMO_VOICES.firstOrNull { it.id == state.voice }?.label,
+            values = MIMO_VOICES,
+            valueLabel = { it.label },
+            onSelect = { TtsSettingsUiIntent.ChangeMimoVoice(it.id).emit() }
         )
         SettingsTextField(
             value = state.instructions,
@@ -321,6 +312,12 @@ private fun MimoPanel(
             value = state.temperature,
             valueRange = 0f..1.5f,
             onValueChange = { TtsSettingsUiIntent.ChangeMimoTemperature(it).emit() }
+        )
+        RpSettingsSwitchTile(
+            title = stringResource(R.string.tts_mimo_streaming),
+            subtitle = stringResource(R.string.tts_mimo_streaming_description),
+            checked = state.streaming,
+            onCheckedChange = { TtsSettingsUiIntent.ChangeMimoStreaming(it).emit() }
         )
         PreviewButton(previewState, previewText, emit)
     }

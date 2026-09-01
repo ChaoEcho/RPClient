@@ -64,6 +64,7 @@ class ChatArchiveRepositoryTest {
         assertEquals(characterId, session?.characterId)
         assertEquals("[]", session?.lorebookEntrySet)
         assertEquals("{}", session?.worldInfoStateJson)
+        assertEquals("mimo_voice_1", session?.mimoTtsVoiceOverride)
         assertEquals(
             listOf(ChatMessage.Source.User, ChatMessage.Source.Char, ChatMessage.Source.System),
             messages.map { it.source }
@@ -100,6 +101,7 @@ class ChatArchiveRepositoryTest {
             assertEquals(archive.messages.map { it.content }, decoded.messages.map { it.content })
             assertEquals(archive.messages.map { it.role }, decoded.messages.map { it.role })
             assertEquals(archive.summary?.coveredMessageIndex, decoded.summary?.coveredMessageIndex)
+            assertEquals(archive.mimoTtsVoiceOverride, decoded.mimoTtsVoiceOverride)
         } finally {
             exportFile.delete()
         }
@@ -128,7 +130,8 @@ class ChatArchiveRepositoryTest {
                 content = "Summary",
                 createTime = 4_000L,
                 coveredMessageIndex = 1
-            )
+            ),
+            mimoTtsVoiceOverride = "mimo_voice_1"
         )
     }
 

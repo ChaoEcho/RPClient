@@ -32,7 +32,8 @@ data class MimoTtsSettingsState(
     val model: String,
     val voice: String,
     val instructions: String,
-    val temperature: Float
+    val temperature: Float,
+    val streaming: Boolean
 )
 
 data class AzureTtsSettingsState(

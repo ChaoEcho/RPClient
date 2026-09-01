@@ -20,6 +20,10 @@ data class TtsVoice(
     val displayName: String
 )
 
+data class TtsSpeakOptions(
+    val mimoVoiceOverride: String? = null
+)
+
 data class SystemTtsRequest(
     val text: String,
     val languageTag: String,
@@ -39,7 +43,8 @@ data class MimoTtsRequest(
     val model: String,
     val voice: String,
     val instructions: String,
-    val temperature: Float
+    val temperature: Float,
+    val streaming: Boolean
 ) : TtsSynthesisRequest
 
 data class AzureTtsRequest(

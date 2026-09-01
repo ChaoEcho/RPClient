@@ -136,7 +136,10 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.tts.MIMO_VOICES
+import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 
 /** 单角色聊天页 Compose 入口，根据页面状态切换会话区与设置区。 */
 @Composable
@@ -1725,6 +1728,16 @@ private fun ChatSettingsPage(
                     )
                 }
             }
+            if (AppModel.ttsProvider == TtsProviderType.Mimo.persistedValue) {
+                item {
+                    SettingsSection(title = stringResource(R.string.chat_settings_voice)) {
+                        MimoVoiceSettings(
+                            voiceOverride = session.mimoTtsVoiceOverride,
+                            emit = emit
+                        )
+                    }
+                }
+            }
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
                     MenuAction(
@@ -1739,6 +1752,55 @@ private fun ChatSettingsPage(
                         emit = emit
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MimoVoiceSettings(
+    voiceOverride: String?,
+    emit: ChatUiIntent.() -> Unit
+) {
+    val globalVoice = AppModel.ttsMimoVoice
+    val globalVoiceLabel = MIMO_VOICES.firstOrNull { it.id == globalVoice }?.label ?: globalVoice
+    val selectedLabel = voiceOverride?.let { voice ->
+        MIMO_VOICES.firstOrNull { it.id == voice }?.label ?: voice
+    } ?: stringResource(R.string.chat_settings_voice_follow_global, globalVoiceLabel)
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        MenuAction(
+            icon = Icons.AutoMirrored.Rounded.VolumeUp,
+            title = selectedLabel,
+            onClick = { expanded = true }
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.chat_settings_voice_follow_global_menu,
+                            globalVoiceLabel
+                        )
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    ChatUiIntent.SelectMimoTtsVoice(null).emit()
+                }
+            )
+            MIMO_VOICES.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        expanded = false
+                        ChatUiIntent.SelectMimoTtsVoice(option.id).emit()
+                    }
+                )
             }
         }
     }
