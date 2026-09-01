@@ -91,7 +91,8 @@ sealed class GroupChatLoadState {
     data object Loading : GroupChatLoadState()
     data object Deleting : GroupChatLoadState()
     data object Saving : GroupChatLoadState()
-    data object Summarizing : GroupChatLoadState()
+    data object PreparingSummary : GroupChatLoadState()
+    data object GeneratingSummary : GroupChatLoadState()
 }
 
 /** 群聊页面互斥显示的业务对话框。 */

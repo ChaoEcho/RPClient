@@ -166,6 +166,12 @@
     <string name="character_manager">角色管理器</string>
     <string name="import_character">导入角色</string>
     <string name="export_character">导出角色</string>
+    <string name="export_character_json_title">导出角色卡</string>
+    <string name="copy_character_json">复制 JSON 到剪贴板</string>
+    <string name="copy_character_json_description">复制完整的 Character Card V2 JSON</string>
+    <string name="save_character_json_file">保存为 JSON 文件</string>
+    <string name="save_character_json_file_description">使用系统文件选择器选择保存位置</string>
+    <string name="character_card_json_clip_label">Character Card V2 JSON</string>
     <string name="import_character_success">角色已导入</string>
     <string name="import_character_failed">导入角色失败</string>
     <string name="batch_import_character_result_title">角色卡批量导入完成</string>
@@ -292,6 +298,9 @@
     <string name="requesting_model">正在请求模型…</string>
     <string name="generating">生成中…</string>
     <string name="updating_summary">正在更新摘要…</string>
+    <string name="preparing_summary">正在准备摘要…</string>
+    <string name="preparing_summary_desc">正在整理聊天记录并检查上下文预算</string>
+    <string name="generating_summary_desc">正在等待模型生成更新后的聊天记忆</string>
     <string name="thought_process">思考过程</string>
     <string name="thinking">正在思考…</string>
     <string name="waiting_for_response">等待回复…</string>

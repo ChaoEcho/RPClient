@@ -1,12 +1,17 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
@@ -72,6 +77,16 @@ class CharacterListActivity : CoreActivityWithEvent() {
                 )
             }
 
+            is CharacterListViewEvent.CopyText -> {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText(
+                        getString(R.string.character_card_json_clip_label),
+                        viewEvent.text
+                    )
+                )
+                Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
+            }
 
             is CharacterListViewEvent.OpenCharacterCardJsonExporter -> {
                 mPendingExportCharacterId = viewEvent.characterId

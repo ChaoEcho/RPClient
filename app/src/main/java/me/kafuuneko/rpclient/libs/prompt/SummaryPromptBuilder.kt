@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.yield
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -34,7 +37,7 @@ class SummaryPromptBuilder(
      * - 从最早消息开始贪婪选择不超过 Prompt 预算的最大消息前缀；
      * - 组装并渲染包含总结指令模板与格式化历史的请求对象。
      */
-    fun buildWithSelection(
+    suspend fun buildWithSelection(
         userName: String,
         userDescription: String,
         character: Character,
@@ -54,28 +57,46 @@ class SummaryPromptBuilder(
         // 获取候选摘要消息（排除最后一条正在变动的消息并限制最大单次处理条数）
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
-        val sanitizedById = limited.associate { message ->
-            message.id to message.copy(content = message.content.summarySafeContent())
+        val sanitized = limited.map { message ->
+            message.copy(content = message.content.summarySafeContent())
         }
-        // 贪婪选择符合预算的最长消息连续前缀
+        val baseTokenEstimate = tokenizer.countMessages(
+            renderRequestMessages(
+                userName = userName,
+                userDescription = userDescription,
+                character = character,
+                session = session,
+                existingSummary = safeExistingSummary,
+                messages = emptyList(),
+                provider = provider
+            )
+        )
+        // 逐条 Token 估算只用于定位预算边界；最终连续前缀仍由完整请求精确校验。
         val selected = selectSummaryPrefix(
             items = limited,
-            promptBudget = promptBudget
-        ) { prefix ->
-            val sanitized = prefix.map { sanitizedById.getValue(it.id) }
-            tokenizer.countMessages(
-                renderRequestMessages(
-                    userName = userName,
-                    userDescription = userDescription,
-                    character = character,
-                    session = session,
-                    existingSummary = safeExistingSummary,
-                    messages = sanitized,
-                    provider = provider
+            promptBudget = promptBudget,
+            baseTokenEstimate = baseTokenEstimate,
+            estimateItemTokens = { message ->
+                val safeMessage = message.copy(content = message.content.summarySafeContent())
+                tokenizer.countText(
+                    "\n" + mHistoryBuilder.build(listOf(safeMessage), userName, character.name)
+                ).coerceAtLeast(1)
+            },
+            countPrefixTokens = { prefixSize ->
+                tokenizer.countMessages(
+                    renderRequestMessages(
+                        userName = userName,
+                        userDescription = userDescription,
+                        character = character,
+                        session = session,
+                        existingSummary = safeExistingSummary,
+                        messages = sanitized.subList(0, prefixSize),
+                        provider = provider
+                    )
                 )
-            )
-        }
-        // 若存在候选消息但连单条都超出预算则抛出异常
+            }
+        )
+        // 若存在候选消息但连单条都超出预算则抛出异常。
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
                 renderRequestMessages(
@@ -84,13 +105,13 @@ class SummaryPromptBuilder(
                     character,
                     session,
                     safeExistingSummary,
-                    listOf(sanitizedById.getValue(limited.first().id)),
+                    sanitized.subList(0, 1),
                     provider
                 )
             )
             throw PromptBudgetExceededException(required, promptBudget)
         }
-        val sanitizedSelected = selected.map { sanitizedById.getValue(it.id) }
+        val sanitizedSelected = sanitized.subList(0, selected.size)
         // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
@@ -194,21 +215,90 @@ internal fun buildRawSummaryMessages(
 }
 
 /**
- * 用完整前缀请求的 Token 数选择连续消息，第一条超预算时也不会被强行纳入。
+ * 先用逐条 Token 估算定位预算边界，再对少量完整请求做精确校验。
+ *
+ * 逐条计数不能代替最终校验，因为 BPE 可能跨文本边界合并 Token。返回值始终是从第一条
+ * 开始的连续前缀；遍历和精确校验之间包含协作取消检查，避免长摘要准备任务拖延取消。
  */
-internal fun <T> selectSummaryPrefix(
+internal suspend fun <T> selectSummaryPrefix(
     items: List<T>,
     promptBudget: Int,
-    countPrefixTokens: (List<T>) -> Int
+    baseTokenEstimate: Int,
+    estimateItemTokens: (T) -> Int,
+    countPrefixTokens: (prefixSize: Int) -> Int
 ): List<T> {
-    val selected = mutableListOf<T>()
-    for (item in items) {
-        val candidate = selected + item
-        if (countPrefixTokens(candidate) > promptBudget) break
-        selected += item
+    if (items.isEmpty()) return emptyList()
+
+    val cumulativeEstimates = LongArray(items.size + 1)
+    items.forEachIndexed { index, item ->
+        if (index % CANCELLATION_CHECK_INTERVAL == 0) {
+            currentCoroutineContext().ensureActive()
+            if (index > 0) yield()
+        }
+        cumulativeEstimates[index + 1] = cumulativeEstimates[index] +
+            estimateItemTokens(item).coerceAtLeast(1)
     }
-    return selected
+
+    fun estimatedTotal(prefixSize: Int): Long {
+        return baseTokenEstimate.toLong() + cumulativeEstimates[prefixSize]
+    }
+
+    fun estimatedPrefixForBudget(adjustment: Long): Int {
+        val target = promptBudget.toLong() - baseTokenEstimate - adjustment
+        if (target < 0L) return 0
+        var low = 0
+        var high = items.size + 1
+        while (low + 1 < high) {
+            val middle = (low + high) ushr 1
+            if (cumulativeEstimates[middle] <= target) low = middle else high = middle
+        }
+        return low
+    }
+
+    var knownFit = 0
+    var knownOver = items.size + 1
+    var candidate = estimatedPrefixForBudget(adjustment = 0L).coerceAtLeast(1)
+    var attempts = 0
+
+    while (knownFit + 1 < knownOver && attempts < MAX_EXACT_REFINEMENT_ATTEMPTS) {
+        candidate = candidate.coerceIn(knownFit + 1, knownOver - 1)
+        currentCoroutineContext().ensureActive()
+        val exactTokens = countPrefixTokens(candidate)
+        currentCoroutineContext().ensureActive()
+        attempts += 1
+
+        val adjustment = exactTokens.toLong() - estimatedTotal(candidate)
+        if (exactTokens <= promptBudget) {
+            knownFit = candidate
+            if (knownFit == items.size) break
+            val predicted = estimatedPrefixForBudget(adjustment)
+            candidate = if (predicted > knownFit) predicted else knownFit + 1
+        } else {
+            knownOver = candidate
+            val predicted = estimatedPrefixForBudget(adjustment)
+            candidate = if (predicted in (knownFit + 1) until knownOver) {
+                predicted
+            } else {
+                (knownFit + knownOver) ushr 1
+            }
+        }
+    }
+
+    // 极端估算误差下用二分精确收敛；常规路径通常只需 1～3 次完整请求计数。
+    while (knownFit + 1 < knownOver) {
+        currentCoroutineContext().ensureActive()
+        val middle = (knownFit + knownOver) ushr 1
+        if (countPrefixTokens(middle) <= promptBudget) {
+            knownFit = middle
+        } else {
+            knownOver = middle
+        }
+    }
+    return items.take(knownFit)
 }
+
+private const val CANCELLATION_CHECK_INTERVAL = 64
+private const val MAX_EXACT_REFINEMENT_ATTEMPTS = 6
 
 /** 总结路径始终排除 reasoning，不受普通聊天上下文展示设置影响。 */
 internal fun String.summarySafeContent(): String {

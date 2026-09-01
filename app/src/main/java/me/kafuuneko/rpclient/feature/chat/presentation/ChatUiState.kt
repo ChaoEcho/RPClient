@@ -93,7 +93,9 @@ sealed class ChatDialogState {
 
     data object Exporting : ChatDialogState()
 
-    data object Summarizing : ChatDialogState()
+    data class Summarizing(
+        val stage: SummaryPreparationStage
+    ) : ChatDialogState()
 
     data class PromptInspector(
         val inspection: PromptInspection
@@ -111,6 +113,12 @@ sealed class ChatDialogState {
         val title: String,
         val message: String
     ) : ChatDialogState()
+}
+
+/** 摘要任务当前可见阶段，用于区分本地 Prompt 准备与远端模型生成。 */
+enum class SummaryPreparationStage {
+    Preparing,
+    Generating
 }
 
 /**

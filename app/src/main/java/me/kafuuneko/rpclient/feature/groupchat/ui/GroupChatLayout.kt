@@ -1792,7 +1792,10 @@ private fun LoadStateOverlay(loadState: GroupChatLoadState) {
                     when (loadState) {
                         GroupChatLoadState.Deleting -> stringResource(R.string.deleting)
                         GroupChatLoadState.Saving -> stringResource(R.string.saving)
-                        GroupChatLoadState.Summarizing ->
+                        GroupChatLoadState.PreparingSummary ->
+                            stringResource(R.string.preparing_summary)
+
+                        GroupChatLoadState.GeneratingSummary ->
                             stringResource(R.string.updating_summary)
 
                         else -> stringResource(R.string.loading)

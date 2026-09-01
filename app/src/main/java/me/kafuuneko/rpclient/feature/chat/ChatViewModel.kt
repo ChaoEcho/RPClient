@@ -32,6 +32,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSpeechState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.chat.presentation.SummaryPreparationStage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.presentation.resolveExportDialogState
 import me.kafuuneko.rpclient.feature.chat.utils.ChatLorebookEntryData
@@ -1056,6 +1057,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(
+            dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Preparing)
+        ).setup()
         launchSummaryJob(sessionId, showToast = true)
     }
 
@@ -1122,10 +1127,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 取消当前正在执行的总结任务。
      */
     @UiIntentObserver(ChatUiIntent.CancelSummary::class)
-    private suspend fun onCancelSummary() {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        mSummaryJobMutex.withLock {
-            mSummaryJob?.cancelAndJoin()
+    private fun onCancelSummary() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        mSummaryJob?.cancel()
+        // 取消操作不等待后台 CPU/网络任务 join，先立即恢复可交互 UI。
+        if (uiState.dialogState is ChatDialogState.Summarizing) {
+            uiState.copy(dialogState = ChatDialogState.None).setup()
         }
     }
 
@@ -2102,21 +2109,29 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             // 设置 UI 为总结中弹窗状态
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
-            uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
+            uiState.copy(
+                dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Preparing)
+            ).setup()
 
-            // 构建总结专用 Prompt 请求
-            val built = mSummaryPromptBuilder.buildWithSelection(
-                userName = data.session.userName,
-                userDescription = data.session.userDescription,
-                character = data.character,
-                session = data.session,
-                existingSummary = data.summary,
-                messages = data.messages,
-                provider = data.provider
-            )
+            // Tokenizer 与 Prompt 选择属于 CPU 密集工作，必须离开主线程。
+            val built = withContext(Dispatchers.Default) {
+                mSummaryPromptBuilder.buildWithSelection(
+                    userName = data.session.userName,
+                    userDescription = data.session.userDescription,
+                    character = data.character,
+                    session = data.session,
+                    existingSummary = data.summary,
+                    messages = data.messages,
+                    provider = data.provider
+                )
+            }
             if (built.selectedMessages.isEmpty()) return
 
             currentCoroutineContext().ensureActive()
+            val generatingState = getOrNull<ChatUiState.Normal>() ?: return
+            generatingState.copy(
+                dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Generating)
+            ).setup()
 
             // 调用大模型生成摘要
             val response = withContext(Dispatchers.IO) {

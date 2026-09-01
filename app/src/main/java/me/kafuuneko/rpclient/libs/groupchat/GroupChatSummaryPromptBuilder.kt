@@ -26,7 +26,7 @@ class GroupChatSummaryPromptBuilder(
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /** 使用当前摘要和未覆盖消息构建群聊摘要请求。 */
-    fun buildWithSelection(
+    suspend fun buildWithSelection(
         session: GroupChatSession,
         memberNames: List<String>,
         existingSummary: String,
@@ -40,25 +40,44 @@ class GroupChatSummaryPromptBuilder(
         }
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
-        val sanitizedById = limited.associate { message ->
-            message.id to message.copy(content = message.content.summarySafeContent())
+        val sanitized = limited.map { message ->
+            message.copy(content = message.content.summarySafeContent())
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
-        val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
-            val requestMessages = renderRequestMessages(
+        val baseTokenEstimate = tokenizer.countMessages(
+            renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
-                prefix.map { sanitizedById.getValue(it.id) }
+                emptyList()
             )
-            tokenizer.countMessages(requestMessages)
-        }
+        )
+        val selected = selectSummaryPrefix(
+            items = limited,
+            promptBudget = promptBudget,
+            baseTokenEstimate = baseTokenEstimate,
+            estimateItemTokens = { message ->
+                val safeContent = message.content.summarySafeContent()
+                tokenizer.countText("\n${message.speakerNameSnapshot}: $safeContent")
+                    .coerceAtLeast(1)
+            },
+            countPrefixTokens = { prefixSize ->
+                tokenizer.countMessages(
+                    renderRequestMessages(
+                        session,
+                        memberNames,
+                        safeExistingSummary,
+                        sanitized.subList(0, prefixSize)
+                    )
+                )
+            }
+        )
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
-                listOf(sanitizedById.getValue(limited.first().id))
+                sanitized.subList(0, 1)
             )
             throw PromptBudgetExceededException(
                 tokenizer.countMessages(requestMessages),
@@ -69,7 +88,7 @@ class GroupChatSummaryPromptBuilder(
             session,
             memberNames,
             safeExistingSummary,
-            selected.map { sanitizedById.getValue(it.id) }
+            sanitized.subList(0, selected.size)
         )
         return GroupChatSummaryBuildResult(
             request = LLMGenerationRequest(

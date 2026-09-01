@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kafuuneko.rpclient.ui.message.MessageDisplayParagraphFormatter
 import me.kafuuneko.rpclient.utils.MarkdownBlock
 import me.kafuuneko.rpclient.utils.MarkdownInline
 import me.kafuuneko.rpclient.utils.MarkdownParser
@@ -51,12 +52,18 @@ fun MarkdownMessageText(
     isUser: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val blocks = remember(content) { MarkdownParser.parseBlocks(content) }
+    val blocks = remember(content) {
+        MessageDisplayParagraphFormatter.format(MarkdownParser.parseBlocks(content))
+    }
     val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val linkColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
     val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val subtleColor = textColor.copy(alpha = if (isUser) 0.78f else 0.65f)
     val narrationColor = textColor.copy(alpha = if (isUser) 0.85f else 0.75f)
+    val readingTextStyle = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = 16.sp,
+        lineHeight = 26.sp
+    )
     val blockColor = if (isUser) {
         textColor.copy(alpha = 0.12f)
     } else {
@@ -75,7 +82,7 @@ fun MarkdownMessageText(
                     narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = readingTextStyle
                 )
 
                 is MarkdownBlock.Heading -> MarkdownInlineText(
@@ -100,7 +107,8 @@ fun MarkdownMessageText(
                     narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
-                    backgroundColor = blockColor
+                    backgroundColor = blockColor,
+                    style = readingTextStyle
                 )
 
                 is MarkdownBlock.ListBlock -> MarkdownListBlock(
@@ -109,7 +117,8 @@ fun MarkdownMessageText(
                     narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
-                    markerColor = subtleColor
+                    markerColor = subtleColor,
+                    style = readingTextStyle
                 )
 
                 MarkdownBlock.Divider -> Box(
@@ -206,7 +215,8 @@ private fun MarkdownQuoteBlock(
     narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
-    backgroundColor: Color
+    backgroundColor: Color,
+    style: TextStyle
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -232,7 +242,7 @@ private fun MarkdownQuoteBlock(
                 narrationColor = narrationColor,
                 linkColor = linkColor,
                 strongColor = strongColor,
-                style = MaterialTheme.typography.bodyMedium
+                style = style
             )
         }
     }
@@ -245,7 +255,8 @@ private fun MarkdownListBlock(
     narrationColor: Color,
     linkColor: Color,
     strongColor: Color,
-    markerColor: Color
+    markerColor: Color,
+    style: TextStyle
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         block.items.forEach { item ->
@@ -253,7 +264,7 @@ private fun MarkdownListBlock(
                 Text(
                     modifier = Modifier.width(24.dp),
                     text = item.marker,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = style,
                     color = markerColor
                 )
                 MarkdownInlineText(
@@ -263,7 +274,7 @@ private fun MarkdownListBlock(
                     narrationColor = narrationColor,
                     linkColor = linkColor,
                     strongColor = strongColor,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = style
                 )
             }
         }
