@@ -12,7 +12,7 @@ sealed class ChatUiIntent {
 
     data object SendMessage : ChatUiIntent()
 
-    data object SendMessageWithImage : ChatUiIntent()
+    data class ToggleAutoGenerateImageAfterReply(val enabled: Boolean) : ChatUiIntent()
 
     data object StopGeneration : ChatUiIntent()
 

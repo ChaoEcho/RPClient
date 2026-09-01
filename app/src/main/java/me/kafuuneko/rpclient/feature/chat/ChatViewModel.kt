@@ -305,23 +305,33 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SendMessage::class)
     private suspend fun onSendMessage() {
-        sendMessage(generateImageAfterReply = false)
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        sendMessage(generateImageAfterReply = uiState.autoGenerateImageAfterReply)
     }
 
-    @UiIntentObserver(ChatUiIntent.SendMessageWithImage::class)
-    private suspend fun onSendMessageWithImage() {
-        sendMessage(generateImageAfterReply = true)
+    @UiIntentObserver(ChatUiIntent.ToggleAutoGenerateImageAfterReply::class)
+    private fun onToggleAutoGenerateImageAfterReply(
+        intent: ChatUiIntent.ToggleAutoGenerateImageAfterReply
+    ) {
+        AppModel.autoGenerateImageAfterReply = intent.enabled
+        getOrNull<ChatUiState.Normal>()?.copy(
+            autoGenerateImageAfterReply = intent.enabled
+        )?.setup()
     }
 
     private suspend fun sendMessage(generateImageAfterReply: Boolean) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
+        if (generateImageAfterReply && mImageGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
+            return
+        }
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         val rawInput = uiState.conversationState.inputDraft.trim()
             .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
         // 若最终输入为空，退化为续写角色消息
         if (rawInput.isBlank()) {
-            continueLastAssistantMessage(sessionId)
+            continueLastAssistantMessage(sessionId, generateImageAfterReply)
             return
         }
         if (mGenerationCoordinator.activeSessionId() != null) {
@@ -401,17 +411,24 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
             }
             if (generateImageAfterReply && replyGenerationCompleted) {
-                currentCoroutineContext().ensureActive()
-                val latestAssistantMessageId = withContext(Dispatchers.IO) {
-                    mChatRepository.getMessagesBySessionId(sessionId)
-                        .lastOrNull { it.source == ChatMessage.Source.Char }
-                        ?.id
-                }
-                currentCoroutineContext().ensureActive()
-                if (latestAssistantMessageId != null && latestAssistantMessageId != previousAssistantMessageId) {
-                    startImageGeneration(latestAssistantMessageId.toString())
-                }
+                startImageGenerationForNewAssistantReply(sessionId, previousAssistantMessageId)
             }
+        }
+    }
+
+    private suspend fun startImageGenerationForNewAssistantReply(
+        sessionId: Long,
+        previousAssistantMessageId: Long?
+    ) {
+        currentCoroutineContext().ensureActive()
+        val latestAssistantMessageId = withContext(Dispatchers.IO) {
+            mChatRepository.getMessagesBySessionId(sessionId)
+                .lastOrNull { it.source == ChatMessage.Source.Char }
+                ?.id
+        }
+        currentCoroutineContext().ensureActive()
+        if (latestAssistantMessageId != null && latestAssistantMessageId != previousAssistantMessageId) {
+            startImageGeneration(latestAssistantMessageId.toString())
         }
     }
 
@@ -513,9 +530,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ContinueLast::class)
     private suspend fun onContinueLast() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        continueLastAssistantMessage(sessionId)
+        continueLastAssistantMessage(sessionId, uiState.autoGenerateImageAfterReply)
     }
 
     /**
@@ -1627,8 +1644,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * @param sessionId 会话 ID
      */
-    private suspend fun continueLastAssistantMessage(sessionId: Long) {
+    private suspend fun continueLastAssistantMessage(
+        sessionId: Long,
+        generateImageAfterReply: Boolean
+    ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (generateImageAfterReply && mImageGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
+            return
+        }
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
@@ -1637,16 +1661,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 检查最后一条消息及其来源
-        val latestMessage = withContext(Dispatchers.IO) {
-            mChatRepository.getMessagesBySessionId(sessionId).lastOrNull()
+        val messages = withContext(Dispatchers.IO) {
+            mChatRepository.getMessagesBySessionId(sessionId)
         }
+        val latestMessage = messages.lastOrNull()
         if (latestMessage == null || (latestMessage.source != ChatMessage.Source.User && latestMessage.source != ChatMessage.Source.Char)) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_continue).tryEmit()
             return
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
+        val previousAssistantMessageId = if (generateImageAfterReply) {
+            messages.lastOrNull { it.source == ChatMessage.Source.Char }?.id
+        } else {
+            null
+        }
         // 启动续写任务
         mGenerationJob = launchGeneration(sessionId) {
+            var replyGenerationCompleted = false
             runCatching {
                 refreshUiState(
                     sessionId = sessionId,
@@ -1679,6 +1710,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         built.worldInfoStateJson
                     )
                 }
+                replyGenerationCompleted = true
                 // 检查自动总结
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -1696,6 +1728,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
                 }
+            }
+            if (generateImageAfterReply && replyGenerationCompleted) {
+                startImageGenerationForNewAssistantReply(sessionId, previousAssistantMessageId)
             }
         }
     }
@@ -2362,6 +2397,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 },
             streamEnabled = AppModel.streamEnabled,
+            autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply,
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState

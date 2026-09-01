@@ -1082,12 +1082,14 @@
     <string name="image_saved">圖片已儲存</string>
     <string name="image_save_failed">儲存圖片失敗</string>
     <string name="generate_image">生成圖片</string>
-    <string name="send_and_generate_image">傳送並生成圖片</string>
     <string name="regenerate_image">重新生成圖片</string>
     <string name="image_generating">正在生成圖片…</string>
     <string name="image_generation_retry">重試</string>
     <string name="image_generation_not_configured">請先在設定中配置圖片生成 Base URL 和模型。</string>
     <string name="image_generation_in_progress">已有圖片生成任務正在進行。</string>
+    <string name="auto_generate_image_after_reply">文圖並生</string>
+    <string name="auto_generate_image_after_reply_enabled">已開啟</string>
+    <string name="auto_generate_image_after_reply_disabled">已關閉</string>
     <string name="image_generation_failed">圖片生成失敗。</string>
     <string name="generated_image_content_description">生成的角色扮演場景圖片</string>
 

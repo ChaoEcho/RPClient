@@ -1098,12 +1098,14 @@
     <string name="image_saved">Image saved</string>
     <string name="image_save_failed">Could not save the generated image</string>
     <string name="generate_image">Generate image</string>
-    <string name="send_and_generate_image">Send &amp; generate image</string>
     <string name="regenerate_image">Regenerate image</string>
     <string name="image_generating">Generating image…</string>
     <string name="image_generation_retry">Retry</string>
     <string name="image_generation_not_configured">Configure an image generation Base URL and model in Settings first.</string>
     <string name="image_generation_in_progress">An image is already being generated.</string>
+    <string name="auto_generate_image_after_reply">Text + image replies</string>
+    <string name="auto_generate_image_after_reply_enabled">Enabled</string>
+    <string name="auto_generate_image_after_reply_disabled">Disabled</string>
     <string name="image_generation_failed">Image generation failed.</string>
     <string name="generated_image_content_description">Generated roleplay scene</string>
 

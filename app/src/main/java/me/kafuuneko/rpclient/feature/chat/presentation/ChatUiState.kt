@@ -21,6 +21,7 @@ sealed class ChatUiState {
         val conversationState: ChatConversationState,
         val lorebookState: ChatLorebookState,
         val streamEnabled: Boolean,
+        val autoGenerateImageAfterReply: Boolean,
         val hasPromptInspection: Boolean = false,
         val hasAvailableProvider: Boolean = true,
         val dialogState: ChatDialogState = ChatDialogState.None

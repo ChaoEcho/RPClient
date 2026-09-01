@@ -204,6 +204,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // OpenAI-compatible 图像生成尺寸。
     var imageGenerationSize by stringPref(default = "1024x1024")
 
+    // 单聊回复完成后是否自动生成对应图片。
+    var autoGenerateImageAfterReply by booleanPref(default = false)
+
     // 图像生成风格提示词。
     var imageGenerationStylePrompt by stringPref(default = "")
 

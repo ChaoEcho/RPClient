@@ -56,6 +56,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.HideImage
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -105,6 +106,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -371,6 +374,7 @@ private fun ChatNormal(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
             isImageGenerating = state.conversationState.imageGenerationState is ChatImageGenerationState.Generating,
+            autoGenerateImageAfterReply = state.autoGenerateImageAfterReply,
             hasAssistantMessage = state.conversationState.messages.any {
                 it.role == MessageRole.Assistant
             },
@@ -1454,25 +1458,35 @@ private fun QuickActionPill(
     icon: ImageVector,
     label: String,
     enabled: Boolean = true,
+    active: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+            if (active) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+            }
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
         },
         border = BorderStroke(
             0.5.dp,
             if (enabled) {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                if (active) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                }
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.10f)
             }
         ),
-        modifier = Modifier.clickable(
+        modifier = modifier.clickable(
             enabled = enabled,
             onClick = {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1488,18 +1502,22 @@ private fun QuickActionPill(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f
-                ),
+                tint = when {
+                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    active -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.primary
+                },
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f
-                )
+                color = when {
+                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    active -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
             )
         }
     }
@@ -1596,11 +1614,20 @@ private fun ChatInputBar(
     draft: String,
     isGenerating: Boolean,
     isImageGenerating: Boolean,
+    autoGenerateImageAfterReply: Boolean,
     hasAssistantMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
+    val canStartTextGeneration = !isGenerating && (!autoGenerateImageAfterReply || !isImageGenerating)
+    val autoImageModeStateDescription = stringResource(
+        if (autoGenerateImageAfterReply) {
+            R.string.auto_generate_image_after_reply_enabled
+        } else {
+            R.string.auto_generate_image_after_reply_disabled
+        }
+    )
     val sendButtonColor by animateColorAsState(
         targetValue = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         label = "sendButtonColor"
@@ -1633,15 +1660,27 @@ private fun ChatInputBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 QuickActionPill(
-                    icon = Icons.Rounded.ImageIcon,
-                    label = stringResource(R.string.send_and_generate_image),
-                    enabled = !isGenerating && !isImageGenerating,
-                    onClick = { ChatUiIntent.SendMessageWithImage.emit() }
+                    icon = if (autoGenerateImageAfterReply) {
+                        Icons.Rounded.ImageIcon
+                    } else {
+                        Icons.Rounded.HideImage
+                    },
+                    label = stringResource(R.string.auto_generate_image_after_reply),
+                    active = autoGenerateImageAfterReply,
+                    modifier = Modifier.semantics {
+                        selected = autoGenerateImageAfterReply
+                        stateDescription = autoImageModeStateDescription
+                    },
+                    onClick = {
+                        ChatUiIntent.ToggleAutoGenerateImageAfterReply(
+                            enabled = !autoGenerateImageAfterReply
+                        ).emit()
+                    }
                 )
                 QuickActionPill(
                     icon = Icons.Rounded.AutoAwesome,
                     label = stringResource(R.string.continue_latest_reply),
-                    enabled = hasAssistantMessage && !isGenerating,
+                    enabled = hasAssistantMessage && canStartTextGeneration,
                     onClick = { ChatUiIntent.ContinueLast.emit() }
                 )
                 QuickActionPill(
@@ -1710,7 +1749,7 @@ private fun ChatInputBar(
                                     leadingIcon = {
                                         Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
                                     },
-                                    enabled = hasAssistantMessage,
+                                    enabled = hasAssistantMessage && canStartTextGeneration,
                                     onClick = {
                                         quickActionsExpanded = false
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1770,6 +1809,7 @@ private fun ChatInputBar(
                     color = sendButtonColor,
                     tonalElevation = 2.dp,
                     shadowElevation = 2.dp,
+                    enabled = isGenerating || canStartTextGeneration,
                     onClick = {
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         if (isGenerating) ChatUiIntent.StopGeneration.emit()
@@ -2325,7 +2365,8 @@ private fun ChatLayoutPreview() {
                     ),
                     isExpanded = true
                 ),
-                streamEnabled = true
+                streamEnabled = true,
+                autoGenerateImageAfterReply = false
             ),
             emit = {}
         )
