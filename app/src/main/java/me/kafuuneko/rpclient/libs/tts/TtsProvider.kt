@@ -36,6 +36,7 @@ data class MimoTtsRequest(
     override val text: String,
     val baseUrl: String,
     val apiKey: String,
+    val model: String,
     val voice: String,
     val instructions: String,
     val temperature: Float

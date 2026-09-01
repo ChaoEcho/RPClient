@@ -44,6 +44,7 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
             mimo = MimoTtsSettingsState(
                 baseUrl = AppModel.ttsMimoBaseUrl,
                 apiKey = AppModel.ttsMimoApiKey,
+                model = AppModel.ttsMimoModel,
                 voice = AppModel.ttsMimoVoice,
                 instructions = AppModel.ttsMimoInstructions,
                 temperature = AppModel.ttsMimoTemperature
@@ -133,6 +134,13 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
         val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
         AppModel.ttsMimoApiKey = intent.value
         state.copy(mimo = state.mimo.copy(apiKey = intent.value)).setup()
+    }
+
+    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoModel::class)
+    private fun onChangeMimoModel(intent: TtsSettingsUiIntent.ChangeMimoModel) {
+        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
+        AppModel.ttsMimoModel = intent.value
+        state.copy(mimo = state.mimo.copy(model = intent.value)).setup()
     }
 
     @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoVoice::class)

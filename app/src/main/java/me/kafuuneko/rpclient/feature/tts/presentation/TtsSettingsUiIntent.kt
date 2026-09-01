@@ -15,6 +15,7 @@ sealed class TtsSettingsUiIntent {
 
     data class ChangeMimoBaseUrl(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoApiKey(val value: String) : TtsSettingsUiIntent()
+    data class ChangeMimoModel(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoVoice(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoInstructions(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoTemperature(val value: Float) : TtsSettingsUiIntent()

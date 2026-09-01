@@ -1083,12 +1083,14 @@
     <string name="go_to_model_settings">Configure</string>
 
     <string name="image_generation">Image generation</string>
+    <string name="image_generation_settings_subtitle">Configure model, endpoint, size, and visual style</string>
     <string name="image_generation_base_url">Base URL</string>
     <string name="image_generation_api_key">API key</string>
     <string name="image_generation_model">Image model</string>
     <string name="image_generation_size">Image size</string>
     <string name="image_generation_style_prompt">Style prompt</string>
     <string name="generate_image">Generate image</string>
+    <string name="send_and_generate_image">Send &amp; generate image</string>
     <string name="regenerate_image">Regenerate image</string>
     <string name="image_generating">Generating image…</string>
     <string name="image_generation_retry">Retry</string>

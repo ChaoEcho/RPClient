@@ -177,6 +177,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 小米 MiMo TTS 配置。
     var ttsMimoBaseUrl by stringPref(default = "https://api.xiaomimimo.com/v1")
     var ttsMimoApiKey by stringPref(default = "")
+    var ttsMimoModel by stringPref(default = "mimo-v2.5-tts")
     var ttsMimoVoice by stringPref(default = "mimo_default")
     var ttsMimoInstructions by stringPref(default = "")
     var ttsMimoTemperature by floatPref(default = 0.8f)

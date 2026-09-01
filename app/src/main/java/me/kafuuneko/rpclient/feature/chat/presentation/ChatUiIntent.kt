@@ -12,6 +12,8 @@ sealed class ChatUiIntent {
 
     data object SendMessage : ChatUiIntent()
 
+    data object SendMessageWithImage : ChatUiIntent()
+
     data object StopGeneration : ChatUiIntent()
 
     data object RegenerateLast : ChatUiIntent()

@@ -72,6 +72,7 @@ class TtsAudioCache(context: Context) {
                     field(request.text)
                     field(request.baseUrl)
                     field(request.apiKey)
+                    field(request.model)
                     field(request.voice)
                     field(request.instructions)
                     field(request.temperature.toString())
