@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <!-- 调试日志可丢弃且不应离开设备；业务主库 primary.sqlite 继续使用默认备份。 -->
+    <exclude domain="sharedpref" path="rpclient_secure_secrets.xml" />
     <exclude domain="database" path="request_logs.sqlite" />
     <exclude domain="database" path="request_logs.sqlite-journal" />
     <exclude domain="database" path="request_logs.sqlite-shm" />

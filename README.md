@@ -89,6 +89,12 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 - Script ordering, duplication, testing, import, and export
 - Scripts embedded in character cards are not automatically granted permission to run
 
+### Full Backup and Restore
+
+- Encrypted full `.rpbackup` export and Replace Restore for local business data, file assets, and app settings
+- Optional WebDAV storage for listing, uploading, downloading, and deleting encrypted backups
+- See the [RPClient full backup format](doc/RPClient完整备份格式.md) for the V1 contract
+
 ### Other
 
 - Local-first data storage

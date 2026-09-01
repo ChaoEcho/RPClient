@@ -14,18 +14,33 @@ class RequestLogBackupRulesTest {
         val root = parseXml("backup_rules.xml")
         val excludes = root.getElementsByTagName("exclude").asElements()
 
-        assertEquals(ExpectedPaths, excludes.databasePaths())
-        assertFalse(excludes.databasePaths().contains("primary.sqlite"))
+        assertEquals(ExpectedDatabasePaths, excludes.filter { it.getAttribute("domain") == "database" }.databasePaths())
+        assertEquals(setOf(SECURE_PREFS_FILE), excludes.sharedPreferencePaths())
+        assertFalse(
+            excludes.filter { it.getAttribute("domain") == "database" }.databasePaths().contains("primary.sqlite")
+        )
     }
 
     @Test
-    fun dataExtractionRules_excludeLogsFromCloudBackupAndDeviceTransfer() {
+    fun dataExtractionRules_excludeLogsAndSecureSecretsFromCloudBackupAndDeviceTransfer() {
         val root = parseXml("data_extraction_rules.xml")
         val cloud = root.getElementsByTagName("cloud-backup").item(0) as Element
         val transfer = root.getElementsByTagName("device-transfer").item(0) as Element
 
-        assertEquals(ExpectedPaths, cloud.getElementsByTagName("exclude").asElements().databasePaths())
-        assertEquals(ExpectedPaths, transfer.getElementsByTagName("exclude").asElements().databasePaths())
+        assertEquals(ExpectedDatabasePaths, cloud.getElementsByTagName("exclude").asElements()
+            .filter { it.getAttribute("domain") == "database" }
+            .databasePaths())
+        assertEquals(ExpectedDatabasePaths, transfer.getElementsByTagName("exclude").asElements()
+            .filter { it.getAttribute("domain") == "database" }
+            .databasePaths())
+        assertEquals(
+            setOf(SECURE_PREFS_FILE),
+            cloud.getElementsByTagName("exclude").asElements().sharedPreferencePaths()
+        )
+        assertEquals(
+            setOf(SECURE_PREFS_FILE),
+            transfer.getElementsByTagName("exclude").asElements().sharedPreferencePaths()
+        )
         assertTrue(root.getElementsByTagName("include").length == 0)
     }
 
@@ -49,8 +64,13 @@ class RequestLogBackupRulesTest {
         return mapTo(mutableSetOf()) { it.getAttribute("path") }
     }
 
+    private fun List<Element>.sharedPreferencePaths(): Set<String> =
+        filter { it.getAttribute("domain") == "sharedpref" }
+            .mapTo(mutableSetOf()) { it.getAttribute("path") }
+
     private companion object {
-        val ExpectedPaths = setOf(
+        const val SECURE_PREFS_FILE = "rpclient_secure_secrets.xml"
+        val ExpectedDatabasePaths = setOf(
             "request_logs.sqlite",
             "request_logs.sqlite-journal",
             "request_logs.sqlite-shm",
