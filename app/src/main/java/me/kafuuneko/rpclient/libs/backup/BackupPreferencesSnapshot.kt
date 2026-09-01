@@ -74,7 +74,8 @@ data class BackupPreferencesSnapshot(
     val contextTrimmingAlert: Boolean,
     val exampleDialogueBehavior: Int,
     val includeThinkInContext: Boolean,
-    val debugModeEnabled: Boolean
+    val debugModeEnabled: Boolean,
+    val autoGenerateImageAfterReply: Boolean = false
 ) {
     /** 将快照应用到当前安装，同时保留安装身份与升级记账。 */
     fun apply() {
@@ -147,6 +148,7 @@ data class BackupPreferencesSnapshot(
         AppModel.exampleDialogueBehavior = exampleDialogueBehavior
         AppModel.includeThinkInContext = includeThinkInContext
         AppModel.debugModeEnabled = debugModeEnabled
+        AppModel.autoGenerateImageAfterReply = autoGenerateImageAfterReply
         // 即使用户有意保留空模型列表，也不能在恢复后再次生成默认模型
         AppModel.llmDefaultProvidersInitialized = true
     }
@@ -272,7 +274,8 @@ data class BackupPreferencesSnapshot(
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
                 exampleDialogueBehavior = AppModel.exampleDialogueBehavior,
                 includeThinkInContext = AppModel.includeThinkInContext,
-                debugModeEnabled = AppModel.debugModeEnabled
+                debugModeEnabled = AppModel.debugModeEnabled,
+                autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply
             )
         }
     }
