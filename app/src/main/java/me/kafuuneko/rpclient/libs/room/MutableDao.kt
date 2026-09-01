@@ -1,14 +1,12 @@
 package me.kafuuneko.rpclient.libs.room
 
-import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Update
 
 /** 为各实体 DAO 提供统一的插入、批量插入、更新和删除操作。 */
-@Dao
-interface MutableDao<T> {
+interface MutableDao<T : Any> {
     /** 按 REPLACE 策略写入单条实体，并返回行 ID。 */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(data: T): Long
