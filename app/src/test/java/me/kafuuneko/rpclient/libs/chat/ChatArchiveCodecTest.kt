@@ -49,7 +49,8 @@ class ChatArchiveCodecTest {
                 content = "Alice arrived.",
                 createTime = 4_000L,
                 coveredMessageIndex = 1
-            )
+            ),
+            mimoTtsVoiceOverride = "mimo_voice_1"
         )
 
         val encoded = codec.encode(archive)
@@ -59,12 +60,44 @@ class ChatArchiveCodecTest {
 
         assertEquals("unused", header["user_name"].asString)
         assertTrue(header["chat_metadata"].asJsonObject.has("rpclient"))
+        assertEquals(
+            "mimo_voice_1",
+            header["chat_metadata"].asJsonObject
+                .getAsJsonObject("rpclient")["mimo_tts_voice_override"].asString
+        )
         assertFalse(narrator["is_system"].asBoolean)
         assertEquals("narrator", narrator["extra"].asJsonObject["type"].asString)
 
         val decoded = codec.decode(encoded, fallbackTitle = "Fallback", fallbackTime = 9_000L)
 
         assertEquals(archive, decoded)
+    }
+
+    @Test
+    fun missingNullOrNonStringVoiceOverrideIsImportedAsNull() {
+        listOf(
+            "{\"schema_version\":1}",
+            "{\"schema_version\":1,\"mimo_tts_voice_override\":null}",
+            "{\"schema_version\":1,\"mimo_tts_voice_override\":123}",
+            "{\"schema_version\":1,\"mimo_tts_voice_override\":true}"
+        ).forEach { rpclientMetadata ->
+            val decoded = codec.decode(
+                jsonl = """{"chat_metadata":{"rpclient":$rpclientMetadata}}""",
+                fallbackTitle = "Fallback"
+            )
+
+            assertNull(decoded.mimoTtsVoiceOverride)
+        }
+    }
+
+    @Test
+    fun nullVoiceOverrideIsOmittedFromExport() {
+        val lines = codec.encode(archive()).lineSequence().filter { it.isNotBlank() }.toList()
+        val rpclient = JsonParser.parseString(lines.first()).asJsonObject
+            .getAsJsonObject("chat_metadata")
+            .getAsJsonObject("rpclient")
+
+        assertFalse(rpclient.has("mimo_tts_voice_override"))
     }
 
     @Test

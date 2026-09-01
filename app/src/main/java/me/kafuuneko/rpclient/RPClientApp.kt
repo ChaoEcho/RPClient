@@ -24,6 +24,7 @@ import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.tts.AzureTtsProvider
 import me.kafuuneko.rpclient.libs.tts.MimoTtsProvider
+import me.kafuuneko.rpclient.libs.tts.PcmAudioPlayer
 import me.kafuuneko.rpclient.libs.tts.SystemTtsProvider
 import me.kafuuneko.rpclient.libs.tts.TtsAudioCache
 import me.kafuuneko.rpclient.libs.tts.TtsService
@@ -105,6 +106,7 @@ internal val appModules = module {
     singleOf(::OpenAICompatibleImageClient)
     singleOf(::SystemTtsProvider)
     singleOf(::MimoTtsProvider)
+    singleOf(::PcmAudioPlayer)
     singleOf(::AzureTtsProvider)
     singleOf(::TtsAudioCache)
     singleOf(::TtsService)

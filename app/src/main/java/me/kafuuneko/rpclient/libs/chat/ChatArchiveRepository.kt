@@ -116,7 +116,8 @@ class ChatArchiveRepository(
                         userDescription = archive.userDescription,
                         creatorNotes = archive.creatorNotes,
                         worldInfoStateJson = "{}",
-                        autoSummaryPaused = archive.autoSummaryPaused
+                        autoSummaryPaused = archive.autoSummaryPaused,
+                        mimoTtsVoiceOverride = archive.mimoTtsVoiceOverride
                     ).withNormalizedCreatorNotes()
                 )
                 val insertedMessageIds = if (archive.messages.isEmpty()) {
@@ -184,7 +185,8 @@ class ChatArchiveRepository(
                     createTime = it.createTime,
                     coveredMessageIndex = coveredMessageIndex
                 )
-            }
+            },
+            mimoTtsVoiceOverride = session.mimoTtsVoiceOverride
         )
     }
 

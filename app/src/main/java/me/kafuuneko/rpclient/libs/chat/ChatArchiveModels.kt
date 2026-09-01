@@ -20,7 +20,8 @@ data class ChatArchive(
     val characterNameHint: String,
     val characterFingerprint: String?,
     val messages: List<ChatArchiveMessage>,
-    val summary: ChatArchiveSummary?
+    val summary: ChatArchiveSummary?,
+    val mimoTtsVoiceOverride: String? = null
 )
 
 /** 归档中的普通消息；列表顺序是唯一权威的对话顺序。 */

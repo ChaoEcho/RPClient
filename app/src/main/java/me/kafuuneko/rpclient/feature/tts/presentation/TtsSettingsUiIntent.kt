@@ -19,6 +19,7 @@ sealed class TtsSettingsUiIntent {
     data class ChangeMimoVoice(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoInstructions(val value: String) : TtsSettingsUiIntent()
     data class ChangeMimoTemperature(val value: Float) : TtsSettingsUiIntent()
+    data class ChangeMimoStreaming(val value: Boolean) : TtsSettingsUiIntent()
 
     data class ChangeAzureApiKey(val value: String) : TtsSettingsUiIntent()
     data class ChangeAzureRegion(val value: String) : TtsSettingsUiIntent()

@@ -298,6 +298,9 @@
     <string name="delete_chat_title">Delete chat</string>
     <string name="delete_chat_desc">Permanently delete this session and all messages</string>
     <string name="delete_chat_message">Delete "%s" and all of its messages? This cannot be undone.</string>
+    <string name="chat_settings_voice">Voice</string>
+    <string name="chat_settings_voice_follow_global">Use global setting · %1$s</string>
+    <string name="chat_settings_voice_follow_global_menu">Use global setting (current: %1$s)</string>
     <string name="session">Session</string>
     <string name="title">Title</string>
     <string name="current_summary">Current summary</string>
@@ -1131,6 +1134,8 @@
     <string name="tts_base_url">Base URL</string>
     <string name="tts_mimo_instructions">Performance instructions</string>
     <string name="tts_temperature">Temperature</string>
+    <string name="tts_mimo_streaming">Stream playback</string>
+    <string name="tts_mimo_streaming_description">Play audio while it is being generated, significantly reducing the wait for long text to start speaking.</string>
     <string name="tts_azure_region">Azure region</string>
     <string name="tts_system_voices_unavailable">No system voices are available on this device.</string>
     <string name="tts_speak_message">Read message aloud</string>

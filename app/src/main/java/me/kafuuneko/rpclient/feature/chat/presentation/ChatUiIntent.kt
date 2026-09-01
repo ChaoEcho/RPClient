@@ -30,6 +30,8 @@ sealed class ChatUiIntent {
 
     data object StopSpeech : ChatUiIntent()
 
+    data class SelectMimoTtsVoice(val voice: String?) : ChatUiIntent()
+
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
     data object OpenSessionLore : ChatUiIntent()

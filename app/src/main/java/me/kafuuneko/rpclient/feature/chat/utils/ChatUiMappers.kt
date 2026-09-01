@@ -40,7 +40,8 @@ fun ChatSession.toChatSessionItem(
         creatorNotes = creatorNotes,
         autoSummaryPaused = autoSummaryPaused,
         messageCount = messageCount,
-        enabledLorebookEntryIds = enabledIds
+        enabledLorebookEntryIds = enabledIds,
+        mimoTtsVoiceOverride = mimoTtsVoiceOverride
     )
 }
 

@@ -47,7 +47,8 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
                 model = AppModel.ttsMimoModel,
                 voice = AppModel.ttsMimoVoice,
                 instructions = AppModel.ttsMimoInstructions,
-                temperature = AppModel.ttsMimoTemperature
+                temperature = AppModel.ttsMimoTemperature,
+                streaming = AppModel.ttsMimoStreaming
             ),
             azure = AzureTtsSettingsState(
                 apiKey = AppModel.ttsAzureApiKey,
@@ -162,6 +163,13 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
         val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
         AppModel.ttsMimoTemperature = intent.value
         state.copy(mimo = state.mimo.copy(temperature = intent.value)).setup()
+    }
+
+    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoStreaming::class)
+    private fun onChangeMimoStreaming(intent: TtsSettingsUiIntent.ChangeMimoStreaming) {
+        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
+        AppModel.ttsMimoStreaming = intent.value
+        state.copy(mimo = state.mimo.copy(streaming = intent.value)).setup()
     }
 
     @UiIntentObserver(TtsSettingsUiIntent.ChangeAzureApiKey::class)

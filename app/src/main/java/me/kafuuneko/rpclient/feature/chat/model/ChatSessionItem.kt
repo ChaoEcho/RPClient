@@ -11,5 +11,6 @@ data class ChatSessionItem(
     val creatorNotes: String,
     val autoSummaryPaused: Boolean,
     val messageCount: Int,
-    val enabledLorebookEntryIds: Set<Long>
+    val enabledLorebookEntryIds: Set<Long>,
+    val mimoTtsVoiceOverride: String? = null
 )
