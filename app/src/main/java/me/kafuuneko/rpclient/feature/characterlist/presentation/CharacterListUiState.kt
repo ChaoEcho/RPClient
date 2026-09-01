@@ -28,6 +28,12 @@ sealed class CharacterListUiState {
 sealed class CharacterListDialogState {
     data object None : CharacterListDialogState()
 
+    data object ImportSource : CharacterListDialogState()
+
+    data class ImportJsonEditor(
+        val draftText: String
+    ) : CharacterListDialogState()
+
     data class LowEmbeddedLorebookBudgetConfirm(
         val importedTokenBudget: Int,
         val affectedCharacterCount: Int

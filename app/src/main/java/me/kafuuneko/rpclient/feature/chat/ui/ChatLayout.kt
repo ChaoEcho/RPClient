@@ -887,7 +887,6 @@ private fun MessageBubble(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -897,18 +896,33 @@ private fun MessageBubble(
                                     MaterialTheme.colorScheme.onPrimary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
-                                }
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = message.time,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isUser) {
-                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = message.time,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isUser) {
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                                    }
+                                )
+                                if (showSpeechButton) {
+                                    MessageSpeechButton(
+                                        messageId = message.id,
+                                        speechState = speechState,
+                                        emit = emit
+                                    )
                                 }
-                            )
+                            }
                         }
                         if (editing) {
                             MessageEditContent(
@@ -927,18 +941,7 @@ private fun MessageBubble(
                     }
                 }
 
-                if (showSpeechButton) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        MessageSpeechButton(
-                            messageId = message.id,
-                            speechState = speechState,
-                            emit = emit
-                        )
-                    }
-                }
+
 
                 if (message.role == MessageRole.Assistant) {
                     MessageImageContent(
@@ -990,12 +993,12 @@ private fun MessageSpeechButton(
         val description = stringResource(R.string.tts_loading)
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(32.dp)
                 .semantics { contentDescription = description },
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(17.dp),
+                modifier = Modifier.size(16.dp),
                 strokeWidth = 2.dp
             )
         }
@@ -1023,12 +1026,12 @@ private fun SpeechIconButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(36.dp)
+        modifier = Modifier.size(32.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

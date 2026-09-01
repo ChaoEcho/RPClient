@@ -52,12 +52,12 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     @UiIntentObserver(BackupUiIntent.Init::class)
     private fun onInit() {
         if (!isStateOf<BackupUiState.None>()) return
+        mSecretStore.clearLegacyBackupPassword()
         BackupUiState.Normal(
             webDavBaseUrl = BackupSettingsModel.webDavBaseUrl,
             webDavUsername = BackupSettingsModel.webDavUsername,
             webDavRemotePath = BackupSettingsModel.webDavRemotePath,
-            hasRememberedBackupPassword = mSecretStore.getBackupPassword() != null,
-            hasRememberedWebDavPassword = mSecretStore.getWebDavPassword() != null,
+            hasSavedWebDavPassword = mSecretStore.hasSavedWebDavPassword(),
             lastSuccessfulBackupAt = BackupSettingsModel.lastSuccessfulBackupAt
         ).setup()
     }
@@ -95,14 +95,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private fun onCreateLocalClick() {
         val state = normalOrNull() ?: return
         if (state.operation != null) return
-        val remembered = mSecretStore.getBackupPassword()
-        if (remembered.isNullOrEmpty()) {
-            state.copy(dialogState = BackupDialogState.CreateLocal).setup()
-            return
-        }
-        mPendingLocalBackupPassword?.fill('\u0000')
-        mPendingLocalBackupPassword = remembered.toCharArray()
-        BackupViewEvent.CreateLocalBackupDocument(defaultBackupFileName()).tryEmit()
+        state.copy(dialogState = BackupDialogState.CreateLocal).setup()
     }
 
     @UiIntentObserver(BackupUiIntent.SubmitLocalBackupPassword::class)
@@ -110,16 +103,9 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val state = normalOrNull() ?: return
         if (state.operation != null || state.dialogState !is BackupDialogState.CreateLocal) return
         val password = resolveConfirmedBackupPassword(intent.password, intent.confirmation) ?: return
-        if (!saveBackupPasswordPreference(intent.password, intent.remember)) {
-            password.fill('\u0000')
-            return
-        }
         mPendingLocalBackupPassword?.fill('\u0000')
         mPendingLocalBackupPassword = password
-        state.copy(
-            hasRememberedBackupPassword = hasRememberedBackupPassword(),
-            dialogState = BackupDialogState.None
-        ).setup()
+        state.copy(dialogState = BackupDialogState.None).setup()
         BackupViewEvent.CreateLocalBackupDocument(defaultBackupFileName()).tryEmit()
     }
 
@@ -167,15 +153,8 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val source = mPendingRestoreSource ?: return
         if (state.operation != null || state.dialogState !is BackupDialogState.EnterLocalRestorePassword) return
         val password = resolveBackupPassword(intent.password) ?: return
-        if (!saveBackupPasswordPreference(intent.password, intent.remember)) {
-            password.fill('\u0000')
-            return
-        }
         mPendingRestoreSource = null
-        state.copy(
-            hasRememberedBackupPassword = hasRememberedBackupPassword(),
-            dialogState = BackupDialogState.None
-        ).setup()
+        state.copy(dialogState = BackupDialogState.None).setup()
         val started = runOperation(BackupOperationKind.ValidateLocal) {
             try {
                 val backup = mRepository.validateLocalBackup(source, password, ::updatePhase)
@@ -203,17 +182,68 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
 
     @UiIntentObserver(BackupUiIntent.ChangeWebDavBaseUrl::class)
     private fun onChangeWebDavBaseUrl(intent: BackupUiIntent.ChangeWebDavBaseUrl) {
-        updateWebDavConfig { it.copy(webDavBaseUrl = intent.value) }
+        val state = normalOrNull() ?: return
+        if (state.operation != null) return
+        state.copy(webDavBaseUrl = intent.value).setup()
     }
 
     @UiIntentObserver(BackupUiIntent.ChangeWebDavUsername::class)
     private fun onChangeWebDavUsername(intent: BackupUiIntent.ChangeWebDavUsername) {
-        updateWebDavConfig { it.copy(webDavUsername = intent.value) }
+        val state = normalOrNull() ?: return
+        if (state.operation != null) return
+        state.copy(webDavUsername = intent.value).setup()
     }
 
     @UiIntentObserver(BackupUiIntent.ChangeWebDavRemotePath::class)
     private fun onChangeWebDavRemotePath(intent: BackupUiIntent.ChangeWebDavRemotePath) {
-        updateWebDavConfig { it.copy(webDavRemotePath = intent.value) }
+        val state = normalOrNull() ?: return
+        if (state.operation != null) return
+        state.copy(webDavRemotePath = intent.value).setup()
+    }
+
+    @UiIntentObserver(BackupUiIntent.SaveWebDavConfig::class)
+    private fun onSaveWebDavConfig(intent: BackupUiIntent.SaveWebDavConfig) {
+        val state = normalOrNull() ?: return
+        if (state.operation != null) return
+        val trimmedBaseUrl = state.webDavBaseUrl.trim()
+        val trimmedUsername = state.webDavUsername.trim()
+        val trimmedRemotePath = state.webDavRemotePath.trim()
+
+        BackupSettingsModel.webDavBaseUrl = trimmedBaseUrl
+        BackupSettingsModel.webDavUsername = trimmedUsername
+        BackupSettingsModel.webDavRemotePath = trimmedRemotePath
+
+        var passwordSaveFailed = false
+        if (intent.password.isNotEmpty()) {
+            try {
+                mSecretStore.setWebDavPassword(intent.password)
+            } catch (_: Exception) {
+                passwordSaveFailed = true
+            }
+        }
+
+        val hasSaved = mSecretStore.hasSavedWebDavPassword()
+        state.copy(
+            webDavBaseUrl = trimmedBaseUrl,
+            webDavUsername = trimmedUsername,
+            webDavRemotePath = trimmedRemotePath,
+            hasSavedWebDavPassword = hasSaved
+        ).setup()
+
+        if (passwordSaveFailed) {
+            AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_config_saved_password_failed).tryEmit()
+        } else {
+            AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_config_saved).tryEmit()
+        }
+    }
+
+    @UiIntentObserver(BackupUiIntent.ClearSavedWebDavPassword::class)
+    private fun onClearSavedWebDavPassword() {
+        val state = normalOrNull() ?: return
+        if (state.operation != null) return
+        runCatching { mSecretStore.setWebDavPassword(null) }
+        state.copy(hasSavedWebDavPassword = mSecretStore.hasSavedWebDavPassword()).setup()
+        AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_clear_saved_password_success).tryEmit()
     }
 
     @UiIntentObserver(BackupUiIntent.TestWebDav::class)
@@ -221,17 +251,12 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val state = normalOrNull() ?: return
         if (state.operation != null || mOperationJob?.isActive == true) return
         val password = resolveWebDavPassword(intent.password) ?: return
-        if (!saveWebDavPasswordPreference(intent.password, intent.remember)) {
-            password.fill('\u0000')
-            return
-        }
         val started = runOperation(BackupOperationKind.TestWebDav) {
             password.useSecret { secret ->
                 val config = currentWebDavConfig()
                 mWebDavClient.ensureCollection(config, secret)
                 mWebDavClient.testConnection(config, secret)
             }
-            refreshSecretFlags()
             AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_test_success).tryEmit()
         }
         if (!started) password.fill('\u0000')
@@ -242,13 +267,8 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val state = normalOrNull() ?: return
         if (state.operation != null || mOperationJob?.isActive == true) return
         val password = resolveWebDavPassword(intent.password) ?: return
-        if (!saveWebDavPasswordPreference(intent.password, intent.remember)) {
-            password.fill('\u0000')
-            return
-        }
         val started = runOperation(BackupOperationKind.RefreshWebDav) {
             password.useSecret { secret -> refreshRemoteBackups(currentWebDavConfig(), secret) }
-            refreshSecretFlags()
         }
         if (!started) password.fill('\u0000')
     }
@@ -270,15 +290,9 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             webDavPassword.fill('\u0000')
             return
         }
-        if (!saveBothPasswordPreferences(intent)) {
-            webDavPassword.fill('\u0000')
-            backupPassword.fill('\u0000')
-            return
-        }
         state.copy(dialogState = BackupDialogState.None).setup()
         val started = runOperation(BackupOperationKind.UploadWebDav) {
             uploadRemoteBackup(webDavPassword, backupPassword)
-            refreshSecretFlags()
             AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_upload_success).tryEmit()
         }
         if (!started) {
@@ -305,16 +319,10 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             webDavPassword.fill('\u0000')
             return
         }
-        if (!saveRestorePasswordPreferences(intent)) {
-            webDavPassword.fill('\u0000')
-            backupPassword.fill('\u0000')
-            return
-        }
         mPendingRemoteItem = null
         state.copy(dialogState = BackupDialogState.None).setup()
         val started = runOperation(BackupOperationKind.DownloadWebDav) {
             downloadAndValidateRemote(item, webDavPassword, backupPassword)
-            refreshSecretFlags()
         }
         if (!started) {
             webDavPassword.fill('\u0000')
@@ -336,10 +344,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val item = mPendingRemoteItem ?: return
         if (state.operation != null || state.dialogState !is BackupDialogState.DeleteWebDav) return
         val password = resolveWebDavPassword(intent.webDavPassword) ?: return
-        if (!saveWebDavPasswordPreference(intent.webDavPassword, intent.rememberWebDavPassword)) {
-            password.fill('\u0000')
-            return
-        }
         mPendingRemoteItem = null
         state.copy(dialogState = BackupDialogState.None).setup()
         val started = runOperation(BackupOperationKind.DeleteWebDav) {
@@ -348,7 +352,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
                 mWebDavClient.delete(config, secret, item)
                 refreshRemoteBackups(config, secret)
             }
-            refreshSecretFlags()
             AppViewEvent.PopupToastMessageByResId(R.string.backup_webdav_delete_success).tryEmit()
         }
         if (!started) password.fill('\u0000')
@@ -439,16 +442,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         ).setup()
     }
 
-    private fun updateWebDavConfig(transform: (BackupUiState.Normal) -> BackupUiState.Normal) {
-        val state = normalOrNull() ?: return
-        if (state.operation != null) return
-        val updated = transform(state)
-        BackupSettingsModel.webDavBaseUrl = updated.webDavBaseUrl
-        BackupSettingsModel.webDavUsername = updated.webDavUsername
-        BackupSettingsModel.webDavRemotePath = updated.webDavRemotePath
-        updated.setup()
-    }
-
     private fun currentWebDavConfig(): WebDavConfig {
         val state = normalOrNull() ?: throw BackupException.WebDavUnavailable()
         return WebDavConfig(
@@ -469,13 +462,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         )?.setup()
     }
 
-    private fun refreshSecretFlags() {
-        normalOrNull()?.copy(
-            hasRememberedBackupPassword = hasRememberedBackupPassword(),
-            hasRememberedWebDavPassword = mSecretStore.getWebDavPassword() != null
-        )?.setup()
-    }
-
     private fun resolveConfirmedBackupPassword(password: String, confirmation: String): CharArray? {
         if (password != confirmation) {
             AppViewEvent.PopupToastMessageByResId(R.string.backup_password_mismatch).tryEmit()
@@ -485,12 +471,11 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     }
 
     private fun resolveBackupPassword(typed: String): CharArray? {
-        val value = typed.takeIf { it.isNotEmpty() } ?: mSecretStore.getBackupPassword()
-        if (value.isNullOrEmpty()) {
+        if (typed.isEmpty()) {
             AppViewEvent.PopupToastMessageByResId(R.string.backup_password_required).tryEmit()
             return null
         }
-        return value.toCharArray()
+        return typed.toCharArray()
     }
 
     private fun resolveWebDavPassword(typed: String): CharArray? {
@@ -500,63 +485,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             return null
         }
         return value.toCharArray()
-    }
-
-    private fun saveBackupPasswordPreference(typed: String, remember: Boolean): Boolean {
-        return saveSecretPreference(
-            typed = typed,
-            remember = remember,
-            save = mSecretStore::setBackupPassword
-        )
-    }
-
-    private fun saveWebDavPasswordPreference(typed: String, remember: Boolean): Boolean {
-        return saveSecretPreference(
-            typed = typed,
-            remember = remember,
-            save = mSecretStore::setWebDavPassword
-        )
-    }
-
-    private fun saveSecretPreference(
-        typed: String,
-        remember: Boolean,
-        save: (String?) -> Unit
-    ): Boolean {
-        return try {
-            when {
-                remember && typed.isNotEmpty() -> save(typed)
-                !remember -> save(null)
-            }
-            true
-        } catch (_: Exception) {
-            AppViewEvent.PopupToastMessageByResId(R.string.backup_secure_store_error).tryEmit()
-            false
-        }
-    }
-
-    private fun saveBothPasswordPreferences(intent: BackupUiIntent.SubmitWebDavUpload): Boolean {
-        val savedBackup = saveBackupPasswordPreference(
-            intent.backupPassword,
-            intent.rememberBackupPassword
-        )
-        if (!savedBackup) return false
-        return saveWebDavPasswordPreference(
-            intent.webDavPassword,
-            intent.rememberWebDavPassword
-        )
-    }
-
-    private fun saveRestorePasswordPreferences(intent: BackupUiIntent.SubmitWebDavRestore): Boolean {
-        val savedBackup = saveBackupPasswordPreference(
-            intent.backupPassword,
-            intent.rememberBackupPassword
-        )
-        if (!savedBackup) return false
-        return saveWebDavPasswordPreference(
-            intent.webDavPassword,
-            intent.rememberWebDavPassword
-        )
     }
 
     private inline fun CharArray.useSecret(block: (String) -> Unit) {
@@ -591,8 +519,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         mPendingRestoreSource = null
         mPendingRemoteItem = null
     }
-
-    private fun hasRememberedBackupPassword(): Boolean = mSecretStore.getBackupPassword() != null
 
     private fun normalOrNull(): BackupUiState.Normal? = getOrNull()
 

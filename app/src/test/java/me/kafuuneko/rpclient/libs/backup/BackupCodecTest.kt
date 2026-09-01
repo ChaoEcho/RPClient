@@ -20,6 +20,26 @@ class BackupCodecTest {
     private val codec = BackupCodec(root, gson, crypto)
     private val password = "test password".toCharArray()
 
+    @Test
+    fun oldSnapshotMissingAvatarStyleRestoresSuccessfully() {
+        val json = gson.toJson(validPreferences())
+        val snapshot = gson.fromJson(json, BackupPreferencesSnapshot::class.java)
+        snapshot.validate()
+        assertEquals(null, snapshot.imageGenerationAvatarStylePrompt)
+        assertEquals("", snapshot.imageGenerationAvatarStylePrompt.orEmpty())
+    }
+
+    @Test
+    fun newSnapshotRoundtripsPreservesAvatarStyle() {
+        val prefs = validPreferences().toMutableMap().apply {
+            put("imageGenerationAvatarStylePrompt", "anime avatar portrait")
+        }
+        val json = gson.toJson(prefs)
+        val snapshot = gson.fromJson(json, BackupPreferencesSnapshot::class.java)
+        snapshot.validate()
+        assertEquals("anime avatar portrait", snapshot.imageGenerationAvatarStylePrompt)
+    }
+
     @After
     fun tearDown() {
         password.fill('\u0000')

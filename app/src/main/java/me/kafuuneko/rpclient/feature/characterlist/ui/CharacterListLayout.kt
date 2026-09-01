@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
@@ -65,6 +66,7 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiI
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
+import me.kafuuneko.rpclient.ui.dialog.AppCodeEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -173,6 +175,34 @@ private fun DialogSwitch(
     // 低预算确认在单卡与批量场景复用同一策略入口
     when (dialogState) {
         CharacterListDialogState.None -> Unit
+        CharacterListDialogState.ImportSource -> AppActionListDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.character_import_source_title),
+            subtitle = stringResource(R.string.character_import_source_subtitle),
+            badgeIcon = Icons.Rounded.FileUpload,
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.ContentPaste,
+                    title = stringResource(R.string.paste_character_card_json),
+                    subtitle = stringResource(R.string.paste_character_card_json_description),
+                    onClick = { CharacterListUiIntent.PasteImportCharacterJsonClick.emit() }
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.FileUpload,
+                    title = stringResource(R.string.choose_character_card_file),
+                    subtitle = stringResource(R.string.choose_character_card_file_description),
+                    onClick = { CharacterListUiIntent.PickImportCharacterFileClick.emit() }
+                )
+            )
+        )
+        is CharacterListDialogState.ImportJsonEditor -> AppCodeEditorDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.paste_character_card_json),
+            value = dialogState.draftText,
+            onValueChange = { CharacterListUiIntent.ChangeImportJsonDraft(it).emit() },
+            confirmEnabled = dialogState.draftText.isNotBlank(),
+            onConfirm = { CharacterListUiIntent.ConfirmImportJson.emit() }
+        )
         is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> AppWarningDialog(
             onDismissRequest = {
                 CharacterListUiIntent.ImportCharacterWithOriginalLorebookBudget.emit()

@@ -1,16 +1,22 @@
 package me.kafuuneko.rpclient.feature.imagegeneration.presentation
 
+/** Editable draft form for OpenAI-compatible image-generation settings. */
+data class ImageGenerationSettingsForm(
+    val baseUrl: String = "",
+    val apiKey: String = "",
+    val model: String = "",
+    val size: String = "",
+    val sceneStylePrompt: String = "",
+    val avatarStylePrompt: String = "",
+    val promptProviderId: Long = 0L
+)
+
 /** UI state for the OpenAI-compatible image-generation settings page. */
 sealed class ImageGenerationSettingsUiState {
     data object None : ImageGenerationSettingsUiState()
 
     data class Normal(
-        val baseUrl: String,
-        val apiKey: String,
-        val model: String,
-        val size: String,
-        val stylePrompt: String,
-        val selectedProviderId: Long = 0L,
+        val form: ImageGenerationSettingsForm,
         val providers: List<ImagePromptProviderItem> = emptyList()
     ) : ImageGenerationSettingsUiState()
 
