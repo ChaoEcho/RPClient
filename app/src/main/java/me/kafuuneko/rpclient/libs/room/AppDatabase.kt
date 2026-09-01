@@ -4,6 +4,7 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import me.kafuuneko.rpclient.libs.room.dao.BackupDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterLLMProviderAssociationDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatMessageDao
@@ -78,6 +79,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun getBackupDao(): BackupDao
     abstract fun getCharacterDao(): CharacterDao
     abstract fun getCharacterLLMProviderAssociationDao(): CharacterLLMProviderAssociationDao
     abstract fun getLorebookDao(): LorebookDao

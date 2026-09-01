@@ -39,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
@@ -1474,6 +1475,7 @@ private fun SettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
+        item { BackupEntryCard { MainUiIntent.OpenBackup.emit() } }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
@@ -2476,6 +2478,28 @@ private fun GenerationCapabilitiesPanel(
             title = stringResource(R.string.tts_settings_title),
             subtitle = stringResource(R.string.tts_settings_subtitle),
             onClick = onTtsClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun BackupEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Backup,
+            iconColor = Color(0xFF0EA5E9),
+            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+            title = stringResource(R.string.backup_title),
+            subtitle = stringResource(R.string.backup_entry_subtitle),
+            onClick = onClick,
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,

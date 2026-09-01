@@ -134,6 +134,8 @@ sealed class MainUiIntent {
 
     data object OpenRequestLogs : MainUiIntent()
 
+    data object OpenBackup : MainUiIntent()
+
     data object OpenImageGenerationSettings : MainUiIntent()
 
     data object OpenTtsSettings : MainUiIntent()

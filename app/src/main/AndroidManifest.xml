@@ -26,6 +26,11 @@
         android:theme="@style/Theme.RPClient"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".feature.backup.BackupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.imagegeneration.ImageGenerationSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

@@ -72,6 +72,16 @@ If your device enables Android, device manufacturer, or account-level backup, tr
 
 Files that you export, such as character cards, lorebooks, Regex scripts, or other files, are stored in the location you choose. You are responsible for managing and sharing exported files.
 
+### Complete encrypted backups and WebDAV transfer
+
+RPClient can create a full `.rpbackup` archive locally when you explicitly request it. The archive is encrypted on the device with the backup password before it is written or exported. It can contain local business records, file assets, app preferences, and configured model, TTS, or image-service API keys that are needed to restore the selected configuration. A Replace Restore validates the complete archive before replacing current RPClient business data.
+
+WebDAV is an optional storage destination that you configure and use explicitly. When you upload or download a backup, RPClient transfers the already encrypted `.rpbackup` file to or from that WebDAV endpoint. V1 uses HTTP Basic Auth for WebDAV requests and supports backup-file storage operations only; it does not provide automatic cloud backup or synchronization. The WebDAV provider is selected and controlled by you, not operated by the RPClient developer.
+
+The WebDAV username and password are used as Basic Auth credentials. If you choose to remember the password on the device, RPClient stores it locally in encrypted form protected by AndroidKeyStore. The remembered WebDAV password and remembered backup password are not placed in `.rpbackup`, and AndroidKeyStore keys and the local secure-secret store are not exported. If those device-local keys become unavailable, you may need to enter the credentials again.
+
+Request logs are not included in `.rpbackup`; this includes `request_logs.sqlite` and its WAL, SHM, and journal files. TTS cache, ordinary app cache, restore staging files, installation-specific identifiers, and migration bookkeeping are also excluded. API keys explicitly included in the preferences snapshot are separate from remembered device-local secrets and remain protected by the backup encryption.
+
 Data sent to third-party model providers is stored, retained, deleted, and secured according to the rules of the relevant provider. Please review the privacy policy and terms of service of each provider you use.
 
 ## 6. Sharing, Transfer, and Disclosure

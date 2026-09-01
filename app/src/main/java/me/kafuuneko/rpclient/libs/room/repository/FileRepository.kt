@@ -21,8 +21,11 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -156,6 +159,55 @@ class FileRepository(
         val file = File(mRepositoryDir, entity.hash)
         if (file.exists()) file else null
     }
+
+    /** 根据内容哈希获取仓库中的物理文件；无效哈希或非普通文件返回 null。 */
+    suspend fun getPhysicalFileByHash(hash: String): File? = withContext(Dispatchers.IO) {
+        requireValidSha256Hash(hash)
+        File(mRepositoryDir, hash).takeIf { it.isFile }
+    }
+
+    /**
+     * 校验备份文件内容并发布到内容寻址仓库，不创建或修改数据库记录。
+     *
+     * 目标文件已存在且内容正确时直接复用；其他情况先写入仓库内临时文件，完成刷盘后再发布。
+     */
+    suspend fun prepareRestoredFile(hash: String, source: File) = withContext(Dispatchers.IO) {
+        requireValidSha256Hash(hash)
+        require(source.isFile) { "Source file is not a regular file" }
+
+        val targetFile = File(mRepositoryDir, hash)
+        if (targetFile.isFile && calculateSha256(targetFile) == hash) {
+            // 目标内容正确时只校验源文件并复用目标，不创建临时文件。
+            require(calculateSha256(source) == hash) {
+                "Source file hash does not match the requested hash"
+            }
+            return@withContext
+        }
+
+        // 目标缺失或内容错误时，把源文件完整写入临时文件并同时计算哈希。
+        val tempFile = File.createTempFile("restore_", ".tmp", mRepositoryDir)
+        try {
+            val sourceHash = copyFileWithSha256(source, tempFile)
+            require(sourceHash == hash) { "Source file hash does not match the requested hash" }
+
+            // 临时文件已刷盘，发布阶段只替换完整文件，不把内容直接写入目标路径。
+            publishRestoredFile(tempFile, targetFile)
+        } finally {
+            tempFile.delete()
+        }
+    }
+
+    /** 删除仓库根目录中不再被数据库引用的合法内容寻址文件。 */
+    suspend fun deleteUnreferencedPhysicalFiles(referencedHashes: Set<String>) =
+        withContext(Dispatchers.IO) {
+            // 只处理仓库根目录中的普通 SHA-256 文件，临时文件和未知文件名保持不动。
+            mRepositoryDir.listFiles()?.forEach { file ->
+                val name = file.name
+                if (file.isFile && SHA256_HASH_PATTERN.matches(name) && name !in referencedHashes) {
+                    file.delete()
+                }
+            }
+        }
 
     /**
      * 将图片原始字节导出到系统 Pictures/RPClient 目录。
@@ -429,6 +481,97 @@ class FileRepository(
         }
     }
 
+    private fun copyFileWithSha256(source: File, destination: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(source).use { inputStream ->
+            FileOutputStream(destination).use { outputStream ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
+                    digest.update(buffer, 0, bytesRead)
+                }
+                outputStream.flush()
+                outputStream.fd.sync()
+            }
+        }
+        return digest.digest().toLowerHex()
+    }
+
+    private fun calculateSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(file).use { inputStream ->
+            val buffer = ByteArray(8192)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        return digest.digest().toLowerHex()
+    }
+
+    private fun publishRestoredFile(tempFile: File, targetFile: File) {
+        var atomicFailure: Throwable? = null
+        try {
+            Files.move(
+                tempFile.toPath(),
+                targetFile.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING
+            )
+            return
+        } catch (failure: IOException) {
+            atomicFailure = failure
+        } catch (failure: UnsupportedOperationException) {
+            atomicFailure = failure
+        }
+
+        // 同目录移动通常仍是完整文件替换；仅在原子移动不可用时退化到这里。
+        try {
+            Files.move(
+                tempFile.toPath(),
+                targetFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING
+            )
+            return
+        } catch (failure: IOException) {
+            atomicFailure?.addSuppressed(failure)
+        } catch (failure: UnsupportedOperationException) {
+            atomicFailure?.addSuppressed(failure)
+        }
+
+        // 文件移动不可用时，先删除已确认错误的目标，再以完整临时文件复制并刷盘。
+        if (!tempFile.isFile) {
+            throw IOException("Unable to publish restored file", atomicFailure)
+        }
+        if (targetFile.isFile && calculateSha256(targetFile) == targetFile.name) {
+            return
+        }
+        if (targetFile.exists() && !targetFile.delete()) {
+            throw IOException("Unable to replace restored file", atomicFailure)
+        }
+        try {
+            FileInputStream(tempFile).use { inputStream ->
+                FileOutputStream(targetFile).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                    outputStream.flush()
+                    outputStream.fd.sync()
+                }
+            }
+        } catch (failure: Exception) {
+            targetFile.delete()
+            atomicFailure?.let { failure.addSuppressed(it) }
+            throw failure
+        }
+    }
+
+    private fun requireValidSha256Hash(hash: String) {
+        require(SHA256_HASH_PATTERN.matches(hash)) { "Invalid SHA-256 hash" }
+    }
+
+    private fun ByteArray.toLowerHex(): String =
+        joinToString(separator = "") { byte -> "%02x".format(Locale.US, byte.toInt() and 0xff) }
+
     private fun calculateInSampleSize(
         sourceWidth: Int,
         sourceHeight: Int,
@@ -488,6 +631,7 @@ class FileRepository(
     }
 
     private companion object {
+        val SHA256_HASH_PATTERN = Regex("[0-9a-f]{64}")
         const val MAX_THUMBNAIL_DIMENSION = 4_096
         const val MAX_CROP_SOURCE_DIMENSION = 2_048
         const val AVATAR_OUTPUT_DIMENSION = 1_024

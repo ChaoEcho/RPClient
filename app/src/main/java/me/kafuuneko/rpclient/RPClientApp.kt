@@ -7,6 +7,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.backup.BackupCodec
+import me.kafuuneko.rpclient.libs.backup.BackupCrypto
+import me.kafuuneko.rpclient.libs.backup.BackupRepository
+import me.kafuuneko.rpclient.libs.backup.LocalSecretStore
+import me.kafuuneko.rpclient.libs.backup.WebDavClient
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
@@ -101,6 +106,11 @@ internal val appModules = module {
     }
 
     single { Gson() }
+    singleOf(::BackupCrypto)
+    single { BackupCodec(get<android.content.Context>(), get<Gson>(), get<BackupCrypto>()) }
+    singleOf(::BackupRepository)
+    singleOf(::LocalSecretStore)
+    singleOf(::WebDavClient)
     singleOf(::ChatGenerationCoordinator)
 
     singleOf(::OpenAICompatibleImageClient)

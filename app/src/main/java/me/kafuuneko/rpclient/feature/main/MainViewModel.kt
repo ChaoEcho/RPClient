@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
+import me.kafuuneko.rpclient.feature.backup.BackupActivity
 import me.kafuuneko.rpclient.feature.imagegeneration.ImageGenerationSettingsActivity
 import me.kafuuneko.rpclient.feature.tts.TtsSettingsActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
@@ -835,6 +836,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    /** 打开完整备份、恢复与 WebDAV 云备份页面。 */
+    @UiIntentObserver(MainUiIntent.OpenBackup::class)
+    private fun onOpenBackup() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(BackupActivity::class.java).tryEmit()
     }
 
     /** 打开全局图像生成设置。 */
