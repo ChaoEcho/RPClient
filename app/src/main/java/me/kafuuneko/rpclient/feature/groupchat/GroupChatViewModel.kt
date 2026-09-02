@@ -41,6 +41,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatCharacterCardMode
@@ -263,18 +264,18 @@ class GroupChatViewModel :
      *
      * 行为分发：
      * - 手动模式（Manual）：在 UI 上高亮选中该角色作为下次发送时的发言者。
-     * - 自动/其他策略模式：点击头像视为“强制立即触发该成员发言一轮”。
+     * - 自动/其他策略模式：向输入框插入该角色的完整 @点名，不改变手动发言者选择。
      *
      * @param intent 包含目标角色 ID 的意图
      */
     @UiIntentObserver(GroupChatUiIntent.SelectSpeaker::class)
-    private suspend fun onSelectSpeaker(intent: GroupChatUiIntent.SelectSpeaker) {
+    private fun onSelectSpeaker(intent: GroupChatUiIntent.SelectSpeaker) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val member = uiState.members
             .firstOrNull { it.id == intent.characterId } ?: return
+        if (member.muted) return
         // 手动模式下仅切换 UI 选中的发言人
         if (uiState.activeActivationStrategy == GroupChatActivationStrategy.Manual) {
-            if (member.muted) return
             uiState.copy(
                 conversationState = uiState.conversationState.copy(
                     selectedSpeakerId = intent.characterId
@@ -282,15 +283,49 @@ class GroupChatViewModel :
             ).setup()
             return
         }
-        // 自动或其他策略模式下，点击头像视为强制触发该角色立即生成一轮回复
-        if (mGenerationJob?.isActive == true) return
-        val data = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(uiState.sessionId)
-        } ?: return
-        val forcedSpeaker = data.members.firstOrNull {
-            it.character.id == intent.characterId
-        } ?: return
-        launchGeneration(uiState.sessionId, listOf(forcedSpeaker))
+        // 非手动模式下，点击成员插入 "@角色名 " 到输入框，不改变手动发言人高亮，不直接触发生成
+        val currentDraft = uiState.conversationState.inputDraft
+        val mentionText = "@${member.name} "
+        val updatedDraft = if (currentDraft.isEmpty() || currentDraft.endsWith(" ")) {
+            currentDraft + mentionText
+        } else {
+            currentDraft + " " + mentionText
+        }
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                inputDraft = updatedDraft
+            )
+        ).setup()
+    }
+
+    /**
+     * 开始回复指定的群聊消息。
+     *
+     * @param intent 包含待回复消息 ID 的意图
+     */
+    @UiIntentObserver(GroupChatUiIntent.StartReply::class)
+    private fun onStartReply(intent: GroupChatUiIntent.StartReply) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val message = uiState.conversationState.messages.firstOrNull { it.id == intent.messageId }
+            ?.takeIf { it.source == GroupChatMessageSource.Character } ?: return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                replyingMessage = message
+            )
+        ).setup()
+    }
+
+    /**
+     * 取消当前消息回复上下文。
+     */
+    @UiIntentObserver(GroupChatUiIntent.CancelReply::class)
+    private fun onCancelReply() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                replyingMessage = null
+            )
+        ).setup()
     }
 
     /**
@@ -367,6 +402,7 @@ class GroupChatViewModel :
         }
         val sessionId = mSessionId ?: return
         val rawInput = uiState.conversationState.inputDraft.trim()
+        val replyingMsg = uiState.conversationState.replyingMessage
         val initialData = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatData(sessionId)
         } ?: return
@@ -381,6 +417,10 @@ class GroupChatViewModel :
                 it.source != GroupChatMessage.Source.System
             }?.content.orEmpty()
         }
+        // 若有回复目标且其发言角色为有效群成员，则将其纳入显式角色目标中
+        val explicitCharacterIds = replyingMsg?.speakerCharacterId
+            ?.takeIf { charId -> initialData.members.any { it.character.id == charId && !it.relation.muted } }
+            ?.let { setOf(it) } ?: emptySet()
         // 由调度策略选择器选出本轮发言角色列表
         val speakers = mSpeakerSelector.select(
             session = initialData.session,
@@ -388,7 +428,8 @@ class GroupChatViewModel :
             messages = initialData.messages,
             activationText = activationText,
             isUserInput = isUserInput,
-            manualCharacterId = uiState.conversationState.selectedSpeakerId
+            manualCharacterId = uiState.conversationState.selectedSpeakerId,
+            explicitCharacterIds = explicitCharacterIds
         )
         if (speakers.isEmpty()) {
             AppViewEvent.PopupToastMessageByResId(
@@ -404,14 +445,16 @@ class GroupChatViewModel :
                     source = GroupChatMessage.Source.User,
                     content = input,
                     speakerCharacterId = null,
-                    speakerNameSnapshot = initialData.session.userName
+                    speakerNameSnapshot = initialData.session.userName,
+                    replyToMessageId = replyingMsg?.id
                 )
             }
         }
-        // 切换 UI 为生成中状态并启动多角色生成循环
+        // 切换 UI 为生成中状态并启动多角色生成循环，清空输入框与回复目标
         refreshState(
             inputDraft = "",
             selectedSpeakerId = uiState.conversationState.selectedSpeakerId,
+            replyingMessage = null,
             generationState = GroupChatGenerationState.Generating(
                 speakerName = speakers.first().character.name,
                 current = 1,
@@ -421,11 +464,6 @@ class GroupChatViewModel :
         launchGeneration(sessionId, speakers)
     }
 
-    /**
-     * 停止当前的群聊生成任务。
-     *
-     * 取消协程、执行 Source 正则、落库已生成部分内容，并恢复 UI 空闲状态。
-     */
     @UiIntentObserver(GroupChatUiIntent.StopGeneration::class)
     private suspend fun onStopGeneration() {
         if (!isStateOf<GroupChatUiState.Normal>()) return
@@ -616,6 +654,42 @@ class GroupChatViewModel :
     }
 
     /**
+     * 选择 Natural 模式每轮最多发言人数；显式目标超过上限时仍全部保留。
+     *
+     * @param intent 包含人数限制（1..3 或 -1）的意图
+     */
+    @UiIntentObserver(GroupChatUiIntent.SelectNaturalMaxSpeakers::class)
+    private fun onSelectNaturalMaxSpeakers(
+        intent: GroupChatUiIntent.SelectNaturalMaxSpeakers
+    ) {
+        if (!isStateOf<GroupChatUiState.Normal>()) return
+        val normalized = when {
+            intent.count == -1 -> -1
+            intent.count in 1..3 -> intent.count
+            else -> 2
+        }
+        updateSettingsState { copy(naturalMaxSpeakers = normalized) }
+    }
+
+    /**
+     * 选择 Auto 模式在初始批次后的最大自动续聊轮数。
+     *
+     * @param intent 包含轮数限制（1..3 或 -1）的意图
+     */
+    @UiIntentObserver(GroupChatUiIntent.SelectAutoModeMaxRounds::class)
+    private fun onSelectAutoModeMaxRounds(
+        intent: GroupChatUiIntent.SelectAutoModeMaxRounds
+    ) {
+        if (!isStateOf<GroupChatUiState.Normal>()) return
+        val normalized = when {
+            intent.rounds == -1 -> -1
+            intent.rounds in 1..3 -> intent.rounds
+            else -> 2
+        }
+        updateSettingsState { copy(autoModeMaxRounds = normalized) }
+    }
+
+    /**
      * 切换是否在生成结果中裁剪其他角色的冒充发言内容。
      *
      * @param intent 包含开关标志的意图
@@ -681,6 +755,8 @@ class GroupChatViewModel :
                     includeMutedCards = uiState.settingsState.includeMutedCards,
                     autoModeEnabled = uiState.settingsState.autoModeEnabled,
                     trimOtherSpeakers = uiState.settingsState.trimOtherSpeakers,
+                    naturalMaxSpeakers = uiState.settingsState.naturalMaxSpeakers,
+                    autoModeMaxRounds = uiState.settingsState.autoModeMaxRounds,
                     autoSummaryPaused = uiState.settingsState.autoSummaryPaused,
                     systemPromptOverride = uiState.settingsState.systemPromptDraft.trim(),
                     groupNudgePromptOverride = uiState.settingsState.groupNudgePromptDraft.trim(),
@@ -1077,6 +1153,80 @@ class GroupChatViewModel :
     }
 
     /**
+     * 打开带指令重生成对话框。
+     *
+     * @param intent 包含待重生成消息 ID 的意图
+     */
+    @UiIntentObserver(GroupChatUiIntent.OpenGuidedRegenerate::class)
+    private fun onOpenGuidedRegenerate(intent: GroupChatUiIntent.OpenGuidedRegenerate) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val message = uiState.conversationState.messages.firstOrNull { it.id == intent.messageId } ?: return
+        if (message.source != GroupChatMessageSource.Character) return
+        uiState.copy(
+            dialogState = GroupChatDialogState.GuidedRegenerate(messageId = message.id)
+        ).setup()
+    }
+
+    /**
+     * 修改带指令重生成的输入要求。
+     *
+     * @param intent 包含最新指令内容的意图
+     */
+    @UiIntentObserver(GroupChatUiIntent.ChangeGuidedRegenerateDraft::class)
+    private fun onChangeGuidedRegenerateDraft(
+        intent: GroupChatUiIntent.ChangeGuidedRegenerateDraft
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val currentDialog = uiState.dialogState as? GroupChatDialogState.GuidedRegenerate ?: return
+        uiState.copy(
+            dialogState = currentDialog.copy(draft = intent.value)
+        ).setup()
+    }
+
+    /**
+     * 确认执行带指令重生成。
+     */
+    @UiIntentObserver(GroupChatUiIntent.ConfirmGuidedRegenerate::class)
+    private suspend fun onConfirmGuidedRegenerate() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? GroupChatDialogState.GuidedRegenerate ?: return
+        if (mGenerationJob?.isActive == true) return
+        if (!ensureProviderConfigured()) return
+        val data = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getGroupChatData(uiState.sessionId)
+        } ?: return
+        val message = data.messages.firstOrNull { it.id == dialog.messageId } ?: return
+        if (message.source != GroupChatMessage.Source.Character) return
+        val speaker = data.members.firstOrNull {
+            it.character.id == message.speakerCharacterId
+        } ?: return
+        val instruction = dialog.draft.trim()
+        if (instruction.isBlank()) return
+        // 截断删除从该消息开始的所有后续历史记录
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.deleteMessagesFrom(message.id)
+        }
+        // 切换 UI 为生成中状态并关闭对话框
+        refreshState(
+            editingMessageId = null,
+            editingMessageDraft = "",
+            dialogState = GroupChatDialogState.None,
+            generationState = GroupChatGenerationState.Generating(
+                speakerName = speaker.character.name,
+                current = 1,
+                total = 1
+            )
+        )
+        // 重新以 Regenerate 模式触发该角色的生成流程，并传递一次性指令
+        launchGeneration(
+            sessionId = uiState.sessionId,
+            speakers = listOf(speaker),
+            generationMode = GroupChatGenerationMode.Regenerate,
+            regenerationInstruction = instruction
+        )
+    }
+
+    /**
      * 由最后一条角色消息的原发言者续写下一条回复。
      *
      * 业务流程：
@@ -1178,23 +1328,27 @@ class GroupChatViewModel :
      * - 自动模式循环（AutoMode Loop）：
      *   - 单轮结束后，若开启了 `autoModeEnabled` 且激活策略非手动（Manual），则延迟 [AUTO_MODE_DELAY_MS]（500ms）；
      *   - 从数据库重新加载最新群聊快照，依据上一轮的最后消息重新计算下一轮发言者列表，实现连续交谈；
-     *   - 直至无发言者被激活或用户手动停止。
+     *   - 达到配置的自动续聊轮数、无发言者、关闭 Auto Mode 或用户手动停止时结束。
      * - 自动总结监测：全部生成结束后触发 [maybeAutoSummarize]。
      *
      * @param sessionId 会话 ID
      * @param speakers 本轮被选中的发言成员列表
      * @param generationMode 生成模式（Normal, Regenerate, Continue 等）
+     * @param regenerationInstruction 仅首位重生成发言者可见的一次性指令
      */
     private fun launchGeneration(
         sessionId: Long,
         speakers: List<GroupChatMemberData>,
-        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
+        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
+        regenerationInstruction: String = ""
     ) {
         val batchId = UUID.randomUUID().toString()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 var pendingSpeakers = speakers
                 var nextGenerationMode = generationMode
+                var nextRegenerationInstruction = regenerationInstruction
+                var autoRoundsCompleted = 0
                 // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
                 while (pendingSpeakers.isNotEmpty()) {
                     pendingSpeakers.forEachIndexed { index, speaker ->
@@ -1206,21 +1360,24 @@ class GroupChatViewModel :
                             batchId = batchId,
                             current = index + 1,
                             total = pendingSpeakers.size,
-                            generationMode = nextGenerationMode
+                            generationMode = nextGenerationMode,
+                            regenerationInstruction = nextRegenerationInstruction
                         )
-                        // 首位发言者可能使用特殊模式（如 Regenerate/Continue），后续角色重置为 Normal
+                        // 首位发言者可能使用特殊模式；后续角色恢复普通生成且不继承一次性指令
                         nextGenerationMode = GroupChatGenerationMode.Normal
+                        nextRegenerationInstruction = ""
                     }
                     // 加载最新群聊快照
                     val nextData = withContext(Dispatchers.IO) {
                         mGroupChatRepository.getGroupChatData(sessionId)
                     } ?: break
                     // 自动模式下重新选出下一轮发言角色
-                    pendingSpeakers = if (
-                        nextData.session.autoModeEnabled &&
-                        nextData.session.activationStrategy !=
-                        GroupChatSession.ActivationStrategy.Manual
-                    ) {
+                    val maxAutoRounds = nextData.session.autoModeMaxRounds
+                        .takeIf { it == -1 || it in 1..3 } ?: 2
+                    val canContinueAuto = nextData.session.autoModeEnabled &&
+                        nextData.session.activationStrategy != GroupChatSession.ActivationStrategy.Manual &&
+                        (maxAutoRounds == -1 || autoRoundsCompleted < maxAutoRounds)
+                    pendingSpeakers = if (canContinueAuto) {
                         delay(AUTO_MODE_DELAY_MS.milliseconds)
                         mSpeakerSelector.select(
                             session = nextData.session,
@@ -1231,7 +1388,9 @@ class GroupChatViewModel :
                             }?.content.orEmpty(),
                             isUserInput = false,
                             manualCharacterId = null
-                        )
+                        ).also { selected ->
+                            if (selected.isNotEmpty()) autoRoundsCompleted += 1
+                        }
                     } else {
                         emptyList()
                     }
@@ -1282,7 +1441,8 @@ class GroupChatViewModel :
         batchId: String,
         current: Int,
         total: Int,
-        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
+        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
+        regenerationInstruction: String = ""
     ) {
         // 加载群聊快照、模型提供商与世界书上下文
         val data = withContext(Dispatchers.IO) {
@@ -1308,6 +1468,7 @@ class GroupChatViewModel :
                     recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
                     provider = provider,
                     generationMode = generationMode,
+                    regenerationInstruction = regenerationInstruction,
                     regexScripts = mRegexRepository.activeScripts(
                         data.members.map { it.character }
                     )
@@ -1647,6 +1808,8 @@ class GroupChatViewModel :
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.editingMessageId,
         editingMessageDraft: String =
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.editingMessageDraft.orEmpty(),
+        replyingMessage: GroupChatMessageItem? =
+            getOrNull<GroupChatUiState.Normal>()?.conversationState?.replyingMessage,
         dialogState: GroupChatDialogState =
             getOrNull<GroupChatUiState.Normal>()?.dialogState ?: GroupChatDialogState.None
     ) {
@@ -1662,6 +1825,7 @@ class GroupChatViewModel :
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
+                replyingMessage = replyingMessage,
                 dialogState = dialogState
             )
         } ?: return
@@ -1691,6 +1855,7 @@ class GroupChatViewModel :
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: Long? = null,
         editingMessageDraft: String = "",
+        replyingMessage: GroupChatMessageItem? = null,
         dialogState: GroupChatDialogState = GroupChatDialogState.None
     ): GroupChatUiState.Normal? {
         // 查询群聊会话与成员聚合数据
@@ -1711,13 +1876,8 @@ class GroupChatViewModel :
         val validSelectedSpeakerId = selectedSpeakerId
             ?.takeIf { id -> members.any { it.id == id && !it.muted } }
         val effectiveSpeakerId = if (
-            data.session.activationStrategy ==
-            GroupChatSession.ActivationStrategy.Manual
-        ) {
-            validSelectedSpeakerId
-        } else {
-            validSelectedSpeakerId ?: members.firstOrNull { !it.muted }?.id
-        }
+            data.session.activationStrategy == GroupChatSession.ActivationStrategy.Manual
+        ) validSelectedSpeakerId else null
         // 组装可用添加角色列表
         val memberIds = members.map { it.id }.toSet()
         val availableCharacters = mCharacterRepository.getAllCharacters().map {
@@ -1773,7 +1933,10 @@ class GroupChatViewModel :
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
-                editingMessageDraft = editingMessageDraft
+                editingMessageDraft = editingMessageDraft,
+                replyingMessage = replyingMessage?.takeIf { target ->
+                    data.messages.any { it.id == target.id }
+                }
             ),
             settingsState = GroupChatSettingsState(
                 activationStrategy = data.session.activationStrategy
@@ -1783,6 +1946,8 @@ class GroupChatViewModel :
                 allowSelfResponses = data.session.allowSelfResponses,
                 includeMutedCards = data.session.includeMutedCards,
                 autoModeEnabled = data.session.autoModeEnabled,
+                naturalMaxSpeakers = data.session.naturalMaxSpeakers.takeIf { it == -1 || it in 1..3 } ?: 2,
+                autoModeMaxRounds = data.session.autoModeMaxRounds.takeIf { it == -1 || it in 1..3 } ?: 2,
                 trimOtherSpeakers = data.session.trimOtherSpeakers,
                 scenarioDraft = data.session.scenario,
                 userNoteDraft = data.session.userNote,
@@ -1868,6 +2033,7 @@ class GroupChatViewModel :
                 id = message.id,
                 source = message.source.toGroupChatMessageSource(),
                 speakerName = message.speakerNameSnapshot,
+                speakerCharacterId = message.speakerCharacterId,
                 content = displayContent,
                 parts = displayContent.toMessageContentParts(message.id.toString()),
                 time = message.createTime.formatTimestamp("HH:mm"),

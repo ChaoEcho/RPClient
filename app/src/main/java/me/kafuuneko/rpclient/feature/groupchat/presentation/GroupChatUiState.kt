@@ -60,7 +60,8 @@ data class GroupChatConversationState(
     val generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
     val expandedThinkBlockIds: Set<String> = emptySet(),
     val editingMessageId: Long? = null,
-    val editingMessageDraft: String = ""
+    val editingMessageDraft: String = "",
+    val replyingMessage: GroupChatMessageItem? = null
 )
 
 /** 群聊设置草稿、候选成员与世界书选择子状态。 */
@@ -70,6 +71,8 @@ data class GroupChatSettingsState(
     val allowSelfResponses: Boolean = false,
     val includeMutedCards: Boolean = false,
     val autoModeEnabled: Boolean = false,
+    val naturalMaxSpeakers: Int = 2,
+    val autoModeMaxRounds: Int = 2,
     val trimOtherSpeakers: Boolean = true,
     val scenarioDraft: String = "",
     val userNoteDraft: String = "",
@@ -105,6 +108,10 @@ sealed class GroupChatDialogState {
     data class PromptInspector(val inspection: PromptInspection) : GroupChatDialogState()
     data class DeleteMessageConfirm(val messageId: Long) : GroupChatDialogState()
     data class DeleteSessionConfirm(val title: String) : GroupChatDialogState()
+    data class GuidedRegenerate(
+        val messageId: Long,
+        val draft: String = ""
+    ) : GroupChatDialogState()
 }
 
 /** 群聊页面当前展示的一级页面。 */

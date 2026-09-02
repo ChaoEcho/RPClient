@@ -59,6 +59,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
  * @property recursiveScanningLorebookIds 开启递归扫描的世界书 ID 集合
  * @property generationMode 群聊生成模式（普通、续写、重生成、扮演用户）
  * @property regexScripts 生效的 Regex 脚本列表
+ * @property regenerationInstruction 本次带指令重生成的一次性要求，不会写入会话历史
  */
 data class GroupChatPromptContext(
     val session: GroupChatSession,
@@ -71,7 +72,8 @@ data class GroupChatPromptContext(
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
-    val regexScripts: List<ScopedRegexScript> = emptyList()
+    val regexScripts: List<ScopedRegexScript> = emptyList(),
+    val regenerationInstruction: String = ""
 )
 
 /** 群聊回复的生成模式。 */
@@ -223,10 +225,13 @@ class GroupChatPromptBuilder(
                 message.copy(content = result.text)
             }
         }
-        // 将历史消息转换为带发言者前缀的 Prompt 草稿
+        // 将历史消息转换为带发言者前缀的 Prompt 草稿；回复上下文使用已清洗、已执行
+        // Prompt Regex 的原消息正文，避免改变用户实际正文的 Regex 处理路径。
+        val historyById = history.associateBy { it.id }
         val historyMessages = history.mapIndexed { index, message ->
             message.toPromptDraft(
                 userName = context.session.userName,
+                replyTarget = message.replyToMessageId?.let(historyById::get),
                 retentionPriority = PromptRetentionPolicy.HISTORY,
                 canDrop = index != history.lastIndex
             )
@@ -793,6 +798,7 @@ class GroupChatPromptBuilder(
     /** 将群聊消息实体转换为带发言者前缀的 Prompt 草稿。 */
     private fun GroupChatMessage.toPromptDraft(
         userName: String,
+        replyTarget: GroupChatMessage?,
         retentionPriority: Int,
         canDrop: Boolean
     ): PromptMessageDraft {
@@ -806,13 +812,29 @@ class GroupChatPromptBuilder(
         } else {
             speakerNameSnapshot
         }
+        val replyContext = if (source == GroupChatMessage.Source.User && replyTarget != null) {
+            " [replying to ${replyTarget.speakerNameSnapshot}: " +
+                "\"${replyTarget.content.toReplyPreview()}\"]"
+        } else {
+            ""
+        }
         return PromptMessageDraft(
             role = role,
-            content = "$speaker: $content",
+            content = "$speaker$replyContext: $content",
             source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
             retentionPriority = retentionPriority,
             canDrop = canDrop
         )
+    }
+
+    /** 将回复目标正文压缩为不会重复整条历史的单行短预览。 */
+    private fun String.toReplyPreview(): String {
+        val normalized = replace(Regex("\\s+"), " ").trim()
+        if (normalized.length <= REPLY_PREVIEW_MAX_LENGTH) return normalized
+        return normalized
+            .take(REPLY_PREVIEW_MAX_LENGTH - 1)
+            .trimEnd()
+            .plus("…")
     }
 
     /** 替换群聊提示词支持的角色、用户、场景与成员宏。 */
@@ -983,6 +1005,17 @@ class GroupChatPromptBuilder(
      * 两种特殊模式统一使用 user 角色，使所有模型服务都接收到明确且位于末尾的生成目标。
      */
     private fun buildGenerationControlDraft(context: GroupChatPromptContext): PromptMessageDraft? {
+        val instruction = context.regenerationInstruction.trim()
+        if (
+            context.generationMode == GroupChatGenerationMode.Regenerate &&
+                instruction.isNotBlank()
+        ) {
+            return requiredUser(
+                content = "【本次重生成要求】\n$instruction\n" +
+                    "仅自然执行该要求，不要解释、复述或提及这条指令。",
+                sourceKind = PromptSourceKind.RegenerationInstruction
+            )
+        }
         val content = when (context.generationMode) {
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
@@ -1112,6 +1145,8 @@ class GroupChatPromptBuilder(
         const val CHARACTER_NOTE_ORDER = Int.MIN_VALUE + 4
         /** 兜底的角色回复触发引导词，当未开启指定 Nudge 时确保群聊末尾由 User 轮次触发目标角色生成。 */
         const val DEFAULT_CHARACTER_REPLY_NUDGE = "[Write {{char}}'s next reply.]"
+        /** 回复上下文中用于避免重复整条长消息的最大正文长度。 */
+        const val REPLY_PREVIEW_MAX_LENGTH = 120
     }
 }
 

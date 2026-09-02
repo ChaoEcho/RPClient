@@ -9,7 +9,7 @@ import androidx.room.PrimaryKey
  * 群聊消息实体。
  *
  * [speakerNameSnapshot] 保存消息生成时的名称，避免角色后续改名改变历史归属；
- * [generationBatchId] 用于标识同一轮自动群聊产生的多条回复。
+ * [generationBatchId] 用于标识同一轮自动群聊产生的多条回复；[replyToMessageId] 保存用户回复的原消息 ID。
  */
 @Entity(
     tableName = "group_chat_messages",
@@ -44,7 +44,9 @@ data class GroupChatMessage(
     // 消息生成时的发言者名称快照，避免角色改名影响历史显示。
     val speakerNameSnapshot: String,
     // 自动群聊同一生成轮次的批次 ID；普通或手动消息为空。
-    val generationBatchId: String? = null
+    val generationBatchId: String? = null,
+    // 用户消息所回复的原群聊消息 ID；原消息删除后保留该历史引用。
+    val replyToMessageId: Long? = null
 ) {
     /** 群聊消息来源。 */
     enum class Source {

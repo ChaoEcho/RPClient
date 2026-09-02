@@ -163,6 +163,7 @@ class GroupChatRepository(
         speakerCharacterId: Long?,
         speakerNameSnapshot: String,
         generationBatchId: String? = null,
+        replyToMessageId: Long? = null,
         createTime: Long = System.currentTimeMillis()
     ): Long {
         return mAppDatabase.withTransaction {
@@ -174,7 +175,8 @@ class GroupChatRepository(
                     content = content,
                     speakerCharacterId = speakerCharacterId,
                     speakerNameSnapshot = speakerNameSnapshot,
-                    generationBatchId = generationBatchId
+                    generationBatchId = generationBatchId,
+                    replyToMessageId = replyToMessageId
                 )
             )
             mSessionDao.updateLatestTime(sessionId, createTime)

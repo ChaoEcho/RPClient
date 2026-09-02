@@ -23,6 +23,7 @@ enum class PromptSourceKind {
     CharacterReplyNudge,
     ContinueNudge,
     ImpersonationNudge,
+    RegenerationInstruction,
     GroupIdentity,
     CharacterCard,
     GroupNudge,
