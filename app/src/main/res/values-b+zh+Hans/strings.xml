@@ -1161,6 +1161,7 @@
     <string name="tts_mimo_voice_chloe">Chloe（英文女声）</string>
     <string name="tts_mimo_voice_milo">Milo（英文男声）</string>
     <string name="tts_mimo_voice_dean">Dean（英文男声）</string>
+    <string name="tts_voice_parameters">语音参数</string>
     <string name="tts_speech_rate">语速</string>
     <string name="tts_pitch">音调</string>
     <string name="tts_preview">试听</string>

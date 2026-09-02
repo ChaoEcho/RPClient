@@ -32,6 +32,7 @@ import me.kafuuneko.rpclient.feature.developer.presentation.DeveloperSettingsUiS
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpNavigationChevron
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -126,12 +127,7 @@ private fun DeveloperSettingsNormal(
                         subtitle = stringResource(R.string.developer_logging_desc),
                         onClick = { DeveloperSettingsUiIntent.OpenAppLogs.emit() },
                         trailing = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                                modifier = Modifier.size(18.dp)
-                            )
+                            RpNavigationChevron()
                         }
                     )
                     RpSettingsDivider()
@@ -143,12 +139,7 @@ private fun DeveloperSettingsNormal(
                         subtitle = stringResource(R.string.record_ai_raw_requests_desc),
                         onClick = { DeveloperSettingsUiIntent.OpenRequestLogs.emit() },
                         trailing = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                                modifier = Modifier.size(18.dp)
-                            )
+                            RpNavigationChevron()
                         }
                     )
                 }

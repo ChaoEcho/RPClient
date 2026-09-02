@@ -46,8 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
@@ -63,6 +63,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.RpFormTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
@@ -114,8 +115,8 @@ private fun BackupNormalView(
                 .imePadding()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             LocalBackupSection(state, enabled, emit)
             WebDavConfigSection(state, enabled, emit)
@@ -190,50 +191,44 @@ private fun WebDavConfigSection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
+                RpFormTextField(
                     value = state.webDavBaseUrl,
+                    label = stringResource(R.string.backup_webdav_base_url),
                     onValueChange = { emit(BackupUiIntent.ChangeWebDavBaseUrl(it)) },
-                    modifier = Modifier.fillMaxWidth(),
                     enabled = enabled,
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.backup_webdav_base_url)) },
-                    shape = RoundedCornerShape(16.dp)
+                    keyboardType = KeyboardType.Uri
                 )
                 if (isCleartext) {
                     CleartextWarning()
                 }
-                OutlinedTextField(
+                RpFormTextField(
                     value = state.webDavUsername,
+                    label = stringResource(R.string.backup_webdav_username),
                     onValueChange = { emit(BackupUiIntent.ChangeWebDavUsername(it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = enabled,
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.backup_webdav_username)) },
-                    shape = RoundedCornerShape(16.dp)
-                )
-                SecretField(
-                    value = state.webDavPassword,
-                    onValueChange = { emit(BackupUiIntent.ChangeWebDavPassword(it)) },
-                    label = stringResource(R.string.backup_webdav_password),
                     enabled = enabled
                 )
-                OutlinedTextField(
-                    value = state.webDavRemotePath,
-                    onValueChange = { emit(BackupUiIntent.ChangeWebDavRemotePath(it)) },
-                    modifier = Modifier.fillMaxWidth(),
+                RpFormTextField(
+                    value = state.webDavPassword,
+                    label = stringResource(R.string.backup_webdav_password),
+                    onValueChange = { emit(BackupUiIntent.ChangeWebDavPassword(it)) },
                     enabled = enabled,
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.backup_webdav_remote_path)) },
-                    shape = RoundedCornerShape(16.dp)
+                    password = true
+                )
+                RpFormTextField(
+                    value = state.webDavRemotePath,
+                    label = stringResource(R.string.backup_webdav_remote_path),
+                    onValueChange = { emit(BackupUiIntent.ChangeWebDavRemotePath(it)) },
+                    enabled = enabled,
+                    imeAction = ImeAction.Done
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Button(
+                    FilledTonalButton(
                         onClick = { emit(BackupUiIntent.SaveWebDavConfig) },
                         enabled = enabled,
                         modifier = Modifier.weight(1f)
@@ -317,8 +312,8 @@ private fun RemoteBackupSection(
 private fun CleartextWarning() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.70f)
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -612,6 +607,12 @@ private fun DialogForm(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+/**
+ * 备份口令输入框。
+ *
+ * 口令只存在于当前组合生命周期，不进入 UiState；沿用共享表单控件以保持与设置页一致，
+ * 并提供可见性切换 —— 口令输错会让备份永久无法解密，值得让用户能核对。
+ */
 @Composable
 private fun SecretField(
     value: String,
@@ -620,18 +621,14 @@ private fun SecretField(
     helper: String? = null,
     enabled: Boolean = true
 ) {
-    // 密码只存在于当前组合生命周期，并始终使用掩码输入。
-    OutlinedTextField(
+    RpFormTextField(
         value = value,
+        label = label,
         onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
+        supportingText = helper,
         enabled = enabled,
-        singleLine = true,
-        label = { Text(label) },
-        supportingText = helper?.let { text -> { Text(text) } },
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        shape = RoundedCornerShape(16.dp)
+        password = true,
+        keyboardType = KeyboardType.Password
     )
 }
 

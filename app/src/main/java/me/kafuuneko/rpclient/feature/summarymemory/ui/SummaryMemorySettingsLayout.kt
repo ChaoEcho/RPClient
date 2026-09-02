@@ -49,6 +49,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpNumberSettingRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpGroupedTilePadding
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 
 @Composable
@@ -163,7 +164,8 @@ private fun SummaryMemorySettingsNormal(
                             title = stringResource(R.string.auto_summarize),
                             subtitle = stringResource(R.string.auto_summarize_desc),
                             checked = state.autoSummaryEnabled,
-                            onCheckedChange = { SummaryMemorySettingsUiIntent.ToggleAutoSummary(it).emit() }
+                            onCheckedChange = { SummaryMemorySettingsUiIntent.ToggleAutoSummary(it).emit() },
+                            contentPadding = RpGroupedTilePadding
                         )
 
                         RpNumberSettingRow(

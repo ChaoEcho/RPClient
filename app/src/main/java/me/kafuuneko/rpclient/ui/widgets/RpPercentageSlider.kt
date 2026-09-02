@@ -60,5 +60,56 @@ fun RpPercentageSlider(
     }
 }
 
+/**
+ * 连续浮点参数滑块，排版与 [RpPercentageSlider] 一致。
+ *
+ * 用于语速、音调、温度这类不适合表示为百分比的参数。
+ */
+@Composable
+fun RpFloatSlider(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    helper: String? = null,
+    enabled: Boolean = true
+) {
+    val current = value.coerceIn(valueRange.start, valueRange.endInclusive)
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = "%.2f".format(current),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = current,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            valueRange = valueRange
+        )
+        if (!helper.isNullOrBlank()) {
+            Text(
+                text = helper,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 private const val MIN_PERCENT = 0
 private const val MAX_PERCENT = 100

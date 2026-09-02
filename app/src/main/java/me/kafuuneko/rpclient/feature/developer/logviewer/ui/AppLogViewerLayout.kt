@@ -139,7 +139,7 @@ private fun AppLogViewerNormal(
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
             // Filter Chips

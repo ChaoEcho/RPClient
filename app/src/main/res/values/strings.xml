@@ -1166,6 +1166,7 @@
     <string name="tts_mimo_voice_chloe">Chloe (English, female)</string>
     <string name="tts_mimo_voice_milo">Milo (English, male)</string>
     <string name="tts_mimo_voice_dean">Dean (English, male)</string>
+    <string name="tts_voice_parameters">Voice parameters</string>
     <string name="tts_speech_rate">Speaking speed</string>
     <string name="tts_pitch">Pitch</string>
     <string name="tts_preview">Preview</string>

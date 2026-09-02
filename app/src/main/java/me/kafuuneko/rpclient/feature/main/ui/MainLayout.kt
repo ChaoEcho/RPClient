@@ -161,6 +161,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpNavigationChevron
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -1442,7 +1443,7 @@ private fun UserIdentityPanel(
                         )
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 UserPersonaDescriptionField(
@@ -1511,7 +1512,7 @@ private fun UserPersonaDescriptionField(
             label = { Text(stringResource(R.string.user_persona_description)) },
             minLines = 2,
             maxLines = 4,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             visualTransformation = rememberPromptMacroVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -1655,12 +1656,7 @@ private fun ModelConfigPanel(
             subtitle = chatModelSubtitle,
             onClick = { MainUiIntent.OpenProviderManager.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1672,12 +1668,7 @@ private fun ModelConfigPanel(
             subtitle = imageModelSubtitle,
             onClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1689,12 +1680,7 @@ private fun ModelConfigPanel(
             subtitle = voiceModelSubtitle,
             onClick = { MainUiIntent.OpenTtsSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
     }
@@ -1747,12 +1733,7 @@ private fun PromptAndContextPanel(
             subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
             onClick = { MainUiIntent.OpenPromptPreset.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1764,12 +1745,7 @@ private fun PromptAndContextPanel(
             subtitle = promptBehaviorSubtitle,
             onClick = { MainUiIntent.OpenPromptBehaviorSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1781,12 +1757,7 @@ private fun PromptAndContextPanel(
             subtitle = worldInfoBudgetSubtitle,
             onClick = { MainUiIntent.OpenWorldInfoBudgetSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1798,12 +1769,7 @@ private fun PromptAndContextPanel(
             subtitle = summarySubtitle,
             onClick = { MainUiIntent.OpenSummaryMemorySettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
     }
@@ -1824,12 +1790,7 @@ private fun DataAndDevelopmentPanel(
             subtitle = stringResource(R.string.backup_entry_subtitle),
             onClick = { MainUiIntent.OpenBackup.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1852,12 +1813,7 @@ private fun DataAndDevelopmentPanel(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                    RpNavigationChevron()
                 }
             }
         )
@@ -1870,12 +1826,7 @@ private fun DataAndDevelopmentPanel(
             subtitle = stringResource(R.string.developer_mode_subtitle),
             onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1887,12 +1838,7 @@ private fun DataAndDevelopmentPanel(
             subtitle = stringResource(R.string.about_desc),
             onClick = { emit(MainUiIntent.OpenAbout) },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
     }

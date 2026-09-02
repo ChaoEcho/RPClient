@@ -52,6 +52,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpGroupedTilePadding
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 
 @Composable
@@ -142,7 +143,8 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.prompt_include_think_context_title),
                         subtitle = stringResource(R.string.prompt_include_think_context_desc),
                         checked = state.includeThinkInContext,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleIncludeThinkInContext(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleIncludeThinkInContext(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
                     RpSettingsDivider()
                     RpSettingsSwitchTile(
@@ -152,7 +154,8 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.context_trimming_alert),
                         subtitle = stringResource(R.string.context_trimming_alert_desc),
                         checked = state.contextTrimmingAlert,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleContextTrimmingAlert(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleContextTrimmingAlert(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
                 }
             }
@@ -172,7 +175,8 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.streaming_response),
                         subtitle = stringResource(R.string.streaming_response_desc),
                         checked = state.streamEnabled,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleStreamEnabled(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleStreamEnabled(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
                 }
             }
