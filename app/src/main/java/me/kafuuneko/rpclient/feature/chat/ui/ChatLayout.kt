@@ -50,6 +50,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -66,6 +67,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -1589,6 +1591,17 @@ private fun MessageActions(
             }
             if (message.role == MessageRole.Assistant) {
                 IconButton(
+                    onClick = { ChatUiIntent.OpenGuidedRegenerate(message.id).emit() },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.AutoFixHigh,
+                        contentDescription = stringResource(R.string.regenerate_with_instruction),
+                        modifier = Modifier.size(17.dp),
+                        tint = iconColor
+                    )
+                }
+                IconButton(
                     onClick = { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
                     modifier = Modifier.size(30.dp)
                 ) {
@@ -2168,6 +2181,34 @@ private fun DialogSwitch(
             inspection = dialogState.inspection,
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() }
+        )
+
+        is ChatDialogState.GuidedRegenerate -> AlertDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.regenerate_with_instruction)) },
+            text = {
+                OutlinedTextField(
+                    value = dialogState.draft,
+                    onValueChange = {
+                        ChatUiIntent.ChangeGuidedRegenerateDraft(it).emit()
+                    },
+                    label = { Text(stringResource(R.string.guided_regenerate_hint)) },
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { ChatUiIntent.ConfirmGuidedRegenerate.emit() },
+                    enabled = dialogState.draft.isNotBlank()
+                ) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
 
         is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(

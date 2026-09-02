@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
  * @property currentUserMessage 尚未写入历史的当前用户输入，重新生成时可为空。
  * @property totalMessageCount 会话普通消息总数，用于世界书 sticky/cooldown 计时。
  * @property recursiveScanningLorebookIds 明确允许递归扫描的世界书 ID。
+ * @property regenerationInstruction 本次带指令重生成的一次性临时要求；不写入会话历史或数据库，仅在 [PromptGenerationMode.Regenerate] 且非空时注入尾部控制消息。
  */
 data class PromptBuildContext(
     val userName: String,
@@ -35,6 +36,7 @@ data class PromptBuildContext(
     val maxContextTokens: Int,
     val maxResponseTokens: Int,
     val generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+    val regenerationInstruction: String = "",
     val regexScripts: List<ScopedRegexScript> = emptyList()
 )
 

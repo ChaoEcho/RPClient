@@ -105,6 +105,11 @@ sealed class ChatDialogState {
         val title: String,
         val message: String
     ) : ChatDialogState()
+
+    data class GuidedRegenerate(
+        val messageId: String,
+        val draft: String = ""
+    ) : ChatDialogState()
 }
 
 /** 摘要任务当前可见阶段，用于区分本地 Prompt 准备与远端模型生成。 */

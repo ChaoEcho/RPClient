@@ -28,6 +28,7 @@
           "visual_description": "银色长发，碧绿色双眸，身着缀有星月纹样的深蓝色法袍，手持晶莹法杖，身材修长优雅"
         }
       },
+      "talkativeness": 0.5,
       "depth_prompt": {
         "prompt": "深度提示词（Character's Note，如：保持神秘感）",
         "depth": 4,
@@ -62,6 +63,7 @@
       "extensions": {},
       "entries": [
         {
+          "id": 1,
           "keys": [
             "银月法杖",
             "法杖"
@@ -73,33 +75,39 @@
           "comment": "关于银月法杖的背景设定",
           "content": "银月法杖是由极北寒冰与秘银铸造而成的法器，能够聚集月光魔力。",
           "constant": false,
-          "selectiveLogic": 0,
-          "order": 100,
+          "enabled": true,
           "position": "after_char",
-          "depth": 4,
-          "role": "system",
-          "probability": 100,
-          "disable": false,
+          "insertion_order": 100,
+          "name": "关于银月法杖的背景设定",
+          "priority": 100,
+          "selective": true,
           "extensions": {
-            "match_character_description": true,
-            "match_persona_description": false,
-            "match_character_personality": true,
-            "match_scenario": true,
-            "match_creator_notes": false,
+            "position": 1,
+            "depth": 4,
+            "role": 0,
+            "probability": 100,
+            "ignore_budget": false,
+            "selectiveLogic": 0,
+            "scan_depth": null,
+            "case_sensitive": null,
+            "match_whole_words": null,
             "use_group_scoring": false,
             "group": "",
             "group_override": false,
             "group_weight": null,
             "prevent_recursion": false,
             "delay_until_recursion": false,
-            "scan_depth": null,
-            "case_sensitive": null,
-            "match_whole_words": null,
             "sticky": null,
             "cooldown": null,
             "delay": null,
             "outlet_name": "",
-            "triggers": []
+            "triggers": [],
+            "match_character_description": true,
+            "match_persona_description": false,
+            "match_character_personality": true,
+            "match_character_depth_prompt": false,
+            "match_scenario": true,
+            "match_creator_notes": false
           }
         }
       ]

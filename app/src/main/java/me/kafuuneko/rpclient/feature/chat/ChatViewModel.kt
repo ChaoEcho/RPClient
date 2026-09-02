@@ -571,14 +571,68 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
         val messageId = intent.messageId.toLongOrNull() ?: return
-        val latestAssistantMessage = withContext(Dispatchers.IO) {
-            mChatRepository.getMessagesBySessionId(sessionId).lastOrNull { it.source == ChatMessage.Source.Char }
-        }
-        if (latestAssistantMessage?.id != messageId) {
+        regenerateLastAssistantMessage(
+            sessionId = sessionId,
+            expectedMessageId = messageId
+        )
+    }
+
+    /**
+     * 打开带指令重生成对话框。
+     *
+     * 前置安全校验：
+     * - 目标消息必须存在且角色为助手（Assistant）；
+     * - 流式生成中禁止触发；
+     * - 严格校验目标消息必须为当前会话最新的助手回复，防止破坏中间对话历史。
+     *
+     * @param intent 包含待重生成消息 ID 的意图
+     */
+    @UiIntentObserver(ChatUiIntent.OpenGuidedRegenerate::class)
+    private fun onOpenGuidedRegenerate(intent: ChatUiIntent.OpenGuidedRegenerate) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val message = uiState.conversationState.messages
+            .firstOrNull { it.id == intent.messageId } ?: return
+        if (message.role != MessageRole.Assistant || message.isStreaming) return
+        val latestAssistantMessage = uiState.conversationState.messages
+            .lastOrNull { it.role == MessageRole.Assistant }
+        if (latestAssistantMessage?.id != message.id) {
             AppViewEvent.PopupToastMessageByResId(R.string.only_latest_assistant_reply_regenerate).tryEmit()
             return
         }
-        regenerateLastAssistantMessage(sessionId)
+        uiState.copy(
+            dialogState = ChatDialogState.GuidedRegenerate(messageId = message.id)
+        ).setup()
+    }
+
+    /**
+     * 更新带指令重生成对话框中的临时指令草稿。
+     *
+     * @param intent 包含最新草稿文本的意图
+     */
+    @UiIntentObserver(ChatUiIntent.ChangeGuidedRegenerateDraft::class)
+    private fun onChangeGuidedRegenerateDraft(intent: ChatUiIntent.ChangeGuidedRegenerateDraft) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? ChatDialogState.GuidedRegenerate ?: return
+        uiState.copy(dialogState = dialog.copy(draft = intent.value)).setup()
+    }
+
+    /**
+     * 确认执行带指令重生成。
+     */
+    @UiIntentObserver(ChatUiIntent.ConfirmGuidedRegenerate::class)
+    private suspend fun onConfirmGuidedRegenerate() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? ChatDialogState.GuidedRegenerate ?: return
+        val instruction = dialog.draft.trim()
+        if (instruction.isBlank()) return
+        val sessionId = mSessionId ?: return
+        val messageId = dialog.messageId.toLongOrNull() ?: return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
+        regenerateLastAssistantMessage(
+            sessionId = sessionId,
+            expectedMessageId = messageId,
+            regenerationInstruction = instruction
+        )
     }
 
     /** 为指定的角色消息生成或重新生成一张图片；重试与再生成共用同一 Intent。 */
@@ -1365,12 +1419,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * 规则限制与处理流程：
      * - 限制校验：当前仅允许重生成最后一条角色回复，防止破坏中间对话历史；若仅有开场白则不允许重生成。
-     * - 构建 Prompt：以 [PromptGenerationMode.Regenerate] 模式构建，并显式传入待排除的消息 ID。
+     * - 目标防护：若指定 [expectedMessageId]，将确认当前实际最新助手回复与期望 ID 一致，防止状态漂移误覆盖其他消息。
+     * - 构建 Prompt：以 [PromptGenerationMode.Regenerate] 模式构建，若提供 [regenerationInstruction] 则注入尾部一次性要求，并显式传入待排除的消息 ID。
      * - 结果写回：将生成结果更新覆盖到该消息记录（[GenerationOutput.Update]），而不是创建新消息。
      *
      * @param sessionId 会话 ID
+     * @param expectedMessageId 预期被重生成的助手消息 ID，为空表示不校验具体目标（默认重生成最后一条）
+     * @param regenerationInstruction 本次带指令重生成的一次性指令，默认为空
      */
-    private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
+    private suspend fun regenerateLastAssistantMessage(
+        sessionId: Long,
+        expectedMessageId: Long? = null,
+        regenerationInstruction: String = ""
+    ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
@@ -1386,6 +1447,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val latestAssistantMessage = messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
         if (latestAssistantMessage == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_regenerate).tryEmit()
+            return
+        }
+        // 目标一致性检查：防止点击旧消息或异步时序导致覆盖非目标消息
+        if (expectedMessageId != null && latestAssistantMessage.id != expectedMessageId) {
+            AppViewEvent.PopupToastMessageByResId(R.string.only_latest_assistant_reply_regenerate).tryEmit()
             return
         }
         if (messages.size == 1) {
@@ -1404,12 +1470,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
-                // 构建重生成请求，排除待被替换的消息本身
+                // 构建重生成请求，排除待被替换的消息本身并附带临时重生成要求
                 val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(
                         sessionId = sessionId,
                         generationMode = PromptGenerationMode.Regenerate,
-                        excludedMessageId = latestAssistantMessage.id
+                        excludedMessageId = latestAssistantMessage.id,
+                        regenerationInstruction = regenerationInstruction
                     )
                 }
                 recordPromptInspection(built.inspection)
@@ -1990,12 +2057,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param generationMode 生成模式（Normal, Regenerate, Continue, Impersonate）
      * @param excludedMessageId 需要从 Prompt 历史中排除的消息 ID（如重生成时的待替换消息）
+     * @param regenerationInstruction 本次带指令重生成的一次性临时要求，默认为空
      * @return 构建完成的生成请求数据包装对象
      */
     private suspend fun buildGenerationRequest(
         sessionId: Long,
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
-        excludedMessageId: Long? = null
+        excludedMessageId: Long? = null,
+        regenerationInstruction: String = ""
     ): BuiltGenerationRequest {
         // 加载会话实体与角色人设数据
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
@@ -2057,6 +2126,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maxContextTokens = provider.contextTokens,
                 maxResponseTokens = provider.maxTokens,
                 generationMode = generationMode,
+                regenerationInstruction = regenerationInstruction,
                 regexScripts = mRegexRepository.activeScripts(listOf(character))
             )
         )

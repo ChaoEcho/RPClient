@@ -174,7 +174,6 @@
     <string name="character_card_json_clip_label">Character Card V2 JSON</string>
     <string name="character_import_source_title">导入角色</string>
     <string name="character_import_source_subtitle">选择角色卡来源</string>
-    <string name="character_clipboard_empty">剪贴板中没有可导入的角色卡 JSON</string>
     <string name="import_character_success">角色已导入</string>
     <string name="import_character_failed">导入角色失败</string>
     <string name="batch_import_character_result_title">角色卡批量导入完成</string>

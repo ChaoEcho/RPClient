@@ -657,13 +657,25 @@ class ChatPromptBuilder(
     /**
      * 构建位于完整聊天上下文末尾的生成任务提示。
      *
-     * Impersonate 与 Continue 使用 user 角色，确保严格要求用户末尾轮次的模型
+     * Impersonate、Continue 与带指令 Regenerate 统一使用 user 角色，确保严格要求用户末尾轮次的模型
      * 不会把控制指令提升到开头，也不会因最后一条是 system 而返回空结果。
      *
      * @param context 聊天构建上下文
-     * @return 控制指令 PromptPiece，普通模式返回 null
+     * @return 控制指令 PromptPiece，普通模式或无指令重生成返回 null
      */
     private fun buildGenerationControlPiece(context: PromptBuildContext): PromptPiece? {
+        val instruction = context.regenerationInstruction.trim()
+        if (
+            context.generationMode == PromptGenerationMode.Regenerate &&
+                instruction.isNotBlank()
+        ) {
+            return PromptPiece.required(
+                role = LLMMessageRole.User,
+                content = "【本次重生成要求】\n$instruction\n" +
+                    "仅自然执行该要求，不要解释、复述或提及这条指令。",
+                sourceKind = PromptSourceKind.RegenerationInstruction
+            )
+        }
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> null

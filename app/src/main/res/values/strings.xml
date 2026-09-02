@@ -175,7 +175,6 @@
     <string name="character_card_json_clip_label">Character Card V2 JSON</string>
     <string name="character_import_source_title">Import Character</string>
     <string name="character_import_source_subtitle">Select character card source</string>
-    <string name="character_clipboard_empty">No importable character card JSON found in clipboard</string>
     <string name="import_character_success">Character imported</string>
     <string name="import_character_failed">Failed to import character</string>
     <string name="batch_import_character_result_title">Character import complete</string>
