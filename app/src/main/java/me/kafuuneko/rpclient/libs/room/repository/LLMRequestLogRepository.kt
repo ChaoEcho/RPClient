@@ -6,7 +6,12 @@ import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
 import me.kafuuneko.rpclient.libs.room.model.LLMRequestLogOverview
 
-/** 调试请求日志仓库；只有开启 [AppModel.debugModeEnabled] 时才写入原始内容。 */
+/**
+ * 调试请求日志仓库。
+ *
+ * 原始请求/响应包含完整提示词，隐私敏感度远高于脱敏后的运行日志，因此它是
+ * [AppModel.developerLoggingEnabled] 之下的子开关：主开关关闭时一律不记录。
+ */
 class LLMRequestLogRepository(
     private val mRequestLogDatabase: RequestLogDatabase
 ) {
@@ -39,7 +44,7 @@ class LLMRequestLogRepository(
         requestJson: String,
         responseJson: String
     ): Long {
-        if (!AppModel.debugModeEnabled) return 0L
+        if (!AppModel.developerLoggingEnabled || !AppModel.debugModeEnabled) return 0L
         val id = mLLMRequestLogDao.insertOrReplace(
             LLMRequestLog(
                 providerName = provider.name,

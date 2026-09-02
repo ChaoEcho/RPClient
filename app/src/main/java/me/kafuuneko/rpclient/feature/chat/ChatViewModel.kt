@@ -2171,6 +2171,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun recordPromptInspection(inspection: PromptInspection) {
         mLastPromptInspection = inspection
         mSessionId?.let { mGenerationCoordinator.recordPromptInspection(it, inspection) }
+        // Prompt 预算是「为什么模型忘了前面的事」最常见的答案，值得进运行日志。
+        AppLogger.i(
+            "Prompt",
+            "${inspection.finalTokenCount}/${inspection.promptBudget} tokens " +
+                "(${inspection.tokenizerName}, ${inspection.items.size} messages, " +
+                "${inspection.omittedItems.size} omitted)"
+        )
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(hasPromptInspection = true).setup()
         // 检查是否存在世界书超限或上下文被裁剪项

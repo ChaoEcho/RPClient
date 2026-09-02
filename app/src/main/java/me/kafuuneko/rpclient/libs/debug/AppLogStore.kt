@@ -18,6 +18,13 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 集中管理应用运行日志的内存环形缓冲区与滚动文件持久化。
+ *
+ * 两条重要约束：
+ * - 开发者日志关闭时只保留 ERROR，其余级别连内存都不写。此前开关只控制写文件，
+ *   release 版本对所有用户都在做脱敏、拼栈和 StateFlow 广播。
+ * - 缓冲区不再对每条日志做全量拷贝。此前每写一条就 `toList()` 复制最多 2000 个元素
+ *   并推给 StateFlow，每个 HTTP 请求都会触发一次 O(n)。现在只在查看器打开时快照，
+ *   写入路径仅递增一个版本号。
  */
 object AppLogStore {
     private const val MAX_MEMORY_LOGS = 2000
@@ -26,8 +33,15 @@ object AppLogStore {
 
     private val idGenerator = AtomicLong(1L)
     private val memoryBuffer = ArrayDeque<AppLogEntry>(MAX_MEMORY_LOGS)
-    private val _logsFlow = MutableStateFlow<List<AppLogEntry>>(emptyList())
-    val logsFlow: StateFlow<List<AppLogEntry>> = _logsFlow.asStateFlow()
+
+    /**
+     * 缓冲区变更信号。
+     *
+     * 只携带一个单调递增的版本号，订阅方据此按需调用 [snapshot]，
+     * 因此高频写入不会在写入线程上产生列表拷贝。
+     */
+    private val mutableRevision = MutableStateFlow(0L)
+    val revision: StateFlow<Long> = mutableRevision.asStateFlow()
 
     private var appContext: Context? = null
     private val lock = Any()
@@ -43,12 +57,20 @@ object AppLogStore {
         appContext = context.applicationContext
     }
 
+    /** 开发者日志是否开启；读取偏好失败时按关闭处理。 */
+    private val isEnabled: Boolean
+        get() = runCatching { AppModel.developerLoggingEnabled }.getOrDefault(false)
+
     fun addLog(
         level: AppLogLevel,
         module: String,
         rawMessage: String,
         throwable: Throwable? = null
     ) {
+        // 关闭时仍保留 ERROR，崩溃后用户打开开发者模式还能看到导致问题的那几条。
+        val enabled = isEnabled
+        if (!enabled && level != AppLogLevel.ERROR) return
+
         val sanitizedMessage = sanitize(rawMessage)
         val throwableSummary = throwable?.let {
             val sw = StringWriter()
@@ -65,21 +87,21 @@ object AppLogStore {
             throwableSummary = throwableSummary
         )
 
-        var currentList: List<AppLogEntry>
         synchronized(lock) {
             if (memoryBuffer.size >= MAX_MEMORY_LOGS) {
                 memoryBuffer.removeFirst()
             }
             memoryBuffer.addLast(entry)
-            currentList = memoryBuffer.toList()
         }
-        _logsFlow.value = currentList
+        mutableRevision.value = mutableRevision.value + 1
 
-        // 如果开启了开发者运行日志，异步或安全追加到本地滚动日志文件
-        if (runCatching { AppModel.developerLoggingEnabled }.getOrDefault(false)) {
+        if (enabled) {
             writeToFile(entry)
         }
     }
+
+    /** 读取当前缓冲区快照；仅供查看器在需要渲染时调用。 */
+    fun snapshot(): List<AppLogEntry> = synchronized(lock) { memoryBuffer.toList() }
 
     private fun sanitize(input: String): String {
         val withoutBearer = input.replace(bearerPattern, "Bearer ***")
@@ -100,26 +122,8 @@ object AppLogStore {
                 rotateFiles(dir)
             }
 
-            val timestampStr = synchronized(dateFormat) {
-                dateFormat.format(Date(entry.timestamp))
-            }
-            val line = buildString {
-                append(timestampStr)
-                append(" [")
-                append(entry.level.name)
-                append("] [")
-                append(entry.module)
-                append("] ")
-                append(entry.message)
-                if (!entry.throwableSummary.isNullOrBlank()) {
-                    append("\n")
-                    append(entry.throwableSummary)
-                }
-                append("\n")
-            }
-
             FileWriter(logFile, true).use { writer ->
-                writer.write(line)
+                writer.write(entry.formatLine())
             }
         } catch (e: Exception) {
             runCatching { Log.w("AppLogStore", "Failed to write log to file", e) }
@@ -148,7 +152,7 @@ object AppLogStore {
         synchronized(lock) {
             memoryBuffer.clear()
         }
-        _logsFlow.value = emptyList()
+        mutableRevision.value = mutableRevision.value + 1
 
         val context = appContext ?: return
         try {
@@ -162,37 +166,32 @@ object AppLogStore {
     }
 
     fun exportFormattedLogs(): String {
-        val list = synchronized(lock) { memoryBuffer.toList() }
+        val list = snapshot()
         if (list.isEmpty()) {
-            // 如果内存为空但存在日志文件，尝试读取文件
-            val context = appContext
-            if (context != null) {
-                val logFile = File(File(context.filesDir, "debug"), "app.log")
-                if (logFile.exists()) {
-                    return runCatching { logFile.readText() }.getOrDefault("")
-                }
-            }
-            return ""
+            // 内存为空但磁盘上可能还有上一次会话的滚动日志。
+            val context = appContext ?: return ""
+            val logFile = File(File(context.filesDir, "debug"), "app.log")
+            if (!logFile.exists()) return ""
+            return runCatching { logFile.readText() }.getOrDefault("")
         }
+        return buildString { list.forEach { append(it.formatLine()) } }
+    }
 
+    private fun AppLogEntry.formatLine(): String {
+        val timeText = synchronized(dateFormat) { dateFormat.format(Date(timestamp)) }
         return buildString {
-            list.forEach { entry ->
-                val timeStr = synchronized(dateFormat) {
-                    dateFormat.format(Date(entry.timestamp))
-                }
-                append(timeStr)
-                append(" [")
-                append(entry.level.name)
-                append("] [")
-                append(entry.module)
-                append("] ")
-                append(entry.message)
-                if (!entry.throwableSummary.isNullOrBlank()) {
-                    append("\n")
-                    append(entry.throwableSummary)
-                }
+            append(timeText)
+            append(" [")
+            append(level.name)
+            append("] [")
+            append(module)
+            append("] ")
+            append(message)
+            if (!throwableSummary.isNullOrBlank()) {
                 append("\n")
+                append(throwableSummary)
             }
+            append("\n")
         }
     }
 }

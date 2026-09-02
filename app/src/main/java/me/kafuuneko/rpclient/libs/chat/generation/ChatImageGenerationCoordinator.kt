@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
@@ -116,6 +117,10 @@ class ChatImageGenerationCoordinator(
                 imageClient.generate(preparation.config, prompt)
             }
             withContext(NonCancellable + Dispatchers.IO) {
+                AppLogger.i(
+                    "Image",
+                    "Attaching image to message $messageId (${generated.bytes.size} bytes)"
+                )
                 newUuid = fileRepository.saveBytes(generated.bytes, generated.mimeType)
                 val savedUuid = requireNotNull(newUuid)
                 val replaced = chatRepository.replaceMessageImage(
@@ -134,6 +139,11 @@ class ChatImageGenerationCoordinator(
             clearState(messageId)
             throw cancelled
         } catch (error: Throwable) {
+            AppLogger.e(
+                "Image",
+                "Image generation failed for message $messageId: ${error.message}",
+                error
+            )
             newUuid?.let { uuid ->
                 withContext(NonCancellable + Dispatchers.IO) { fileRepository.deleteFile(uuid) }
             }

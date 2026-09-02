@@ -34,4 +34,9 @@ class DeveloperSettingsActivity : CoreActivityWithEvent() {
         super.onCreate(savedInstanceState)
         mViewModel.emit(DeveloperSettingsUiIntent.Init)
     }
+
+    override fun onResume() {
+        super.onResume()
+        mViewModel.emit(DeveloperSettingsUiIntent.Resume)
+    }
 }

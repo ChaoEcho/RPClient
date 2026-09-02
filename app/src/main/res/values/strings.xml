@@ -1291,6 +1291,12 @@
     <string name="developer_logging_desc">Safely record app runtime logs and HTTP metadata without secrets</string>
     <string name="record_ai_raw_requests_title">Record AI Raw Requests</string>
     <string name="record_ai_raw_requests_desc">Raw requests may contain prompts and sensitive chat content. Only enable for debugging.</string>
+    <string name="app_logs_desc">Sanitized runtime events: model calls, latency, concurrency, backup and TTS</string>
+    <string name="ai_request_logs_desc">Raw request and response JSON captured when the sub-switch above is on</string>
+    <string name="developer_runtime_section">Runtime status</string>
+    <string name="developer_active_generations">Active generations</string>
+    <string name="developer_active_summaries">Active summaries</string>
+    <string name="developer_buffered_logs">Buffered log entries</string>
     <string name="app_logs">App Logs</string>
     <string name="ai_request_logs">AI Request Logs</string>
     <string name="app_log_search_hint">Search logs by keyword or module...</string>

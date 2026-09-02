@@ -133,6 +133,13 @@ class ChatGenerationCoordinator(
     fun isSummaryActive(key: String): Boolean =
         summaryByKey[key]?.job?.isCompleted == false
 
+    /** 当前仍在执行的摘要任务键，供开发者页的运行状态面板展示。 */
+    @Synchronized
+    fun activeSummaryKeys(): Set<String> = summaryByKey
+        .filterValues { !it.job.isCompleted }
+        .keys
+        .toSet()
+
     private fun acquireForegroundOrNull(): AutoCloseable? =
         runCatching { foregroundController?.acquire() }
             .onFailure { AppLogger.w("Chat", "Foreground service unavailable: ${it.message}") }

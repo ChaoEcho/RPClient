@@ -1286,6 +1286,12 @@
     <string name="developer_logging_desc">安全记录应用自身关键运行与 HTTP 调试信息，默认不记录密钥与聊天内容</string>
     <string name="record_ai_raw_requests_title">记录 AI 原始请求</string>
     <string name="record_ai_raw_requests_desc">原始 AI 请求可能包含角色设定、聊天内容和提示词，仅建议调试时开启</string>
+    <string name="app_logs_desc">脱敏后的运行事件：模型调用、耗时、并发、备份与语音</string>
+    <string name="ai_request_logs_desc">上方子开关开启后记录的完整请求与响应 JSON</string>
+    <string name="developer_runtime_section">运行状态</string>
+    <string name="developer_active_generations">正在生成的会话</string>
+    <string name="developer_active_summaries">正在执行的摘要</string>
+    <string name="developer_buffered_logs">已缓存日志条数</string>
     <string name="app_logs">应用运行日志</string>
     <string name="ai_request_logs">AI 请求日志</string>
     <string name="app_log_search_hint">搜索日志正文或标签...</string>

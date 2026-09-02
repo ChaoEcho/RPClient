@@ -121,7 +121,7 @@ private fun AppLogViewerNormal(
                 .fillMaxSize()
                 .imePadding()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Search Bar
