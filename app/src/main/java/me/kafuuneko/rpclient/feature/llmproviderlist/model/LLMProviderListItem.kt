@@ -11,6 +11,7 @@ data class LLMProviderListItem(
     val protocol: LLMProviderProtocol,
     val baseUrl: String,
     val model: String,
+    val maxConcurrentRequests: Int,
     val isEnabled: Boolean,
     val isCurrent: Boolean = false
 ) {

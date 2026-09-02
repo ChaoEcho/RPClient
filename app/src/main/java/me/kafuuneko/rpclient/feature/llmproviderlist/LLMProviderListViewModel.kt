@@ -171,6 +171,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
                 protocol = provider.protocol,
                 baseUrl = provider.baseUrl,
                 model = provider.model,
+                maxConcurrentRequests = provider.maxConcurrentRequests,
                 isEnabled = provider.isEnabled,
                 isCurrent = (provider.id == currentId)
             )
