@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationTaskState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
@@ -37,15 +38,6 @@ sealed class ChatUiState {
     }
 }
 
-/** 单聊图片生成生命周期；与正文生成状态完全独立。 */
-sealed class ChatImageGenerationState {
-    data object Idle : ChatImageGenerationState()
-
-    data class Generating(val messageId: String) : ChatImageGenerationState()
-
-    data class Failed(val messageId: String, val message: String) : ChatImageGenerationState()
-}
-
 /** 单聊页面唯一的消息朗读状态，不进入消息模型或数据库。 */
 sealed interface ChatSpeechState {
     data object Idle : ChatSpeechState
@@ -58,7 +50,7 @@ data class ChatConversationState(
     val messages: List<ChatMessageUiModel>,
     val inputDraft: String = "",
     val generationState: ChatGenerationState = ChatGenerationState.Idle,
-    val imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
+    val imageGenerationStates: Map<String, ChatImageGenerationTaskState> = emptyMap(),
     val speechState: ChatSpeechState = ChatSpeechState.Idle,
     val expandedThinkBlockIds: Set<String> = emptySet(),
     val editingMessageId: String? = null,

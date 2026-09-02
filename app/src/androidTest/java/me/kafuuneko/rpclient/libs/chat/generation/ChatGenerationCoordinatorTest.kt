@@ -18,42 +18,55 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ChatGenerationCoordinatorTest {
     @Test
-    fun onlyOneGenerationRunsAcrossSessions() = runBlocking {
+    fun sameSessionIsBusyWhileDifferentSessionsRunTogether() = runBlocking {
         val coordinator = ChatGenerationCoordinator()
-        val entered = CompletableDeferred<Unit>()
+        val firstEntered = CompletableDeferred<Unit>()
+        val secondEntered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
 
-        val first = coordinator.launch(sessionId = 11L) {
+        val first = coordinator.launch(11L) {
             coordinator.publish(11L, ChatGenerationState.Requesting)
-            entered.complete(Unit)
+            firstEntered.complete(Unit)
             release.await()
-            coordinator.publish(11L, ChatGenerationState.Idle)
         }
-        assertTrue(first is ChatGenerationStartResult.Started)
-        entered.await()
+        firstEntered.await()
 
-        val second = coordinator.launch(sessionId = 22L) {}
-        assertEquals(ChatGenerationStartResult.Busy(11L), second)
-        assertEquals(11L, coordinator.activeSessionId())
+        assertEquals(ChatGenerationStartResult.Busy(11L), coordinator.launch(11L) {})
+        val second = coordinator.launch(22L) {
+            coordinator.publish(22L, ChatGenerationState.Requesting)
+            secondEntered.complete(Unit)
+            release.await()
+        }
+        secondEntered.await()
+
+        assertTrue(first is ChatGenerationStartResult.Started)
+        assertTrue(second is ChatGenerationStartResult.Started)
+        assertEquals(setOf(11L, 22L), coordinator.activeSessionIds())
+        assertEquals(
+            setOf(11L, 22L),
+            coordinator.snapshotBySession.value.keys
+        )
 
         release.complete(Unit)
         (first as ChatGenerationStartResult.Started).job.join()
-        assertNull(coordinator.activeSessionId())
-        assertEquals(ChatGenerationState.Idle, coordinator.snapshot.value?.state)
+        (second as ChatGenerationStartResult.Started).job.join()
+        assertTrue(coordinator.activeSessionIds().isEmpty())
+        assertTrue(coordinator.snapshotBySession.value.isEmpty())
     }
 
     @Test
-    fun stopWaitsForNonCancellableCleanupAndRejectsOtherSession() = runBlocking {
+    fun stopOnlyCancelsRequestedSessionAndWaitsForItsCleanup() = runBlocking {
         val coordinator = ChatGenerationCoordinator()
-        val entered = CompletableDeferred<Unit>()
+        val firstEntered = CompletableDeferred<Unit>()
         val cleanupEntered = CompletableDeferred<Unit>()
         val releaseCleanup = CompletableDeferred<Unit>()
+        val secondRelease = CompletableDeferred<Unit>()
         var cleanupFinished = false
 
-        coordinator.launch(sessionId = 33L) {
+        coordinator.launch(33L) {
             try {
                 coordinator.publish(33L, ChatGenerationState.Requesting)
-                entered.complete(Unit)
+                firstEntered.complete(Unit)
                 delay(Long.MAX_VALUE)
             } finally {
                 withContext(NonCancellable) {
@@ -63,24 +76,26 @@ class ChatGenerationCoordinatorTest {
                 }
             }
         }
-        entered.await()
+        coordinator.launch(44L) {
+            coordinator.publish(44L, ChatGenerationState.Requesting)
+            secondRelease.await()
+        }
+        firstEntered.await()
 
-        assertFalse(coordinator.stop(44L))
         val stopResult = CompletableDeferred<Boolean>()
         launch { stopResult.complete(coordinator.stop(33L)) }
         cleanupEntered.await()
-
         assertFalse(stopResult.isCompleted)
-        assertEquals(33L, coordinator.activeSessionId())
-        assertEquals(
-            ChatGenerationStartResult.Busy(33L),
-            coordinator.launch(sessionId = 44L) {}
-        )
+        assertTrue(coordinator.isActive(44L))
 
         releaseCleanup.complete(Unit)
         assertTrue(stopResult.await())
         assertTrue(cleanupFinished)
-        assertNull(coordinator.activeSessionId())
-        assertEquals(ChatGenerationState.Idle, coordinator.snapshot.value?.state)
+        assertFalse(coordinator.isActive(33L))
+        assertTrue(coordinator.isActive(44L))
+        assertNull(coordinator.stateFor(33L))
+        assertEquals(ChatGenerationState.Requesting, coordinator.stateFor(44L))
+
+        secondRelease.complete(Unit)
     }
 }

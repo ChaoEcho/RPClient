@@ -10,7 +10,10 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
+import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_LLM_PROVIDER_CONCURRENCY
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.MAX_LLM_PROVIDER_CONCURRENCY
+import me.kafuuneko.rpclient.libs.room.entity.MIN_LLM_PROVIDER_CONCURRENCY
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
 
@@ -37,6 +40,7 @@ data class LLMProviderEditForm(
     val topP: String = "1.0",
     val maxTokens: String = DEFAULT_LLM_MAX_TOKENS.toString(),
     val contextTokens: String = DEFAULT_LLM_CONTEXT_TOKENS.toString(),
+    val maxConcurrentRequests: String = DEFAULT_LLM_PROVIDER_CONCURRENCY.toString(),
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
@@ -51,8 +55,12 @@ data class LLMProviderEditForm(
         val parsedTopP = topP.toFloatOrNull() ?: return null
         val parsedMaxTokens = maxTokens.toIntOrNull() ?: return null
         val parsedContextTokens = contextTokens.toIntOrNull() ?: return null
+        val parsedMaxConcurrentRequests = maxConcurrentRequests.toIntOrNull() ?: return null
         val capabilities = LLMProviderCapabilities.forProtocol(protocol)
         if (parsedMaxTokens <= 0 || parsedContextTokens <= 0) return null
+        if (parsedMaxConcurrentRequests !in
+            MIN_LLM_PROVIDER_CONCURRENCY..MAX_LLM_PROVIDER_CONCURRENCY
+        ) return null
         if (parsedMaxTokens >= parsedContextTokens) return null
         if (tokenEstimateReservePercent !in
             MIN_TOKEN_ESTIMATE_RESERVE_PERCENT..MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -81,6 +89,7 @@ data class LLMProviderEditForm(
             topP = parsedTopP,
             maxTokens = parsedMaxTokens,
             contextTokens = parsedContextTokens,
+            maxConcurrentRequests = parsedMaxConcurrentRequests,
             tokenEstimateReservePercent = tokenEstimateReservePercent,
             sendTemperature = sendTemperature,
             sendTopP = sendTopP,

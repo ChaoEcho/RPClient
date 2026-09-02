@@ -453,6 +453,12 @@ class LLMProviderEditViewModel :
     private fun onChangeContextTokens(intent: LLMProviderEditUiIntent.ChangeContextTokens) =
         updateForm { copy(contextTokens = intent.value) }
 
+    /** 修改同一模型服务允许同时执行的生成请求数。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeMaxConcurrentRequests::class)
+    private fun onChangeMaxConcurrentRequests(
+        intent: LLMProviderEditUiIntent.ChangeMaxConcurrentRequests
+    ) = updateForm { copy(maxConcurrentRequests = intent.value) }
+
     /** 修改 Token 估算预留比例（Token Estimate Reserve Percent）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent::class)
     private fun onChangeTokenEstimateReservePercent(

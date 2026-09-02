@@ -1202,10 +1202,6 @@
     <string name="backup_webdav_remote_path">Remote backup path</string>
     <string name="backup_webdav_save_config">Save configuration</string>
     <string name="backup_webdav_config_saved">WebDAV configuration saved</string>
-    <string name="backup_webdav_config_saved_password_failed">WebDAV configuration saved, but password could not be securely saved on this device</string>
-    <string name="backup_webdav_saved_password">WebDAV password securely saved. Leave blank to continue using it.</string>
-    <string name="backup_webdav_clear_saved_password">Clear saved password</string>
-    <string name="backup_webdav_clear_saved_password_success">Saved WebDAV password cleared</string>
     <string name="backup_webdav_test">Test connection</string>
     <string name="backup_webdav_refresh">Refresh backups</string>
     <string name="backup_webdav_remote_backups">Remote backups</string>
@@ -1261,5 +1257,14 @@
     <string name="backup_error_webdav_unavailable">WebDAV is unavailable or the configuration is invalid</string>
     <string name="backup_error_validation">The backup failed full validation and no data was changed</string>
     <string name="backup_error_generic">The backup operation failed. No unvalidated restore was applied.</string>
+
+    <string name="llm_provider_max_concurrent_requests">Maximum concurrent requests</string>
+    <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time</string>
+    <string name="image_generation_max_concurrent_requests">Maximum concurrent image requests</string>
+    <string name="image_generation_max_concurrent_requests_desc">Number of image requests that may run at the same time</string>
+    <string name="backup_error_webdav_invalid_response">The WebDAV remote directory response could not be parsed</string>
+    <string name="ai_generation_notification_channel">AI generation</string>
+    <string name="ai_generation_notification_title">AI is generating</string>
+    <string name="ai_generation_notification_content">%1$d tasks are running in the background</string>
 
 </resources>

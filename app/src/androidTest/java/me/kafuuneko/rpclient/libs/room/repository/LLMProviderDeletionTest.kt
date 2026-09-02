@@ -7,6 +7,7 @@ import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.UnavailableLLMProviderSelectionException
@@ -53,7 +54,8 @@ class LLMProviderDeletionTest {
             LLMClientFactory(
                 OkHttpClient(),
                 LLMRequestLogRepository(mRequestLogDatabase)
-            )
+            ),
+            RequestConcurrencyLimiter()
         )
         val gson = Gson()
         mCharacterRepository = CharacterRepository(

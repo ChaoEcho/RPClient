@@ -129,7 +129,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatImageGenerationState
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationTaskState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
@@ -358,7 +358,7 @@ private fun ChatNormal(
                     message = message,
                     character = state.character,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
-                    imageGenerationState = state.conversationState.imageGenerationState,
+                    imageGenerationState = state.conversationState.imageGenerationStates[message.id],
                     speechState = state.conversationState.speechState,
                     fileRepository = fileRepository,
                     editing = message.id == state.conversationState.editingMessageId,
@@ -375,7 +375,6 @@ private fun ChatNormal(
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
-            isImageGenerating = state.conversationState.imageGenerationState is ChatImageGenerationState.Generating,
             autoGenerateImageAfterReply = state.autoGenerateImageAfterReply,
             hasAssistantMessage = state.conversationState.messages.any {
                 it.role == MessageRole.Assistant
@@ -795,7 +794,7 @@ private fun MessageBubble(
     message: ChatMessageUiModel,
     character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
-    imageGenerationState: ChatImageGenerationState,
+    imageGenerationState: ChatImageGenerationTaskState?,
     speechState: ChatSpeechState,
     fileRepository: FileRepository?,
     editing: Boolean,
@@ -1076,15 +1075,13 @@ private fun MessageContent(
 @Composable
 private fun MessageImageContent(
     message: ChatMessageUiModel,
-    imageGenerationState: ChatImageGenerationState,
+    imageGenerationState: ChatImageGenerationTaskState?,
     fileRepository: FileRepository?,
     onImageClick: (String) -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
-    val isGenerating = imageGenerationState is ChatImageGenerationState.Generating &&
-        imageGenerationState.messageId == message.id
-    val failure = (imageGenerationState as? ChatImageGenerationState.Failed)
-        ?.takeIf { it.messageId == message.id }
+    val isGenerating = imageGenerationState is ChatImageGenerationTaskState.Generating
+    val failure = imageGenerationState as? ChatImageGenerationTaskState.Failed
     val fileUuid = message.imageFileUuid
 
     if (fileUuid == null && !isGenerating && failure == null) return
@@ -1622,14 +1619,13 @@ private fun MessageActions(
 private fun ChatInputBar(
     draft: String,
     isGenerating: Boolean,
-    isImageGenerating: Boolean,
     autoGenerateImageAfterReply: Boolean,
     hasAssistantMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
-    val canStartTextGeneration = !isGenerating && (!autoGenerateImageAfterReply || !isImageGenerating)
+    val canStartTextGeneration = !isGenerating
     val autoImageModeStateDescription = stringResource(
         if (autoGenerateImageAfterReply) {
             R.string.auto_generate_image_after_reply_enabled

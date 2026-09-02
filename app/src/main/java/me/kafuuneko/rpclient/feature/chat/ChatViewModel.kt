@@ -21,7 +21,6 @@ import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatImageGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
@@ -47,18 +46,14 @@ import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
-import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationSnapshot
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationTaskState
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationStartResult
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
-import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
-import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
-import me.kafuuneko.rpclient.libs.imagegeneration.buildFallbackScenePrompt
-import me.kafuuneko.rpclient.libs.imagegeneration.buildImagePrompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
@@ -96,13 +91,6 @@ import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-private const val IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT = """
-Refine the latest roleplay turn into a concise English description of the visible scene for an image prompt.
-Include only visible subjects, location, current actions, pose, facial expression, spatial interaction, and relevant objects.
-Do not include art, render, or photo style; permanent character appearance; ethnicity; global color grading; watermark, UI, or text-rendering rules.
-Output only the scene description, with no labels, analysis, dialogue, or instructions.
-"""
-
 /**
  * 单角色聊天页面的 ViewModel（状态持有者与业务控制器）。
  *
@@ -125,13 +113,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mLLMRepository by inject<LLMRepository>()
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mFileRepository by inject<FileRepository>()
-    private val mImageClient by inject<OpenAICompatibleImageClient>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
+    private val mImageGenerationCoordinator by inject<ChatImageGenerationCoordinator>()
     private val mTtsService by inject<TtsService>()
     private val mContext by inject<Context>()
 
@@ -139,14 +127,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mSessionId: Long? = null
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
-    /** 当前唯一的图片生成任务；图片请求不会取消或阻塞正文生成。 */
-    private var mImageGenerationJob: Job? = null
     /** 当前朗读任务；新请求、编辑或删除目标消息时会立即取消。 */
     private var mSpeechJob: Job? = null
     /** 朗读请求令牌，防止旧任务收尾覆盖新任务的 UI 状态。 */
     private var mSpeechRequestId: Long = 0L
     /** 将 Application 级生成快照重新投影到当前页面，页面销毁时仅停止观察，不停止生成。 */
     private var mGenerationObserverJob: Job? = null
+    private var mImageGenerationObserverJob: Job? = null
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
     private var mSummaryJob: Job? = null
     /** 用户主动触发的对话归档导出任务 Job；运行期间阻止页面退出以防写入不完整文件。 */
@@ -178,12 +165,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         mSessionId = sessionId
         mLastPromptInspection = mGenerationCoordinator.getPromptInspection(sessionId)
-        val generationSnapshot = mGenerationCoordinator.snapshot.value
-            ?.takeIf { it.sessionId == sessionId }
+        val generationState = mGenerationCoordinator.stateFor(sessionId)
+            ?: ChatGenerationState.Idle
+        val imageGenerationStates = currentImageGenerationStates()
         val loaded = withContext(Dispatchers.IO) {
             loadNormalState(
                 sessionId = sessionId,
-                generationState = generationSnapshot?.state ?: ChatGenerationState.Idle
+                generationState = generationState,
+                imageGenerationStates = imageGenerationStates
             )
         }
         if (loaded == null) {
@@ -192,6 +181,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         loaded.setup()
         observeGeneration(sessionId)
+        observeImageGeneration()
     }
 
     /**
@@ -212,10 +202,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 page = uiState.page,
                 isExpanded = uiState.lorebookState.isExpanded,
                 loadState = uiState.loadState,
-                generationState = mGenerationCoordinator.snapshot.value
-                    ?.takeIf { it.sessionId == sessionId }
-                    ?.state ?: uiState.conversationState.generationState,
-                imageGenerationState = uiState.conversationState.imageGenerationState,
+                generationState = mGenerationCoordinator.stateFor(sessionId)
+                    ?: uiState.conversationState.generationState,
+                imageGenerationStates = currentImageGenerationStates(),
                 speechState = uiState.conversationState.speechState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = uiState.conversationState.editingMessageId,
@@ -323,10 +312,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun sendMessage(generateImageAfterReply: Boolean) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (generateImageAfterReply && mImageGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
-            return
-        }
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         val rawInput = uiState.conversationState.inputDraft.trim()
             .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
@@ -335,7 +320,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             continueLastAssistantMessage(sessionId, generateImageAfterReply)
             return
         }
-        if (mGenerationCoordinator.activeSessionId() != null) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -429,7 +414,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         currentCoroutineContext().ensureActive()
         if (latestAssistantMessageId != null && latestAssistantMessageId != previousAssistantMessageId) {
-            startImageGeneration(latestAssistantMessageId.toString())
+            mImageGenerationCoordinator.generate(sessionId, latestAssistantMessageId)
         }
     }
 
@@ -482,18 +467,44 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun observeGeneration(sessionId: Long) {
         mGenerationObserverJob?.cancel()
         mGenerationObserverJob = viewModelScope.launch {
-            mGenerationCoordinator.snapshot.collect { snapshot ->
-                if (snapshot?.sessionId != sessionId) return@collect
+            mGenerationCoordinator.snapshotBySession.collect { snapshots ->
                 if (mGenerationJob?.isActive == true) return@collect
-                applyGenerationSnapshot(snapshot)
+                applyGenerationSnapshot(sessionId, snapshots[sessionId] ?: ChatGenerationState.Idle)
             }
         }
     }
 
+    private fun observeImageGeneration() {
+        mImageGenerationObserverJob?.cancel()
+        mImageGenerationObserverJob = viewModelScope.launch {
+            var previousMessageIds = mImageGenerationCoordinator.states.value.keys
+            mImageGenerationCoordinator.states.collect { states ->
+                val completedMessageIds = previousMessageIds - states.keys
+                previousMessageIds = states.keys
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
+                uiState.copy(
+                    conversationState = uiState.conversationState.copy(
+                        imageGenerationStates = states.mapKeys { it.key.toString() }
+                    )
+                ).setup()
+                if (completedMessageIds.isNotEmpty()) {
+                    val sessionId = mSessionId ?: return@collect
+                    refreshUiState(
+                        sessionId = sessionId,
+                        imageGenerationStates = currentImageGenerationStates()
+                    )
+                }
+            }
+        }
+    }
+
+    private fun currentImageGenerationStates(): Map<String, ChatImageGenerationTaskState> =
+        mImageGenerationCoordinator.states.value.mapKeys { it.key.toString() }
+
     /** 将 Application 级快照投影到新页面；终态会重读数据库以展示最终持久化结果。 */
-    private suspend fun applyGenerationSnapshot(snapshot: ChatGenerationSnapshot) {
+    private suspend fun applyGenerationSnapshot(sessionId: Long, state: ChatGenerationState) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        when (val state = snapshot.state) {
+        when (state) {
             ChatGenerationState.Requesting -> uiState.copy(
                 conversationState = uiState.conversationState.copy(generationState = state)
             ).setup()
@@ -510,7 +521,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             ChatGenerationState.Idle,
             is ChatGenerationState.Failed -> refreshUiState(
-                sessionId = snapshot.sessionId,
+                sessionId = sessionId,
                 generationState = state
             )
         }
@@ -572,212 +583,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     /** 为指定的角色消息生成或重新生成一张图片；重试与再生成共用同一 Intent。 */
     @UiIntentObserver(ChatUiIntent.GenerateImage::class)
-    private suspend fun onGenerateImage(intent: ChatUiIntent.GenerateImage) {
-        startImageGeneration(intent.messageId)
-    }
-
-    /** 启动指定角色消息的图片生成；手动触发与发送后的自动触发共用此路径。 */
-    private fun startImageGeneration(messageId: String) {
-        if (mImageGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
-            return
-        }
-        if (!isStateOf<ChatUiState.Normal>()) return
+    private fun onGenerateImage(intent: ChatUiIntent.GenerateImage) {
         val sessionId = mSessionId ?: return
-        val targetId = messageId.toLongOrNull() ?: return
-
-        // Install the job before any suspending preparation work so a second image request
-        // cannot pass the guard while the first request is loading its prompt context.
-        mImageGenerationJob = viewModelScope.launch {
-            var newUuid: String? = null
-            try {
-                val preparation = withContext(Dispatchers.IO) {
-                    val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
-                    val messages = mChatRepository.getMessagesBySessionId(sessionId)
-                    val targetIndex = messages.indexOfFirst { it.id == targetId }
-                    val target = messages.getOrNull(targetIndex)
-                    if (target == null || target.sessionId != sessionId || target.source != ChatMessage.Source.Char) {
-                        return@withContext null
-                    }
-                    if (mActiveStreamingGeneration?.messageId == target.id) return@withContext null
-                    val character = mCharacterRepository.getCharacterById(session.characterId)
-                        ?: return@withContext null
-                    val recentUserMessage = messages
-                        .take(targetIndex)
-                        .lastOrNull { it.source == ChatMessage.Source.User }
-                        ?.content
-                        .orEmpty()
-                    ImageGenerationPreparation(
-                        target = target,
-                        character = character,
-                        recentUserMessage = recentUserMessage,
-                        config = ImageGenerationConfig(
-                            baseUrl = AppModel.imageGenerationBaseUrl,
-                            apiKey = AppModel.imageGenerationApiKey,
-                            model = AppModel.imageGenerationModel,
-                            size = AppModel.imageGenerationSize
-                        ),
-                        stylePrompt = AppModel.imageGenerationStylePrompt
-                    )
-                }
-                if (preparation == null || mSessionId != sessionId) return@launch
-                if (preparation.config.baseUrl.isBlank() || preparation.config.model.isBlank()) {
-                    refreshUiState(
-                        sessionId = sessionId,
-                        imageGenerationState = ChatImageGenerationState.Failed(
-                            messageId,
-                            mContext.getString(R.string.image_generation_not_configured)
-                        )
-                    )
-                    return@launch
-                }
-
-                val current = getOrNull<ChatUiState.Normal>()
-                    ?.takeIf { it.session.id == sessionId }
-                    ?: return@launch
-                current.copy(
-                    conversationState = current.conversationState.copy(
-                        imageGenerationState = ChatImageGenerationState.Generating(messageId)
-                    )
-                ).setup()
-
-                val scenePrompt = refineImageScene(
-                    character = preparation.character,
-                    recentUserMessage = preparation.recentUserMessage,
-                    assistantReply = preparation.target.content,
-                    sessionId = sessionId
-                )
-                val prompt = buildImagePrompt(
-                    characterName = preparation.character.name,
-                    characterDescription = preparation.character.description,
-                    scenario = preparation.character.scenario,
-                    scenePrompt = scenePrompt,
-                    stylePrompt = preparation.stylePrompt
-                )
-                val generated: GeneratedImage = mImageClient.generate(
-                    config = preparation.config,
-                    prompt = prompt
-                )
-                val replaced = withContext(NonCancellable + Dispatchers.IO) {
-                    newUuid = mFileRepository.saveBytes(generated.bytes, generated.mimeType)
-                    val attached = mChatRepository.replaceMessageImage(
-                        messageId = preparation.target.id,
-                        expectedContent = preparation.target.content,
-                        newFileUuid = requireNotNull(newUuid)
-                    )
-                    if (!attached) mFileRepository.deleteFile(requireNotNull(newUuid))
-                    newUuid = null
-                    attached
-                }
-                if (!replaced) {
-                    if (mSessionId == sessionId) {
-                        refreshUiState(
-                            sessionId = sessionId,
-                            imageGenerationState = ChatImageGenerationState.Idle
-                        )
-                    }
-                    return@launch
-                }
-                if (mSessionId == sessionId) {
-                    refreshUiState(
-                        sessionId = sessionId,
-                        imageGenerationState = ChatImageGenerationState.Idle
-                    )
-                }
-            } catch (cancelled: CancellationException) {
-                newUuid?.let { uuid ->
-                    withContext(NonCancellable + Dispatchers.IO) {
-                        mFileRepository.deleteFile(uuid)
-                    }
-                }
-                throw cancelled
-            } catch (error: Throwable) {
-                newUuid?.let { uuid ->
-                    withContext(Dispatchers.IO) { mFileRepository.deleteFile(uuid) }
-                }
-                if (mSessionId == sessionId) {
-                    val message = error.message?.takeIf { it.isNotBlank() }
-                        ?: mContext.getString(R.string.image_generation_failed)
-                    refreshUiState(
-                        sessionId = sessionId,
-                        imageGenerationState = ChatImageGenerationState.Failed(
-                            messageId,
-                            message
-                        )
-                    )
-                }
-            } finally {
-                mImageGenerationJob = null
-            }
-        }
-    }
-
-    /**
-     * Refines the latest roleplay turn into a short visible-scene description.
-     *
-     * Prompt-provider resolution and the optional request are deliberately isolated from the
-     * image-generation failure path: any non-cancellation refinement problem uses the local
-     * deterministic scene description and still lets the image request proceed.
-     */
-    private suspend fun refineImageScene(
-        character: Character,
-        recentUserMessage: String,
-        assistantReply: String,
-        sessionId: Long
-    ): String {
-        val fallback = buildFallbackScenePrompt(
-            recentUserMessage = recentUserMessage,
-            assistantReply = assistantReply
-        )
-        return try {
-            val provider = withContext(Dispatchers.IO) {
-                mProviderSelectionResolver.requireImagePromptProvider(character)
-            }
-            val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = provider,
-                    request = LLMGenerationRequest(
-                        messages = listOf(
-                            LLMMessage(
-                                role = LLMMessageRole.System,
-                                content = IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT
-                            ),
-                            LLMMessage(
-                                role = LLMMessageRole.User,
-                                content = buildString {
-                                    appendLine("Character name:")
-                                    appendLine(character.name.trim().ifBlank { "(none)" })
-                                    appendLine()
-                                    appendLine("Character description:")
-                                    appendLine(character.description.trim().ifBlank { "(none)" })
-                                    appendLine()
-                                    appendLine("Scenario:")
-                                    appendLine(character.scenario.trim().ifBlank { "(none)" })
-                                    appendLine()
-                                    appendLine("Recent user message:")
-                                    appendLine(recentUserMessage.trim().ifBlank { "(none)" })
-                                    appendLine()
-                                    appendLine("Latest character reply:")
-                                    appendLine(assistantReply.trim().ifBlank { "(none)" })
-                                }
-                            )
-                        ),
-                        options = LLMGenerationOptions(
-                            temperature = 0.2f,
-                            maxTokens = 220
-                        ),
-                        includeReasoningInContent = false,
-                        captureReasoning = false,
-                        isPromptFinalized = true
-                    ),
-                    routingSessionKey = "image-prompt:$sessionId"
-                )
-            }
-            response.content.trim().takeIf { it.isNotEmpty() } ?: fallback
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Throwable) {
-            fallback
+        val messageId = intent.messageId.toLongOrNull() ?: return
+        if (!mImageGenerationCoordinator.generate(sessionId, messageId)) {
+            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
         }
     }
 
@@ -854,7 +664,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val messageId = intent.messageId.toLongOrNull() ?: return
         // 拦截并发生成
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -981,7 +791,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         // 校验是否正处于忙碌或已在导出中
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -1009,7 +819,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         // 校验前置互斥状态
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -1053,7 +863,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSummarizeNow() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
@@ -1071,7 +881,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onRestorePreviousSummary() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.activeSessionId() == sessionId || mSummaryJob?.isActive == true) return
+        if (mGenerationCoordinator.isActive(sessionId) || mSummaryJob?.isActive == true) return
         val restored = withContext(Dispatchers.IO) {
             mChatRepository.restorePreviousSummary(sessionId)
         }
@@ -1143,7 +953,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onDeleteSessionClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             return
         }
@@ -1173,7 +983,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         // 生成中禁止删除
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -1202,7 +1012,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onDeleteMessageClick(intent: ChatUiIntent.DeleteMessageClick) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             return
         }
@@ -1220,7 +1030,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onConfirmDeleteMessage(intent: ChatUiIntent.ConfirmDeleteMessage) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.activeSessionId() == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -1565,7 +1375,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截：若已有生成任务在运行则拒绝
-        if (mGenerationCoordinator.activeSessionId() != null) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1656,14 +1466,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         generateImageAfterReply: Boolean
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (generateImageAfterReply && mImageGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_in_progress).tryEmit()
-            return
-        }
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationCoordinator.activeSessionId() != null) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1754,7 +1560,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationCoordinator.activeSessionId() != null) {
+        if (mGenerationCoordinator.isActive(sessionId)) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -2321,7 +2127,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
-        imageGenerationState: ChatImageGenerationState = ChatImageGenerationState.Idle,
+        imageGenerationStates: Map<String, ChatImageGenerationTaskState> = currentImageGenerationStates(),
         speechState: ChatSpeechState = ChatSpeechState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: String? = null,
@@ -2394,7 +2200,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 ),
                 inputDraft = inputDraft,
                 generationState = generationState,
-                imageGenerationState = imageGenerationState,
+                imageGenerationStates = imageGenerationStates,
                 speechState = speechState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
@@ -2432,8 +2238,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.generationState ?: ChatGenerationState.Idle,
-        imageGenerationState: ChatImageGenerationState = getOrNull<ChatUiState.Normal>()
-            ?.conversationState?.imageGenerationState ?: ChatImageGenerationState.Idle,
+        imageGenerationStates: Map<String, ChatImageGenerationTaskState> = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.imageGenerationStates ?: currentImageGenerationStates(),
         speechState: ChatSpeechState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.speechState ?: ChatSpeechState.Idle,
         expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()
@@ -2453,7 +2259,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,
-                imageGenerationState = imageGenerationState,
+                imageGenerationStates = imageGenerationStates,
                 speechState = speechState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
@@ -2466,8 +2272,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         nextState.copy(
             conversationState = nextState.conversationState.copy(speechState = currentSpeechState)
         ).setup()
-        val trackedSessionId = mGenerationCoordinator.snapshot.value?.sessionId
-        if (mGenerationCoordinator.activeSessionId() == sessionId || trackedSessionId == sessionId) {
+        if (mGenerationCoordinator.isActive(sessionId) || mGenerationCoordinator.stateFor(sessionId) != null) {
             mGenerationCoordinator.publish(sessionId, generationState)
         }
     }
@@ -2715,15 +2520,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         /** 更新覆盖已有的消息记录（如重新生成） */
         data class Update(val messageId: Long) : GenerationOutput()
     }
-
-    /** 图片生成请求在启动时冻结的目标消息、角色场景上下文和配置。 */
-    private data class ImageGenerationPreparation(
-        val target: ChatMessage,
-        val character: Character,
-        val recentUserMessage: String,
-        val config: ImageGenerationConfig,
-        val stylePrompt: String
-    )
 
     /**
      * 获取当前生成目标对应的消息来源。

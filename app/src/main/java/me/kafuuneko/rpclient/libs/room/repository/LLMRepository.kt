@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
@@ -26,6 +27,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.withPostProcessedMessages
+import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
@@ -48,7 +50,8 @@ internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
  */
 class LLMRepository(
     private val mAppDatabase: AppDatabase,
-    private val mLLMClientFactory: LLMClientFactory
+    private val mLLMClientFactory: LLMClientFactory,
+    private val mRequestConcurrencyLimiter: RequestConcurrencyLimiter
 ) {
     /** 模型配置表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
@@ -189,9 +192,11 @@ class LLMRepository(
     suspend fun generate(providerId: Long, request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider)
-        ).requireNonEmptyContent()
+        return withProviderPermit(provider) {
+            mLLMClientFactory.create(provider.toConfig()).generate(
+                request.postProcessPrompt(provider)
+            ).requireNonEmptyContent()
+        }
     }
 
     /**
@@ -202,9 +207,11 @@ class LLMRepository(
         routingSessionKey: String? = null
     ): LLMGenerationResponse {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
-        return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        return withProviderPermit(provider) {
+            mLLMClientFactory.create(provider.toConfig()).generate(
+                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            ).requireNonEmptyContent()
+        }
     }
 
     /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
@@ -214,9 +221,11 @@ class LLMRepository(
         routingSessionKey: String? = null
     ): LLMGenerationResponse {
         return try {
-            mLLMClientFactory.create(provider.toConfig()).generate(
-                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-            ).requireNonEmptyContent()
+            withProviderPermit(provider) {
+                mLLMClientFactory.create(provider.toConfig()).generate(
+                    request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+                ).requireNonEmptyContent()
+            }
         } catch (error: Exception) {
             throw error.withProviderRequestContext(provider.name)
         }
@@ -228,9 +237,12 @@ class LLMRepository(
     suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider)
-        ).requireNonEmptyContent()
+        return streamWithProviderPermit(
+            provider = provider,
+            upstream = mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+                request.postProcessPrompt(provider)
+            ).requireNonEmptyContent()
+        )
     }
 
     /**
@@ -241,9 +253,12 @@ class LLMRepository(
         routingSessionKey: String? = null
     ): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        return streamWithProviderPermit(
+            provider = provider,
+            upstream = mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            ).requireNonEmptyContent()
+        )
     }
 
     /**
@@ -254,13 +269,36 @@ class LLMRepository(
         request: LLMGenerationRequest,
         routingSessionKey: String? = null
     ): Flow<LLMStreamEvent> {
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent().catch { error ->
+        return streamWithProviderPermit(
+            provider = provider,
+            upstream = mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            ).requireNonEmptyContent()
+        ).catch { error ->
             if (error is Exception) {
                 throw error.withProviderRequestContext(provider.name)
             }
             throw error
+        }
+    }
+
+    private suspend fun <T> withProviderPermit(
+        provider: LLMProvider,
+        block: suspend () -> T
+    ): T {
+        return mRequestConcurrencyLimiter.withPermit(
+            key = "llm-provider:${provider.id}",
+            limit = provider.maxConcurrentRequests,
+            block = block
+        )
+    }
+
+    private fun streamWithProviderPermit(
+        provider: LLMProvider,
+        upstream: Flow<LLMStreamEvent>
+    ): Flow<LLMStreamEvent> = flow {
+        withProviderPermit(provider) {
+            upstream.collect { event -> emit(event) }
         }
     }
 

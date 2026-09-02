@@ -67,6 +67,8 @@ sealed class LLMProviderEditUiIntent {
 
     data class ChangeContextTokens(val value: String) : LLMProviderEditUiIntent()
 
+    data class ChangeMaxConcurrentRequests(val value: String) : LLMProviderEditUiIntent()
+
     data class ChangeTokenEstimateReservePercent(val value: Int) : LLMProviderEditUiIntent()
 
     data class ToggleSendTemperature(val value: Boolean) : LLMProviderEditUiIntent()

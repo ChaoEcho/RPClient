@@ -12,5 +12,6 @@ sealed class ImageGenerationSettingsUiIntent {
     data class ChangeSize(val value: String) : ImageGenerationSettingsUiIntent()
     data class ChangeSceneStylePrompt(val value: String) : ImageGenerationSettingsUiIntent()
     data class ChangeAvatarStylePrompt(val value: String) : ImageGenerationSettingsUiIntent()
+    data class ChangeMaxConcurrentRequests(val value: String) : ImageGenerationSettingsUiIntent()
     data class ChangePromptProvider(val providerId: Long) : ImageGenerationSettingsUiIntent()
 }

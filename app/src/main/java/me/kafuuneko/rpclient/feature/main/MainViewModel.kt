@@ -71,7 +71,7 @@ import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
-import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationSnapshot
+import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.libs.chat.generation.isGenerating
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -142,7 +142,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
-            homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshot.value),
+            homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
         observeGeneration()
@@ -156,7 +156,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
-        val homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
+        val homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value)
         val settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.mergeResumeRefresh(
@@ -272,9 +272,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             uiState.homeState.selectionState as? MainHomeSelectionState.Selecting ?: return
         val selections = selectionState.selectedItems
         if (selections.isEmpty()) return
-        val activeSessionId = mGenerationCoordinator.activeSessionId()
-        if (activeSessionId != null && selections.any {
-                it.type == MainHomeItemType.Chat && it.itemId.toLongOrNull() == activeSessionId
+        val activeSessionIds = mGenerationCoordinator.activeSessionIds()
+        if (selections.any {
+                it.type == MainHomeItemType.Chat && it.itemId.toLongOrNull() in activeSessionIds
             }
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.cannot_delete_generating_chat).tryEmit()
@@ -300,7 +300,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 dialogState = MainDialogState.None,
                 homeState = homeState
                     .preserveCollapsedGroupsFrom(current.homeState)
-                    .withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
+                    .withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value)
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -367,7 +367,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 dialogState = MainDialogState.None,
                 homeState = homeState
                     .preserveCollapsedGroupsFrom(current.homeState)
-                    .withGenerationSnapshot(mGenerationCoordinator.snapshot.value)
+                    .withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value)
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -515,7 +515,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 current.copy(
                     homeState = homeState
                         .preserveCollapsedGroupsFrom(current.homeState)
-                        .withGenerationSnapshot(mGenerationCoordinator.snapshot.value),
+                        .withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value),
                     dialogState = if (
                         current.dialogState is MainDialogState.ImportChatCharacterSelection
                     ) {
@@ -1509,29 +1509,29 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    /** 观察唯一单聊生成任务，并只更新首页对应会话卡片的轻量状态。 */
+    /** Observes all active single-chat generations and updates their home cards. */
     private fun observeGeneration() {
         if (mGenerationObserverJob?.isActive == true) return
         mGenerationObserverJob = viewModelScope.launch {
-            mGenerationCoordinator.snapshot.collect { snapshot ->
+            mGenerationCoordinator.snapshotBySession.collect { snapshots ->
                 val uiState = getOrNull<MainUiState.Normal>() ?: return@collect
                 uiState.copy(
-                    homeState = uiState.homeState.withGenerationSnapshot(snapshot)
+                    homeState = uiState.homeState.withGenerationSnapshot(snapshots)
                 ).setup()
             }
         }
     }
 
-    /** 同步分组列表和“全部”列表中的重复单聊展示模型。 */
+    /** Keeps duplicate chat items in grouped/all lists synchronized. */
     private fun MainHomeState.withGenerationSnapshot(
-        snapshot: ChatGenerationSnapshot?
+        snapshots: Map<Long, ChatGenerationState>
     ): MainHomeState {
-        val generatingSessionId = snapshot
-            ?.takeIf { it.state.isGenerating() }
-            ?.sessionId
-            ?.toString()
+        val generatingSessionIds = snapshots
+            .filterValues { it.isGenerating() }
+            .keys
+            .mapTo(mutableSetOf()) { it.toString() }
         fun MainChatSessionItem.markGeneration() = copy(
-            isGenerating = id == generatingSessionId
+            isGenerating = id in generatingSessionIds
         )
 
         val recentChats = when (val recent = recentChatsState) {

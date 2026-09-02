@@ -15,8 +15,11 @@ import me.kafuuneko.rpclient.libs.backup.WebDavClient
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
+import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
+import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
@@ -111,7 +114,10 @@ internal val appModules = module {
     singleOf(::BackupRepository)
     singleOf(::LocalSecretStore)
     singleOf(::WebDavClient)
-    singleOf(::ChatGenerationCoordinator)
+    singleOf(::RequestConcurrencyLimiter)
+    singleOf(::AiTaskForegroundController)
+    single { ChatGenerationCoordinator(get()) }
+    singleOf(::ChatImageGenerationCoordinator)
 
     singleOf(::OpenAICompatibleImageClient)
     singleOf(::SystemTtsProvider)

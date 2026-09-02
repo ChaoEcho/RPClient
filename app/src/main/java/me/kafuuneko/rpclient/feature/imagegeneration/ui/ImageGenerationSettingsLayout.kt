@@ -176,6 +176,16 @@ private fun ServicePanel(
             onValueChange = { ImageGenerationSettingsUiIntent.ChangeSize(it).emit() },
             imeAction = ImeAction.Next
         )
+        SettingsTextField(
+            value = form.maxConcurrentRequests,
+            label = stringResource(R.string.image_generation_max_concurrent_requests),
+            supportingText = stringResource(R.string.image_generation_max_concurrent_requests_desc),
+            onValueChange = {
+                ImageGenerationSettingsUiIntent.ChangeMaxConcurrentRequests(it).emit()
+            },
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Next
+        )
     }
 }
 

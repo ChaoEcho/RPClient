@@ -3,15 +3,15 @@ package me.kafuuneko.rpclient.feature.backup.presentation
 import me.kafuuneko.rpclient.libs.backup.BackupOperationPhase
 import me.kafuuneko.rpclient.libs.backup.RemoteBackupItem
 
-/** 完整备份页面状态，不持有备份密码、WebDAV 密码或本地文件路径。 */
+/** 完整备份页面状态，不持有备份密码或本地文件路径。 */
 sealed class BackupUiState {
     data object None : BackupUiState()
 
     data class Normal(
         val webDavBaseUrl: String,
         val webDavUsername: String,
+        val webDavPassword: String,
         val webDavRemotePath: String,
-        val hasSavedWebDavPassword: Boolean,
         val lastSuccessfulBackupAt: Long,
         val remoteBackups: List<RemoteBackupItem> = emptyList(),
         val operation: BackupOperationState? = null,

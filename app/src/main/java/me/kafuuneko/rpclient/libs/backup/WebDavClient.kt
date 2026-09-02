@@ -10,16 +10,14 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody
 import okhttp3.MediaType.Companion.toMediaType
-import org.w3c.dom.Document
-import org.w3c.dom.Element
-import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
 import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Locale
-import javax.xml.XMLConstants
-import javax.xml.parsers.DocumentBuilderFactory
+import org.xml.sax.Attributes
+import org.xml.sax.helpers.DefaultHandler
+import javax.xml.parsers.SAXParserFactory
 
 /**
  * V1 WebDAV 存储客户端，只负责远端完整备份文件的基本存取。
@@ -81,8 +79,11 @@ class WebDavClient(private val client: OkHttpClient) {
             ).header("Depth", "1")
                 .build()
         ) { response ->
+            if (response.code == HTTP_NOT_FOUND) {
+                return@withResponse emptyList()
+            }
             requireSuccessful(response)
-            val body = response.body ?: throw IOException("empty_response")
+            val body = response.body ?: throw BackupException.WebDavInvalidResponse()
             parseRemoteItems(body, url)
         }
     }
@@ -149,60 +150,138 @@ class WebDavClient(private val client: OkHttpClient) {
     }
 
     private fun parseRemoteItems(body: ResponseBody, collectionUrl: HttpUrl): List<RemoteBackupItem> {
-        // 先固定命名空间并关闭外部实体，避免服务器返回的 XML 触发外部资源访问。
-        val factory = DocumentBuilderFactory.newInstance().apply {
-            isNamespaceAware = true
-            isExpandEntityReferences = false
-            isXIncludeAware = false
-            setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-            setFeature("http://xml.org/sax/features/external-general-entities", false)
-            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-            runCatching { setAttribute(ACCESS_EXTERNAL_DTD, "") }
-            runCatching { setAttribute(ACCESS_EXTERNAL_SCHEMA, "") }
-        }
-        val document = factory.newDocumentBuilder().parse(body.byteStream())
-        return elementsByName(document, DAV_RESPONSE).mapNotNull { response ->
-            val href = childText(response, DAV_HREF) ?: return@mapNotNull null
-            if (href.endsWith("/") || isCollection(response)) {
-                return@mapNotNull null
+        return try {
+            val items = mutableListOf<RemoteBackupItem>()
+            var rootName: String? = null
+            var currentResponse: ParsedResponse? = null
+            var depth = 0
+            var resourceTypeDepth = -1
+            var capturedName: String? = null
+            val capturedText = StringBuilder()
+
+            val handler = object : DefaultHandler() {
+                override fun startElement(
+                    uri: String?,
+                    localName: String?,
+                    qName: String?,
+                    attributes: Attributes?
+                ) {
+                    depth += 1
+                    val name = localName.orEmpty().ifEmpty {
+                        qName.orEmpty().substringAfter(':')
+                    }
+                    if (rootName == null) rootName = name
+                    when {
+                        name == DAV_RESPONSE -> {
+                            if (currentResponse != null) {
+                                throw IllegalArgumentException("nested_response")
+                            }
+                            currentResponse = ParsedResponse()
+                        }
+
+                        currentResponse != null -> when (name) {
+                            DAV_HREF, DAV_CONTENT_LENGTH, DAV_LAST_MODIFIED -> {
+                                capturedName = name
+                                capturedText.setLength(0)
+                            }
+
+                            DAV_RESOURCE_TYPE -> resourceTypeDepth = depth
+                            DAV_COLLECTION -> if (resourceTypeDepth >= 0) {
+                                currentResponse?.isCollection = true
+                            }
+                        }
+                    }
+                }
+
+                override fun characters(ch: CharArray, start: Int, length: Int) {
+                    if (capturedName != null) capturedText.append(ch, start, length)
+                }
+
+                override fun endElement(uri: String?, localName: String?, qName: String?) {
+                    val name = localName.orEmpty().ifEmpty {
+                        qName.orEmpty().substringAfter(':')
+                    }
+                    val parsed = currentResponse
+                    if (name == capturedName && parsed != null) {
+                        val value = capturedText.toString().trim()
+                        when (name) {
+                            DAV_HREF -> parsed.href = value
+                            DAV_CONTENT_LENGTH -> parsed.size = value.toLongOrNull() ?: 0L
+                            DAV_LAST_MODIFIED -> parsed.modifiedAt = parseRfc1123(value)
+                        }
+                        capturedName = null
+                        capturedText.setLength(0)
+                    }
+                    if (name == DAV_RESOURCE_TYPE && depth == resourceTypeDepth) {
+                        resourceTypeDepth = -1
+                    }
+                    if (name == DAV_RESPONSE) {
+                        val response = currentResponse
+                            ?: throw IllegalArgumentException("response_without_start")
+                        addRemoteItem(items, collectionUrl, response)
+                        currentResponse = null
+                    }
+                    depth -= 1
+                }
             }
-            val name = remoteNameFromHref(collectionUrl, href) ?: return@mapNotNull null
-            if (!name.endsWith(BackupContract.FILE_EXTENSION)) {
-                return@mapNotNull null
+
+            val factory = SAXParserFactory.newInstance().apply {
+                isNamespaceAware = true
+                isValidating = false
+                setFeatureSafely("http://xml.org/sax/features/external-general-entities", false)
+                setFeatureSafely("http://xml.org/sax/features/external-parameter-entities", false)
+                setFeatureSafely("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
             }
-            RemoteBackupItem(
-                name = name,
-                href = href,
-                size = childText(response, DAV_CONTENT_LENGTH)?.toLongOrNull() ?: 0L,
-                modifiedAt = childText(response, DAV_LAST_MODIFIED)?.let(::parseRfc1123)
+            body.byteStream().use { input ->
+                factory.newSAXParser().parse(input, handler)
+            }
+            if (rootName != DAV_MULTI_STATUS || currentResponse != null) {
+                throw IllegalArgumentException("invalid_multistatus")
+            }
+            items.sortedWith(
+                compareByDescending<RemoteBackupItem> { it.modifiedAt != null }
+                    .thenByDescending { it.modifiedAt ?: Long.MIN_VALUE }
+                    .thenByDescending { it.name }
             )
-        }.sortedWith(
-            compareByDescending<RemoteBackupItem> { it.modifiedAt != null }
-                .thenByDescending { it.modifiedAt ?: Long.MIN_VALUE }
-                .thenByDescending { it.name }
+        } catch (error: BackupException) {
+            throw error
+        } catch (_: Exception) {
+            throw BackupException.WebDavInvalidResponse()
+        }
+    }
+
+    private fun addRemoteItem(
+        items: MutableList<RemoteBackupItem>,
+        collectionUrl: HttpUrl,
+        parsed: ParsedResponse
+    ) {
+        val href = parsed.href ?: return
+        if (parsed.isCollection || href.endsWith('/')) return
+        val remoteName = remoteNameFromHref(collectionUrl, href) ?: return
+        if (!remoteName.endsWith(BackupContract.FILE_EXTENSION)) return
+        items += RemoteBackupItem(
+            name = remoteName,
+            href = href,
+            size = parsed.size,
+            modifiedAt = parsed.modifiedAt
         )
+    }
+
+    private fun SAXParserFactory.setFeatureSafely(name: String, enabled: Boolean) {
+        runCatching { setFeature(name, enabled) }
+    }
+
+    private class ParsedResponse {
+        var href: String? = null
+        var isCollection = false
+        var size = 0L
+        var modifiedAt: Long? = null
     }
 
     private fun remoteNameFromHref(collectionUrl: HttpUrl, href: String): String? {
         val resolved = runCatching { collectionUrl.resolve(href.trim()) }.getOrNull() ?: return null
         val name = resolved.pathSegments.asReversed().firstOrNull { it.isNotEmpty() } ?: return null
         return runCatching { normalizedRemoteName(name) }.getOrNull()
-    }
-
-    private fun isCollection(response: Element): Boolean {
-        return elementsByName(response, DAV_RESOURCE_TYPE)
-            .flatMap { elementsByName(it, DAV_COLLECTION) }
-            .isNotEmpty()
-    }
-
-    private fun childText(parent: Element, localName: String): String? {
-        return elementsByName(parent, localName)
-            .firstOrNull()
-            ?.textContent
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
     }
 
     private fun parseRfc1123(value: String): Long? {
@@ -212,32 +291,6 @@ class WebDavClient(private val client: OkHttpClient) {
         val position = ParsePosition(0)
         val date = formatter.parse(value, position) ?: return null
         return date.time.takeIf { position.index == value.length }
-    }
-
-    private fun elementsByName(node: Node, localName: String): List<Element> {
-        val namespaced = when (node) {
-            is Document -> node.getElementsByTagNameNS(DAV_NAMESPACE, localName)
-            is Element -> node.getElementsByTagNameNS(DAV_NAMESPACE, localName)
-            else -> null
-        }
-        if (namespaced != null && namespaced.length > 0) {
-            return namespaced.asElements()
-        }
-
-        val unqualified = when (node) {
-            is Document -> node.getElementsByTagNameNS(null, localName)
-            is Element -> node.getElementsByTagNameNS(null, localName)
-            else -> null
-        }
-        if (unqualified != null && unqualified.length > 0) {
-            return unqualified.asElements()
-        }
-
-        return when (node) {
-            is Document -> node.getElementsByTagName(localName).asElements()
-            is Element -> node.getElementsByTagName(localName).asElements()
-            else -> emptyList()
-        }
     }
 
     private fun request(
@@ -337,14 +390,8 @@ class WebDavClient(private val client: OkHttpClient) {
         }
     }
 
-    private fun org.w3c.dom.NodeList.asElements(): List<Element> {
-        return (0 until length).mapNotNull { item(it) as? Element }
-    }
-
     private companion object {
-        const val ACCESS_EXTERNAL_DTD = "http://javax.xml.XMLConstants/property/accessExternalDTD"
-        const val ACCESS_EXTERNAL_SCHEMA = "http://javax.xml.XMLConstants/property/accessExternalSchema"
-        const val DAV_NAMESPACE = "DAV:"
+        const val DAV_MULTI_STATUS = "multistatus"
         const val DAV_RESPONSE = "response"
         const val DAV_HREF = "href"
         const val DAV_RESOURCE_TYPE = "resourcetype"
@@ -358,6 +405,7 @@ class WebDavClient(private val client: OkHttpClient) {
         const val METHOD_DELETE = "DELETE"
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
+        const val HTTP_NOT_FOUND = 404
         const val HTTP_METHOD_NOT_ALLOWED = 405
         val BACKUP_MEDIA_TYPE = BackupContract.MIME_TYPE.toMediaType()
     }

@@ -94,9 +94,6 @@ private fun BackupNormalView(
 ) {
     val operation = state.operation
     val enabled = operation == null
-    // 页面级临时输入的密码，避免操作切换导致清空，仅存活于当前 Compose 生命周期。
-    var webDavPassword by remember { mutableStateOf("") }
-
     // 顶部栏沿用项目统一返回行为，长任务期间忽略竞争操作。
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -121,7 +118,7 @@ private fun BackupNormalView(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             LocalBackupSection(state, enabled, emit)
-            WebDavConfigSection(state, webDavPassword, onPasswordChange = { webDavPassword = it }, enabled, emit)
+            WebDavConfigSection(state, enabled, emit)
             RemoteBackupSection(state, enabled, emit)
         }
     }
@@ -181,8 +178,6 @@ private fun LocalBackupSection(
 @Composable
 private fun WebDavConfigSection(
     state: BackupUiState.Normal,
-    webDavPassword: String,
-    onPasswordChange: (String) -> Unit,
     enabled: Boolean,
     emit: BackupUiIntent.() -> Unit
 ) {
@@ -220,12 +215,9 @@ private fun WebDavConfigSection(
                     shape = RoundedCornerShape(16.dp)
                 )
                 SecretField(
-                    value = webDavPassword,
-                    onValueChange = onPasswordChange,
+                    value = state.webDavPassword,
+                    onValueChange = { emit(BackupUiIntent.ChangeWebDavPassword(it)) },
                     label = stringResource(R.string.backup_webdav_password),
-                    helper = if (state.hasSavedWebDavPassword) {
-                        stringResource(R.string.backup_webdav_saved_password)
-                    } else null,
                     enabled = enabled
                 )
                 OutlinedTextField(
@@ -237,25 +229,8 @@ private fun WebDavConfigSection(
                     label = { Text(stringResource(R.string.backup_webdav_remote_path)) },
                     shape = RoundedCornerShape(16.dp)
                 )
-                if (state.hasSavedWebDavPassword) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { emit(BackupUiIntent.ClearSavedWebDavPassword) },
-                            enabled = enabled
-                        ) {
-                            Text(
-                                text = stringResource(R.string.backup_webdav_clear_saved_password),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
                 Button(
-                    onClick = { emit(BackupUiIntent.SaveWebDavConfig(webDavPassword)) },
+                    onClick = { emit(BackupUiIntent.SaveWebDavConfig) },
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -270,7 +245,7 @@ private fun WebDavConfigSection(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { emit(BackupUiIntent.TestWebDav(webDavPassword)) },
+                        onClick = { emit(BackupUiIntent.TestWebDav) },
                         enabled = enabled,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -283,7 +258,7 @@ private fun WebDavConfigSection(
                         )
                     }
                     OutlinedButton(
-                        onClick = { emit(BackupUiIntent.RefreshWebDav(webDavPassword)) },
+                        onClick = { emit(BackupUiIntent.RefreshWebDav) },
                         enabled = enabled,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -428,9 +403,9 @@ private fun BackupDialogSwitch(
         BackupDialogState.None -> Unit
         BackupDialogState.CreateLocal -> CreateLocalDialog(emit)
         BackupDialogState.EnterLocalRestorePassword -> LocalRestorePasswordDialog(emit)
-        BackupDialogState.UploadWebDav -> UploadWebDavDialog(state, emit)
-        is BackupDialogState.RestoreWebDav -> RemoteRestoreDialog(dialog, state, emit)
-        is BackupDialogState.DeleteWebDav -> DeleteWebDavDialog(dialog, state, emit)
+        BackupDialogState.UploadWebDav -> UploadWebDavDialog(emit)
+        is BackupDialogState.RestoreWebDav -> RemoteRestoreDialog(dialog, emit)
+        is BackupDialogState.DeleteWebDav -> DeleteWebDavDialog(dialog, emit)
         is BackupDialogState.ConfirmRestore -> ConfirmRestoreDialog(dialog, emit)
     }
 }
@@ -500,14 +475,11 @@ private fun LocalRestorePasswordDialog(
 
 @Composable
 private fun UploadWebDavDialog(
-    state: BackupUiState.Normal,
     emit: BackupUiIntent.() -> Unit
 ) {
-    var webDavPassword by remember { mutableStateOf("") }
     var backupPassword by remember { mutableStateOf("") }
     var backupPasswordConfirmation by remember { mutableStateOf("") }
-    val canSubmit = (webDavPassword.isNotEmpty() || state.hasSavedWebDavPassword) &&
-        backupPassword.isNotEmpty() &&
+    val canSubmit = backupPassword.isNotEmpty() &&
         backupPassword == backupPasswordConfirmation
 
     AppConfirmDialog(
@@ -519,7 +491,6 @@ private fun UploadWebDavDialog(
         onConfirm = {
             emit(
                 BackupUiIntent.SubmitWebDavUpload(
-                    webDavPassword = webDavPassword,
                     backupPassword = backupPassword,
                     backupPasswordConfirmation = backupPasswordConfirmation
                 )
@@ -527,14 +498,6 @@ private fun UploadWebDavDialog(
         }
     ) {
         DialogForm {
-            SecretField(
-                value = webDavPassword,
-                onValueChange = { webDavPassword = it },
-                label = stringResource(R.string.backup_webdav_password),
-                helper = if (state.hasSavedWebDavPassword) {
-                    stringResource(R.string.backup_webdav_saved_password)
-                } else null
-            )
             SecretField(
                 value = backupPassword,
                 onValueChange = { backupPassword = it },
@@ -552,13 +515,10 @@ private fun UploadWebDavDialog(
 @Composable
 private fun RemoteRestoreDialog(
     dialogState: BackupDialogState.RestoreWebDav,
-    state: BackupUiState.Normal,
     emit: BackupUiIntent.() -> Unit
 ) {
-    var webDavPassword by remember { mutableStateOf("") }
     var backupPassword by remember { mutableStateOf("") }
-    val canSubmit = (webDavPassword.isNotEmpty() || state.hasSavedWebDavPassword) &&
-        backupPassword.isNotEmpty()
+    val canSubmit = backupPassword.isNotEmpty()
 
     AppConfirmDialog(
         onDismissRequest = { emit(BackupUiIntent.DismissDialog) },
@@ -571,12 +531,7 @@ private fun RemoteRestoreDialog(
         confirmText = stringResource(R.string.backup_remote_restore),
         confirmEnabled = canSubmit,
         onConfirm = {
-            emit(
-                BackupUiIntent.SubmitWebDavRestore(
-                    webDavPassword = webDavPassword,
-                    backupPassword = backupPassword
-                )
-            )
+            emit(BackupUiIntent.SubmitWebDavRestore(backupPassword = backupPassword))
         }
     ) {
         DialogForm {
@@ -585,14 +540,6 @@ private fun RemoteRestoreDialog(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
-            )
-            SecretField(
-                value = webDavPassword,
-                onValueChange = { webDavPassword = it },
-                label = stringResource(R.string.backup_webdav_password),
-                helper = if (state.hasSavedWebDavPassword) {
-                    stringResource(R.string.backup_webdav_saved_password)
-                } else null
             )
             SecretField(
                 value = backupPassword,
@@ -606,33 +553,15 @@ private fun RemoteRestoreDialog(
 @Composable
 private fun DeleteWebDavDialog(
     dialogState: BackupDialogState.DeleteWebDav,
-    state: BackupUiState.Normal,
     emit: BackupUiIntent.() -> Unit
 ) {
-    var webDavPassword by remember { mutableStateOf("") }
-    val canSubmit = webDavPassword.isNotEmpty() || state.hasSavedWebDavPassword
-
     AppDangerDialog(
         onDismissRequest = { emit(BackupUiIntent.DismissDialog) },
         title = stringResource(R.string.backup_delete_remote_title),
         message = stringResource(R.string.backup_delete_remote_message, dialogState.itemName),
         modifier = Modifier.imePadding(),
-        confirmEnabled = canSubmit,
-        onConfirm = {
-            emit(BackupUiIntent.ConfirmWebDavDelete(webDavPassword = webDavPassword))
-        }
-    ) {
-        DialogForm {
-            SecretField(
-                value = webDavPassword,
-                onValueChange = { webDavPassword = it },
-                label = stringResource(R.string.backup_webdav_password),
-                helper = if (state.hasSavedWebDavPassword) {
-                    stringResource(R.string.backup_webdav_saved_password)
-                } else null
-            )
-        }
-    }
+        onConfirm = { emit(BackupUiIntent.ConfirmWebDavDelete) }
+    )
 }
 
 @Composable
