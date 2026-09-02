@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +65,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpFormTextField
+import me.kafuuneko.rpclient.ui.widgets.RpNavigationChevron
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
@@ -119,6 +121,7 @@ private fun BackupNormalView(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             LocalBackupSection(state, enabled, emit)
+            ChatDataSection(state, enabled, emit)
             WebDavConfigSection(state, enabled, emit)
             RemoteBackupSection(state, enabled, emit)
         }
@@ -171,6 +174,42 @@ private fun LocalBackupSection(
                 icon = Icons.Rounded.FileDownload,
                 enabled = enabled,
                 onClick = { emit(BackupUiIntent.RestoreLocalClick) }
+            )
+        }
+    }
+}
+
+/** 聊天存档导入；与备份/恢复同属数据管理，因此与它们同页。 */
+@Composable
+private fun ChatDataSection(
+    state: BackupUiState.Normal,
+    enabled: Boolean,
+    emit: BackupUiIntent.() -> Unit
+) {
+    val isReading = state.isReadingChatArchive
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        RpSectionHeader(title = stringResource(R.string.backup_chat_data_section))
+        RpSettingsGroup {
+            RpSettingsTile(
+                icon = Icons.Rounded.FileDownload,
+                title = stringResource(R.string.import_chat),
+                subtitle = if (isReading) {
+                    stringResource(R.string.reading_chat_file)
+                } else {
+                    stringResource(R.string.import_chat_desc)
+                },
+                enabled = enabled && !isReading,
+                onClick = { emit(BackupUiIntent.ImportChatClick) },
+                trailing = {
+                    if (isReading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        RpNavigationChevron()
+                    }
+                }
             )
         }
     }
@@ -407,6 +446,8 @@ private fun BackupDialogSwitch(
         is BackupDialogState.RestoreWebDav -> RemoteRestoreDialog(dialog, emit)
         is BackupDialogState.DeleteWebDav -> DeleteWebDavDialog(dialog, emit)
         is BackupDialogState.ConfirmRestore -> ConfirmRestoreDialog(dialog, emit)
+        is BackupDialogState.ImportChatCharacterSelection ->
+            ImportChatCharacterDialog(dialog, emit)
     }
 }
 

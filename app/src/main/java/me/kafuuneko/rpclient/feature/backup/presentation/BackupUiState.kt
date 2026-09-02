@@ -15,6 +15,7 @@ sealed class BackupUiState {
         val lastSuccessfulBackupAt: Long,
         val remoteBackups: List<RemoteBackupItem> = emptyList(),
         val operation: BackupOperationState? = null,
+        val isReadingChatArchive: Boolean = false,
         val dialogState: BackupDialogState = BackupDialogState.None
     ) : BackupUiState()
 
@@ -53,4 +54,23 @@ sealed class BackupDialogState {
         val recordCount: Long,
         val fileCount: Long
     ) : BackupDialogState()
+
+    /** 聊天存档导入时选择归属角色。 */
+    data class ImportChatCharacterSelection(
+        val title: String,
+        val sourceCharacterName: String,
+        val messageCount: Int,
+        val query: String,
+        val characters: List<ImportCharacterItem>,
+        val visibleCharacters: List<ImportCharacterItem>,
+        val selectedCharacterId: Long?,
+        val isImporting: Boolean = false
+    ) : BackupDialogState()
 }
+
+/** 导入弹窗中的候选角色条目。 */
+data class ImportCharacterItem(
+    val id: Long,
+    val name: String,
+    val details: String
+)

@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 
 /** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
 sealed class MainUiState {
@@ -30,16 +29,11 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
 ): MainUiState.Normal {
     return copy(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
-        settingsState = settingsState.copy(
-            chatDataManagementState = this.settingsState.chatDataManagementState
-        )
+        settingsState = settingsState
     )
 }
 
-internal fun MainUiState.Normal.canOpenDialog(): Boolean {
-    return dialogState == MainDialogState.None &&
-        settingsState.chatDataManagementState == MainChatDataManagementState.Idle
-}
+internal fun MainUiState.Normal.canOpenDialog(): Boolean = dialogState == MainDialogState.None
 
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
@@ -60,16 +54,6 @@ sealed class MainDialogState {
         val draftText: String
     ) : MainDialogState()
 
-    data class ImportChatCharacterSelection(
-        val title: String,
-        val sourceCharacterName: String,
-        val messageCount: Int,
-        val query: String,
-        val characters: List<MainImportCharacterItem>,
-        val visibleCharacters: List<MainImportCharacterItem>,
-        val selectedCharacterId: Long?,
-        val isImporting: Boolean = false
-    ) : MainDialogState()
 }
 
 /** 首页底部导航对应的一级页面。 */

@@ -6,7 +6,9 @@ data class MainProviderItem(
     val name: String,
     val baseUrl: String,
     val model: String,
-    val isEnabled: Boolean
+    val isEnabled: Boolean,
+    /** 上下文预算是最影响体感的设置，但它只存在于模型编辑页；带到首页让它至少可见。 */
+    val contextTokens: Int
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && model.isNotBlank()

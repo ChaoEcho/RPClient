@@ -6,4 +6,5 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 sealed class BackupViewEvent : IViewEvent {
     data class CreateLocalBackupDocument(val fileName: String) : BackupViewEvent()
     data object OpenLocalBackupDocument : BackupViewEvent()
+    data object OpenChatArchiveDocument : BackupViewEvent()
 }

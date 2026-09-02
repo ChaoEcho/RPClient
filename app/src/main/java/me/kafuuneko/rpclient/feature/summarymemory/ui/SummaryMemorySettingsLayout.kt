@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -47,7 +48,10 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpNavigationChevron
 import me.kafuuneko.rpclient.ui.widgets.RpNumberSettingRow
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpGroupedTilePadding
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -241,6 +245,23 @@ private fun SummaryMemorySettingsNormal(
                             }
                         }
                     }
+                }
+            }
+
+            // 摘要提示词模板与其它模板同住提示词预设页，这里只给入口，不复制一份编辑器。
+            item {
+                RpSettingsGroup {
+                    RpSettingsTile(
+                        icon = Icons.Rounded.Compress,
+                        iconColor = Color(0xFF14B8A6),
+                        iconContainerColor = Color(0xFF14B8A6).copy(alpha = 0.14f),
+                        title = stringResource(R.string.summary_prompt_templates_title),
+                        subtitle = stringResource(R.string.summary_prompt_templates_desc),
+                        onClick = {
+                            SummaryMemorySettingsUiIntent.OpenSummaryPromptTemplates.emit()
+                        },
+                        trailing = { RpNavigationChevron() }
+                    )
                 }
             }
         }

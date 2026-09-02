@@ -6,5 +6,4 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 sealed class MainViewEvent : IViewEvent {
     data object OpenUserAvatarPicker : MainViewEvent()
 
-    data object OpenChatImporter : MainViewEvent()
 }

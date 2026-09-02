@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.main.ui
+package me.kafuuneko.rpclient.feature.backup.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -14,21 +14,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Search
-import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
-import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,67 +31,26 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
-import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
-import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
-import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.feature.backup.presentation.BackupDialogState
+import me.kafuuneko.rpclient.feature.backup.presentation.BackupUiIntent
+import me.kafuuneko.rpclient.feature.backup.presentation.ImportCharacterItem
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
-import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
-
-/** 设置页中的对话文件导入入口。 */
-@Composable
-internal fun ChatDataManagementPanel(
-    state: MainChatDataManagementState,
-    emit: MainUiIntent.() -> Unit
-) {
-    val isReading = state == MainChatDataManagementState.Reading
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.FileDownload,
-            title = stringResource(R.string.import_chat),
-            subtitle = if (isReading) {
-                stringResource(R.string.reading_chat_file)
-            } else {
-                stringResource(R.string.import_chat_desc)
-            },
-            enabled = !isReading,
-            onClick = { MainUiIntent.ImportChatClick.emit() },
-            trailing = {
-                if (isReading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        )
-    }
-}
 
 /** 解析成功后强制用户确认目标角色卡的导入对话框。 */
 @Composable
 internal fun ImportChatCharacterDialog(
-    state: MainDialogState.ImportChatCharacterSelection,
-    emit: MainUiIntent.() -> Unit
+    state: BackupDialogState.ImportChatCharacterSelection,
+    emit: BackupUiIntent.() -> Unit
 ) {
     val canDismiss = !state.isImporting
     AppDialogScaffold(
         onDismissRequest = {
-            if (canDismiss) MainUiIntent.DismissDialog.emit()
+            if (canDismiss) BackupUiIntent.DismissDialog.emit()
         },
         title = stringResource(R.string.select_import_character_title),
         badgeIcon = Icons.Rounded.FileDownload,
@@ -107,9 +61,9 @@ internal fun ImportChatCharacterDialog(
         dismissText = stringResource(R.string.cancel),
         confirmEnabled = state.selectedCharacterId != null && !state.isImporting,
         isConfirmLoading = state.isImporting,
-        onConfirm = { MainUiIntent.ConfirmImportChat.emit() },
+        onConfirm = { BackupUiIntent.ConfirmImportChat.emit() },
         onDismiss = {
-            if (canDismiss) MainUiIntent.DismissDialog.emit()
+            if (canDismiss) BackupUiIntent.DismissDialog.emit()
         }
     ) {
         ImportCharacterSelectionContent(state, emit)
@@ -118,8 +72,8 @@ internal fun ImportChatCharacterDialog(
 
 @Composable
 private fun ImportCharacterSelectionContent(
-    state: MainDialogState.ImportChatCharacterSelection,
-    emit: MainUiIntent.() -> Unit
+    state: BackupDialogState.ImportChatCharacterSelection,
+    emit: BackupUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ImportPreview(state)
@@ -133,7 +87,7 @@ private fun ImportCharacterSelectionContent(
         }
         OutlinedTextField(
             value = state.query,
-            onValueChange = { MainUiIntent.ChangeImportCharacterQuery(it).emit() },
+            onValueChange = { BackupUiIntent.ChangeImportCharacterQuery(it).emit() },
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isImporting,
             placeholder = {
@@ -167,7 +121,7 @@ private fun ImportCharacterSelectionContent(
                         selected = character.id == state.selectedCharacterId,
                         enabled = !state.isImporting,
                         onClick = {
-                            MainUiIntent.SelectImportCharacter(character.id).emit()
+                            BackupUiIntent.SelectImportCharacter(character.id).emit()
                         }
                     )
                 }
@@ -177,7 +131,7 @@ private fun ImportCharacterSelectionContent(
 }
 
 @Composable
-private fun ImportPreview(state: MainDialogState.ImportChatCharacterSelection) {
+private fun ImportPreview(state: BackupDialogState.ImportChatCharacterSelection) {
     val sourceCharacterName = if (state.sourceCharacterName.isBlank()) {
         stringResource(R.string.unknown_character)
     } else {
@@ -212,7 +166,7 @@ private fun ImportPreview(state: MainDialogState.ImportChatCharacterSelection) {
 
 @Composable
 private fun ImportCharacterItem(
-    character: MainImportCharacterItem,
+    character: ImportCharacterItem,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit
@@ -257,28 +211,5 @@ private fun ImportCharacterItem(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390)
-@Composable
-private fun ImportChatCharacterDialogPreview() {
-    val characters = listOf(
-        MainImportCharacterItem(1L, "Seraphina", "Example creator"),
-        MainImportCharacterItem(2L, "Rowan", "An impulsive explorer")
-    )
-    AppTheme(dynamicColor = false) {
-        ImportChatCharacterDialog(
-            state = MainDialogState.ImportChatCharacterSelection(
-                title = "Imported conversation",
-                sourceCharacterName = "Seraphina",
-                messageCount = 42,
-                query = "",
-                characters = characters,
-                visibleCharacters = characters,
-                selectedCharacterId = 1L
-            ),
-            emit = {}
-        )
     }
 }

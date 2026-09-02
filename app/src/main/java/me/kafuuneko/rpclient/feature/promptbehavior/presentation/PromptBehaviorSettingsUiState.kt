@@ -9,6 +9,9 @@ sealed class PromptBehaviorSettingsUiState {
         val exampleDialogueBehavior: ExampleDialogueBehavior,
         val includeThinkInContext: Boolean,
         val contextTrimmingAlert: Boolean,
-        val streamEnabled: Boolean
+        val streamEnabled: Boolean,
+        val worldInfoBudgetPercent: Int,
+        val worldInfoBudgetCap: Int,
+        val worldInfoOverflowAlert: Boolean
     ) : PromptBehaviorSettingsUiState()
 }

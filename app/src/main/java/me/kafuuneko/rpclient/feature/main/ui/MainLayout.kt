@@ -126,12 +126,10 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
-import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
-import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -144,7 +142,6 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 import me.kafuuneko.rpclient.feature.promptbehavior.ui.titleRes
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.model.TokenPreset
@@ -362,11 +359,6 @@ private fun DialogSwitch(
                 MainUiIntent.ChangeUserDescriptionEditorDraft(it).emit()
             },
             onConfirm = { MainUiIntent.ConfirmUserDescriptionEditor.emit() }
-        )
-
-        is MainDialogState.ImportChatCharacterSelection -> ImportChatCharacterDialog(
-            state = dialogState,
-            emit = emit
         )
     }
 }
@@ -1381,7 +1373,7 @@ private fun SettingsPage(
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
         item {
-            DataAndDevelopmentPanel(state.chatDataManagementState, emit)
+            DataAndDevelopmentPanel(emit)
         }
     }
 }
@@ -1612,12 +1604,19 @@ private fun ModelConfigPanel(
         MainProviderSettingsState.Empty -> stringResource(R.string.no_model_configured)
         is MainProviderSettingsState.Available -> {
             val current = providerState.providers.firstOrNull { it.id == providerState.selectedProviderId }
-            when {
-                current == null -> stringResource(R.string.no_model_configured)
-                current.model.isNotBlank() && current.name.isNotBlank() && current.name != current.model -> "${current.name} · ${current.model}"
+            val name = when {
+                current == null -> null
+                current.model.isNotBlank() && current.name.isNotBlank() && current.name != current.model ->
+                    "${current.name} · ${current.model}"
                 current.name.isNotBlank() -> current.name
                 current.model.isNotBlank() -> current.model
-                else -> stringResource(R.string.no_model_configured)
+                else -> null
+            }
+            if (name == null) {
+                stringResource(R.string.no_model_configured)
+            } else {
+                // 上下文预算藏在「模型配置 → 对话模型 → 生成参数」里，这里顺带露出当前值。
+                "$name · ${stringResource(R.string.context_tokens)} ${current?.contextTokens}"
             }
         }
     }
@@ -1691,19 +1690,12 @@ private fun PromptAndContextPanel(
     state: MainSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    val postProcessingMode = when (val postState = state.promptBehaviorState.providerPostProcessingState) {
-        is MainProviderPostProcessingState.Available -> postState.mode
-        MainProviderPostProcessingState.Unavailable -> PromptPostProcessingMode.Strict
-    }
-    val postProcessingTitle = stringResource(postProcessingMode.titleRes())
     val exampleTitle = stringResource(state.promptBehaviorState.exampleDialogueBehavior.titleRes())
     val streamingPart = if (state.promptBehaviorState.streamEnabled) {
         " · " + stringResource(R.string.streaming_response)
     } else {
         ""
     }
-    val promptBehaviorSubtitle = "$postProcessingTitle · $exampleTitle$streamingPart"
-
     val capString = if (state.worldInfoBudgetState.budgetCap > 0) {
         state.worldInfoBudgetState.budgetCap.toString()
     } else {
@@ -1714,6 +1706,8 @@ private fun PromptAndContextPanel(
         state.worldInfoBudgetState.budgetPercent,
         capString
     )
+    val promptBehaviorSubtitle =
+        "$exampleTitle$streamingPart · $worldInfoBudgetSubtitle"
 
     val summarySubtitle = if (state.summaryState.autoSummaryEnabled) {
         stringResource(
@@ -1750,18 +1744,6 @@ private fun PromptAndContextPanel(
         )
         RpSettingsDivider()
         RpSettingsTile(
-            icon = Icons.Rounded.Book,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
-            title = stringResource(R.string.world_info_budget_title),
-            subtitle = worldInfoBudgetSubtitle,
-            onClick = { MainUiIntent.OpenWorldInfoBudgetSettings.emit() },
-            trailing = {
-                RpNavigationChevron()
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
             icon = Icons.Rounded.Memory,
             iconColor = Color(0xFFF59E0B),
             iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
@@ -1777,70 +1759,43 @@ private fun PromptAndContextPanel(
 
 @Composable
 private fun DataAndDevelopmentPanel(
-    chatDataManagementState: MainChatDataManagementState,
     emit: MainUiIntent.() -> Unit
 ) {
-    val isReading = chatDataManagementState == MainChatDataManagementState.Reading
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.Backup,
-            iconColor = Color(0xFF0EA5E9),
-            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
-            title = stringResource(R.string.backup_title),
-            subtitle = stringResource(R.string.backup_entry_subtitle),
-            onClick = { MainUiIntent.OpenBackup.emit() },
-            trailing = {
-                RpNavigationChevron()
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.FileDownload,
-            iconColor = Color(0xFF3B82F6),
-            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
-            title = stringResource(R.string.import_chat),
-            subtitle = if (isReading) {
-                stringResource(R.string.reading_chat_file)
-            } else {
-                stringResource(R.string.import_chat_desc)
-            },
-            enabled = !isReading,
-            onClick = { MainUiIntent.ImportChatClick.emit() },
-            trailing = {
-                if (isReading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    RpNavigationChevron()
-                }
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.Code,
-            iconColor = Color(0xFFEF4444),
-            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
-            title = stringResource(R.string.developer_mode),
-            subtitle = stringResource(R.string.developer_mode_subtitle),
-            onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
-            trailing = {
-                RpNavigationChevron()
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.Info,
-            iconColor = MaterialTheme.colorScheme.primary,
-            iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-            title = stringResource(R.string.about),
-            subtitle = stringResource(R.string.about_desc),
-            onClick = { emit(MainUiIntent.OpenAbout) },
-            trailing = {
-                RpNavigationChevron()
-            }
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        RpSettingsGroup {
+            RpSettingsTile(
+                icon = Icons.Rounded.Backup,
+                iconColor = Color(0xFF0EA5E9),
+                iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+                title = stringResource(R.string.backup_title),
+                subtitle = stringResource(R.string.backup_entry_subtitle),
+                onClick = { MainUiIntent.OpenBackup.emit() },
+                trailing = { RpNavigationChevron() }
+            )
+            RpSettingsDivider()
+            RpSettingsTile(
+                icon = Icons.Rounded.Code,
+                iconColor = Color(0xFFEF4444),
+                iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
+                title = stringResource(R.string.developer_mode),
+                subtitle = stringResource(R.string.developer_mode_subtitle),
+                onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
+                trailing = { RpNavigationChevron() }
+            )
+        }
+
+        // 关于是应用信息，不属于数据管理，单独成组放在最后。
+        RpSettingsGroup {
+            RpSettingsTile(
+                icon = Icons.Rounded.Info,
+                iconColor = MaterialTheme.colorScheme.primary,
+                iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                title = stringResource(R.string.about),
+                subtitle = stringResource(R.string.about_desc),
+                onClick = { emit(MainUiIntent.OpenAbout) },
+                trailing = { RpNavigationChevron() }
+            )
+        }
     }
 }
 
@@ -1944,7 +1899,6 @@ private fun MainLayoutPreview() {
                     ),
                     providerState = MainProviderSettingsState.Empty,
                     promptBehaviorState = MainPromptBehaviorState(
-                        providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,
                         includeThinkInContext = false,
                         contextTrimmingAlert = true,
@@ -2001,14 +1955,12 @@ private fun MainSettingsLayoutPreview() {
                                 name = "DeepSeek V3",
                                 model = "deepseek-chat",
                                 baseUrl = "https://api.deepseek.com/v1",
-                                isEnabled = true
+                                isEnabled = true,
+                                contextTokens = 65536
                             )
                         ),
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
-                        providerPostProcessingState = MainProviderPostProcessingState.Available(
-                            mode = PromptPostProcessingMode.Strict
-                        ),
                         exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
                         includeThinkInContext = true,
                         contextTrimmingAlert = true,

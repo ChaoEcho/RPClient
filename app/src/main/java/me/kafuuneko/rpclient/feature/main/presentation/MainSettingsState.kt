@@ -13,8 +13,7 @@ data class MainSettingsState(
     val providerState: MainProviderSettingsState,
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
-    val summaryState: MainSummarySettingsState,
-    val chatDataManagementState: MainChatDataManagementState = MainChatDataManagementState.Idle
+    val summaryState: MainSummarySettingsState
 )
 
 /** 用户名称、描述和头像面板状态。 */
@@ -47,20 +46,11 @@ sealed class MainProviderSettingsState {
 
 /** Prompt 行为面板状态。 */
 data class MainPromptBehaviorState(
-    val providerPostProcessingState: MainProviderPostProcessingState,
     val exampleDialogueBehavior: ExampleDialogueBehavior,
     val includeThinkInContext: Boolean,
     val contextTrimmingAlert: Boolean,
     val streamEnabled: Boolean
 )
-
-/** 仅在存在当前模型配置时允许修改其 Prompt 后处理模式。 */
-sealed class MainProviderPostProcessingState {
-    data object Unavailable : MainProviderPostProcessingState()
-    data class Available(
-        val mode: PromptPostProcessingMode
-    ) : MainProviderPostProcessingState()
-}
 
 /** 世界书 Prompt 预算面板状态。 */
 data class MainWorldInfoBudgetState(
@@ -108,11 +98,5 @@ internal fun SummaryInjectionPosition.toMainSummaryInjectionState(
             role = role
         )
     }
-}
-
-/** 对话数据管理面板的文件读取状态。 */
-sealed class MainChatDataManagementState {
-    data object Idle : MainChatDataManagementState()
-    data object Reading : MainChatDataManagementState()
 }
 

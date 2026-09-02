@@ -350,6 +350,8 @@
     <string name="continue_generation_failed">Continue failed</string>
     <string name="impersonation_failed">User impersonation failed</string>
     <string name="no_unsummarized_messages">No unsummarized messages</string>
+    <string name="summary_prompt_templates_title">Summary prompt templates</string>
+    <string name="summary_prompt_templates_desc">Edit the summarize, group summarize, and injection templates in Prompt Presets</string>
     <string name="summary_updated">Summary updated</string>
     <string name="summary_already_running">A summary is already running</string>
     <string name="summary_budget_too_small">Context budget is too small to summarize; raise Context Tokens or lower Summary Response Tokens</string>
@@ -1190,6 +1192,7 @@
     <!-- Complete backup, restore, and WebDAV storage -->
     <string name="backup_title">Backup &amp; Restore</string>
     <string name="backup_entry_subtitle">Back up characters, chats, stories, model providers, and app settings</string>
+    <string name="backup_chat_data_section">Chat data</string>
     <string name="backup_local_section">Local backup</string>
     <string name="backup_create_full">Create full backup</string>
     <string name="backup_create_full_desc">Create an encrypted .rpbackup file containing all business data and settings</string>
@@ -1310,8 +1313,8 @@
     <string name="world_info_budget_summary">Context %1$d%% · Max %2$s Tokens</string>
     <string name="unlimited">Unlimited</string>
 
-    <string name="prompt_behavior_title">Request &amp; Dialogue Policy</string>
-    <string name="prompt_behavior_subtitle">Configure prompt post-processing, example dialogue, and streaming</string>
+    <string name="prompt_behavior_title">Context &amp; Request Policy</string>
+    <string name="prompt_behavior_subtitle">Example dialogue, context behaviour, streaming, and world book budget</string>
     <string name="world_info_budget_title">World Book Budget</string>
     <string name="world_info_budget_subtitle">Configure context token budget share and overflow alert</string>
     <string name="summary_memory_subtitle">Configure conversation auto-summary and memory injection</string>

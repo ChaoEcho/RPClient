@@ -15,7 +15,6 @@ import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.developer.DeveloperSettingsActivity
 import me.kafuuneko.rpclient.feature.promptbehavior.PromptBehaviorSettingsActivity
 import me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity
-import me.kafuuneko.rpclient.feature.worldinfobudget.WorldInfoBudgetSettingsActivity
 import me.kafuuneko.rpclient.feature.backup.BackupActivity
 import me.kafuuneko.rpclient.feature.imagegeneration.ImageGenerationSettingsActivity
 import me.kafuuneko.rpclient.feature.tts.TtsSettingsActivity
@@ -31,17 +30,14 @@ import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
-import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
-import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
@@ -68,9 +64,6 @@ import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.chat.ChatArchive
-import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
-import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.libs.chat.generation.isGenerating
@@ -123,14 +116,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mStoryRepository by inject<StoryRepository>()
     private val mFileRepository by inject<FileRepository>()
-    private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
     private val mContext by inject<Context>()
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
-    private var mPendingChatImport: ChatArchive? = null
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
-    private var mChatImportJob: Job? = null
     /** 首页观察 Application 级单聊生成状态的任务。 */
     private var mGenerationObserverJob: Job? = null
 
@@ -383,171 +373,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
-        if (importDialog?.isImporting == true) return
         val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
         if (deleteDialog?.isDeleting == true) return
         val renameDialog = uiState.dialogState as? MainDialogState.RenameItem
         if (renameDialog?.isSaving == true) return
-        if (importDialog != null) {
-            mPendingChatImport = null
-        }
         uiState.copy(dialogState = MainDialogState.None).setup()
-    }
-
-    /** 触发系统文件选择器以导入聊天存档文件。 */
-    @UiIntentObserver(MainUiIntent.ImportChatClick::class)
-    private fun onImportChatClick() {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (!uiState.canOpenDialog() || mChatImportJob?.isActive == true) return
-        MainViewEvent.OpenChatImporter.tryEmit()
-    }
-
-    /** 读取并解析导入的聊天存档 JSON 文件，匹配候选角色并弹出角色绑定弹窗。 */
-    @UiIntentObserver(MainUiIntent.ImportChatResult::class)
-    private fun onImportChatResult(intent: MainUiIntent.ImportChatResult) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (!uiState.canOpenDialog() || mChatImportJob?.isActive == true) return
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                chatDataManagementState = MainChatDataManagementState.Reading
-            )
-        ).setup()
-        mChatImportJob = viewModelScope.launch {
-            try {
-                // 在 IO 线程解析聊天存档并检索全量候选角色
-                val archive = mChatArchiveRepository.readImportFromUri(
-                    uri = intent.uri,
-                    fallbackUserName = AppModel.resolvedUserName
-                )
-                val characters = mCharacterRepository.getAllCharacters()
-                mPendingChatImport = archive
-                val current = getOrNull<MainUiState.Normal>() ?: return@launch
-                val items = characters.map { it.toImportCharacterItem() }
-                // 推荐最佳匹配角色并展示角色绑定选择弹窗
-                current.copy(
-                    settingsState = current.settingsState.copy(
-                        chatDataManagementState = MainChatDataManagementState.Idle
-                    ),
-                    dialogState = MainDialogState.ImportChatCharacterSelection(
-                        title = archive.title,
-                        sourceCharacterName = archive.characterNameHint,
-                        messageCount = archive.messages.size,
-                        query = "",
-                        characters = items,
-                        visibleCharacters = items,
-                        selectedCharacterId = ChatCharacterMatcher.suggestCharacterId(
-                            archive,
-                            characters
-                        )
-                    )
-                ).setup()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                mPendingChatImport = null
-                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
-                getOrNull<MainUiState.Normal>()?.let { current ->
-                    current.copy(
-                        settingsState = current.settingsState.copy(
-                            chatDataManagementState = MainChatDataManagementState.Idle
-                        )
-                    ).setup()
-                }
-            } finally {
-                mChatImportJob = null
-            }
-        }
-    }
-
-    /** 过滤导入角色绑定弹窗中的候选角色列表。 */
-    @UiIntentObserver(MainUiIntent.ChangeImportCharacterQuery::class)
-    private fun onChangeImportCharacterQuery(
-        intent: MainUiIntent.ChangeImportCharacterQuery
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting) return
-        val query = intent.value.trim()
-        val visible = if (query.isBlank()) {
-            dialog.characters
-        } else {
-            dialog.characters.filter { item ->
-                item.name.contains(query, ignoreCase = true) ||
-                    item.details.contains(query, ignoreCase = true)
-            }
-        }
-        uiState.copy(
-            dialogState = dialog.copy(
-                query = intent.value,
-                visibleCharacters = visible
-            )
-        ).setup()
-    }
-
-    /** 选择导入聊天记录所归属的目标角色。 */
-    @UiIntentObserver(MainUiIntent.SelectImportCharacter::class)
-    private fun onSelectImportCharacter(intent: MainUiIntent.SelectImportCharacter) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
-        uiState.copy(
-            dialogState = dialog.copy(selectedCharacterId = intent.characterId)
-        ).setup()
-    }
-
-    /** 确认将暂存的聊天存档与选定角色绑定并原子事务落库，导入成功后立即进入聊天页。 */
-    @UiIntentObserver(MainUiIntent.ConfirmImportChat::class)
-    private fun onConfirmImportChat() {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        val characterId = dialog.selectedCharacterId ?: return
-        val archive = mPendingChatImport ?: return
-        if (dialog.isImporting || mChatImportJob?.isActive == true) return
-        uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
-        mChatImportJob = viewModelScope.launch {
-            try {
-                // 在 IO 线程事务保存会话与全量导入消息
-                val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
-                mPendingChatImport = null
-                val homeState = buildHomeState()
-                val current = getOrNull<MainUiState.Normal>() ?: return@launch
-                // 更新首页会话列表并关闭导入弹窗
-                current.copy(
-                    homeState = homeState
-                        .preserveCollapsedGroupsFrom(current.homeState)
-                        .withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value),
-                    dialogState = if (
-                        current.dialogState is MainDialogState.ImportChatCharacterSelection
-                    ) {
-                        MainDialogState.None
-                    } else {
-                        current.dialogState
-                    }
-                ).setup()
-                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
-                // 导航进入新导入的会话页
-                AppViewEvent.StartActivity(
-                    activity = ChatActivity::class.java,
-                    extras = Bundle().apply {
-                        putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
-                    }
-                ).tryEmit()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
-                val current = getOrNull<MainUiState.Normal>() ?: return@launch
-                val currentDialog = current.dialogState
-                    as? MainDialogState.ImportChatCharacterSelection
-                    ?: return@launch
-                current.copy(
-                    dialogState = currentDialog.copy(isImporting = false)
-                ).setup()
-            } finally {
-                mChatImportJob = null
-            }
-        }
     }
 
     /** 切换主页底部导航标签页（首页 / 设置）。 */
@@ -742,13 +572,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenPromptBehaviorSettings() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(PromptBehaviorSettingsActivity::class.java).tryEmit()
-    }
-
-    /** 打开世界书预算设置页。 */
-    @UiIntentObserver(MainUiIntent.OpenWorldInfoBudgetSettings::class)
-    private fun onOpenWorldInfoBudgetSettings() {
-        if (!isStateOf<MainUiState.Normal>()) return
-        AppViewEvent.StartActivity(WorldInfoBudgetSettingsActivity::class.java).tryEmit()
     }
 
     /** 打开摘要记忆设置页。 */
@@ -958,9 +781,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
             promptBehaviorState = MainPromptBehaviorState(
-                providerPostProcessingState = selectedProvider?.let {
-                    MainProviderPostProcessingState.Available(it.postProcessingMode())
-                } ?: MainProviderPostProcessingState.Unavailable,
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
@@ -1008,11 +828,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
-    /** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
-    private fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
-        return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
-    }
-
     /** 将 LLMProvider 映射为主页供应商下拉列表展示项。 */
     private fun LLMProvider.toMainProviderItem(): MainProviderItem {
         return MainProviderItem(
@@ -1020,17 +835,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             name = name,
             baseUrl = baseUrl,
             model = model,
-            isEnabled = isEnabled
-        )
-    }
-
-    /** 将 Character 实体映射为导入角色绑定弹窗中的条目。 */
-    private fun Character.toImportCharacterItem(): MainImportCharacterItem {
-        return MainImportCharacterItem(
-            id = id,
-            name = name,
-            details = creator.takeIf { it.isNotBlank() }
-                ?: description.lineSequence().firstOrNull().orEmpty().take(80)
+            isEnabled = isEnabled,
+            contextTokens = contextTokens
         )
     }
 

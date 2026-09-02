@@ -27,7 +27,10 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
             exampleDialogueBehavior = exampleBehavior,
             includeThinkInContext = AppModel.includeThinkInContext,
             contextTrimmingAlert = AppModel.contextTrimmingAlert,
-            streamEnabled = AppModel.streamEnabled
+            streamEnabled = AppModel.streamEnabled,
+            worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent,
+            worldInfoBudgetCap = AppModel.worldInfoBudgetCap,
+            worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert
         ).setup()
     }
 
@@ -65,4 +68,40 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
         AppModel.streamEnabled = intent.enabled
         state.copy(streamEnabled = intent.enabled).setup()
     }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetPercent::class)
+    private fun onChangeWorldInfoBudgetPercent(
+        intent: PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetPercent
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        val clamped = intent.percent.coerceIn(
+            WORLD_INFO_BUDGET_MIN_PERCENT,
+            WORLD_INFO_BUDGET_MAX_PERCENT
+        )
+        AppModel.worldInfoBudgetPercent = clamped
+        state.copy(worldInfoBudgetPercent = clamped).setup()
+    }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetCap::class)
+    private fun onChangeWorldInfoBudgetCap(
+        intent: PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetCap
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        val cap = intent.cap.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        AppModel.worldInfoBudgetCap = cap
+        state.copy(worldInfoBudgetCap = cap).setup()
+    }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ToggleWorldInfoOverflowAlert::class)
+    private fun onToggleWorldInfoOverflowAlert(
+        intent: PromptBehaviorSettingsUiIntent.ToggleWorldInfoOverflowAlert
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        AppModel.worldInfoOverflowAlert = intent.enabled
+        state.copy(worldInfoOverflowAlert = intent.enabled).setup()
+    }
 }
+
+/** 世界书预算占上下文的比例范围；低于下限世界书基本失效，高于上限会挤掉对话历史。 */
+private const val WORLD_INFO_BUDGET_MIN_PERCENT = 5
+private const val WORLD_INFO_BUDGET_MAX_PERCENT = 80

@@ -349,6 +349,8 @@
     <string name="continue_generation_failed">续写失败</string>
     <string name="impersonation_failed">扮演用户生成失败</string>
     <string name="no_unsummarized_messages">没有未摘要的消息</string>
+    <string name="summary_prompt_templates_title">摘要提示词模板</string>
+    <string name="summary_prompt_templates_desc">在提示词预设中编辑摘要、群聊摘要与注入模板</string>
     <string name="summary_updated">摘要已更新</string>
     <string name="summary_already_running">已有摘要任务正在执行</string>
     <string name="summary_budget_too_small">上下文预算太小，无法摘要；请调高上下文 Token 或调低摘要回复 Token</string>
@@ -1185,6 +1187,7 @@
     <!-- 完整备份、恢复与 WebDAV 存储 -->
     <string name="backup_title">备份与恢复</string>
     <string name="backup_entry_subtitle">完整备份角色、聊天、故事、模型与应用设置</string>
+    <string name="backup_chat_data_section">聊天数据</string>
     <string name="backup_local_section">本地备份</string>
     <string name="backup_create_full">创建完整备份</string>
     <string name="backup_create_full_desc">创建包含全部业务数据与设置的加密 .rpbackup 文件</string>
@@ -1305,8 +1308,8 @@
     <string name="world_info_budget_summary">上下文 %1$d%% · 最大 %2$s Tokens</string>
     <string name="unlimited">不限制</string>
 
-    <string name="prompt_behavior_title">请求与对话策略</string>
-    <string name="prompt_behavior_subtitle">配置提示词后处理、示例对话策略与流式响应</string>
+    <string name="prompt_behavior_title">上下文与请求策略</string>
+    <string name="prompt_behavior_subtitle">示例对话、上下文行为、流式响应与世界书预算</string>
     <string name="world_info_budget_title">世界书预算</string>
     <string name="world_info_budget_subtitle">配置上下文词元预算占比与条目溢出警报</string>
     <string name="summary_memory_subtitle">配置长对话自动总结策略与记忆注入规则</string>

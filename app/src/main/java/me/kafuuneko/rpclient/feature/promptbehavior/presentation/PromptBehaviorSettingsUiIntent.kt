@@ -9,4 +9,7 @@ sealed class PromptBehaviorSettingsUiIntent {
     data class ToggleIncludeThinkInContext(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
     data class ToggleContextTrimmingAlert(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
     data class ToggleStreamEnabled(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
+    data class ChangeWorldInfoBudgetPercent(val percent: Int) : PromptBehaviorSettingsUiIntent()
+    data class ChangeWorldInfoBudgetCap(val cap: String) : PromptBehaviorSettingsUiIntent()
+    data class ToggleWorldInfoOverflowAlert(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
 }

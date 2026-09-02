@@ -44,4 +44,11 @@ sealed class BackupUiIntent {
 
     data class DeleteWebDavClick(val item: RemoteBackupItem) : BackupUiIntent()
     data object ConfirmWebDavDelete : BackupUiIntent()
+
+    // 聊天存档导入：与备份/恢复同属「数据与系统」，共用本页面。
+    data object ImportChatClick : BackupUiIntent()
+    data class ImportChatResult(val uri: Uri?) : BackupUiIntent()
+    data class ChangeImportCharacterQuery(val value: String) : BackupUiIntent()
+    data class SelectImportCharacter(val characterId: Long) : BackupUiIntent()
+    data object ConfirmImportChat : BackupUiIntent()
 }
