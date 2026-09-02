@@ -179,6 +179,154 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
+    fun replyAwareHistoryIncludesNormalizedBoundedTargetPreview() {
+        val lyra = character(1, "Lyra")
+        val targetContent = "Original\nmessage\t" + "x".repeat(180)
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(
+                        source = GroupChatMessage.Source.Character,
+                        speaker = "Lyra",
+                        content = targetContent,
+                        id = 71L
+                    ),
+                    message(
+                        source = GroupChatMessage.Source.User,
+                        speaker = "Alex",
+                        content = "Why?",
+                        id = 72L,
+                        replyToMessageId = 71L
+                    )
+                ),
+                provider = provider()
+            )
+        )
+
+        val reply = result.request.messages.first { it.content.contains("replying to Lyra") }
+        val preview = reply.content
+            .substringAfter("[replying to Lyra: \"")
+            .substringBefore("\"]:")
+        assertTrue(reply.content.contains("Alex [replying to Lyra: \"Original message"))
+        assertFalse(preview.contains("\n"))
+        assertFalse(preview.contains("\t"))
+        assertEquals(120, preview.length)
+        assertTrue(preview.endsWith("…"))
+        assertTrue(reply.content.endsWith(": Why?"))
+    }
+
+    @Test
+    fun missingReplyTargetFallsBackToOrdinaryHistory() {
+        val lyra = character(1, "Lyra")
+        val result = GroupChatPromptBuilder().build(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(
+                        source = GroupChatMessage.Source.User,
+                        speaker = "Alex",
+                        content = "Why?",
+                        id = 72L,
+                        replyToMessageId = 999L
+                    )
+                ),
+                provider = provider()
+            )
+        )
+
+        assertTrue(result.messages.any { it.content == "Alex: Why?" })
+        assertFalse(result.messages.any { it.content.contains("replying to") })
+    }
+
+    @Test
+    fun regenerateInstructionIsInjectedAsTerminalUserControlWithInspectableSource() {
+        val lyra = character(1, "Lyra")
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.User, "Alex", "Question", id = 70L),
+                    message(GroupChatMessage.Source.Character, "Lyra", "Answer", id = 71L)
+                ),
+                provider = provider(),
+                generationMode = GroupChatGenerationMode.Regenerate,
+                regenerationInstruction = "语气强硬一些，但不要直接吵起来。"
+            )
+        )
+
+        val request = result.request
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+        assertTrue(request.messages.last().content.contains("【本次重生成要求】"))
+        assertTrue(request.messages.last().content.contains("语气强硬一些，但不要直接吵起来。"))
+        assertTrue(request.messages.last().content.contains("仅自然执行该要求"))
+        assertTrue(
+            result.inspection.items.last().sources.any {
+                it.kind == PromptSourceKind.RegenerationInstruction
+            }
+        )
+    }
+
+    @Test
+    fun ordinaryRegenerateDoesNotInjectRegenerationInstruction() {
+        val lyra = character(1, "Lyra")
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.Character, "Lyra", "Answer", id = 71L)
+                ),
+                provider = provider(),
+                generationMode = GroupChatGenerationMode.Regenerate
+            )
+        )
+
+        val content = result.request.messages.joinToString("\n") { it.content }
+        assertFalse(content.contains("本次重生成要求"))
+        assertFalse(
+            result.inspection.items.any { item ->
+                item.sources.any { it.kind == PromptSourceKind.RegenerationInstruction }
+            }
+        )
+    }
+
+    @Test
     fun promptKeepsHistoricalSpeakersAndEndsHistoryWithGroupNudge() {
         val lyra = character(1, "Lyra")
         val mina = character(2, "Mina")
@@ -693,15 +841,19 @@ class GroupChatPromptBuilderTest {
     private fun message(
         source: GroupChatMessage.Source,
         speaker: String,
-        content: String
+        content: String,
+        id: Long = 0L,
+        replyToMessageId: Long? = null
     ): GroupChatMessage {
         return GroupChatMessage(
+            id = id,
             sessionId = 1,
             createTime = 1,
             source = source,
             content = content,
             speakerCharacterId = null,
-            speakerNameSnapshot = speaker
+            speakerNameSnapshot = speaker,
+            replyToMessageId = replyToMessageId
         )
     }
 

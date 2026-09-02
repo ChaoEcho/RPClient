@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class GroupChatSpeakerSelectorTest {
@@ -75,6 +76,180 @@ class GroupChatSpeakerSelectorTest {
         )
 
         assertEquals(true, selected.any { it.character.id == 2L })
+    }
+
+    @Test
+    fun naturalStrategyRequiresAtAndTheCompleteCharacterNameForStrongMention() {
+        val members = listOf(
+            member(1, "Lyra", order = 0, talkativeness = 0.0),
+            member(2, "Mina", order = 1, talkativeness = 1.0)
+        )
+        val session = session(
+            GroupChatSession.ActivationStrategy.Natural,
+            naturalMaxSpeakers = 1
+        )
+
+        val partialMention = selector.select(
+            session = session,
+            members = members,
+            messages = emptyList(),
+            activationText = "@Lyr, check the archive.",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(32)
+        )
+        val fullMention = selector.select(
+            session = session,
+            members = members,
+            messages = emptyList(),
+            activationText = "@Lyra, check the archive.",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(33)
+        )
+
+        assertFalse(partialMention.any { it.character.id == 1L })
+        assertEquals(true, fullMention.any { it.character.id == 1L })
+    }
+
+    @Test
+    fun naturalStrategyRecognizesCompleteCjkAndMultiWordAtMentions() {
+        val members = listOf(
+            member(1, "小洛", order = 0, talkativeness = 0.0),
+            member(2, "Misaka Mikoto", order = 1, talkativeness = 0.0),
+            member(3, "Rowan", order = 2, talkativeness = 1.0)
+        )
+
+        val selected = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = 1
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "请 @小洛 和 @Misaka Mikoto 一起查看。",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(34)
+        )
+
+        assertEquals(listOf(1L, 2L), selected.map { it.character.id })
+    }
+
+    @Test
+    fun naturalStrategyKeepsExplicitSpeakersAndCapsTotalSelection() {
+        val members = listOf(
+            member(1, "Lyra", order = 0, talkativeness = 1.0),
+            member(2, "Mina", order = 1, talkativeness = 1.0),
+            member(3, "Rowan", order = 2, talkativeness = 1.0),
+            member(4, "Sora", order = 3, talkativeness = 1.0)
+        )
+
+        val automatic = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = 2
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "Let's discuss this.",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(35)
+        )
+        val explicit = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = 1
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "@Lyra @Mina @Rowan",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(36)
+        )
+
+        assertEquals(2, automatic.size)
+        assertEquals(listOf(1L, 2L, 3L), explicit.map { it.character.id })
+    }
+
+    @Test
+    fun naturalStrategyNormalizesSpeakerLimitBoundaries() {
+        val members = listOf(
+            member(1, "Lyra", order = 0, talkativeness = 1.0),
+            member(2, "Mina", order = 1, talkativeness = 1.0),
+            member(3, "Rowan", order = 2, talkativeness = 1.0),
+            member(4, "Sora", order = 3, talkativeness = 1.0)
+        )
+
+        fun selectedCount(limit: Int): Int = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = limit
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "Let's discuss this.",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(41)
+        ).size
+
+        assertEquals(2, selectedCount(0))
+        assertEquals(2, selectedCount(99))
+        assertEquals(3, selectedCount(3))
+        assertEquals(4, selectedCount(-1))
+    }
+
+    @Test
+    fun naturalStrategyPreservesReplyTargetBeyondAutomaticCap() {
+        val members = listOf(
+            member(1, "Lyra", order = 0, talkativeness = 0.0),
+            member(2, "Mina", order = 1, talkativeness = 1.0)
+        )
+
+        val selected = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = 1
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "A question for the group.",
+            isUserInput = true,
+            manualCharacterId = null,
+            explicitCharacterIds = setOf(1L),
+            random = Random(37)
+        )
+
+        assertEquals(listOf(1L), selected.map { it.character.id })
+    }
+
+    @Test
+    fun naturalStrategyUsesRemainingCapacityAfterExplicitTarget() {
+        val members = listOf(
+            member(1, "Lyra", order = 0, talkativeness = 0.0),
+            member(2, "Mina", order = 1, talkativeness = 1.0),
+            member(3, "Rowan", order = 2, talkativeness = 1.0)
+        )
+
+        val selected = selector.select(
+            session = session(
+                GroupChatSession.ActivationStrategy.Natural,
+                naturalMaxSpeakers = 2
+            ),
+            members = members,
+            messages = emptyList(),
+            activationText = "A question for the group.",
+            isUserInput = true,
+            manualCharacterId = null,
+            explicitCharacterIds = setOf(1L),
+            random = Random(40)
+        )
+
+        assertEquals(2, selected.size)
+        assertEquals(1L, selected.first().character.id)
     }
 
     @Test
@@ -159,6 +334,51 @@ class GroupChatSpeakerSelectorTest {
     }
 
     @Test
+    fun manualStrategyIgnoresExplicitTargets() {
+        val members = listOf(
+            member(1, "Lyra", order = 0),
+            member(2, "Mina", order = 1)
+        )
+
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Manual),
+            members = members,
+            messages = emptyList(),
+            activationText = "@Mina",
+            isUserInput = true,
+            manualCharacterId = 1L,
+            explicitCharacterIds = setOf(2L),
+            random = Random(38)
+        )
+
+        assertEquals(listOf(1L), selected.map { it.character.id })
+    }
+
+    @Test
+    fun pooledStrategyPrioritizesExplicitReplyTargetBeforePoolAlgorithm() {
+        val members = listOf(
+            member(1, "Lyra", order = 0),
+            member(2, "Mina", order = 1)
+        )
+
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Pooled),
+            members = members,
+            messages = listOf(
+                message(GroupChatMessage.Source.User, null, "You"),
+                message(GroupChatMessage.Source.Character, 1, "Lyra")
+            ),
+            activationText = "No explicit text",
+            isUserInput = false,
+            manualCharacterId = null,
+            explicitCharacterIds = setOf(1L),
+            random = Random(39)
+        )
+
+        assertEquals(1L, selected.single().character.id)
+    }
+
+    @Test
     fun naturalStrategyAllowsUserToMentionPreviousSpeaker() {
         val members = listOf(
             member(1, "Lyra", order = 0),
@@ -204,7 +424,8 @@ class GroupChatSpeakerSelectorTest {
     }
 
     private fun session(
-        strategy: GroupChatSession.ActivationStrategy
+        strategy: GroupChatSession.ActivationStrategy,
+        naturalMaxSpeakers: Int = 2
     ): GroupChatSession {
         return GroupChatSession(
             id = 1,
@@ -213,7 +434,8 @@ class GroupChatSpeakerSelectorTest {
             latestTime = 1,
             userName = "You",
             userDescription = "",
-            activationStrategy = strategy
+            activationStrategy = strategy,
+            naturalMaxSpeakers = naturalMaxSpeakers
         )
     }
 

@@ -836,6 +836,7 @@
     <string name="prompt_source_post_history">Post-History Instructions</string>
     <string name="prompt_source_continue">Continue Nudge</string>
     <string name="prompt_source_impersonation">Impersonation Nudge</string>
+    <string name="prompt_source_regeneration_instruction">Regeneration Instruction</string>
     <string name="prompt_source_group_identity">Group Identity</string>
     <string name="prompt_source_character_card">Character Card</string>
     <string name="prompt_source_group_nudge">Group Nudge</string>
@@ -1315,4 +1316,14 @@
 
     <string name="image_generation_params_section">Generation Parameters</string>
     <string name="image_prompt_model_section">Prompt Model</string>
+    <string name="reply">Reply</string>
+    <string name="replying_to">Replying to %1$s</string>
+    <string name="regenerate_with_instruction">Regenerate with instruction</string>
+    <string name="guided_regenerate_hint">e.g. Be more assertive, but don\'t start a fight</string>
+    <string name="group_chat_natural_max_speakers">Max speakers per turn</string>
+    <string name="group_chat_natural_speakers_all">All</string>
+    <string name="group_chat_natural_speakers_count">%1$d</string>
+    <string name="group_chat_auto_mode_rounds">Auto continue rounds</string>
+    <string name="group_chat_auto_mode_rounds_continuous">Continuous</string>
+    <string name="group_chat_auto_mode_rounds_count">%1$d</string>
 </resources>

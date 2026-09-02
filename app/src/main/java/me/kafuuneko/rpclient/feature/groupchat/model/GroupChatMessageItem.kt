@@ -9,6 +9,7 @@ data class GroupChatMessageItem(
     val id: Long,
     val source: GroupChatMessageSource,
     val speakerName: String,
+    val speakerCharacterId: Long? = null,
     val content: String,
     val parts: List<MessageContentPart> = content.toMessageContentParts(id.toString()),
     val time: String,

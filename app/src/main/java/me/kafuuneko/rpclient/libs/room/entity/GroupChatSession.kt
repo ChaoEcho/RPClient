@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -49,6 +50,10 @@ data class GroupChatSession(
     val autoModeEnabled: Boolean = false,
     // 是否从单个角色的输出中裁剪其他成员的发言前缀。
     val trimOtherSpeakers: Boolean = true,
+    // Natural 模式每轮发言总人数上限；显式目标超限时全部保留，-1 表示全部。
+    @ColumnInfo(defaultValue = "2") val naturalMaxSpeakers: Int = 2,
+    // Auto Mode 在初始批次后的最多自动续聊轮数；-1 表示持续。
+    @ColumnInfo(defaultValue = "2") val autoModeMaxRounds: Int = 2,
     // 是否仅暂停当前群聊的自动总结；手动总结不受影响。
     val autoSummaryPaused: Boolean = false
 ) {

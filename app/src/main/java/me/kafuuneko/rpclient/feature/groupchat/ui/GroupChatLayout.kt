@@ -49,9 +49,11 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.rounded.Reply
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -187,10 +189,23 @@ private fun GroupChatNormalView(
         bottomBar = {
             Composer(
                 draft = state.conversationState.inputDraft,
+                replyingMessage = state.conversationState.replyingMessage,
+                mentionSuggestions = mentionSuggestions(
+                    state.conversationState.inputDraft,
+                    state.members
+                ),
                 generating = generating,
                 onDraftChange = {
                     emitIntent(GroupChatUiIntent.ChangeInputDraft(it))
                 },
+                onMentionSelected = { name ->
+                    emitIntent(
+                        GroupChatUiIntent.ChangeInputDraft(
+                            replaceTrailingMention(state.conversationState.inputDraft, name)
+                        )
+                    )
+                },
+                onCancelReply = { emitIntent(GroupChatUiIntent.CancelReply) },
                 onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
                 onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
                 canContinue = canContinue,
@@ -218,6 +233,7 @@ private fun GroupChatNormalView(
             )
             MemberRail(
                 members = state.members,
+                strategy = state.activeActivationStrategy,
                 selectedSpeakerId = state.conversationState.selectedSpeakerId,
                 enabled = !generating,
                 onSelect = {
@@ -352,6 +368,31 @@ private fun GroupChatSettingsView(
                         }
                     }
                     Text(
+                        text = stringResource(state.activationStrategy.descriptionRes()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (state.activationStrategy == GroupChatActivationStrategy.Natural) {
+                        Text(
+                            text = stringResource(R.string.group_chat_natural_max_speakers),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1, 2, 3, -1).forEach { count ->
+                                FilterChip(
+                                    selected = state.naturalMaxSpeakers == count,
+                                    onClick = { emitIntent(GroupChatUiIntent.SelectNaturalMaxSpeakers(count)) },
+                                    label = {
+                                        Text(
+                                            if (count == -1) stringResource(R.string.group_chat_natural_speakers_all)
+                                            else stringResource(R.string.group_chat_natural_speakers_count, count)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    Text(
                         text = stringResource(R.string.group_chat_character_cards),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -401,6 +442,26 @@ private fun GroupChatSettingsView(
                             emitIntent(GroupChatUiIntent.ToggleAutoMode(it))
                         }
                     )
+                    if (state.autoModeEnabled) {
+                        Text(
+                            text = stringResource(R.string.group_chat_auto_mode_rounds),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1, 2, 3, -1).forEach { rounds ->
+                                FilterChip(
+                                    selected = state.autoModeMaxRounds == rounds,
+                                    onClick = { emitIntent(GroupChatUiIntent.SelectAutoModeMaxRounds(rounds)) },
+                                    label = {
+                                        Text(
+                                            if (rounds == -1) stringResource(R.string.group_chat_auto_mode_rounds_continuous)
+                                            else stringResource(R.string.group_chat_auto_mode_rounds_count, rounds)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_trim_other_speakers),
                         checked = state.trimOtherSpeakers,
@@ -949,6 +1010,7 @@ private fun GroupHeader(
 @Composable
 private fun MemberRail(
     members: List<GroupChatMemberItem>,
+    strategy: GroupChatActivationStrategy,
     selectedSpeakerId: Long?,
     enabled: Boolean,
     onSelect: (Long) -> Unit,
@@ -964,7 +1026,7 @@ private fun MemberRail(
         members.forEach { member ->
             MemberChip(
                 member = member,
-                selected = selectedSpeakerId == member.id,
+                selected = strategy == GroupChatActivationStrategy.Manual && selectedSpeakerId == member.id,
                 enabled = enabled,
                 onSelect = { onSelect(member.id) },
                 onToggleMuted = { onToggleMuted(member.id) }
@@ -1592,6 +1654,22 @@ private fun GroupMessageActions(
             )
             if (message.source == GroupChatMessageSource.Character) {
                 Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.Reply,
+                    contentDescription = stringResource(R.string.reply),
+                    modifier = actionModifier {
+                        emitIntent(GroupChatUiIntent.StartReply(message.id))
+                    },
+                    tint = iconColor
+                )
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = stringResource(R.string.regenerate_with_instruction),
+                    modifier = actionModifier {
+                        emitIntent(GroupChatUiIntent.OpenGuidedRegenerate(message.id))
+                    },
+                    tint = iconColor
+                )
+                Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = stringResource(R.string.regenerate),
                     modifier = actionModifier {
@@ -1615,8 +1693,12 @@ private fun GroupMessageActions(
 @Composable
 private fun Composer(
     draft: String,
+    replyingMessage: GroupChatMessageItem?,
+    mentionSuggestions: List<GroupChatMemberItem>,
     generating: Boolean,
     onDraftChange: (String) -> Unit,
+    onMentionSelected: (String) -> Unit,
+    onCancelReply: () -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
     canContinue: Boolean,
@@ -1630,94 +1712,112 @@ private fun Composer(
         label = "sendButtonColor"
     )
 
-    Surface(
-        tonalElevation = 5.dp,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
+    Surface(tonalElevation = 5.dp, shadowElevation = 8.dp) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.Bottom
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 52.dp, max = 140.dp),
-                enabled = !generating,
-                placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
-                shape = RoundedCornerShape(18.dp),
-                maxLines = 5,
-                leadingIcon = {
-                    Box {
-                        IconButton(
-                            onClick = { quickActionsExpanded = true },
-                            enabled = !generating
-                        ) {
-                            Icon(
-                                Icons.Rounded.AutoAwesome,
-                                contentDescription = stringResource(R.string.chat_settings_actions)
+            if (mentionSuggestions.isNotEmpty() && !generating) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    mentionSuggestions.forEach { member ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { onMentionSelected(member.name) },
+                            label = { Text("@${member.name}") }
+                        )
+                    }
+                }
+            }
+            replyingMessage?.let { target ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(vertical = 6.dp)) {
+                            Text(
+                                stringResource(R.string.replying_to, target.speakerName),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Text(
+                                target.content.replace("\n", " "),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        DropdownMenu(
-                            expanded = quickActionsExpanded,
-                            onDismissRequest = { quickActionsExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.continue_latest_reply)) },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                },
-                                enabled = canContinue,
-                                onClick = {
-                                    quickActionsExpanded = false
-                                    onContinue()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.summarize_now)) },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                },
-                                onClick = {
-                                    quickActionsExpanded = false
-                                    onSummarize()
-                                }
-                            )
+                        TextButton(onClick = onCancelReply) {
+                            Text(stringResource(R.string.cancel))
                         }
                     }
                 }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                color = sendButtonColor,
-                tonalElevation = 2.dp,
-                shadowElevation = 2.dp,
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (generating) onStop()
-                    else onSend()
-                }
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (generating) {
-                            Icons.Rounded.Stop
-                        } else {
-                            Icons.AutoMirrored.Rounded.Send
-                        },
-                        contentDescription = stringResource(
-                            if (generating) R.string.stop else R.string.send
-                        ),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp, max = 140.dp),
+                    enabled = !generating,
+                    placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
+                    shape = RoundedCornerShape(18.dp),
+                    maxLines = 5,
+                    leadingIcon = {
+                        Box {
+                            IconButton(
+                                onClick = { quickActionsExpanded = true },
+                                enabled = !generating
+                            ) {
+                                Icon(Icons.Rounded.AutoAwesome, contentDescription = stringResource(R.string.chat_settings_actions))
+                            }
+                            DropdownMenu(
+                                expanded = quickActionsExpanded,
+                                onDismissRequest = { quickActionsExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.continue_latest_reply)) },
+                                    leadingIcon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
+                                    enabled = canContinue,
+                                    onClick = { quickActionsExpanded = false; onContinue() }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.summarize_now)) },
+                                    leadingIcon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
+                                    onClick = { quickActionsExpanded = false; onSummarize() }
+                                )
+                            }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = sendButtonColor,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 2.dp,
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (generating) onStop() else onSend()
+                    }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (generating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
+                            contentDescription = stringResource(if (generating) R.string.stop else R.string.send),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1753,6 +1853,34 @@ private fun DialogSwitch(
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) }
+        )
+
+        is GroupChatDialogState.GuidedRegenerate -> AlertDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = { Text(stringResource(R.string.regenerate_with_instruction)) },
+            text = {
+                OutlinedTextField(
+                    value = dialogState.draft,
+                    onValueChange = {
+                        emitIntent(GroupChatUiIntent.ChangeGuidedRegenerateDraft(it))
+                    },
+                    label = { Text(stringResource(R.string.guided_regenerate_hint)) },
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { emitIntent(GroupChatUiIntent.ConfirmGuidedRegenerate) },
+                    enabled = dialogState.draft.isNotBlank()
+                ) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { emitIntent(GroupChatUiIntent.DismissDialog) }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
 
         is GroupChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
@@ -1804,6 +1932,32 @@ private fun LoadStateOverlay(loadState: GroupChatLoadState) {
             }
         }
     }
+}
+
+private val trailingMentionRegex = Regex("(?:^|\\s)@([^@\\n]*)$")
+
+private fun mentionSuggestions(
+    draft: String,
+    members: List<GroupChatMemberItem>
+): List<GroupChatMemberItem> {
+    val query = trailingMentionRegex.find(draft)?.groupValues?.get(1) ?: return emptyList()
+    return members.asSequence()
+        .filterNot { it.muted }
+        .filter { it.name.contains(query, ignoreCase = true) }
+        .take(6)
+        .toList()
+}
+
+private fun replaceTrailingMention(draft: String, name: String): String {
+    val match = trailingMentionRegex.find(draft) ?: return "$draft@$name "
+    return draft.replaceRange(match.range, match.value.substringBefore('@') + "@$name ")
+}
+
+private fun GroupChatActivationStrategy.descriptionRes(): Int = when (this) {
+    GroupChatActivationStrategy.Manual -> R.string.group_chat_strategy_manual_desc
+    GroupChatActivationStrategy.Natural -> R.string.group_chat_strategy_natural_desc
+    GroupChatActivationStrategy.List -> R.string.group_chat_strategy_list_desc
+    GroupChatActivationStrategy.Pooled -> R.string.group_chat_strategy_pooled_desc
 }
 
 private fun GroupChatActivationStrategy.titleRes(): Int {

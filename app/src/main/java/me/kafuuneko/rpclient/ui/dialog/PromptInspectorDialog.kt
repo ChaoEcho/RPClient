@@ -480,6 +480,7 @@ private fun PromptSource.label(): String {
             PromptSourceKind.CharacterReplyNudge -> R.string.prompt_source_character_reply_nudge
             PromptSourceKind.ContinueNudge -> R.string.prompt_source_continue
             PromptSourceKind.ImpersonationNudge -> R.string.prompt_source_impersonation
+            PromptSourceKind.RegenerationInstruction -> R.string.prompt_source_regeneration_instruction
             PromptSourceKind.GroupIdentity -> R.string.prompt_source_group_identity
             PromptSourceKind.CharacterCard -> R.string.prompt_source_character_card
             PromptSourceKind.GroupNudge -> R.string.prompt_source_group_nudge

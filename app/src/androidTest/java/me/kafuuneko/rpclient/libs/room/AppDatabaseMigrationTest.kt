@@ -195,6 +195,71 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate6To7_addsGroupChatFieldsWithCompatibleDefaults() {
+        migrationHelper.createDatabase(GroupChatDatabaseName, 6).apply {
+            execSQL(
+                """
+                INSERT INTO group_chat_sessions (
+                    id, title, createTime, latestTime, userName, userDescription, scenario,
+                    userNote, lorebookEntrySet, worldInfoStateJson, systemPromptOverride,
+                    groupNudgePromptOverride, newGroupChatPromptOverride, activationStrategy,
+                    allowSelfResponses, characterCardMode, includeMutedCards, autoModeEnabled,
+                    trimOtherSpeakers, autoSummaryPaused
+                ) VALUES (101, 'Crew', 1, 2, 'You', '', '', '', '[]', '{}', '', '', '',
+                    'Natural', 0, 'Swap', 0, 0, 1, 0)
+                """.trimIndent()
+            )
+            execSQL(
+                """
+                INSERT INTO group_chat_messages (
+                    id, sessionId, createTime, source, content, speakerCharacterId,
+                    speakerNameSnapshot, generationBatchId
+                ) VALUES (201, 101, 3, 'User', 'Question', NULL, 'You', NULL)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            GroupChatDatabaseName,
+            7,
+            true
+        )
+
+        migrated.query(
+            "SELECT naturalMaxSpeakers, autoModeMaxRounds FROM group_chat_sessions WHERE id = 101"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(2, cursor.getInt(0))
+            assertEquals(2, cursor.getInt(1))
+        }
+        migrated.query(
+            "SELECT replyToMessageId FROM group_chat_messages WHERE id = 201"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(true, cursor.isNull(0))
+        }
+        migrated.query("PRAGMA table_info(group_chat_sessions)").use { cursor ->
+            val defaults = buildMap {
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(1)
+                    if (name == "naturalMaxSpeakers" || name == "autoModeMaxRounds") {
+                        put(name, cursor.getString(4))
+                    }
+                }
+            }
+            assertEquals(
+                mapOf(
+                    "naturalMaxSpeakers" to "2",
+                    "autoModeMaxRounds" to "2"
+                ),
+                defaults
+            )
+        }
+        migrated.close()
+    }
+
+    @Test
     fun migrate2To3_addsCurrentStorageAndKeepsCharacters() {
         migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
             execSQL(
@@ -372,5 +437,6 @@ class AppDatabaseMigrationTest {
         const val RegexDatabaseName = "app-regex-migration-test"
         const val ImageDatabaseName = "app-image-migration-test"
         const val VoiceDatabaseName = "app-voice-migration-test"
+        const val GroupChatDatabaseName = "app-group-chat-migration-test"
     }
 }

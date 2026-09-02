@@ -818,6 +818,7 @@
     <string name="prompt_source_post_history">历史后指令</string>
     <string name="prompt_source_continue">续写指令</string>
     <string name="prompt_source_impersonation">扮演用户指令</string>
+    <string name="prompt_source_regeneration_instruction">重生成指令</string>
     <string name="prompt_source_group_identity">群聊身份说明</string>
     <string name="prompt_source_character_card">角色卡</string>
     <string name="prompt_source_group_nudge">群聊约束指令</string>
@@ -1310,4 +1311,14 @@
 
     <string name="image_generation_params_section">生成参数</string>
     <string name="image_prompt_model_section">提示词模型</string>
+    <string name="reply">回复</string>
+    <string name="replying_to">回复 %1$s</string>
+    <string name="regenerate_with_instruction">带指令重新生成</string>
+    <string name="guided_regenerate_hint">例如：语气强硬一些，但不要直接吵起来</string>
+    <string name="group_chat_natural_max_speakers">自然模式每轮最多发言</string>
+    <string name="group_chat_natural_speakers_all">全部</string>
+    <string name="group_chat_natural_speakers_count">%1$d人</string>
+    <string name="group_chat_auto_mode_rounds">自动续聊轮数</string>
+    <string name="group_chat_auto_mode_rounds_continuous">持续</string>
+    <string name="group_chat_auto_mode_rounds_count">%1$d轮</string>
 </resources>
