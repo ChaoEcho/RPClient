@@ -11,65 +11,80 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
-/**
- * 应用进程内唯一的单聊生成任务持有者。
- *
- * 任务运行在 Application 级协程作用域，因此离开 ChatActivity 不会取消生成；但应用进程被系统
- * 终止后任务仍会结束，本类不提供跨进程恢复保证。
- */
-class ChatGenerationCoordinator {
+/** Application-scoped single-chat generation owner, serialized per session. */
+class ChatGenerationCoordinator(
+    private val foregroundController: AiTaskForegroundController? = null
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val mutableSnapshot = MutableStateFlow<ChatGenerationSnapshot?>(null)
-    val snapshot: StateFlow<ChatGenerationSnapshot?> = mutableSnapshot.asStateFlow()
-
-    @Volatile
-    private var active: ActiveGeneration? = null
+    private val activeBySession = mutableMapOf<Long, ActiveGeneration>()
+    private val mutableSnapshotBySession =
+        MutableStateFlow<Map<Long, ChatGenerationState>>(emptyMap())
+    val snapshotBySession: StateFlow<Map<Long, ChatGenerationState>> =
+        mutableSnapshotBySession.asStateFlow()
     private val promptInspections = mutableMapOf<Long, PromptInspection>()
 
-    /** 全局只允许一个单聊生成任务。 */
+    /** Starts one task per session; other sessions remain independent. */
     @Synchronized
     fun launch(sessionId: Long, block: suspend () -> Unit): ChatGenerationStartResult {
-        val running = active
-        if (running != null && !running.job.isCompleted) {
-            return ChatGenerationStartResult.Busy(running.sessionId)
-        }
+        activeBySession[sessionId]
+            ?.takeIf { !it.job.isCompleted }
+            ?.let { return ChatGenerationStartResult.Busy(sessionId) }
 
         val token = Any()
         val job = scope.launch(start = CoroutineStart.LAZY) {
+            val foregroundHandle = foregroundController?.acquire()
             try {
                 block()
             } finally {
+                foregroundHandle?.close()
                 synchronized(this@ChatGenerationCoordinator) {
-                    if (active?.token === token) active = null
-                }
-                val current = mutableSnapshot.value
-                if (current?.sessionId == sessionId && current.state.isGenerating()) {
-                    mutableSnapshot.value = ChatGenerationSnapshot(
-                        sessionId = sessionId,
-                        state = ChatGenerationState.Idle
-                    )
+                    if (activeBySession[sessionId]?.token === token) {
+                        activeBySession.remove(sessionId)
+                    }
+                    if (mutableSnapshotBySession.value[sessionId]?.isGenerating() == true) {
+                        mutableSnapshotBySession.value =
+                            mutableSnapshotBySession.value - sessionId
+                    }
                 }
             }
         }
-        active = ActiveGeneration(sessionId = sessionId, job = job, token = token)
+        activeBySession[sessionId] = ActiveGeneration(job, token)
         job.start()
         return ChatGenerationStartResult.Started(job)
     }
 
-    /** 只停止与 [sessionId] 匹配的活跃任务，并等待 NonCancellable 持久化收尾完成。 */
+    /** Stops only the requested session and waits for its NonCancellable persistence cleanup. */
     suspend fun stop(sessionId: Long): Boolean {
         val job = synchronized(this) {
-            active?.takeIf { it.sessionId == sessionId && !it.job.isCompleted }?.job
+            activeBySession[sessionId]?.takeIf { !it.job.isCompleted }?.job
         } ?: return false
         job.cancelAndJoin()
         return true
     }
 
+    @Synchronized
     fun publish(sessionId: Long, state: ChatGenerationState) {
-        mutableSnapshot.value = ChatGenerationSnapshot(sessionId, state)
+        mutableSnapshotBySession.value = if (state == ChatGenerationState.Idle) {
+            mutableSnapshotBySession.value - sessionId
+        } else {
+            mutableSnapshotBySession.value + (sessionId to state)
+        }
     }
+
+    @Synchronized
+    fun isActive(sessionId: Long): Boolean =
+        activeBySession[sessionId]?.job?.isCompleted == false
+
+    @Synchronized
+    fun activeSessionIds(): Set<Long> = activeBySession
+        .filterValues { !it.job.isCompleted }
+        .keys
+        .toSet()
+
+    fun stateFor(sessionId: Long): ChatGenerationState? = snapshotBySession.value[sessionId]
 
     @Synchronized
     fun recordPromptInspection(sessionId: Long, inspection: PromptInspection) {
@@ -79,20 +94,11 @@ class ChatGenerationCoordinator {
     @Synchronized
     fun getPromptInspection(sessionId: Long): PromptInspection? = promptInspections[sessionId]
 
-    @Synchronized
-    fun activeSessionId(): Long? = active?.takeIf { !it.job.isCompleted }?.sessionId
-
     private data class ActiveGeneration(
-        val sessionId: Long,
         val job: Job,
         val token: Any
     )
 }
-
-data class ChatGenerationSnapshot(
-    val sessionId: Long,
-    val state: ChatGenerationState
-)
 
 sealed interface ChatGenerationStartResult {
     data class Started(val job: Job) : ChatGenerationStartResult

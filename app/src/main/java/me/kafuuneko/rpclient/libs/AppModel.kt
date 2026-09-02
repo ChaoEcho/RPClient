@@ -204,6 +204,16 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // OpenAI-compatible 图像生成尺寸。
     var imageGenerationSize by stringPref(default = "1024x1024")
 
+    // 图片生成 HTTP 请求的并发范围与默认值。
+    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MIN = 1
+    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MAX = 8
+    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_DEFAULT = 1
+
+    // 图片生成服务独立于 LLM Provider 的最大并发请求数。
+    var imageGenerationMaxConcurrentRequests by intPref(
+        default = IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_DEFAULT
+    )
+
     // 单聊回复完成后是否自动生成对应图片。
     var autoGenerateImageAfterReply by booleanPref(default = false)
 

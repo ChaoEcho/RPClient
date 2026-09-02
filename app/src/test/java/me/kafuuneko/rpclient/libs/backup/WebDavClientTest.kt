@@ -143,6 +143,60 @@ class WebDavClientTest {
         assertEquals(listOf("new-z.rpbackup", "new-a.rpbackup", "old.rpbackup", "null-z.rpbackup", "null-a.rpbackup"), items.map { it.name })
     }
 
+
+    @Test
+    fun listBackups_acceptsDifferentDavNamespacePrefixes() {
+        val client = clientWithInterceptor { request ->
+            response(
+                request,
+                code = 207,
+                body = """
+                    <x:multistatus xmlns:x="DAV:">
+                        <x:response>
+                            <x:href>prefixed.rpbackup</x:href>
+                            <x:propstat><x:prop><x:resourcetype/></x:prop></x:propstat>
+                        </x:response>
+                    </x:multistatus>
+                """.trimIndent()
+            )
+        }
+
+        val items = WebDavClient(client).listBackups(
+            WebDavConfig("https://example.test", "alice", "/backups/"),
+            "secret"
+        )
+
+        assertEquals(listOf("prefixed.rpbackup"), items.map { it.name })
+    }
+
+    @Test
+    fun listBackups_returnsEmptyListWhenCollectionDoesNotExist() {
+        val client = clientWithInterceptor { request -> response(request, code = 404) }
+
+        val items = WebDavClient(client).listBackups(
+            WebDavConfig("https://example.test", "alice", "/backups/"),
+            "secret"
+        )
+
+        assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun listBackups_rejectsMalformedSuccessfulXml() {
+        val client = clientWithInterceptor { request ->
+            response(request, code = 207, body = "<d:multistatus xmlns:d=\"DAV:\"><d:response>")
+        }
+
+        val error = org.junit.Assert.assertThrows(BackupException.WebDavInvalidResponse::class.java) {
+            WebDavClient(client).listBackups(
+                WebDavConfig("https://example.test", "alice", "/backups/"),
+                "secret"
+            )
+        }
+
+        assertEquals("webdav_invalid_response", error.message)
+    }
+
     @Test
     fun ensureCollection_createsEachNormalizedPathLevel() {
         val requests = mutableListOf<Request>()

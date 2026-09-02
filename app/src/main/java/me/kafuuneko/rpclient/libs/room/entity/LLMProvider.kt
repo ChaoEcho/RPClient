@@ -39,6 +39,9 @@ data class LLMProvider(
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     // 默认上下文 Token 预算
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
+    // 此 Provider 同时执行的最大生成请求数。
+    @ColumnInfo(defaultValue = "1")
+    val maxConcurrentRequests: Int = DEFAULT_LLM_PROVIDER_CONCURRENCY,
     // 代理 Tokenizer 的本地预算预留率，不会发送给模型服务。
     @ColumnInfo(defaultValue = "15")
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
@@ -55,6 +58,10 @@ data class LLMProvider(
     // 更新时间
     val updateTime: Long = createTime
 )
+
+const val MIN_LLM_PROVIDER_CONCURRENCY = 1
+const val MAX_LLM_PROVIDER_CONCURRENCY = 16
+const val DEFAULT_LLM_PROVIDER_CONCURRENCY = 1
 
 const val DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT = 15
 const val MIN_TOKEN_ESTIMATE_RESERVE_PERCENT = 0

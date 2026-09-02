@@ -25,27 +25,23 @@ sealed class BackupUiIntent {
 
     data class ChangeWebDavBaseUrl(val value: String) : BackupUiIntent()
     data class ChangeWebDavUsername(val value: String) : BackupUiIntent()
+    data class ChangeWebDavPassword(val value: String) : BackupUiIntent()
     data class ChangeWebDavRemotePath(val value: String) : BackupUiIntent()
-    data class SaveWebDavConfig(val password: String) : BackupUiIntent()
-    data object ClearSavedWebDavPassword : BackupUiIntent()
-    data class TestWebDav(val password: String) : BackupUiIntent()
-    data class RefreshWebDav(val password: String) : BackupUiIntent()
+    data object SaveWebDavConfig : BackupUiIntent()
+    data object TestWebDav : BackupUiIntent()
+    data object RefreshWebDav : BackupUiIntent()
 
     data object UploadWebDavClick : BackupUiIntent()
     data class SubmitWebDavUpload(
-        val webDavPassword: String,
         val backupPassword: String,
         val backupPasswordConfirmation: String
     ) : BackupUiIntent()
 
     data class RestoreWebDavClick(val item: RemoteBackupItem) : BackupUiIntent()
     data class SubmitWebDavRestore(
-        val webDavPassword: String,
         val backupPassword: String
     ) : BackupUiIntent()
 
     data class DeleteWebDavClick(val item: RemoteBackupItem) : BackupUiIntent()
-    data class ConfirmWebDavDelete(
-        val webDavPassword: String
-    ) : BackupUiIntent()
+    data object ConfirmWebDavDelete : BackupUiIntent()
 }

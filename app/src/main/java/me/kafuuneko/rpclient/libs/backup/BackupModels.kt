@@ -96,6 +96,8 @@ sealed class BackupException(message: String, cause: Throwable? = null) : Except
         BackupException("webdav_authentication_failed", cause)
     class WebDavUnavailable(cause: Throwable? = null) :
         BackupException("webdav_unavailable", cause)
+    class WebDavInvalidResponse(cause: Throwable? = null) :
+        BackupException("webdav_invalid_response", cause)
     class RestoreValidationFailed(cause: Throwable? = null) :
         BackupException("restore_validation_failed", cause)
     class GenericFailure(cause: Throwable? = null) : BackupException("generic_failure", cause)

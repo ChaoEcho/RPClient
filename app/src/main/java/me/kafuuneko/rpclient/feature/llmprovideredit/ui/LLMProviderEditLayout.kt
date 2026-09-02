@@ -612,6 +612,21 @@ private fun ParameterPanel(
             value = form.contextTokens,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
         )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FormTextField(
+                label = stringResource(R.string.llm_provider_max_concurrent_requests),
+                value = form.maxConcurrentRequests,
+                keyboardType = KeyboardType.Number,
+                onChange = {
+                    LLMProviderEditUiIntent.ChangeMaxConcurrentRequests(it).emit()
+                }
+            )
+            Text(
+                text = stringResource(R.string.llm_provider_max_concurrent_requests_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

@@ -8,7 +8,8 @@ data class ImageGenerationSettingsForm(
     val size: String = "",
     val sceneStylePrompt: String = "",
     val avatarStylePrompt: String = "",
-    val promptProviderId: Long = 0L
+    val promptProviderId: Long = 0L,
+    val maxConcurrentRequests: String = ""
 )
 
 /** UI state for the OpenAI-compatible image-generation settings page. */

@@ -36,7 +36,8 @@ class ImageGenerationSettingsViewModel : CoreViewModelWithEvent<
             size = AppModel.imageGenerationSize,
             sceneStylePrompt = AppModel.imageGenerationStylePrompt,
             avatarStylePrompt = AppModel.imageGenerationAvatarStylePrompt,
-            promptProviderId = AppModel.imagePromptLLMProvider
+            promptProviderId = AppModel.imagePromptLLMProvider,
+            maxConcurrentRequests = AppModel.imageGenerationMaxConcurrentRequests.toString()
         )
 
         ImageGenerationSettingsUiState.Normal(form = initialForm).setup()
@@ -115,10 +116,26 @@ class ImageGenerationSettingsViewModel : CoreViewModelWithEvent<
         state.copy(form = state.form.copy(avatarStylePrompt = intent.value)).setup()
     }
 
+    @UiIntentObserver(ImageGenerationSettingsUiIntent.ChangeMaxConcurrentRequests::class)
+    private fun onChangeMaxConcurrentRequests(
+        intent: ImageGenerationSettingsUiIntent.ChangeMaxConcurrentRequests
+    ) {
+        val state = getOrNull<ImageGenerationSettingsUiState.Normal>() ?: return
+        state.copy(form = state.form.copy(maxConcurrentRequests = intent.value)).setup()
+    }
+
     @UiIntentObserver(ImageGenerationSettingsUiIntent.Save::class)
     private fun onSave() {
         val state = getOrNull<ImageGenerationSettingsUiState.Normal>() ?: return
         val form = state.form
+        val maxConcurrentRequests = form.maxConcurrentRequests.trim().toIntOrNull()
+        if (maxConcurrentRequests == null || maxConcurrentRequests !in
+            AppModel.IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MIN..
+            AppModel.IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MAX
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
+            return
+        }
         AppModel.imageGenerationBaseUrl = form.baseUrl.trim()
         AppModel.imageGenerationApiKey = form.apiKey.trim()
         AppModel.imageGenerationModel = form.model.trim()
@@ -126,6 +143,7 @@ class ImageGenerationSettingsViewModel : CoreViewModelWithEvent<
         AppModel.imageGenerationStylePrompt = form.sceneStylePrompt
         AppModel.imageGenerationAvatarStylePrompt = form.avatarStylePrompt
         AppModel.imagePromptLLMProvider = form.promptProviderId
+        AppModel.imageGenerationMaxConcurrentRequests = maxConcurrentRequests
 
         AppViewEvent.PopupToastMessageByResId(R.string.image_generation_saved).tryEmit()
     }
