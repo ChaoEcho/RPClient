@@ -25,8 +25,6 @@ sealed class CharacterListUiIntent {
 
     data object PasteImportCharacterJsonClick : CharacterListUiIntent()
 
-    data class ImportCharacterJsonLoaded(val text: String) : CharacterListUiIntent()
-
     data object PickImportCharacterFileClick : CharacterListUiIntent()
 
     data class ChangeImportJsonDraft(val value: String) : CharacterListUiIntent()
@@ -38,6 +36,8 @@ sealed class CharacterListUiIntent {
     data object ImportCharacterWithGlobalLorebookBudget : CharacterListUiIntent()
 
     data object ImportCharacterWithOriginalLorebookBudget : CharacterListUiIntent()
+
+    data object DismissActionDialog : CharacterListUiIntent()
 
     data object DismissDialog : CharacterListUiIntent()
 

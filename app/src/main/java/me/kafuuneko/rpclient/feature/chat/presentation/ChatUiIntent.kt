@@ -24,6 +24,12 @@ sealed class ChatUiIntent {
 
     data class RegenerateFromMessage(val messageId: String) : ChatUiIntent()
 
+    data class OpenGuidedRegenerate(val messageId: String) : ChatUiIntent()
+
+    data class ChangeGuidedRegenerateDraft(val value: String) : ChatUiIntent()
+
+    data object ConfirmGuidedRegenerate : ChatUiIntent()
+
     data class GenerateImage(val messageId: String) : ChatUiIntent()
 
     data class SpeakMessage(val messageId: String) : ChatUiIntent()

@@ -176,7 +176,7 @@ private fun DialogSwitch(
     when (dialogState) {
         CharacterListDialogState.None -> Unit
         CharacterListDialogState.ImportSource -> AppActionListDialog(
-            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            onDismissRequest = { CharacterListUiIntent.DismissActionDialog.emit() },
             title = stringResource(R.string.character_import_source_title),
             subtitle = stringResource(R.string.character_import_source_subtitle),
             badgeIcon = Icons.Rounded.FileUpload,
@@ -242,7 +242,7 @@ private fun DialogSwitch(
             )
         }
         is CharacterListDialogState.ExportDestination -> AppActionListDialog(
-            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            onDismissRequest = { CharacterListUiIntent.DismissActionDialog.emit() },
             title = stringResource(R.string.export_character_json_title),
             badgeIcon = Icons.Rounded.FileUpload,
             actions = listOf(

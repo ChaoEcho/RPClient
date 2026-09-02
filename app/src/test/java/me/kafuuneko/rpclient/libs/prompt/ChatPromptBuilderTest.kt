@@ -884,6 +884,52 @@ class ChatPromptBuilderTest {
         }
     }
 
+    @Test
+    fun regenerateInstructionIsInjectedAsTerminalUserControlWithInspectableSource() {
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "Question"),
+                    chatMessage(2L, ChatMessage.Source.Char, "Answer")
+                ),
+                generationMode = PromptGenerationMode.Regenerate,
+                regenerationInstruction = "语气强硬一些，但不要直接吵起来。"
+            )
+        )
+
+        val request = result.request
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+        assertTrue(request.messages.last().content.contains("【本次重生成要求】"))
+        assertTrue(request.messages.last().content.contains("语气强硬一些，但不要直接吵起来。"))
+        assertTrue(request.messages.last().content.contains("仅自然执行该要求"))
+        assertTrue(
+            result.inspection.items.last().sources.any {
+                it.kind == PromptSourceKind.RegenerationInstruction
+            }
+        )
+    }
+
+    @Test
+    fun ordinaryRegenerateDoesNotInjectRegenerationInstruction() {
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.Char, "Answer")
+                ),
+                generationMode = PromptGenerationMode.Regenerate,
+                regenerationInstruction = ""
+            )
+        )
+
+        val content = result.request.messages.joinToString("\n") { it.content }
+        assertFalse(content.contains("本次重生成要求"))
+        assertFalse(
+            result.inspection.items.any { item ->
+                item.sources.any { it.kind == PromptSourceKind.RegenerationInstruction }
+            }
+        )
+    }
+
     private fun context(
         character: Character = Character(
             id = 1L,
@@ -904,6 +950,7 @@ class ChatPromptBuilderTest {
         userDescription: String = "",
         summary: String = "",
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+        regenerationInstruction: String = "",
         maxContextTokens: Int = 4096,
         maxResponseTokens: Int = 512,
         regexScripts: List<ScopedRegexScript> = emptyList(),
@@ -922,6 +969,7 @@ class ChatPromptBuilderTest {
             maxContextTokens = maxContextTokens,
             maxResponseTokens = maxResponseTokens,
             generationMode = generationMode,
+            regenerationInstruction = regenerationInstruction,
             regexScripts = regexScripts
         )
     }

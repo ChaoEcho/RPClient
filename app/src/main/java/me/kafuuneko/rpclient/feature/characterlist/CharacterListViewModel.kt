@@ -184,20 +184,12 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         CharacterListViewEvent.OpenCharacterCardImporter.tryEmit()
     }
 
-    /** 从来源选择面板请求从系统剪贴板读取角色卡 JSON。 */
+    /** 从来源选择面板进入 JSON 粘贴编辑器。 */
     @UiIntentObserver(CharacterListUiIntent.PasteImportCharacterJsonClick::class)
     private fun onPasteImportCharacterJsonClick() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState != CharacterListDialogState.ImportSource) return
-        CharacterListViewEvent.ReadCharacterJsonFromClipboard.tryEmit()
-    }
-
-    /** 剪贴板读取成功后进入 JSON 检查/编辑对话框。 */
-    @UiIntentObserver(CharacterListUiIntent.ImportCharacterJsonLoaded::class)
-    private fun onImportCharacterJsonLoaded(intent: CharacterListUiIntent.ImportCharacterJsonLoaded) {
-        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.dialogState != CharacterListDialogState.ImportSource) return
-        uiState.copy(dialogState = CharacterListDialogState.ImportJsonEditor(intent.text)).setup()
+        uiState.copy(dialogState = CharacterListDialogState.ImportJsonEditor("")).setup()
     }
 
     /** 更新粘贴 JSON 导入编辑器草稿。 */
@@ -385,14 +377,23 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
+    /** 关闭导入来源或导出目的地操作面板；动作已切换到下一弹窗时自动忽略随后到达的关闭回调。 */
+    @UiIntentObserver(CharacterListUiIntent.DismissActionDialog::class)
+    private fun onDismissActionDialog() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (
+            uiState.dialogState !is CharacterListDialogState.ImportSource &&
+            uiState.dialogState !is CharacterListDialogState.ExportDestination
+        ) return
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
+    }
+
     /** 关闭当前非阻塞对话框。 */
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (
             uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
-            uiState.dialogState !is CharacterListDialogState.ExportDestination &&
-            uiState.dialogState !is CharacterListDialogState.ImportSource &&
             uiState.dialogState !is CharacterListDialogState.ImportJsonEditor
         ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
