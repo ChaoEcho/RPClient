@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -34,10 +35,16 @@ class ChatGenerationCoordinator(
             ?.let { return ChatGenerationStartResult.Busy(sessionId) }
 
         val token = Any()
+        AppLogger.i("Chat", "Generation task scheduled for session: $sessionId")
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val foregroundHandle = foregroundController?.acquire()
             try {
+                AppLogger.i("Chat", "Generation task started for session: $sessionId")
                 block()
+                AppLogger.i("Chat", "Generation task finished for session: $sessionId")
+            } catch (e: Throwable) {
+                AppLogger.e("Chat", "Generation task failed for session $sessionId: ${e.message}", e)
+                throw e
             } finally {
                 foregroundHandle?.close()
                 synchronized(this@ChatGenerationCoordinator) {
@@ -61,6 +68,7 @@ class ChatGenerationCoordinator(
         val job = synchronized(this) {
             activeBySession[sessionId]?.takeIf { !it.job.isCompleted }?.job
         } ?: return false
+        AppLogger.i("Chat", "Cancelling generation for session: $sessionId")
         job.cancelAndJoin()
         return true
     }

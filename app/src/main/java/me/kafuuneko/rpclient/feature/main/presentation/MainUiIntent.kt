@@ -130,6 +130,14 @@ sealed class MainUiIntent {
 
     data object OpenPromptPreset : MainUiIntent()
 
+    data object OpenPromptBehaviorSettings : MainUiIntent()
+
+    data object OpenWorldInfoBudgetSettings : MainUiIntent()
+
+    data object OpenSummaryMemorySettings : MainUiIntent()
+
+    data object OpenDeveloperSettings : MainUiIntent()
+
     data object OpenRegexScripts : MainUiIntent()
 
     data object OpenRequestLogs : MainUiIntent()

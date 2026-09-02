@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.feature.backup.presentation.BackupOperationState
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupUiIntent
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupUiState
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupViewEvent
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.backup.BackupContract
 import me.kafuuneko.rpclient.libs.backup.BackupException
 import me.kafuuneko.rpclient.libs.backup.BackupOperationPhase
@@ -60,13 +61,6 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             lastSuccessfulBackupAt = BackupSettingsModel.lastSuccessfulBackupAt
         )
         initialState.setup()
-        if (initialState.webDavBaseUrl.isNotEmpty() &&
-            initialState.webDavUsername.isNotEmpty() &&
-            initialState.webDavPassword.isNotEmpty() &&
-            initialState.webDavRemotePath.isNotEmpty()
-        ) {
-            onRefreshWebDav()
-        }
     }
 
     @UiIntentObserver(BackupUiIntent.Back::class)
@@ -227,6 +221,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         BackupSettingsModel.webDavUsername = trimmedUsername
         BackupSettingsModel.webDavRemotePath = trimmedRemotePath
         mSecretStore.setWebDavPassword(state.webDavPassword)
+        AppLogger.i("Backup", "WebDAV configuration saved: $trimmedBaseUrl")
 
         state.copy(
             webDavBaseUrl = trimmedBaseUrl,
@@ -373,10 +368,14 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         state.copy(operation = BackupOperationState(kind)).setup()
         mOperationJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                AppLogger.i("Backup", "Operation started: ${kind.name}")
                 block()
+                AppLogger.i("Backup", "Operation completed: ${kind.name}")
             } catch (cancelled: CancellationException) {
+                AppLogger.w("Backup", "Operation cancelled: ${kind.name}")
                 throw cancelled
             } catch (error: Exception) {
+                AppLogger.e("Backup", "Operation failed: ${kind.name} - ${error.message}", error)
                 showError(error)
             } finally {
                 // 先释放任务所有权，再发布空闲状态，避免确认操作抢在 Job 清理前进入。
@@ -421,6 +420,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
 
     private fun refreshRemoteBackups(config: WebDavConfig, password: String) {
         val items = mWebDavClient.listBackups(config, password)
+        AppLogger.i("Backup", "Loaded ${items.size} remote backups from WebDAV")
         normalOrNull()?.copy(remoteBackups = items)?.setup()
     }
 

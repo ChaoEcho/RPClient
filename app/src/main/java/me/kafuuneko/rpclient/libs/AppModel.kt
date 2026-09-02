@@ -347,4 +347,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)
 
+    // 是否启用开发者运行日志与 HTTP 调试记录。
+    var developerLoggingEnabled by booleanPref(default = false)
+
 }

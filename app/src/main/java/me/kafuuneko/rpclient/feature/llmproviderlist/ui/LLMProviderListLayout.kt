@@ -68,6 +68,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
+import me.kafuuneko.rpclient.ui.widgets.RpTagPill
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
@@ -146,6 +147,9 @@ private fun LLMProviderListNormal(
                         provider = provider,
                         onClick = {
                             LLMProviderListUiIntent.EditProvider(provider.id.toString()).emit()
+                        },
+                        onSelectCurrent = {
+                            LLMProviderListUiIntent.SelectCurrentProvider(provider.id).emit()
                         },
                         onCheckedChange = {
                             LLMProviderListUiIntent.ToggleProviderEnabled(provider.id.toString(), it)
@@ -243,6 +247,7 @@ private fun ProviderListEmptyState(
 private fun ProviderListCard(
     provider: LLMProviderListItem,
     onClick: () -> Unit,
+    onSelectCurrent: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -363,6 +368,26 @@ private fun ProviderListCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    if (provider.isCurrent) {
+                        RpTagPill(stringResource(R.string.current_badge))
+                    } else if (provider.isEnabled) {
+                        Surface(
+                            shape = RoundedCornerShape(9.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(9.dp))
+                                .clickable(onClick = onSelectCurrent)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.set_as_current),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     RpMetaPill(provider.protocol.name)
                     ProviderStatusDot(isEnabled = provider.isEnabled, isConfigured = provider.isConfigured)
                 }

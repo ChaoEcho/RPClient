@@ -12,6 +12,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
+import me.kafuuneko.rpclient.feature.developer.DeveloperSettingsActivity
+import me.kafuuneko.rpclient.feature.promptbehavior.PromptBehaviorSettingsActivity
+import me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity
+import me.kafuuneko.rpclient.feature.worldinfobudget.WorldInfoBudgetSettingsActivity
 import me.kafuuneko.rpclient.feature.backup.BackupActivity
 import me.kafuuneko.rpclient.feature.imagegeneration.ImageGenerationSettingsActivity
 import me.kafuuneko.rpclient.feature.tts.TtsSettingsActivity
@@ -857,6 +861,34 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenTtsSettings() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(TtsSettingsActivity::class.java).tryEmit()
+    }
+
+    /** 打开请求与对话策略设置页。 */
+    @UiIntentObserver(MainUiIntent.OpenPromptBehaviorSettings::class)
+    private fun onOpenPromptBehaviorSettings() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(PromptBehaviorSettingsActivity::class.java).tryEmit()
+    }
+
+    /** 打开世界书预算设置页。 */
+    @UiIntentObserver(MainUiIntent.OpenWorldInfoBudgetSettings::class)
+    private fun onOpenWorldInfoBudgetSettings() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(WorldInfoBudgetSettingsActivity::class.java).tryEmit()
+    }
+
+    /** 打开摘要记忆设置页。 */
+    @UiIntentObserver(MainUiIntent.OpenSummaryMemorySettings::class)
+    private fun onOpenSummaryMemorySettings() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(SummaryMemorySettingsActivity::class.java).tryEmit()
+    }
+
+    /** 打开开发者模式设置页。 */
+    @UiIntentObserver(MainUiIntent.OpenDeveloperSettings::class)
+    private fun onOpenDeveloperSettings() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(DeveloperSettingsActivity::class.java).tryEmit()
     }
 
     /** 打开关于软件页面。 */

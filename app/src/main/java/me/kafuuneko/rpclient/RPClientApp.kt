@@ -6,6 +6,9 @@ import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.debug.AppLogStore
+import me.kafuuneko.rpclient.libs.debug.AppLogger
+import me.kafuuneko.rpclient.libs.debug.HttpLoggingInterceptor
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.backup.BackupCodec
 import me.kafuuneko.rpclient.libs.backup.BackupCrypto
@@ -82,7 +85,9 @@ import java.util.concurrent.TimeUnit
 class RPClientApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppLogStore.init(this)
         Kotpref.init(this)
+        AppLogger.i("App", "Application initialized")
         val koinApplication = startKoin {
             androidContext(this@RPClientApp)
             modules(appModules)
@@ -102,6 +107,7 @@ class RPClientApp : Application() {
 internal val appModules = module {
     single {
         OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)

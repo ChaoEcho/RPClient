@@ -229,21 +229,23 @@ private fun WebDavConfigSection(
                     label = { Text(stringResource(R.string.backup_webdav_remote_path)) },
                     shape = RoundedCornerShape(16.dp)
                 )
-                Button(
-                    onClick = { emit(BackupUiIntent.SaveWebDavConfig) },
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Rounded.Save, contentDescription = null)
-                    Text(
-                        text = stringResource(R.string.backup_webdav_save_config),
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Button(
+                        onClick = { emit(BackupUiIntent.SaveWebDavConfig) },
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Rounded.Save, contentDescription = null)
+                        Text(
+                            text = stringResource(R.string.backup_webdav_save_config),
+                            modifier = Modifier.padding(start = 6.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     OutlinedButton(
                         onClick = { emit(BackupUiIntent.TestWebDav) },
                         enabled = enabled,
@@ -252,20 +254,7 @@ private fun WebDavConfigSection(
                         Icon(Icons.Rounded.CloudDone, contentDescription = null)
                         Text(
                             text = stringResource(R.string.backup_webdav_test),
-                            modifier = Modifier.padding(start = 8.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { emit(BackupUiIntent.RefreshWebDav) },
-                        enabled = enabled,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = null)
-                        Text(
-                            text = stringResource(R.string.backup_webdav_refresh),
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier.padding(start = 6.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -285,20 +274,36 @@ private fun RemoteBackupSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RpSectionHeader(title = stringResource(R.string.backup_webdav_remote_backups))
         RpSettingsGroup {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                OutlinedButton(
+                    onClick = { emit(BackupUiIntent.RefreshWebDav) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.backup_webdav_refresh),
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 FilledTonalButton(
                     onClick = { emit(BackupUiIntent.UploadWebDavClick) },
                     enabled = enabled,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Rounded.FileUpload, contentDescription = null)
                     Text(
                         text = stringResource(R.string.backup_webdav_upload_new),
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

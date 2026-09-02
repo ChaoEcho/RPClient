@@ -1262,4 +1262,52 @@
     <string name="ai_generation_notification_title">AI 正在生成</string>
     <string name="ai_generation_notification_content">%1$d 个任务正在后台运行</string>
 
+
+    <!-- Settings & Developer Optimization -->
+    <string name="current_badge">当前</string>
+    <string name="set_as_current">设为当前</string>
+    <string name="chat_model">对话模型</string>
+    <string name="image_model">图片模型</string>
+    <string name="voice_model">语音模型</string>
+    <string name="not_configured">未配置</string>
+    <string name="request_and_dialogue_policy">请求与对话策略</string>
+    <string name="world_info_budget">世界书预算</string>
+    <string name="summary_memory_title">摘要记忆</string>
+    <string name="developer_mode">开发者模式</string>
+    <string name="developer_mode_subtitle">应用日志、诊断工具与请求日志</string>
+    <string name="developer_logging_title">应用运行日志</string>
+    <string name="developer_logging_desc">安全记录应用自身关键运行与 HTTP 调试信息，默认不记录密钥与聊天内容</string>
+    <string name="record_ai_raw_requests_title">记录 AI 原始请求</string>
+    <string name="record_ai_raw_requests_desc">原始 AI 请求可能包含角色设定、聊天内容和提示词，仅建议调试时开启</string>
+    <string name="app_logs">应用运行日志</string>
+    <string name="ai_request_logs">AI 请求日志</string>
+    <string name="app_log_search_hint">搜索日志正文或标签...</string>
+    <string name="export_logs">导出日志</string>
+    <string name="clear_logs_title">清空日志</string>
+    <string name="clear_logs_confirm_desc">确定要清空内存缓冲区和日志文件中的所有应用运行日志吗？</string>
+    <string name="logs_cleared">应用日志已清空</string>
+    <string name="logs_exported">日志已导出</string>
+    <string name="no_logs_title">暂无日志</string>
+    <string name="no_logs_subtitle">开启开发者模式后，应用的关键运行事件将记录在此</string>
+    <string name="tts_test_section">语音测试</string>
+    <string name="prompt_post_processing_title">提示词后处理</string>
+    <string name="example_dialogue_title">示例对话</string>
+    <string name="context_behavior_title">上下文行为</string>
+    <string name="response_behavior_title">响应行为</string>
+    <string name="summary_model_section">摘要模型</string>
+    <string name="auto_summary_section">自动摘要</string>
+    <string name="auto_summary_enabled_summary">已启用 · 每 %1$d 条消息更新</string>
+    <string name="auto_summary_disabled_summary">已关闭</string>
+    <string name="world_info_budget_summary">上下文 %1$d%% · 最大 %2$s Tokens</string>
+    <string name="unlimited">不限制</string>
+
+    <string name="prompt_behavior_title">请求与对话策略</string>
+    <string name="prompt_behavior_subtitle">配置提示词后处理、示例对话策略与流式响应</string>
+    <string name="world_info_budget_title">世界书预算</string>
+    <string name="world_info_budget_subtitle">配置上下文词元预算占比与条目溢出警报</string>
+    <string name="summary_memory_subtitle">配置长对话自动总结策略与记忆注入规则</string>
+    <string name="developer_tools">开发者工具</string>
+
+    <string name="image_generation_params_section">生成参数</string>
+    <string name="image_prompt_model_section">提示词模型</string>
 </resources>
