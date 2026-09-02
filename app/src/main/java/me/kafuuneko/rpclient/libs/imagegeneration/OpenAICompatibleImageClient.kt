@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.imagegeneration
 
 import com.google.gson.JsonObject
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,6 +30,9 @@ class OpenAICompatibleImageClient(
 ) {
     suspend fun generate(config: ImageGenerationConfig, prompt: String): GeneratedImage =
         withContext(Dispatchers.IO) {
+            AppLogger.i("Image", "Image generation started: model=${config.model}, size=${config.size}")
+            val startNs = System.nanoTime()
+            try {
             val payload = JsonObject().apply {
                 addProperty("model", config.model)
                 addProperty("prompt", prompt)
@@ -74,8 +78,16 @@ class OpenAICompatibleImageClient(
                 ?.asString
                 ?.takeIf { it.isNotBlank() }
                 ?: throw IOException("Image generation response contains neither b64_json nor url")
-            download(url)
+            val img = download(url)
+            val durationMs = (System.nanoTime() - startNs) / 1_000_000
+            AppLogger.i("Image", "Image generation succeeded: ${img.bytes.size} bytes (${durationMs}ms)")
+            img
+        } catch (e: Exception) {
+            val durationMs = (System.nanoTime() - startNs) / 1_000_000
+            AppLogger.e("Image", "Image generation failed (${durationMs}ms): ${e.message}", e)
+            throw e
         }
+    }
 
     private fun download(url: String): GeneratedImage {
         return okHttpClient.newCall(Request.Builder().url(url).get().build()).execute().use { response ->

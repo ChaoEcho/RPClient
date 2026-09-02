@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -33,6 +34,7 @@ class TtsService(
         if (text.isBlank()) return
         val sessionId = beginSession()
         val providerType = TtsProviderType.fromPersistedValue(AppModel.ttsProvider)
+        AppLogger.i("TTS", "TTS speak requested: provider=${providerType.name}, length=${text.length}")
         try {
             when (providerType) {
                 TtsProviderType.System -> systemTtsProvider.speak(
@@ -78,6 +80,7 @@ class TtsService(
     suspend fun getSystemVoices(): List<TtsVoice> = systemTtsProvider.getVoices()
 
     fun stop() {
+        AppLogger.i("TTS", "TTS stop requested")
         val (player, continuation) = synchronized(lock) {
             activeSessionId = null
             val oldPlayer = activePlayer
@@ -244,11 +247,13 @@ class TtsService(
     }
 
     private fun synthesisFailure(error: Throwable): TtsException {
+        AppLogger.e("TTS", "Speech synthesis failed: ${error.message}", error)
         val detail = error.message?.takeIf { it.isNotBlank() } ?: error::class.simpleName ?: "Unknown error"
         return TtsException("Speech synthesis failed: $detail", error)
     }
 
     private fun playbackFailure(error: Throwable): TtsException {
+        AppLogger.e("TTS", "Speech playback failed: ${error.message}", error)
         if (error is TtsException && error.message?.startsWith("Speech playback failed:") == true) {
             return error
         }

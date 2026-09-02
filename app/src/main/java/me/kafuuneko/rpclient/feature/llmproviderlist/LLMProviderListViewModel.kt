@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.llmproviderlist
 import android.os.Bundle
 import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
@@ -67,7 +68,14 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
      *
      * @param intent 包含目标提供商 ID 的意图
      */
-    @UiIntentObserver(LLMProviderListUiIntent.EditProvider::class)
+    @UiIntentObserver(LLMProviderListUiIntent.SelectCurrentProvider::class)
+    private suspend fun onSelectCurrentProvider(intent: LLMProviderListUiIntent.SelectCurrentProvider) {
+        if (!isStateOf<LLMProviderListUiState.Normal>()) return
+        AppModel.currentLLMProvider = intent.providerId
+        refreshProviders()
+    }
+
+        @UiIntentObserver(LLMProviderListUiIntent.EditProvider::class)
     private fun onEditProvider(intent: LLMProviderListUiIntent.EditProvider) {
         if (!isStateOf<LLMProviderListUiState.Normal>()) return
         val providerId = intent.providerId.toLongOrNull() ?: return
@@ -154,6 +162,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
     private suspend fun refreshProviders() {
         val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
         // 查询全部提供商并转换为列表项模型
+        val currentId = AppModel.currentLLMProvider
         val providers = mLLMRepository.getAllProviders().map { provider ->
             LLMProviderListItem(
                 id = provider.id,
@@ -162,7 +171,8 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
                 protocol = provider.protocol,
                 baseUrl = provider.baseUrl,
                 model = provider.model,
-                isEnabled = provider.isEnabled
+                isEnabled = provider.isEnabled,
+                isCurrent = (provider.id == currentId)
             )
         }
         // 更新列表展示并解除加载中状态

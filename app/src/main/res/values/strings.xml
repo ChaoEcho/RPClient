@@ -1267,4 +1267,52 @@
     <string name="ai_generation_notification_title">AI is generating</string>
     <string name="ai_generation_notification_content">%1$d tasks are running in the background</string>
 
+
+    <!-- Settings & Developer Optimization -->
+    <string name="current_badge">Current</string>
+    <string name="set_as_current">Set as Current</string>
+    <string name="chat_model">Chat Model</string>
+    <string name="image_model">Image Model</string>
+    <string name="voice_model">Voice Model</string>
+    <string name="not_configured">Not configured</string>
+    <string name="request_and_dialogue_policy">Request &amp; Dialogue Policy</string>
+    <string name="world_info_budget">World Book Budget</string>
+    <string name="summary_memory_title">Summary Memory</string>
+    <string name="developer_mode">Developer Mode</string>
+    <string name="developer_mode_subtitle">App logs, diagnostic tools &amp; request logging</string>
+    <string name="developer_logging_title">App Runtime Logging</string>
+    <string name="developer_logging_desc">Safely record app runtime logs and HTTP metadata without secrets</string>
+    <string name="record_ai_raw_requests_title">Record AI Raw Requests</string>
+    <string name="record_ai_raw_requests_desc">Raw requests may contain prompts and sensitive chat content. Only enable for debugging.</string>
+    <string name="app_logs">App Logs</string>
+    <string name="ai_request_logs">AI Request Logs</string>
+    <string name="app_log_search_hint">Search logs by keyword or module...</string>
+    <string name="export_logs">Export Logs</string>
+    <string name="clear_logs_title">Clear Logs</string>
+    <string name="clear_logs_confirm_desc">Are you sure you want to clear all in-memory and rolling app logs?</string>
+    <string name="logs_cleared">App logs cleared</string>
+    <string name="logs_exported">Logs exported</string>
+    <string name="no_logs_title">No logs yet</string>
+    <string name="no_logs_subtitle">Runtime logs will appear here when developer logging is active</string>
+    <string name="tts_test_section">Voice Test</string>
+    <string name="prompt_post_processing_title">Prompt Post-Processing</string>
+    <string name="example_dialogue_title">Example Dialogue</string>
+    <string name="context_behavior_title">Context Behavior</string>
+    <string name="response_behavior_title">Response Behavior</string>
+    <string name="summary_model_section">Summary Model</string>
+    <string name="auto_summary_section">Auto Summary</string>
+    <string name="auto_summary_enabled_summary">Enabled · Every %1$d messages</string>
+    <string name="auto_summary_disabled_summary">Disabled</string>
+    <string name="world_info_budget_summary">Context %1$d%% · Max %2$s Tokens</string>
+    <string name="unlimited">Unlimited</string>
+
+    <string name="prompt_behavior_title">Request &amp; Dialogue Policy</string>
+    <string name="prompt_behavior_subtitle">Configure prompt post-processing, example dialogue, and streaming</string>
+    <string name="world_info_budget_title">World Book Budget</string>
+    <string name="world_info_budget_subtitle">Configure context token budget share and overflow alert</string>
+    <string name="summary_memory_subtitle">Configure conversation auto-summary and memory injection</string>
+    <string name="developer_tools">Developer Tools</string>
+
+    <string name="image_generation_params_section">Generation Parameters</string>
+    <string name="image_prompt_model_section">Prompt Model</string>
 </resources>

@@ -11,7 +11,8 @@ data class LLMProviderListItem(
     val protocol: LLMProviderProtocol,
     val baseUrl: String,
     val model: String,
-    val isEnabled: Boolean
+    val isEnabled: Boolean,
+    val isCurrent: Boolean = false
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && model.isNotBlank()

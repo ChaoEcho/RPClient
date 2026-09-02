@@ -48,6 +48,31 @@
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".feature.promptbehavior.PromptBehaviorSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.worldinfobudget.WorldInfoBudgetSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.summarymemory.SummaryMemorySettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.developer.DeveloperSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.developer.logviewer.AppLogViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.about.AboutActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

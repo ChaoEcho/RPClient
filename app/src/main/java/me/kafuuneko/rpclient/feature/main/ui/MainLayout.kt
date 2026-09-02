@@ -46,6 +46,9 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -131,6 +134,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -140,6 +144,9 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
+import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.tts.TtsProviderType
+import me.kafuuneko.rpclient.feature.promptbehavior.ui.titleRes
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
@@ -152,9 +159,6 @@ import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
-import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
-import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -1430,101 +1434,32 @@ private fun SettingsPage(
         }
         item { UserIdentityPanel(state.identityState, emit) }
 
-        // ================= 2. 模型与推理服务 =================
+        // ================= 2. 模型配置 =================
         item {
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
                 action = stringResource(R.string.manage)
             ) { MainUiIntent.OpenProviderManager.emit() }
         }
-        when (val providerState = state.providerState) {
-            MainProviderSettingsState.Empty -> {
-                item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
-            }
-
-            is MainProviderSettingsState.Available -> {
-                items(providerState.providers) { provider ->
-                    ProviderCard(
-                        provider = provider,
-                        selected = provider.id == providerState.selectedProviderId,
-                        onClick = { MainUiIntent.SelectProvider(provider.id).emit() }
-                    )
-                }
-                item { ParameterPanel(providerState.generationParametersState, emit) }
-            }
-        }
-
-        // ================= 3. 生成能力 =================
         item {
-            GenerationCapabilitiesPanel(
-                onImageClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
-                onTtsClick = { MainUiIntent.OpenTtsSettings.emit() }
-            )
+            ModelConfigPanel(state.providerState, emit)
         }
 
-        // ================= 5. 提示词与上下文记忆 =================
+        // ================= 3. 提示词与上下文 =================
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }
-        item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
-        item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
-        item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
-        item { SummaryPanel(state.summaryState, emit) }
+        item {
+            PromptAndContextPanel(state, emit)
+        }
 
-        // ================= 6. 数据与系统 =================
+        // ================= 4. 数据与开发 =================
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
-        item { BackupEntryCard { MainUiIntent.OpenBackup.emit() } }
-        item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
-        item { DebugPanel(state.debugState, emit) }
-        item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
-    }
-}
-
-@Composable
-private fun WorldInfoBudgetPanel(
-    state: MainWorldInfoBudgetState,
-    emit: MainUiIntent.() -> Unit
-) {
-    RpSettingsGroup {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.world_info_budget_section),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.world_info_budget_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-            )
-            RpPercentageSlider(
-                title = stringResource(R.string.world_info_context_percent),
-                value = state.budgetPercent,
-                helper = stringResource(R.string.world_info_context_percent_helper),
-                onValueChange = { MainUiIntent.ChangeWorldInfoBudgetPercent(it).emit() }
-            )
-            NumberSettingRow(
-                title = stringResource(R.string.world_info_budget_cap),
-                value = state.budgetCap.toString(),
-                helper = stringResource(R.string.world_info_budget_cap_helper),
-                onValueChange = { MainUiIntent.ChangeWorldInfoBudgetCap(it).emit() }
-            )
+        item {
+            DataAndDevelopmentPanel(state.chatDataManagementState, emit)
         }
-        RpSettingsDivider(startIndent = false)
-        RpSettingsSwitchTile(
-            icon = Icons.Rounded.Book,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
-            title = stringResource(R.string.world_info_overflow_alert),
-            subtitle = stringResource(R.string.world_info_overflow_alert_desc),
-            checked = state.overflowAlert,
-            onCheckedChange = { MainUiIntent.ToggleWorldInfoOverflowAlert(it).emit() }
-        )
     }
 }
 
@@ -1746,721 +1681,74 @@ private fun UserAvatarPicker(
 }
 
 @Composable
-private fun PromptBehaviorPanel(
-    state: MainPromptBehaviorState,
+private fun ModelConfigPanel(
+    providerState: MainProviderSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    RpSettingsGroup {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.prompt_behavior_section),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.prompt_post_processing_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-            )
-            val postProcessingState = state.providerPostProcessingState
-            val selectedMode = (postProcessingState as? MainProviderPostProcessingState.Available)?.mode
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                PromptPostProcessingMode.entries.forEach { mode ->
-                    PromptPostProcessingModeRow(
-                        mode = mode,
-                        selected = mode == selectedMode,
-                        enabled = postProcessingState is MainProviderPostProcessingState.Available,
-                        onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.prompt_example_behavior_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(R.string.prompt_example_behavior_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ExampleDialogueBehavior.entries.forEach { behavior ->
-                    FilterChip(
-                        selected = behavior == state.exampleDialogueBehavior,
-                        onClick = {
-                            MainUiIntent.SelectExampleDialogueBehavior(behavior).emit()
-                        },
-                        label = { Text(stringResource(behavior.titleRes())) },
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-            }
-        }
-        RpSettingsDivider(startIndent = false)
-        RpSettingsSwitchTile(
-            icon = Icons.Rounded.Psychology,
-            iconColor = Color(0xFF6366F1),
-            iconContainerColor = Color(0xFF6366F1).copy(alpha = 0.14f),
-            title = stringResource(R.string.prompt_include_think_context_title),
-            subtitle = stringResource(R.string.prompt_include_think_context_desc),
-            checked = state.includeThinkInContext,
-            onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
-        )
-        RpSettingsDivider()
-        RpSettingsSwitchTile(
-            icon = Icons.Rounded.NotificationsActive,
-            iconColor = Color(0xFFEC4899),
-            iconContainerColor = Color(0xFFEC4899).copy(alpha = 0.14f),
-            title = stringResource(R.string.context_trimming_alert),
-            subtitle = stringResource(R.string.context_trimming_alert_desc),
-            checked = state.contextTrimmingAlert,
-            onCheckedChange = { MainUiIntent.ToggleContextTrimmingAlert(it).emit() }
-        )
-        RpSettingsDivider()
-        RpSettingsSwitchTile(
-            icon = Icons.Rounded.Stream,
-            iconColor = Color(0xFF0EA5E9),
-            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
-            title = stringResource(R.string.streaming_response),
-            subtitle = stringResource(R.string.streaming_response_desc),
-            checked = state.streamEnabled,
-            onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
-        )
-    }
-}
-
-@Composable
-private fun PromptPostProcessingModeRow(
-    mode: PromptPostProcessingMode,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled) { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(
-            width = if (selected) 1.5.dp else 0.5.dp,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
-            }
-        ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(mode.titleRes()),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(mode.descriptionRes()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
+    val chatModelSubtitle = when (providerState) {
+        MainProviderSettingsState.Empty -> stringResource(R.string.no_model_configured)
+        is MainProviderSettingsState.Available -> {
+            val current = providerState.providers.firstOrNull { it.id == providerState.selectedProviderId }
+            when {
+                current == null -> stringResource(R.string.no_model_configured)
+                current.model.isNotBlank() && current.name.isNotBlank() && current.name != current.model -> "${current.name} · ${current.model}"
+                current.name.isNotBlank() -> current.name
+                current.model.isNotBlank() -> current.model
+                else -> stringResource(R.string.no_model_configured)
             }
         }
     }
-}
 
-@Composable
-private fun EmptyProviderCard(
-    onClick: () -> Unit
-) {
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.Storage,
-            iconColor = Color(0xFFF59E0B),
-            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
-            title = stringResource(R.string.no_enabled_model),
-            subtitle = stringResource(R.string.go_to_model_manager),
-            onClick = onClick,
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
-    }
-}
-
-@Composable
-private fun ProviderCard(
-    provider: MainProviderItem,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            width = if (selected) 1.5.dp else 0.5.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
-                alpha = 0.22f
-            )
-        ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RpIconBubble(
-                icon = if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage,
-                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                containerColor = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-                }
-            )
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    provider.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    provider.model,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    provider.baseUrl,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.48f
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            val dotColor = when {
-                !provider.isEnabled -> ProviderDisabledColor
-                !provider.isConfigured -> ProviderPendingColor
-                else -> ProviderAvailableColor
-            }
-            val statusText = when {
-                !provider.isEnabled -> stringResource(R.string.not_enabled)
-                !provider.isConfigured -> stringResource(R.string.pending_config)
-                else -> stringResource(R.string.available)
-            }
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = dotColor.copy(alpha = 0.12f),
-                border = BorderStroke(0.5.dp, dotColor.copy(alpha = 0.28f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(dotColor, CircleShape)
-                    )
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = dotColor
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ParameterPanel(
-    state: MainGenerationParametersState,
-    emit: MainUiIntent.() -> Unit
-) {
-    RpSettingsGroup {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.generation_parameters),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(
-                onClick = { MainUiIntent.OpenSelectedProviderEdit.emit() },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    stringResource(R.string.preset),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-        RpSettingsDivider(startIndent = false)
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Thermostat,
-            iconColor = Color(0xFFF59E0B),
-            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
-            title = stringResource(R.string.temperature),
-            value = state.temperature.toString(),
-            onClick = {
-                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.Temperature)
-                    .emit()
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Tune,
-            iconColor = Color(0xFF3B82F6),
-            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
-            title = stringResource(R.string.top_p),
-            value = state.topP.toString(),
-            onClick = { MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit() }
-        )
-        RpSettingsDivider()
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Numbers,
-            iconColor = Color(0xFF8B5CF6),
-            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
-            title = stringResource(R.string.max_tokens),
-            value = state.maxTokens.toString(),
-            onClick = {
-                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.MaxTokens).emit()
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Memory,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
-            title = stringResource(R.string.context),
-            value = "${state.contextTokens} ${stringResource(R.string.tokens)}",
-            onClick = {
-                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.ContextTokens)
-                    .emit()
-            }
-        )
-    }
-}
-
-@Composable
-private fun PromptPresetEntryCard(onClick: () -> Unit) {
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.AutoAwesome,
-            iconColor = Color(0xFF8B5CF6),
-            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
-            title = stringResource(R.string.prompt_preset_title),
-            subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
-            onClick = onClick,
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
-    }
-}
-
-@Composable
-private fun SummaryPanel(
-    state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    RpSettingsGroup {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.summary_memory),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                MainSummarySettingsTab.entries.forEach { tab ->
-                    val isSelected = tab == state.selectedTab
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .clickable { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
-                        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                        shape = RoundedCornerShape(9.dp),
-                        shadowElevation = if (isSelected) 1.dp else 0.dp
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(tab.titleRes()),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-            when (state.selectedTab) {
-                MainSummarySettingsTab.General -> GeneralSummarySettings(state, emit)
-                MainSummarySettingsTab.Conversation -> ConversationSummarySettings(state, emit)
-            }
-        }
-    }
-}
-
-@Composable
-private fun GeneralSummarySettings(
-    state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SummaryProviderSelector(
-            selectedProviderId = state.selectedProviderId,
-            providers = state.providers,
-            onSelect = { MainUiIntent.SelectSummaryProvider(it).emit() }
-        )
-        NumberSettingRow(
-            title = stringResource(R.string.summary_target_words),
-            value = state.wordsLimit.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
-        )
-        NumberSettingRow(
-            title = stringResource(R.string.summary_response_tokens),
-            value = state.responseTokens.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SummaryProviderSelector(
-    selectedProviderId: Long,
-    providers: List<MainProviderItem>,
-    onSelect: (Long) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
-    val selectedName = selectedProvider?.summaryDisplayName()
-        ?: stringResource(R.string.follow_global_model)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = selectedName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.summary_model_config)) },
-            supportingText = { Text(stringResource(R.string.summary_model_config_helper)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            shape = RoundedCornerShape(12.dp)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.follow_global_model)) },
-                onClick = {
-                    onSelect(0L)
-                    expanded = false
-                }
-            )
-            providers.forEach { provider ->
-                DropdownMenuItem(
-                    text = { Text(provider.summaryDisplayName()) },
-                    onClick = {
-                        onSelect(provider.id)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MainProviderItem.summaryDisplayName(): String {
-    val displayName = name.ifBlank { stringResource(R.string.unnamed_model_config) }
-    return if (isEnabled) {
-        displayName
+    val imageModelSubtitle = if (AppModel.imageGenerationModel.isNotBlank()) {
+        AppModel.imageGenerationModel
     } else {
-        stringResource(R.string.disabled_model_config_format, displayName)
+        stringResource(R.string.no_model_configured)
     }
-}
 
-@Composable
-private fun ConversationSummarySettings(
-    state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        SettingSwitchRow(
-            Icons.Rounded.AutoAwesome,
-            stringResource(R.string.auto_summarize),
-            stringResource(R.string.auto_summarize_desc),
-            state.autoSummaryEnabled,
-            onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
-        )
-        NumberSettingRow(
-            title = stringResource(R.string.summary_update_every_messages),
-            value = state.triggerMessageCount.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
-        )
-        NumberSettingRow(
-            title = stringResource(R.string.summary_max_messages_per_request),
-            value = state.maxMessagesPerRequest.toString(),
-            helper = stringResource(R.string.summary_max_messages_helper),
-            onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = stringResource(R.string.summary_injection_position),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SummaryInjectionPosition.entries.forEach { position ->
-                    FilterChip(
-                        selected = position == state.injectionState.position,
-                        onClick = {
-                            MainUiIntent.SelectSummaryInjectionPosition(position).emit()
-                        },
-                        label = { Text(stringResource(position.titleRes())) },
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
+    val voiceModelSubtitle = when (TtsProviderType.fromPersistedValue(AppModel.ttsProvider)) {
+        TtsProviderType.System -> {
+            val lang = AppModel.ttsSystemLanguageTag.ifBlank { "" }
+            if (lang.isNotBlank()) {
+                "${stringResource(R.string.tts_provider_system)} · $lang"
+            } else {
+                stringResource(R.string.tts_provider_system)
             }
         }
-        val injectionState = state.injectionState
-        if (injectionState is MainSummaryInjectionState.InChat) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                        RoundedCornerShape(14.dp)
-                    )
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                NumberSettingRow(
-                    title = stringResource(R.string.summary_injection_depth),
-                    value = injectionState.depth.toString(),
-                    onValueChange = {
-                        MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
-                    }
-                )
-                Text(
-                    text = stringResource(R.string.summary_injection_role),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SummaryInjectionRole.entries.forEach { role ->
-                        FilterChip(
-                            selected = role == injectionState.role,
-                            onClick = {
-                                MainUiIntent.SelectSummaryInjectionRole(role).emit()
-                            },
-                            label = { Text(stringResource(role.titleRes())) },
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                    }
-                }
-            }
+        TtsProviderType.Mimo -> {
+            val voice = AppModel.ttsMimoVoice.ifBlank { "default" }
+            "Mimo · $voice"
+        }
+        TtsProviderType.Azure -> {
+            val voice = AppModel.ttsAzureVoice.ifBlank { "default" }
+            "Azure · $voice"
         }
     }
-}
 
-private fun MainSummarySettingsTab.titleRes(): Int {
-    return when (this) {
-        MainSummarySettingsTab.General -> R.string.general_summary_memory
-        MainSummarySettingsTab.Conversation -> R.string.conversation_summary_memory
-    }
-}
-
-@Composable
-private fun NumberSettingRow(
-    title: String,
-    value: String,
-    helper: String? = null,
-    onValueChange: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
-            )
-            if (!helper.isNullOrBlank()) {
-                Text(
-                    helper,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
-                )
-            }
-        }
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            modifier = Modifier.width(100.dp),
-            shape = RoundedCornerShape(12.dp),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                fontWeight = FontWeight.SemiBold
-            )
-        )
-    }
-}
-
-@Composable
-private fun DebugPanel(
-    state: MainDebugSettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    RpSettingsGroup {
-        RpSettingsSwitchTile(
-            icon = Icons.Rounded.BugReport,
-            iconColor = Color(0xFFEF4444),
-            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
-            title = stringResource(R.string.debug_mode),
-            subtitle = stringResource(R.string.debug_mode_desc),
-            checked = state.enabled,
-            onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
-        )
-        if (state.enabled) {
-            RpSettingsDivider()
-            RpSettingsTile(
-                icon = Icons.Rounded.DataObject,
-                iconColor = Color(0xFF8B5CF6),
-                iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
-                title = stringResource(R.string.request_logs),
-                subtitle = stringResource(R.string.request_logs_entry_subtitle),
-                onClick = { MainUiIntent.OpenRequestLogs.emit() },
-                trailing = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun GenerationCapabilitiesPanel(
-    onImageClick: () -> Unit,
-    onTtsClick: () -> Unit
-) {
     RpSettingsGroup {
         RpSettingsTile(
-            icon = Icons.Rounded.ImageIcon,
+            icon = Icons.Rounded.SmartToy,
             iconColor = MaterialTheme.colorScheme.primary,
             iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-            title = stringResource(R.string.image_generation),
-            subtitle = stringResource(R.string.image_generation_settings_subtitle),
-            onClick = onImageClick,
+            title = stringResource(R.string.chat_model),
+            subtitle = chatModelSubtitle,
+            onClick = { MainUiIntent.OpenProviderManager.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.ImageIcon,
+            iconColor = Color(0xFF10B981),
+            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            title = stringResource(R.string.image_model),
+            subtitle = imageModelSubtitle,
+            onClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -2475,9 +1763,9 @@ private fun GenerationCapabilitiesPanel(
             icon = Icons.AutoMirrored.Rounded.VolumeUp,
             iconColor = Color(0xFF8B5CF6),
             iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
-            title = stringResource(R.string.tts_settings_title),
-            subtitle = stringResource(R.string.tts_settings_subtitle),
-            onClick = onTtsClick,
+            title = stringResource(R.string.voice_model),
+            subtitle = voiceModelSubtitle,
+            onClick = { MainUiIntent.OpenTtsSettings.emit() },
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -2491,7 +1779,120 @@ private fun GenerationCapabilitiesPanel(
 }
 
 @Composable
-private fun BackupEntryCard(onClick: () -> Unit) {
+private fun PromptAndContextPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    val postProcessingMode = when (val postState = state.promptBehaviorState.providerPostProcessingState) {
+        is MainProviderPostProcessingState.Available -> postState.mode
+        MainProviderPostProcessingState.Unavailable -> PromptPostProcessingMode.Strict
+    }
+    val postProcessingTitle = stringResource(postProcessingMode.titleRes())
+    val exampleTitle = stringResource(state.promptBehaviorState.exampleDialogueBehavior.titleRes())
+    val streamingPart = if (state.promptBehaviorState.streamEnabled) {
+        " · " + stringResource(R.string.streaming_response)
+    } else {
+        ""
+    }
+    val promptBehaviorSubtitle = "$postProcessingTitle · $exampleTitle$streamingPart"
+
+    val capString = if (state.worldInfoBudgetState.budgetCap > 0) {
+        state.worldInfoBudgetState.budgetCap.toString()
+    } else {
+        stringResource(R.string.unlimited)
+    }
+    val worldInfoBudgetSubtitle = stringResource(
+        R.string.world_info_budget_summary,
+        state.worldInfoBudgetState.budgetPercent,
+        capString
+    )
+
+    val summarySubtitle = if (state.summaryState.autoSummaryEnabled) {
+        stringResource(
+            R.string.auto_summary_enabled_summary,
+            state.summaryState.triggerMessageCount
+        )
+    } else {
+        stringResource(R.string.auto_summary_disabled_summary)
+    }
+
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.AutoAwesome,
+            iconColor = Color(0xFF8B5CF6),
+            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            title = stringResource(R.string.prompt_preset_title),
+            subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
+            onClick = { MainUiIntent.OpenPromptPreset.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.Psychology,
+            iconColor = Color(0xFF6366F1),
+            iconContainerColor = Color(0xFF6366F1).copy(alpha = 0.14f),
+            title = stringResource(R.string.prompt_behavior_title),
+            subtitle = promptBehaviorSubtitle,
+            onClick = { MainUiIntent.OpenPromptBehaviorSettings.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.Book,
+            iconColor = Color(0xFF10B981),
+            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            title = stringResource(R.string.world_info_budget_title),
+            subtitle = worldInfoBudgetSubtitle,
+            onClick = { MainUiIntent.OpenWorldInfoBudgetSettings.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.Memory,
+            iconColor = Color(0xFFF59E0B),
+            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
+            title = stringResource(R.string.summary_memory_title),
+            subtitle = summarySubtitle,
+            onClick = { MainUiIntent.OpenSummaryMemorySettings.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun DataAndDevelopmentPanel(
+    chatDataManagementState: MainChatDataManagementState,
+    emit: MainUiIntent.() -> Unit
+) {
+    val isReading = chatDataManagementState == MainChatDataManagementState.Reading
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.Backup,
@@ -2499,7 +1900,7 @@ private fun BackupEntryCard(onClick: () -> Unit) {
             iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
             title = stringResource(R.string.backup_title),
             subtitle = stringResource(R.string.backup_entry_subtitle),
-            onClick = onClick,
+            onClick = { MainUiIntent.OpenBackup.emit() },
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -2509,21 +1910,60 @@ private fun BackupEntryCard(onClick: () -> Unit) {
                 )
             }
         )
-    }
-}
-
-@Composable
-private fun AboutEntryCard(
-    onClick: () -> Unit
-) {
-    RpSettingsGroup {
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.FileDownload,
+            iconColor = Color(0xFF3B82F6),
+            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
+            title = stringResource(R.string.import_chat),
+            subtitle = if (isReading) {
+                stringResource(R.string.reading_chat_file)
+            } else {
+                stringResource(R.string.import_chat_desc)
+            },
+            enabled = !isReading,
+            onClick = { MainUiIntent.ImportChatClick.emit() },
+            trailing = {
+                if (isReading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        )
+        RpSettingsDivider()
+        RpSettingsTile(
+            icon = Icons.Rounded.Code,
+            iconColor = Color(0xFFEF4444),
+            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
+            title = stringResource(R.string.developer_mode),
+            subtitle = stringResource(R.string.developer_mode_subtitle),
+            onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+        RpSettingsDivider()
         RpSettingsTile(
             icon = Icons.Rounded.Info,
             iconColor = MaterialTheme.colorScheme.primary,
             iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
             title = stringResource(R.string.about),
             subtitle = stringResource(R.string.about_desc),
-            onClick = onClick,
+            onClick = { emit(MainUiIntent.OpenAbout) },
             trailing = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -2533,68 +1973,6 @@ private fun AboutEntryCard(
                 )
             }
         )
-    }
-}
-
-@Composable
-private fun SettingSwitchRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    RpSettingsSwitchTile(
-        icon = icon,
-        title = title,
-        subtitle = subtitle,
-        checked = checked,
-        onCheckedChange = onCheckedChange
-    )
-}
-
-private fun PromptPostProcessingMode.titleRes(): Int {
-    return when (this) {
-        PromptPostProcessingMode.None -> R.string.prompt_post_processing_none
-        PromptPostProcessingMode.Merge -> R.string.prompt_post_processing_merge
-        PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict
-        PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict
-        PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user
-    }
-}
-
-private fun PromptPostProcessingMode.descriptionRes(): Int {
-    return when (this) {
-        PromptPostProcessingMode.None -> R.string.prompt_post_processing_none_desc
-        PromptPostProcessingMode.Merge -> R.string.prompt_post_processing_merge_desc
-        PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict_desc
-        PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict_desc
-        PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user_desc
-    }
-}
-
-private fun ExampleDialogueBehavior.titleRes(): Int {
-    return when (this) {
-        ExampleDialogueBehavior.Normal -> R.string.prompt_example_behavior_normal
-        ExampleDialogueBehavior.Pinned -> R.string.prompt_example_behavior_pinned
-        ExampleDialogueBehavior.Disabled -> R.string.prompt_example_behavior_disabled
-    }
-}
-
-private fun SummaryInjectionPosition.titleRes(): Int {
-    return when (this) {
-        SummaryInjectionPosition.None -> R.string.summary_position_none
-        SummaryInjectionPosition.BeforeMain -> R.string.summary_position_before_main
-        SummaryInjectionPosition.AfterMain -> R.string.summary_position_after_main
-        SummaryInjectionPosition.InChat -> R.string.summary_position_in_chat
-    }
-}
-
-private fun SummaryInjectionRole.titleRes(): Int {
-    return when (this) {
-        SummaryInjectionRole.System -> R.string.summary_role_system
-        SummaryInjectionRole.User -> R.string.summary_role_user
-        SummaryInjectionRole.Assistant -> R.string.summary_role_assistant
     }
 }
 

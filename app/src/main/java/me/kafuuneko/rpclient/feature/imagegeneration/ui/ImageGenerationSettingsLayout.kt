@@ -20,15 +20,19 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -55,6 +60,7 @@ import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGeneratio
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImageGenerationSettingsUiState
 import me.kafuuneko.rpclient.feature.imagegeneration.presentation.ImagePromptProviderItem
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -114,6 +120,9 @@ private fun ImageGenerationSettingsNormal(
                 ServicePanel(form = state.form, emit = emit)
             }
             item {
+                GenerationParamsPanel(form = state.form, emit = emit)
+            }
+            item {
                 PromptModelPanel(
                     selectedProviderId = state.form.promptProviderId,
                     providers = state.providers,
@@ -170,6 +179,17 @@ private fun ServicePanel(
             onValueChange = { ImageGenerationSettingsUiIntent.ChangeModel(it).emit() },
             imeAction = ImeAction.Next
         )
+    }
+}
+
+@Composable
+private fun GenerationParamsPanel(
+    form: ImageGenerationSettingsForm,
+    emit: ImageGenerationSettingsUiIntent.() -> Unit
+) {
+    RpPanel {
+        RpSectionHeader(title = stringResource(R.string.image_generation_params_section))
+
         SettingsTextField(
             value = form.size,
             label = stringResource(R.string.image_generation_size),
@@ -180,11 +200,9 @@ private fun ServicePanel(
             value = form.maxConcurrentRequests,
             label = stringResource(R.string.image_generation_max_concurrent_requests),
             supportingText = stringResource(R.string.image_generation_max_concurrent_requests_desc),
-            onValueChange = {
-                ImageGenerationSettingsUiIntent.ChangeMaxConcurrentRequests(it).emit()
-            },
+            onValueChange = { ImageGenerationSettingsUiIntent.ChangeMaxConcurrentRequests(it).emit() },
             keyboardType = KeyboardType.Number,
-            imeAction = ImeAction.Next
+            imeAction = ImeAction.Done
         )
     }
 }
@@ -196,7 +214,7 @@ private fun PromptModelPanel(
     emit: ImageGenerationSettingsUiIntent.() -> Unit
 ) {
     RpPanel {
-        RpSectionHeader(title = stringResource(R.string.image_prompt_provider_section))
+        RpSectionHeader(title = stringResource(R.string.image_prompt_model_section))
 
         ImagePromptProviderSelector(
             selectedProviderId = selectedProviderId,
@@ -211,28 +229,35 @@ private fun StylePanel(
     form: ImageGenerationSettingsForm,
     emit: ImageGenerationSettingsUiIntent.() -> Unit
 ) {
-    RpPanel {
-        RpSectionHeader(title = stringResource(R.string.image_generation_style_section))
+    RpCollapsibleSettingsGroup(
+        title = stringResource(R.string.image_generation_style_section),
+        subtitle = stringResource(R.string.image_generation_style_prompt),
+        initiallyExpanded = false
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SettingsTextField(
+                value = form.sceneStylePrompt,
+                label = stringResource(R.string.image_generation_scene_style_prompt),
+                supportingText = stringResource(R.string.image_generation_scene_style_prompt_desc),
+                onValueChange = { ImageGenerationSettingsUiIntent.ChangeSceneStylePrompt(it).emit() },
+                singleLine = false,
+                minLines = 3,
+                imeAction = ImeAction.Default
+            )
 
-        SettingsTextField(
-            value = form.sceneStylePrompt,
-            label = stringResource(R.string.image_generation_scene_style_prompt),
-            supportingText = stringResource(R.string.image_generation_scene_style_prompt_desc),
-            onValueChange = { ImageGenerationSettingsUiIntent.ChangeSceneStylePrompt(it).emit() },
-            singleLine = false,
-            minLines = 3,
-            imeAction = ImeAction.Default
-        )
-
-        SettingsTextField(
-            value = form.avatarStylePrompt,
-            label = stringResource(R.string.image_generation_avatar_style_prompt),
-            supportingText = stringResource(R.string.image_generation_avatar_style_prompt_desc),
-            onValueChange = { ImageGenerationSettingsUiIntent.ChangeAvatarStylePrompt(it).emit() },
-            singleLine = false,
-            minLines = 3,
-            imeAction = ImeAction.Default
-        )
+            SettingsTextField(
+                value = form.avatarStylePrompt,
+                label = stringResource(R.string.image_generation_avatar_style_prompt),
+                supportingText = stringResource(R.string.image_generation_avatar_style_prompt_desc),
+                onValueChange = { ImageGenerationSettingsUiIntent.ChangeAvatarStylePrompt(it).emit() },
+                singleLine = false,
+                minLines = 3,
+                imeAction = ImeAction.Default
+            )
+        }
     }
 }
 
@@ -263,7 +288,8 @@ private fun ImagePromptProviderSelector(
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            maxLines = 1
+            maxLines = 1,
+            shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -320,6 +346,7 @@ private fun SettingsTextField(
 ) {
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     var isFocused by remember { mutableStateOf(false) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isFocused) {
         if (isFocused) {
@@ -339,10 +366,22 @@ private fun SettingsTextField(
         supportingText = supportingText?.let { { Text(it) } },
         singleLine = singleLine,
         minLines = minLines,
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        visualTransformation = if (password && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = if (password) {
+            {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else null,
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType,
             imeAction = imeAction
-        )
+        ),
+        shape = RoundedCornerShape(12.dp)
     )
 }
