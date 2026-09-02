@@ -608,7 +608,7 @@ private fun ParameterPanel(
             onChange = { LLMProviderEditUiIntent.ChangeMaxTokens(it).emit() }
         )
         TokenPresetField(
-            label = stringResource(R.string.context) + " " + stringResource(R.string.tokens),
+            label = stringResource(R.string.context_tokens),
             value = form.contextTokens,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
         )

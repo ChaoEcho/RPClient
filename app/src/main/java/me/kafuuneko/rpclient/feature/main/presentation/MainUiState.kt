@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 
@@ -32,10 +31,7 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
     return copy(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
         settingsState = settingsState.copy(
-            chatDataManagementState = this.settingsState.chatDataManagementState,
-            summaryState = settingsState.summaryState.copy(
-                selectedTab = this.settingsState.summaryState.selectedTab
-            )
+            chatDataManagementState = this.settingsState.chatDataManagementState
         )
     )
 }
@@ -58,11 +54,6 @@ sealed class MainDialogState {
         val item: MainHomeItemSelection,
         val title: String,
         val isSaving: Boolean = false
-    ) : MainDialogState()
-
-    data class EditGenerationParameter(
-        val parameter: MainGenerationParameter,
-        val draftValue: String
     ) : MainDialogState()
 
     data class EditUserDescription(

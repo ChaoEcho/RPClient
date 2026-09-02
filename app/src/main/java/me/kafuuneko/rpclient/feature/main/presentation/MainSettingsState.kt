@@ -14,8 +14,7 @@ data class MainSettingsState(
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
     val summaryState: MainSummarySettingsState,
-    val chatDataManagementState: MainChatDataManagementState = MainChatDataManagementState.Idle,
-    val debugState: MainDebugSettingsState
+    val chatDataManagementState: MainChatDataManagementState = MainChatDataManagementState.Idle
 )
 
 /** 用户名称、描述和头像面板状态。 */
@@ -42,18 +41,9 @@ sealed class MainProviderSettingsState {
 
     data class Available(
         val selectedProviderId: Long,
-        val providers: List<MainProviderItem>,
-        val generationParametersState: MainGenerationParametersState
+        val providers: List<MainProviderItem>
     ) : MainProviderSettingsState()
 }
-
-/** 当前模型配置的生成参数快照。 */
-data class MainGenerationParametersState(
-    val temperature: Float,
-    val topP: Float,
-    val maxTokens: Int,
-    val contextTokens: Int
-)
 
 /** Prompt 行为面板状态。 */
 data class MainPromptBehaviorState(
@@ -79,11 +69,6 @@ data class MainWorldInfoBudgetState(
     val overflowAlert: Boolean
 )
 
-enum class MainSummarySettingsTab {
-    General,
-    Conversation
-}
-
 /** 通用摘要参数与对话摘要行为面板状态。 */
 data class MainSummarySettingsState(
     val selectedProviderId: Long = 0L,
@@ -93,8 +78,7 @@ data class MainSummarySettingsState(
     val wordsLimit: Int,
     val maxMessagesPerRequest: Int,
     val responseTokens: Int,
-    val injectionState: MainSummaryInjectionState,
-    val selectedTab: MainSummarySettingsTab = MainSummarySettingsTab.General
+    val injectionState: MainSummaryInjectionState
 )
 
 /** 摘要注入位置；只有聊天历史内注入需要额外的深度和角色。 */
@@ -132,7 +116,3 @@ sealed class MainChatDataManagementState {
     data object Reading : MainChatDataManagementState()
 }
 
-/** Debug 设置面板状态。 */
-data class MainDebugSettingsState(
-    val enabled: Boolean
-)

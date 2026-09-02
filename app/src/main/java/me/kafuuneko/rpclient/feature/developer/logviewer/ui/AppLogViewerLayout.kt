@@ -215,7 +215,9 @@ private fun AppLogItemCard(entry: AppLogEntry) {
     val (levelColor, levelBgColor) = when (entry.level) {
         AppLogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant to MaterialTheme.colorScheme.surfaceVariant
         AppLogLevel.INFO -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-        AppLogLevel.WARN -> Color(0xFFD97706) to Color(0xFFFEF3C7)
+        // 固定的浅色琥珀在深色主题下不可读，改用会随主题反转的 tertiary 色对。
+        AppLogLevel.WARN -> MaterialTheme.colorScheme.tertiary to
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
         AppLogLevel.ERROR -> MaterialTheme.colorScheme.error to MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
     }
 

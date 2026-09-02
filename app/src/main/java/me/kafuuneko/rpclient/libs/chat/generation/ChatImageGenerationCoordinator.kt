@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
+import me.kafuuneko.rpclient.libs.imagegeneration.IMAGE_GENERATION_LIMIT_KEY
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.imagegeneration.buildFallbackScenePrompt
@@ -33,6 +34,7 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_IMAGE_PROMPT
 
 /** Application-scoped owner for independent per-message image generation tasks. */
 class ChatImageGenerationCoordinator(
@@ -89,7 +91,7 @@ class ChatImageGenerationCoordinator(
                 clearState(messageId)
                 return
             }
-            if (preparation.config.baseUrl.isBlank() || preparation.config.model.isBlank()) {
+            if (!preparation.config.isConfigured) {
                 publish(
                     messageId,
                     ChatImageGenerationTaskState.Failed(
@@ -160,12 +162,7 @@ class ChatImageGenerationCoordinator(
             recentUserMessage = messages.take(targetIndex)
                 .lastOrNull { it.source == ChatMessage.Source.User }
                 ?.content.orEmpty(),
-            config = ImageGenerationConfig(
-                baseUrl = AppModel.imageGenerationBaseUrl,
-                apiKey = AppModel.imageGenerationApiKey,
-                model = AppModel.imageGenerationModel,
-                size = AppModel.imageGenerationSize
-            ),
+            config = ImageGenerationConfig.fromAppModel(),
             stylePrompt = AppModel.imageGenerationStylePrompt
         )
     }
@@ -198,7 +195,8 @@ class ChatImageGenerationCoordinator(
                         captureReasoning = false,
                         isPromptFinalized = true
                     ),
-                    routingSessionKey = "image-prompt:$sessionId"
+                    routingSessionKey = "image-prompt:$sessionId",
+                    permitScope = LLM_PERMIT_SCOPE_IMAGE_PROMPT
                 )
             }
             response.content.trim().takeIf { it.isNotEmpty() } ?: fallback
@@ -247,7 +245,6 @@ class ChatImageGenerationCoordinator(
     )
 
     private companion object {
-        const val IMAGE_GENERATION_LIMIT_KEY = "image-generation"
         const val IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT = """
 Refine the latest roleplay turn into a concise English description of the visible scene for an image prompt.
 Include only visible subjects, location, current actions, pose, facial expression, spatial interaction, and relevant objects.

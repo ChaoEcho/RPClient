@@ -28,7 +28,6 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
@@ -36,9 +35,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
-import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
@@ -647,122 +644,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
-    /** 打开当前选中的模型供应商详情编辑页。 */
-    @UiIntentObserver(MainUiIntent.OpenSelectedProviderEdit::class)
-    private fun onOpenSelectedProviderEdit() {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerState = uiState.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        AppViewEvent.StartActivity(
-            activity = LLMProviderEditActivity::class.java,
-            extras = Bundle().apply {
-                putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerState.selectedProviderId)
-            }
-        ).tryEmit()
-    }
-
-    /** 弹出模型生成参数（温度 / TopP / MaxTokens / ContextTokens）快速编辑弹窗。 */
-    @UiIntentObserver(MainUiIntent.ShowGenerationParameterDialog::class)
-    private suspend fun onShowGenerationParameterDialog(
-        intent: MainUiIntent.ShowGenerationParameterDialog
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (!uiState.canOpenDialog()) return
-        val providerState = uiState.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        // 在 IO 线程加载当前供应商最新参数
-        val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerState.selectedProviderId)
-        } ?: return
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        if (!current.canOpenDialog()) return
-        val currentProviderState = current.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        if (currentProviderState.selectedProviderId != provider.id) return
-        // 装填当前参数草稿并弹出对话框
-        current.copy(
-            dialogState = MainDialogState.EditGenerationParameter(
-                parameter = intent.parameter,
-                draftValue = intent.parameter.valueOf(provider)
-            )
-        ).setup()
-    }
-
-    /** 修改模型生成参数编辑弹窗中的草稿数值。 */
-    @UiIntentObserver(MainUiIntent.ChangeGenerationParameterDraft::class)
-    private fun onChangeGenerationParameterDraft(
-        intent: MainUiIntent.ChangeGenerationParameterDraft
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.EditGenerationParameter ?: return
-        uiState.copy(
-            dialogState = dialog.copy(draftValue = intent.value)
-        ).setup()
-    }
-
-    /** 确认并持久化修改后的模型生成参数。 */
-    @UiIntentObserver(MainUiIntent.ConfirmGenerationParameter::class)
-    private suspend fun onConfirmGenerationParameter() {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val dialog = uiState.dialogState as? MainDialogState.EditGenerationParameter ?: return
-        val providerState = uiState.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerState.selectedProviderId)
-        } ?: return
-        // 校验输入数值合法性与 Token 上限约束关系
-        val updatedProvider = dialog.parameter.updateProviderOrNull(provider, dialog.draftValue)
-        if (updatedProvider == null) {
-            val messageRes = if (dialog.hasInvalidTokenRelationship(provider)) {
-                R.string.max_tokens_must_be_less_than_context
-            } else {
-                R.string.generation_params_invalid
-            }
-            AppViewEvent.PopupToastMessageByResId(messageRes).tryEmit()
-            return
-        }
-        // 持久化更新到数据库
-        withContext(Dispatchers.IO) {
-            mLLMRepository.saveProvider(updatedProvider)
-        }
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        val currentProviderState = current.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        if (currentProviderState.selectedProviderId != updatedProvider.id) return
-        // 关闭弹窗并同步更新模型设置面板
-        current.copy(
-            dialogState = if (
-                current.dialogState is MainDialogState.EditGenerationParameter
-            ) {
-                MainDialogState.None
-            } else {
-                current.dialogState
-            },
-            settingsState = current.settingsState.copy(
-                providerState = currentProviderState.copy(
-                    generationParametersState = updatedProvider.toGenerationParametersState()
-                )
-            )
-        ).setup()
-    }
-
-    /** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
-    private fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
-        provider: LLMProvider
-    ): Boolean {
-        val value = draftValue.toIntOrNull() ?: return false
-        return when (parameter) {
-            MainGenerationParameter.MaxTokens -> value >= provider.contextTokens
-            MainGenerationParameter.ContextTokens -> value <= provider.maxTokens
-            MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> false
-        }
-    }
-
     /** 触发系统图片选择器选择用户自定义头像。 */
     @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
     private fun onPickUserAvatarClick() {
@@ -833,13 +714,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRegexScripts() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RegexScriptActivity::class.java).tryEmit()
-    }
-
-    /** 打开 LLM 请求与调试日志列表页。 */
-    @UiIntentObserver(MainUiIntent.OpenRequestLogs::class)
-    private fun onOpenRequestLogs() {
-        if (!isStateOf<MainUiState.Normal>()) return
-        AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
     }
 
     /** 打开完整备份、恢复与 WebDAV 云备份页面。 */
@@ -981,316 +855,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    /** 切换全局默认使用的 LLM 供应商。 */
-    @UiIntentObserver(MainUiIntent.SelectProvider::class)
-    private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
-        if (!isStateOf<MainUiState.Normal>()) return
-        // 更新数据库中的当前首选供应商
-        mLLMRepository.updateCurrentProvider(intent.providerId)
-        val providers = mLLMRepository.getEnabledProviders()
-        val selectedProvider = providers.firstOrNull { it.id == intent.providerId } ?: return
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        val promptBehaviorState = current.settingsState.promptBehaviorState
-        // 刷新模型供应商面板及后处理能力状态
-        current.copy(
-            selectedPage = MainPage.Settings,
-            settingsState = current.settingsState.copy(
-                providerState = buildProviderSettingsState(providers, selectedProvider),
-                promptBehaviorState = promptBehaviorState.copy(
-                    providerPostProcessingState = MainProviderPostProcessingState.Available(
-                        selectedProvider.postProcessingMode()
-                    )
-                )
-            )
-        ).setup()
-    }
-
-    /** 切换是否启用长对话自动总结功能。 */
-    @UiIntentObserver(MainUiIntent.ToggleAutoSummaryEnabled::class)
-    private fun onToggleAutoSummaryEnabled(intent: MainUiIntent.ToggleAutoSummaryEnabled) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.autoSummaryEnabled = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    autoSummaryEnabled = intent.enabled
-                )
-            )
-        ).setup()
-    }
-
-    /** 选择用于执行会话总结的专用 LLM 供应商（ID 为 0 时继承当前主供应商）。 */
-    @UiIntentObserver(MainUiIntent.SelectSummaryProvider::class)
-    private fun onSelectSummaryProvider(intent: MainUiIntent.SelectSummaryProvider) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val summaryState = uiState.settingsState.summaryState
-        if (intent.providerId != 0L && summaryState.providers.none { it.id == intent.providerId }) {
-            return
-        }
-        AppModel.summaryLLMProvider = intent.providerId
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = summaryState.copy(
-                    selectedProviderId = intent.providerId,
-                    providers = summaryState.providers.filter {
-                        it.isEnabled || it.id == intent.providerId
-                    }
-                )
-            )
-        ).setup()
-    }
-
-    /** 修改自动总结的触发消息轮数阈值。 */
-    @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
-    private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
-        updateSettingsInt(intent.value, minimum = 1) {
-            AppModel.summaryTriggerMessageCount = it
-            copy(
-                summaryState = summaryState.copy(triggerMessageCount = it)
-            )
-        }
-    }
-
-    /** 修改总结生成的目标字数限制。 */
-    @UiIntentObserver(MainUiIntent.ChangeSummaryWordsLimit::class)
-    private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
-        updateSettingsInt(intent.value, minimum = 50) {
-            AppModel.summaryWordsLimit = it
-            copy(
-                summaryState = summaryState.copy(wordsLimit = it)
-            )
-        }
-    }
-
-    /** 修改单次总结请求包含的最大历史消息条数。 */
-    @UiIntentObserver(MainUiIntent.ChangeSummaryMaxMessagesPerRequest::class)
-    private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.summaryMaxMessagesPerRequest = it
-            copy(
-                summaryState = summaryState.copy(maxMessagesPerRequest = it)
-            )
-        }
-    }
-
-    /** 修改总结生成请求的最大 Token 限制。 */
-    @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
-    private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
-        updateSettingsInt(intent.value, minimum = 128) {
-            AppModel.summaryResponseTokens = it
-            copy(
-                summaryState = summaryState.copy(responseTokens = it)
-            )
-        }
-    }
-
-    /** 切换会话总结设置页内的子标签页。 */
-    @UiIntentObserver(MainUiIntent.SelectSummarySettingsTab::class)
-    private fun onSelectSummarySettingsTab(intent: MainUiIntent.SelectSummarySettingsTab) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    selectedTab = intent.tab
-                )
-            )
-        ).setup()
-    }
-
-    /** 选择总结内容在 Prompt 上下文中的注入位置（系统提示词 / 对话历史中）。 */
-    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
-    private fun onSelectSummaryInjectionPosition(
-        intent: MainUiIntent.SelectSummaryInjectionPosition
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.summaryInjectionPosition = intent.position.persistedValue
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = buildSummaryInjectionState(intent.position)
-                )
-            )
-        ).setup()
-    }
-
-    /** 修改总结在对话历史中注入的倒数消息深度（Depth）。 */
-    @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionDepth::class)
-    private fun onChangeSummaryInjectionDepth(intent: MainUiIntent.ChangeSummaryInjectionDepth) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val injectionState = uiState.settingsState.summaryState.injectionState
-            as? MainSummaryInjectionState.InChat
-            ?: return
-        val value = intent.value.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        AppModel.summaryInjectionDepth = value
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = injectionState.copy(depth = value)
-                )
-            )
-        ).setup()
-    }
-
-    /** 选择总结注入为消息时的角色标识（System / User / Assistant）。 */
-    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionRole::class)
-    private fun onSelectSummaryInjectionRole(intent: MainUiIntent.SelectSummaryInjectionRole) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val injectionState = uiState.settingsState.summaryState.injectionState
-            as? MainSummaryInjectionState.InChat
-            ?: return
-        AppModel.summaryInjectionRole = intent.role.persistedValue
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = injectionState.copy(role = intent.role)
-                )
-            )
-        ).setup()
-    }
-
-    /** 切换是否启用全局流式响应输出（SSE Stream）。 */
-    @UiIntentObserver(MainUiIntent.ToggleStreamEnabled::class)
-    private fun onToggleStreamEnabled(intent: MainUiIntent.ToggleStreamEnabled) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.streamEnabled = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    streamEnabled = intent.enabled
-                )
-            )
-        ).setup()
-    }
-
-    /** 选择模型特定的 Prompt 后处理模式（如 Raw、Claude 强化、DeepSeek 优化等）。 */
-    @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
-    private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val providerState = uiState.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        // 在 IO 线程加载当前供应商
-        val provider = withContext(Dispatchers.IO) {
-            mLLMRepository.getProviderById(providerState.selectedProviderId)
-        } ?: return
-        val updatedProvider = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
-        // 保存后处理模式更新
-        withContext(Dispatchers.IO) {
-            mLLMRepository.saveProvider(updatedProvider)
-        }
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        val currentProviderState = current.settingsState.providerState
-            as? MainProviderSettingsState.Available
-            ?: return
-        if (currentProviderState.selectedProviderId != updatedProvider.id) return
-        // 同步刷新后处理状态
-        current.copy(
-            settingsState = current.settingsState.copy(
-                promptBehaviorState = current.settingsState.promptBehaviorState.copy(
-                    providerPostProcessingState = MainProviderPostProcessingState.Available(
-                        intent.mode
-                    )
-                )
-            )
-        ).setup()
-    }
-
-    /** 切换历史消息中的思考过程（Think Blocks）是否回传给模型作为上下文。 */
-    @UiIntentObserver(MainUiIntent.ToggleIncludeThinkInContext::class)
-    private fun onToggleIncludeThinkInContext(intent: MainUiIntent.ToggleIncludeThinkInContext) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.includeThinkInContext = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    includeThinkInContext = intent.enabled
-                )
-            )
-        ).setup()
-    }
-
-    /** 修改世界书占上下文总量的百分比上限预算。 */
-    @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetPercent::class)
-    private fun onChangeWorldInfoBudgetPercent(intent: MainUiIntent.ChangeWorldInfoBudgetPercent) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val percent = intent.value.coerceIn(0, 100)
-        AppModel.worldInfoBudgetPercent = percent
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
-                    budgetPercent = percent
-                )
-            )
-        ).setup()
-    }
-
-    /** 修改世界书硬性 Token 上限预算（Cap）。 */
-    @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetCap::class)
-    private fun onChangeWorldInfoBudgetCap(intent: MainUiIntent.ChangeWorldInfoBudgetCap) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.worldInfoBudgetCap = it
-            copy(
-                worldInfoBudgetState = worldInfoBudgetState.copy(budgetCap = it)
-            )
-        }
-    }
-
-    /** 切换当世界书条目超出预算被裁切时是否弹出 Toast 警报。 */
-    @UiIntentObserver(MainUiIntent.ToggleWorldInfoOverflowAlert::class)
-    private fun onToggleWorldInfoOverflowAlert(intent: MainUiIntent.ToggleWorldInfoOverflowAlert) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.worldInfoOverflowAlert = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
-                    overflowAlert = intent.enabled
-                )
-            )
-        ).setup()
-    }
-
-    /** 切换当历史消息因超限被裁切时是否弹出 Toast 警报。 */
-    @UiIntentObserver(MainUiIntent.ToggleContextTrimmingAlert::class)
-    private fun onToggleContextTrimmingAlert(intent: MainUiIntent.ToggleContextTrimmingAlert) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.contextTrimmingAlert = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    contextTrimmingAlert = intent.enabled
-                )
-            )
-        ).setup()
-    }
-
-    /** 选择示例对话（MES / Example Dialogue）的注入与展示行为。 */
-    @UiIntentObserver(MainUiIntent.SelectExampleDialogueBehavior::class)
-    private fun onSelectExampleDialogueBehavior(
-        intent: MainUiIntent.SelectExampleDialogueBehavior
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.exampleDialogueBehavior = intent.behavior.persistedValue
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    exampleDialogueBehavior = intent.behavior
-                )
-            )
-        ).setup()
-    }
-
-    /** 切换是否开启全局 Debug 调试模式（影响日志捕获与详细错误输出）。 */
-    @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
-    private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.debugModeEnabled = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                debugState = uiState.settingsState.debugState.copy(enabled = intent.enabled)
-            )
-        ).setup()
-    }
-
     /**
      * 在 IO 线程并发装配首页各组件数据。
      *
@@ -1418,9 +982,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 maxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
                 responseTokens = AppModel.summaryResponseTokens,
                 injectionState = buildSummaryInjectionState(readSummaryInjectionPosition())
-            ),
-            debugState = MainDebugSettingsState(
-                enabled = AppModel.debugModeEnabled
             )
         )
     }
@@ -1433,8 +994,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (selectedProvider == null) return MainProviderSettingsState.Empty
         return MainProviderSettingsState.Available(
             selectedProviderId = selectedProvider.id,
-            providers = providers.map { it.toMainProviderItem() },
-            generationParametersState = selectedProvider.toGenerationParametersState()
+            providers = providers.map { it.toMainProviderItem() }
         )
     }
 
@@ -1471,16 +1031,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             name = name,
             details = creator.takeIf { it.isNotBlank() }
                 ?: description.lineSequence().firstOrNull().orEmpty().take(80)
-        )
-    }
-
-    /** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
-    private fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
-        return MainGenerationParametersState(
-            temperature = temperature,
-            topP = topP,
-            maxTokens = maxTokens,
-            contextTokens = contextTokens
         )
     }
 

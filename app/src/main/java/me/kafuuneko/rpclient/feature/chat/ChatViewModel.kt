@@ -7,14 +7,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import android.os.SystemClock
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
@@ -45,7 +43,10 @@ import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.debug.AppLogger
+import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_SUMMARY
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.chatSummaryKey
 import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
 import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationTaskState
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationStartResult
@@ -100,7 +101,8 @@ import org.koin.core.component.inject
  * - 大模型调用与流式控制：Prompt 构建、Token 预算裁剪监测、流式增量接收与 UI 实时渲染、NonCancellable 安全落库。
  * - 正则脚本双阶段处理：持久化前的 Source 正则与渲染时的 Display 正则分离。
  * - 世界书（Lorebook）激活与管理：条目开关、搜索过滤、递归扫描世界书计算。
- * - 会话摘要（Summary）管理：手动触发、后台自动分段总结、摘要回滚。
+ * - 会话摘要（Summary）管理：手动触发、后台自动总结、摘要回滚。
+ *   每次触发只发起一次模型调用，覆盖 token 预算能容纳的那一段前缀；剩余积压等下一次触发。
  * - 对话归档导出：导出为 JSONL 文件。
  */
 class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
@@ -134,12 +136,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 将 Application 级生成快照重新投影到当前页面，页面销毁时仅停止观察，不停止生成。 */
     private var mGenerationObserverJob: Job? = null
     private var mImageGenerationObserverJob: Job? = null
-    /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
-    private var mSummaryJob: Job? = null
     /** 用户主动触发的对话归档导出任务 Job；运行期间阻止页面退出以防写入不完整文件。 */
     private var mChatExportJob: Job? = null
-    /** 用于互斥串行化摘要任务的启动、替换与取消，防止并发总结导致 UI 状态混乱。 */
-    private val mSummaryJobMutex = Mutex()
     /** 仅暴露当前流式生成的快照供 UI 刷新读取；生成协程本身是唯一的写入者和最终收尾提交者。 */
     private var mActiveStreamingGeneration: ActiveStreamingGeneration? = null
     /** 最近一次实际发送给模型请求的 Prompt 检查报告，供调试及 Prompt 检查器对话框读取。 */
@@ -851,7 +849,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ).tryEmit()
             return
         }
-        if (mSummaryJob?.isActive == true) {
+        if (mGenerationCoordinator.isSummaryActive(chatSummaryKey(sessionId))) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.wait_for_summary_before_exporting
             ).tryEmit()
@@ -879,7 +877,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ).tryEmit()
             return
         }
-        if (mSummaryJob?.isActive == true) {
+        if (mGenerationCoordinator.isSummaryActive(chatSummaryKey(sessionId))) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.wait_for_summary_before_exporting
             ).tryEmit()
@@ -917,15 +915,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSummarizeNow() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.isActive(sessionId)) {
-            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
-            return
+        // 正文生成不再阻止手动摘要：两者用不同的限流键，可以并行。
+        if (!launchSummaryJob(sessionId, showToast = true)) {
+            AppViewEvent.PopupToastMessageByResId(R.string.summary_already_running).tryEmit()
         }
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(
-            dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Preparing)
-        ).setup()
-        launchSummaryJob(sessionId, showToast = true)
     }
 
     /**
@@ -935,7 +928,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onRestorePreviousSummary() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationCoordinator.isActive(sessionId) || mSummaryJob?.isActive == true) return
+        if (mGenerationCoordinator.isActive(sessionId) ||
+            mGenerationCoordinator.isSummaryActive(chatSummaryKey(sessionId))
+        ) return
         val restored = withContext(Dispatchers.IO) {
             mChatRepository.restorePreviousSummary(sessionId)
         }
@@ -993,8 +988,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.CancelSummary::class)
     private fun onCancelSummary() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        mSummaryJob?.cancel()
-        // 取消操作不等待后台 CPU/网络任务 join，先立即恢复可交互 UI。
+        val sessionId = mSessionId
+        // 真正取消 Application 级摘要任务；不 join，避免阻塞唯一的意图收集器。
+        if (sessionId != null) mGenerationCoordinator.stopSummary(chatSummaryKey(sessionId))
         if (uiState.dialogState is ChatDialogState.Summarizing) {
             uiState.copy(dialogState = ChatDialogState.None).setup()
         }
@@ -1814,6 +1810,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 generationState = ChatGenerationState.Streaming(active.messageId, active.content)
             )
+            // 流式草稿落库节流游标；只用于崩溃/回收时保住已收到的正文。
+            var draftPersistedLength = 0
+            var draftPersistedAt = SystemClock.elapsedRealtime()
             // 收集大模型流式增量事件
             mLLMRepository.streamGenerateWithProvider(
                 provider = provider,
@@ -1825,6 +1824,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     is LLMStreamEvent.Delta -> {
                         active = active.copy(content = active.content + event.content)
                         mActiveStreamingGeneration = active
+                        // 节流写库：进程被系统杀死时，最多只丢失最近一段增量而不是整条回复。
+                        val draftMessageId = active.messageId
+                        val now = SystemClock.elapsedRealtime()
+                        if (draftMessageId != null &&
+                            (active.content.length - draftPersistedLength >= STREAM_DRAFT_PERSIST_CHARS ||
+                                now - draftPersistedAt >= STREAM_DRAFT_PERSIST_INTERVAL_MS)
+                        ) {
+                            draftPersistedLength = active.content.length
+                            draftPersistedAt = now
+                            val draft = active.content
+                            withContext(Dispatchers.IO) {
+                                mChatRepository.updateGenerationDraft(draftMessageId, draft)
+                            }
+                        }
                         // 计算用于 UI 实时展示的正则替换文本（Display 阶段正则）
                         val displayContent = applyStreamingDisplayRegex(active)
                         val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
@@ -1880,41 +1893,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 启动一个摘要任务，并通过 Mutex 保证串行化执行。
+     * 启动一个 Application 级摘要任务。
      *
-     * 互斥锁确保上一任务完成取消和 NonCancellable UI 收尾后，新任务才启动，
-     * 避免旧任务的 finally 块意外关闭新任务刚展示的“总结中”弹窗。
+     * 手动与自动摘要共用这一个入口，[ChatGenerationCoordinator] 保证每个会话至多一个摘要任务，
+     * 因此取消按钮总能拿到句柄，任务也不会在离开页面后失控。
      *
      * @param sessionId 会话 ID
      * @param showToast 是否在总结完成或出错时弹出 Toast（手动触发为 true，自动触发为 false）
-     * @return 启动的任务 Job
+     * @return 是否成功启动；已有摘要在执行时返回 false
      */
-    private suspend fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
-        return mSummaryJobMutex.withLock {
-            // 取消并等待上一个可能正在执行的总结任务
-            mSummaryJob?.cancelAndJoin()
-            // 启动新的总结协程任务
-            viewModelScope.launch {
-                try {
-                    summarizeSession(sessionId, showToast)
-                } finally {
-                    // 收尾处理：若弹窗仍处于“总结中”状态，则安全关闭弹窗
-                    withContext(NonCancellable) {
-                        val currentState = getOrNull<ChatUiState.Normal>()
-                        if (currentState != null && currentState.dialogState is ChatDialogState.Summarizing) {
-                            refreshUiState(
-                                sessionId = sessionId,
-                                inputDraft = currentState.conversationState.inputDraft,
-                                isExpanded = currentState.lorebookState.isExpanded,
-                                expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
-                                dialogState = ChatDialogState.None
-                            )
-                        }
-                    }
-                }
-            }.also { mSummaryJob = it }
+    private fun launchSummaryJob(sessionId: Long, showToast: Boolean): Boolean =
+        mGenerationCoordinator.launchSummary(chatSummaryKey(sessionId)) {
+            summarizeSession(sessionId, showToast)
         }
-    }
 
     /**
      * 检查是否满足自动总结触发条件，并在满足时执行自动总结。
@@ -1935,9 +1926,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
-            // 自动总结属于本轮 Application 级生成的一部分，不能切回 viewModelScope，
-            // 否则离开页面会在正文完成后取消总结。
-            summarizeSession(sessionId, showToast = false)
+            // 交给协调器持有：自动总结同样需要可取消、可查询，且不能随页面销毁而中断。
+            launchSummaryJob(sessionId, showToast = false)
         }
     }
 
@@ -1950,101 +1940,136 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * - 调用模型生成摘要正文并进行安全字符清洗（[summarySafeContent]）。
      * - 将新摘要及其实际覆盖的消息边界 ID（coveredMessageId）保存至数据库。
      *
+     * 弹窗只属于手动触发：自动总结是后台任务，弹模态框会让整个聊天页显得卡死。
+     * 弹窗的显示与关闭都在本函数内完成，因此任何提前返回或取消都不会留下无法关闭的弹窗。
+     *
      * @param sessionId 会话 ID
-     * @param showToast 是否显示 Toast 提示
+     * @param isManual 是否为用户手动触发（决定弹窗、Toast 与是否允许覆盖最新摘要）
      */
-    private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
-        runCatching {
-            // 异步组装总结所需的基础数据（会话、角色、待总结切片、模型提供商）
-            val data = withContext(Dispatchers.IO) {
-                val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
-                val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
-                val summaryContext = mChatRepository.getSummaryGenerationContext(
-                    sessionId = sessionId,
-                    allowRefreshLatest = showToast
-                )
-                val provider = mProviderSelectionResolver.requireSummaryProvider()
-                AutoSummaryData(
-                    session = session,
-                    character = character,
-                    summary = summaryContext.existingSummary,
-                    messages = summaryContext.messages,
-                    summaryIdToUpdate = summaryContext.summaryToUpdate?.id,
-                    provider = provider
-                )
-            } ?: return
-            // 检查待总结消息列表是否为空或未达自动阈值
-            if (data.messages.isEmpty()) {
-                if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
-                return
-            }
-            if (!showToast && data.messages.size < AppModel.summaryTriggerMessageCount) return
+    private suspend fun summarizeSession(sessionId: Long, isManual: Boolean) {
+        if (isManual) setSummarizingStage(SummaryPreparationStage.Preparing)
+        try {
+            runCatching {
+                // 异步组装总结所需的基础数据（会话、角色、待总结切片、模型提供商）
+                val data = withContext(Dispatchers.IO) {
+                    val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
+                    val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
+                    val summaryContext = mChatRepository.getSummaryGenerationContext(
+                        sessionId = sessionId,
+                        allowRefreshLatest = isManual
+                    )
+                    val provider = mProviderSelectionResolver.requireSummaryProvider()
+                    AutoSummaryData(
+                        session = session,
+                        character = character,
+                        summary = summaryContext.existingSummary,
+                        messages = summaryContext.messages,
+                        summaryIdToUpdate = summaryContext.summaryToUpdate?.id,
+                        provider = provider
+                    )
+                } ?: run {
+                    AppLogger.w("Summary", "Session or character missing for session $sessionId")
+                    return
+                }
+                // 检查待总结消息列表是否为空或未达自动阈值
+                if (data.messages.isEmpty()) {
+                    AppLogger.i("Summary", "No unsummarized messages for session $sessionId")
+                    if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
+                    return
+                }
+                if (!isManual && data.messages.size < AppModel.summaryTriggerMessageCount) return
 
-            // 设置 UI 为总结中弹窗状态
-            val uiState = getOrNull<ChatUiState.Normal>() ?: return
-            uiState.copy(
-                dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Preparing)
-            ).setup()
+                // Tokenizer 与 Prompt 选择属于 CPU 密集工作，必须离开主线程。
+                val built = withContext(Dispatchers.Default) {
+                    mSummaryPromptBuilder.buildWithSelection(
+                        userName = data.session.userName,
+                        userDescription = data.session.userDescription,
+                        character = data.character,
+                        session = data.session,
+                        existingSummary = data.summary,
+                        messages = data.messages,
+                        provider = data.provider
+                    )
+                }
+                if (built.selectedMessages.isEmpty()) {
+                    // 预算不足以容纳任何一条消息；静默返回会让用户以为按钮没反应。
+                    AppLogger.w(
+                        "Summary",
+                        "Token budget selected no messages for session $sessionId " +
+                            "(${data.messages.size} candidates, model ${data.provider.model})"
+                    )
+                    if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.summary_budget_too_small).tryEmit()
+                    return
+                }
 
-            // Tokenizer 与 Prompt 选择属于 CPU 密集工作，必须离开主线程。
-            val built = withContext(Dispatchers.Default) {
-                mSummaryPromptBuilder.buildWithSelection(
-                    userName = data.session.userName,
-                    userDescription = data.session.userDescription,
-                    character = data.character,
-                    session = data.session,
-                    existingSummary = data.summary,
-                    messages = data.messages,
-                    provider = data.provider
-                )
-            }
-            if (built.selectedMessages.isEmpty()) return
+                currentCoroutineContext().ensureActive()
+                if (isManual) setSummarizingStage(SummaryPreparationStage.Generating)
 
-            currentCoroutineContext().ensureActive()
-            val generatingState = getOrNull<ChatUiState.Normal>() ?: return
-            generatingState.copy(
-                dialogState = ChatDialogState.Summarizing(SummaryPreparationStage.Generating)
-            ).setup()
+                // 调用大模型生成摘要
+                val response = withContext(Dispatchers.IO) {
+                    mLLMRepository.generateWithProvider(
+                        provider = data.provider,
+                        request = built.request,
+                        routingSessionKey = "chat:$sessionId",
+                        permitScope = LLM_PERMIT_SCOPE_SUMMARY
+                    )
+                }
+                // 清洗摘要文本
+                val summaryContent = response.content.summarySafeContent()
+                if (summaryContent.isBlank()) {
+                    error(mContext.getString(R.string.summary_failed))
+                }
 
-            // 调用大模型生成摘要
-            val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = data.provider,
-                    request = built.request,
-                    routingSessionKey = "chat:$sessionId"
-                )
-            }
-            // 清洗摘要文本
-            val summaryContent = response.content.summarySafeContent()
-            if (summaryContent.isBlank()) {
-                error(mContext.getString(R.string.summary_failed))
-            }
+                currentCoroutineContext().ensureActive()
 
-            currentCoroutineContext().ensureActive()
-
-            // 持久化新摘要与覆盖边界消息 ID
-            withContext(Dispatchers.IO) {
-                mChatRepository.saveSummary(
-                    sessionId = sessionId,
-                    content = summaryContent,
-                    coveredMessageId = built.selectedMessages.last().id,
-                    summaryIdToUpdate = data.summaryIdToUpdate
-                )
+                // 持久化新摘要与覆盖边界消息 ID
+                withContext(Dispatchers.IO) {
+                    mChatRepository.saveSummary(
+                        sessionId = sessionId,
+                        content = summaryContent,
+                        coveredMessageId = built.selectedMessages.last().id,
+                        summaryIdToUpdate = data.summaryIdToUpdate
+                    )
+                }
+                if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
+            }.onFailure { throwable ->
+                val failure = throwable.toGenerationFailurePresentation(
+                    mContext,
+                    R.string.summary_failed
+                ) ?: throw throwable
+                AppLogger.e("Summary", "Summary failed for session $sessionId: ${failure.message}", throwable)
+                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
+                if (guideDialog != null) {
+                    val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
+                    uiState.copy(dialogState = guideDialog).setup()
+                } else {
+                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                }
             }
-            if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
-        }.onFailure { throwable ->
-            val failure = throwable.toGenerationFailurePresentation(
-                mContext,
-                R.string.summary_failed
-            ) ?: throw throwable
-            val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-            if (guideDialog != null) {
-                val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
-                uiState.copy(dialogState = guideDialog).setup()
-            } else {
-                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-            }
+        } finally {
+            // 无论成功、失败、提前返回还是被取消，都必须把“总结中”弹窗还原并刷新最新摘要。
+            withContext(NonCancellable) { finishSummarizing(sessionId) }
         }
+    }
+
+    /** 仅在弹窗尚未被其它状态占用时推进“总结中”阶段。 */
+    private fun setSummarizingStage(stage: SummaryPreparationStage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState !is ChatDialogState.None &&
+            uiState.dialogState !is ChatDialogState.Summarizing
+        ) return
+        uiState.copy(dialogState = ChatDialogState.Summarizing(stage)).setup()
+    }
+
+    /** 关闭“总结中”弹窗并重新载入会话，使新摘要立即可见。 */
+    private suspend fun finishSummarizing(sessionId: Long) {
+        val current = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = if (current.dialogState is ChatDialogState.Summarizing) {
+            ChatDialogState.None
+        } else {
+            current.dialogState
+        }
+        refreshUiState(sessionId = sessionId, dialogState = dialogState)
     }
 
     /**
@@ -2266,7 +2291,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     characterName = character.name,
                     userName = session.userName,
                     systemSpeaker = mContext.getString(R.string.system_speaker),
+                    // ViewModel 重建后本地引用为空，此时以协调器快照为准，
+                    // 否则重进页面会看到一条不再标记为“生成中”的空消息。
                     streamingMessageId = mActiveStreamingGeneration?.messageId
+                        ?: (mGenerationCoordinator.stateFor(sessionId)
+                            as? ChatGenerationState.Streaming)?.messageId
                 ),
                 inputDraft = inputDraft,
                 generationState = generationState,
@@ -2634,6 +2663,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val worldInfoStateJson: String
     )
 }
+
+/**
+ * 流式草稿落库节流阈值。
+ *
+ * minimal-debt: 按字符数/时间双阈值节流；若长回复出现明显写放大，改为按段落边界落库。
+ */
+private const val STREAM_DRAFT_PERSIST_CHARS = 400
+private const val STREAM_DRAFT_PERSIST_INTERVAL_MS = 2_000L
 
 private fun ChatSpeechState.messageIdOrNull(): String? {
     return when (this) {

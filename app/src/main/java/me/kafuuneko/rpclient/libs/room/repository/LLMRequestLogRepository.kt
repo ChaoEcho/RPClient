@@ -40,7 +40,7 @@ class LLMRequestLogRepository(
         responseJson: String
     ): Long {
         if (!AppModel.debugModeEnabled) return 0L
-        return mLLMRequestLogDao.insertOrReplace(
+        val id = mLLMRequestLogDao.insertOrReplace(
             LLMRequestLog(
                 providerName = provider.name,
                 providerType = provider.providerType,
@@ -51,10 +51,20 @@ class LLMRequestLogRepository(
                 responseJson = responseJson
             )
         )
+        // 每条日志都带完整请求与响应 JSON，没有上限会把调试库撑到几百 MB。
+        mLLMRequestLogDao.trimToMostRecent(MAX_RETAINED_LOGS)
+        return id
     }
 
     /** 清空本地调试日志。 */
     suspend fun deleteAll() {
         mLLMRequestLogDao.deleteAll()
+    }
+
+    private companion object {
+        /**
+         * minimal-debt: 固定保留条数；若需要按天或按体积保留，再引入配置项。
+         */
+        const val MAX_RETAINED_LOGS = 500
     }
 }

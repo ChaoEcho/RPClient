@@ -113,16 +113,13 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
-import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
@@ -138,7 +135,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementSta
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -155,9 +151,6 @@ import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
-import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
-import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
-import me.kafuuneko.rpclient.ui.dialog.SliderConfig
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -359,18 +352,6 @@ private fun DialogSwitch(
             onConfirm = { MainUiIntent.ConfirmItemRename.emit() }
         )
 
-        is MainDialogState.EditGenerationParameter -> NumericEditDialog(
-            title = stringResource(dialogState.parameter.titleRes()),
-            subtitle = stringResource(dialogState.parameter.subtitleRes()),
-            value = dialogState.draftValue,
-            decimalInput = dialogState.parameter.isDecimalInput(),
-            sliderConfig = dialogState.parameter.sliderConfig(),
-            quickOptions = dialogState.parameter.quickOptions(),
-            onValueChange = { MainUiIntent.ChangeGenerationParameterDraft(it).emit() },
-            onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
-            onDismiss = { MainUiIntent.DismissDialog.emit() }
-        )
-
         is MainDialogState.EditUserDescription -> AppPromptEditorDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.user_persona_description),
@@ -386,65 +367,6 @@ private fun DialogSwitch(
             state = dialogState,
             emit = emit
         )
-    }
-}
-
-private fun MainGenerationParameter.titleRes(): Int = when (this) {
-    MainGenerationParameter.Temperature -> R.string.temperature
-    MainGenerationParameter.TopP -> R.string.top_p
-    MainGenerationParameter.MaxTokens -> R.string.max_tokens
-    MainGenerationParameter.ContextTokens -> R.string.context
-}
-
-private fun MainGenerationParameter.subtitleRes(): Int = when (this) {
-    MainGenerationParameter.Temperature -> R.string.parameter_temperature_desc
-    MainGenerationParameter.TopP -> R.string.parameter_top_p_desc
-    MainGenerationParameter.MaxTokens -> R.string.parameter_max_tokens_desc
-    MainGenerationParameter.ContextTokens -> R.string.parameter_context_tokens_desc
-}
-
-private fun MainGenerationParameter.isDecimalInput(): Boolean = when (this) {
-    MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> true
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> false
-}
-
-@Composable
-private fun MainGenerationParameter.sliderConfig(): SliderConfig? = when (this) {
-    MainGenerationParameter.Temperature -> SliderConfig(
-        range = 0.00f..2.00f,
-        step = 0.05f,
-        minLabel = stringResource(R.string.parameter_temp_min_label),
-        maxLabel = stringResource(R.string.parameter_temp_max_label)
-    )
-    MainGenerationParameter.TopP -> SliderConfig(
-        range = 0.00f..1.00f,
-        step = 0.05f,
-        minLabel = stringResource(R.string.parameter_topp_min_label),
-        maxLabel = stringResource(R.string.parameter_topp_max_label)
-    )
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> null
-}
-
-@Composable
-private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption> = when (this) {
-    MainGenerationParameter.Temperature -> listOf(
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_precise), "0.20"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_balanced), "0.70"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20")
-    )
-    MainGenerationParameter.TopP -> listOf(
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_focused), "0.50"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_balanced), "0.80"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_rich), "0.95"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00")
-    )
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> {
-        TokenPreset.entries.map { preset ->
-            NumericEditQuickOption(
-                label = preset.displayName,
-                value = preset.value.toString()
-            )
-        }
     }
 }
 
@@ -2095,7 +2017,6 @@ private fun MainLayoutPreview() {
                         responseTokens = 800,
                         injectionState = MainSummaryInjectionState.AfterMain
                     ),
-                    debugState = MainDebugSettingsState(enabled = false)
                 )
             ),
             emit = {}
@@ -2137,12 +2058,6 @@ private fun MainSettingsLayoutPreview() {
                                 isEnabled = true
                             )
                         ),
-                        generationParametersState = MainGenerationParametersState(
-                            temperature = 0.8f,
-                            topP = 0.95f,
-                            maxTokens = 4096,
-                            contextTokens = 32768
-                        )
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Available(
@@ -2169,7 +2084,6 @@ private fun MainSettingsLayoutPreview() {
                             role = SummaryInjectionRole.System
                         )
                     ),
-                    debugState = MainDebugSettingsState(enabled = true)
                 )
             ),
             emit = {}

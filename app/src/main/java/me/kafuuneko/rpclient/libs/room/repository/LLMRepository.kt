@@ -38,6 +38,10 @@ internal const val DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 internal const val DEFAULT_GROK_MODEL = "grok-4.5-latest"
 internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 
+/** 后台辅助生成使用的独立并发配额标识，避免与正文生成争抢同一个 Provider 许可。 */
+const val LLM_PERMIT_SCOPE_SUMMARY = "summary"
+const val LLM_PERMIT_SCOPE_IMAGE_PROMPT = "image-prompt"
+
 /**
  * 模型配置与生成调用的统一业务入口。
  *
@@ -214,14 +218,21 @@ class LLMRepository(
         }
     }
 
-    /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
+    /**
+     * 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。
+     *
+     * [permitScope] 让后台辅助任务（摘要、图片提示词提炼）使用独立的并发配额。默认值为 null 时
+     * 与正文生成共享配额；由于流式正文会在整个 collection 期间占用许可，共享配额会让摘要
+     * 一直排队，用户侧表现为“摘要卡住不动”。
+     */
     suspend fun generateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
+        permitScope: String? = null
     ): LLMGenerationResponse {
         return try {
-            withProviderPermit(provider) {
+            withProviderPermit(provider, permitScope) {
                 mLLMClientFactory.create(provider.toConfig()).generate(
                     request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
                 ).requireNonEmptyContent()
@@ -284,10 +295,16 @@ class LLMRepository(
 
     private suspend fun <T> withProviderPermit(
         provider: LLMProvider,
+        permitScope: String? = null,
         block: suspend () -> T
     ): T {
+        val key = if (permitScope == null) {
+            "llm-provider:${provider.id}"
+        } else {
+            "llm-provider:${provider.id}:$permitScope"
+        }
         return mRequestConcurrencyLimiter.withPermit(
-            key = "llm-provider:${provider.id}",
+            key = key,
             limit = provider.maxConcurrentRequests,
             block = block
         )

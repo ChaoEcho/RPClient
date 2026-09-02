@@ -6,4 +6,5 @@
     <exclude domain="database" path="request_logs.sqlite-journal" />
     <exclude domain="database" path="request_logs.sqlite-shm" />
     <exclude domain="database" path="request_logs.sqlite-wal" />
+    <exclude domain="file" path="debug" />
 </full-backup-content>

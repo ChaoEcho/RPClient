@@ -350,6 +350,8 @@
     <string name="impersonation_failed">扮演用户生成失败</string>
     <string name="no_unsummarized_messages">没有未摘要的消息</string>
     <string name="summary_updated">摘要已更新</string>
+    <string name="summary_already_running">已有摘要任务正在执行</string>
+    <string name="summary_budget_too_small">上下文预算太小，无法摘要；请调高上下文 Token 或调低摘要回复 Token</string>
     <string name="summary_failed">摘要失败</string>
     <string name="summary_restored">已恢复上一版摘要</string>
     <string name="no_previous_summary">没有可恢复的摘要快照</string>
@@ -1254,7 +1256,8 @@
     <string name="backup_error_generic">备份操作失败，未应用未经校验的恢复数据。</string>
 
     <string name="llm_provider_max_concurrent_requests">最大并发请求数</string>
-    <string name="llm_provider_max_concurrent_requests_desc">同一模型服务允许同时执行的生成请求数量</string>
+    <string name="llm_provider_max_concurrent_requests_desc">同一模型服务允许同时执行的生成请求数量。单个会话始终一次只生成一条回复，因此该设置只在不同会话之间以及摘要等后台任务上生效。</string>
+    <string name="context_tokens">上下文 Token</string>
     <string name="image_generation_max_concurrent_requests">图片最大并发请求数</string>
     <string name="image_generation_max_concurrent_requests_desc">允许同时执行的图片生成请求数量</string>
     <string name="backup_error_webdav_invalid_response">WebDAV 返回的远程目录格式无法解析</string>

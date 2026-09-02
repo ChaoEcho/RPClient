@@ -351,6 +351,8 @@
     <string name="impersonation_failed">User impersonation failed</string>
     <string name="no_unsummarized_messages">No unsummarized messages</string>
     <string name="summary_updated">Summary updated</string>
+    <string name="summary_already_running">A summary is already running</string>
+    <string name="summary_budget_too_small">Context budget is too small to summarize; raise Context Tokens or lower Summary Response Tokens</string>
     <string name="summary_failed">Summary failed</string>
     <string name="summary_restored">Previous summary restored</string>
     <string name="no_previous_summary">No previous summary snapshot</string>
@@ -1259,7 +1261,8 @@
     <string name="backup_error_generic">The backup operation failed. No unvalidated restore was applied.</string>
 
     <string name="llm_provider_max_concurrent_requests">Maximum concurrent requests</string>
-    <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time</string>
+    <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time. A single conversation always generates one reply at a time, so this only takes effect across different conversations and background tasks such as summaries.</string>
+    <string name="context_tokens">Context tokens</string>
     <string name="image_generation_max_concurrent_requests">Maximum concurrent image requests</string>
     <string name="image_generation_max_concurrent_requests_desc">Number of image requests that may run at the same time</string>
     <string name="backup_error_webdav_invalid_response">The WebDAV remote directory response could not be parsed</string>

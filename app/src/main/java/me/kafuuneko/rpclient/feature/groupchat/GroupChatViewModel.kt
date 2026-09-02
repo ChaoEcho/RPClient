@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
@@ -61,10 +62,14 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.groupChatSummaryKey
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_SUMMARY
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
@@ -106,6 +111,7 @@ class GroupChatViewModel :
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mContext by inject<Context>()
+    private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
 
     /** 当前页面绑定的群聊会话 ID。 */
     private var mSessionId: Long? = null
@@ -481,15 +487,18 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isActive == true) return
         if (!ensureProviderConfigured()) return
-        uiState.copy(loadState = GroupChatLoadState.PreparingSummary).setup()
-        summarizeSession(uiState.sessionId, showToast = true)
-        refreshState(
-            page = uiState.page,
-            generationState = GroupChatGenerationState.Idle
-        )
+        // 摘要交给 Application 级协调器：意图处理器里同步等完整个 LLM 调用会冻结全部交互。
+        if (!launchSummaryJob(uiState.sessionId, showToast = true)) {
+            AppViewEvent.PopupToastMessageByResId(R.string.summary_already_running).tryEmit()
+        }
     }
+
+    /** 手动与自动摘要共用的唯一入口；每个群聊会话至多一个在执行的摘要任务。 */
+    private fun launchSummaryJob(sessionId: Long, showToast: Boolean): Boolean =
+        mGenerationCoordinator.launchSummary(groupChatSummaryKey(sessionId)) {
+            summarizeSession(sessionId, showToast)
+        }
 
     /**
      * 恢复/回滚至上一版群聊摘要。
@@ -498,6 +507,7 @@ class GroupChatViewModel :
     private suspend fun onRestorePreviousSummary() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
+        if (mGenerationCoordinator.isSummaryActive(groupChatSummaryKey(uiState.sessionId))) return
         val restored = withContext(Dispatchers.IO) {
             mGroupChatRepository.restorePreviousSummary(uiState.sessionId)
         }
@@ -1252,31 +1262,37 @@ class GroupChatViewModel :
         val batchId = UUID.randomUUID().toString()
         // 启动续写任务
         mGenerationJob = viewModelScope.launch {
-            runCatching {
-                generateSpeakerReply(
-                    sessionId = uiState.sessionId,
-                    speaker = speaker,
-                    batchId = batchId,
-                    current = 1,
-                    total = 1,
-                    generationMode = GroupChatGenerationMode.Continue
-                )
-                refreshState(generationState = GroupChatGenerationState.Idle)
-            }.onFailure { throwable ->
-                // 异常处理：收尾未落库内容并报错
-                val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.continue_generation_failed
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
-                persistOrDeleteStreamingMessage()
-                refreshState(
-                    generationState = GroupChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: GroupChatDialogState.None
-                )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            try {
+                runCatching {
+                    generateSpeakerReply(
+                        sessionId = uiState.sessionId,
+                        speaker = speaker,
+                        batchId = batchId,
+                        current = 1,
+                        total = 1,
+                        generationMode = GroupChatGenerationMode.Continue
+                    )
+                    refreshState(generationState = GroupChatGenerationState.Idle)
+                }.onFailure { throwable ->
+                    // 异常处理：收尾未落库内容并报错
+                    val failure = throwable.toGenerationFailurePresentation(
+                        mContext,
+                        R.string.continue_generation_failed
+                    ) ?: return@onFailure
+                    val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
+                    persistOrDeleteStreamingMessage()
+                    refreshState(
+                        generationState = GroupChatGenerationState.Failed(failure.message),
+                        dialogState = guideDialog ?: GroupChatDialogState.None
+                    )
+                    if (guideDialog == null) {
+                        AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                    }
                 }
+            } finally {
+                // 取消（页面销毁、系统回收）时 onFailure 会因 CancellationException 提前返回，
+                // 这里兜底落库，避免已经流式收到的正文连同占位记录一起丢失。
+                withContext(NonCancellable) { persistOrDeleteStreamingMessage() }
             }
         }
     }
@@ -1344,76 +1360,82 @@ class GroupChatViewModel :
     ) {
         val batchId = UUID.randomUUID().toString()
         mGenerationJob = viewModelScope.launch {
-            runCatching {
-                var pendingSpeakers = speakers
-                var nextGenerationMode = generationMode
-                var nextRegenerationInstruction = regenerationInstruction
-                var autoRoundsCompleted = 0
-                // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
-                while (pendingSpeakers.isNotEmpty()) {
-                    pendingSpeakers.forEachIndexed { index, speaker ->
-                        currentCoroutineContext().ensureActive()
-                        // 顺序生成当前发言角色的回复
-                        generateSpeakerReply(
-                            sessionId = sessionId,
-                            speaker = speaker,
-                            batchId = batchId,
-                            current = index + 1,
-                            total = pendingSpeakers.size,
-                            generationMode = nextGenerationMode,
-                            regenerationInstruction = nextRegenerationInstruction
-                        )
-                        // 首位发言者可能使用特殊模式；后续角色恢复普通生成且不继承一次性指令
-                        nextGenerationMode = GroupChatGenerationMode.Normal
-                        nextRegenerationInstruction = ""
-                    }
-                    // 加载最新群聊快照
-                    val nextData = withContext(Dispatchers.IO) {
-                        mGroupChatRepository.getGroupChatData(sessionId)
-                    } ?: break
-                    // 自动模式下重新选出下一轮发言角色
-                    val maxAutoRounds = nextData.session.autoModeMaxRounds
-                        .takeIf { it == -1 || it in 1..3 } ?: 2
-                    val canContinueAuto = nextData.session.autoModeEnabled &&
-                        nextData.session.activationStrategy != GroupChatSession.ActivationStrategy.Manual &&
-                        (maxAutoRounds == -1 || autoRoundsCompleted < maxAutoRounds)
-                    pendingSpeakers = if (canContinueAuto) {
-                        delay(AUTO_MODE_DELAY_MS.milliseconds)
-                        mSpeakerSelector.select(
-                            session = nextData.session,
-                            members = nextData.members,
-                            messages = nextData.messages,
-                            activationText = nextData.messages.lastOrNull {
-                                it.source != GroupChatMessage.Source.System
-                            }?.content.orEmpty(),
-                            isUserInput = false,
-                            manualCharacterId = null
-                        ).also { selected ->
-                            if (selected.isNotEmpty()) autoRoundsCompleted += 1
+            try {
+                runCatching {
+                    var pendingSpeakers = speakers
+                    var nextGenerationMode = generationMode
+                    var nextRegenerationInstruction = regenerationInstruction
+                    var autoRoundsCompleted = 0
+                    // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
+                    while (pendingSpeakers.isNotEmpty()) {
+                        pendingSpeakers.forEachIndexed { index, speaker ->
+                            currentCoroutineContext().ensureActive()
+                            // 顺序生成当前发言角色的回复
+                            generateSpeakerReply(
+                                sessionId = sessionId,
+                                speaker = speaker,
+                                batchId = batchId,
+                                current = index + 1,
+                                total = pendingSpeakers.size,
+                                generationMode = nextGenerationMode,
+                                regenerationInstruction = nextRegenerationInstruction
+                            )
+                            // 首位发言者可能使用特殊模式；后续角色恢复普通生成且不继承一次性指令
+                            nextGenerationMode = GroupChatGenerationMode.Normal
+                            nextRegenerationInstruction = ""
                         }
-                    } else {
-                        emptyList()
+                        // 加载最新群聊快照
+                        val nextData = withContext(Dispatchers.IO) {
+                            mGroupChatRepository.getGroupChatData(sessionId)
+                        } ?: break
+                        // 自动模式下重新选出下一轮发言角色
+                        val maxAutoRounds = nextData.session.autoModeMaxRounds
+                            .takeIf { it == -1 || it in 1..3 } ?: 2
+                        val canContinueAuto = nextData.session.autoModeEnabled &&
+                            nextData.session.activationStrategy != GroupChatSession.ActivationStrategy.Manual &&
+                            (maxAutoRounds == -1 || autoRoundsCompleted < maxAutoRounds)
+                        pendingSpeakers = if (canContinueAuto) {
+                            delay(AUTO_MODE_DELAY_MS.milliseconds)
+                            mSpeakerSelector.select(
+                                session = nextData.session,
+                                members = nextData.members,
+                                messages = nextData.messages,
+                                activationText = nextData.messages.lastOrNull {
+                                    it.source != GroupChatMessage.Source.System
+                                }?.content.orEmpty(),
+                                isUserInput = false,
+                                manualCharacterId = null
+                            ).also { selected ->
+                                if (selected.isNotEmpty()) autoRoundsCompleted += 1
+                            }
+                        } else {
+                            emptyList()
+                        }
+                    }
+                    // 检查是否触发自动总结
+                    maybeAutoSummarize(sessionId)
+                    // 恢复 UI 为空闲状态
+                    refreshState(generationState = GroupChatGenerationState.Idle)
+                }.onFailure { throwable ->
+                    // 异常处理：收尾当前流式消息并更新失败状态
+                    val failure = throwable.toGenerationFailurePresentation(
+                        mContext,
+                        R.string.generation_failed
+                    ) ?: return@onFailure
+                    val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
+                    persistOrDeleteStreamingMessage()
+                    refreshState(
+                        generationState = GroupChatGenerationState.Failed(failure.message),
+                        dialogState = guideDialog ?: GroupChatDialogState.None
+                    )
+                    if (guideDialog == null) {
+                        AppViewEvent.PopupToastMessage(failure.message).tryEmit()
                     }
                 }
-                // 检查是否触发自动总结
-                maybeAutoSummarize(sessionId)
-                // 恢复 UI 为空闲状态
-                refreshState(generationState = GroupChatGenerationState.Idle)
-            }.onFailure { throwable ->
-                // 异常处理：收尾当前流式消息并更新失败状态
-                val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.generation_failed
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
-                persistOrDeleteStreamingMessage()
-                refreshState(
-                    generationState = GroupChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: GroupChatDialogState.None
-                )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
+            } finally {
+                // 取消（页面销毁、系统回收）时 onFailure 会因 CancellationException 提前返回，
+                // 这里兜底落库，避免已经流式收到的正文连同占位记录一起丢失。
+                withContext(NonCancellable) { persistOrDeleteStreamingMessage() }
             }
         }
     }
@@ -1653,7 +1675,7 @@ class GroupChatViewModel :
             mGroupChatRepository.getMessagesAfterLatestSummary(sessionId)
         }
         if (messages.size < AppModel.summaryTriggerMessageCount) return
-        summarizeSession(sessionId, showToast = false)
+        launchSummaryJob(sessionId, showToast = false)
     }
 
     /**
@@ -1665,6 +1687,27 @@ class GroupChatViewModel :
      * @param showToast 是否显示 Toast 提示信息
      */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
+        if (showToast) setGroupSummaryLoadState(GroupChatLoadState.PreparingSummary)
+        try {
+            summarizeSessionInternal(sessionId, showToast)
+        } finally {
+            // 提前返回、失败与取消都要还原加载态，否则设置页会一直显示“摘要中”。
+            if (showToast) withContext(NonCancellable) { setGroupSummaryLoadState(GroupChatLoadState.None) }
+        }
+    }
+
+    /** 仅在当前处于空闲或摘要相关加载态时切换，避免覆盖导出等其它加载态。 */
+    private fun setGroupSummaryLoadState(loadState: GroupChatLoadState) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val current = uiState.loadState
+        if (current != GroupChatLoadState.None &&
+            current != GroupChatLoadState.PreparingSummary &&
+            current != GroupChatLoadState.GeneratingSummary
+        ) return
+        uiState.copy(loadState = loadState).setup()
+    }
+
+    private suspend fun summarizeSessionInternal(sessionId: Long, showToast: Boolean) {
         runCatching {
             // 异步加载群聊数据、总结提供商与未总结消息切片
             val data = withContext(Dispatchers.IO) {
@@ -1686,18 +1729,26 @@ class GroupChatViewModel :
                     provider = provider
                 )
             }
-            if (built.selectedMessages.isEmpty()) return
-            currentCoroutineContext().ensureActive()
-            val generatingState = getOrNull<GroupChatUiState.Normal>()
-            if (generatingState != null && showToast) {
-                generatingState.copy(loadState = GroupChatLoadState.GeneratingSummary).setup()
+            if (built.selectedMessages.isEmpty()) {
+                AppLogger.w(
+                    "Summary",
+                    "Token budget selected no messages for group $sessionId " +
+                        "(${unsummarized.size} candidates, model ${provider.model})"
+                )
+                if (showToast) {
+                    AppViewEvent.PopupToastMessageByResId(R.string.summary_budget_too_small).tryEmit()
+                }
+                return
             }
+            currentCoroutineContext().ensureActive()
+            if (showToast) setGroupSummaryLoadState(GroupChatLoadState.GeneratingSummary)
             // 调用模型生成摘要
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithProvider(
                     provider = provider,
                     request = built.request,
-                    routingSessionKey = "group-chat:$sessionId"
+                    routingSessionKey = "group-chat:$sessionId",
+                    permitScope = LLM_PERMIT_SCOPE_SUMMARY
                 )
             }
             val summaryContent = response.content.summarySafeContent()

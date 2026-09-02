@@ -195,6 +195,39 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate5To6_addsProviderConcurrencyWithSerialDefault() {
+        migrationHelper.createDatabase(ConcurrencyDatabaseName, 5).apply {
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model, customHeadersJson,
+                    requestBodyPatchJson, temperature, topP, maxTokens, contextTokens,
+                    tokenEstimateReservePercent, sendTemperature, sendTopP,
+                    promptPostProcessingMode, isEnabled, createTime, updateTime
+                ) VALUES (401, 'provider', 'OpenAI', 'OpenAICompatible', 'https://example.com/v1',
+                    '', 'gpt-test', '{}', '{}', 1.0, 1.0, 1024, 8192, 15, 1, 1, 0, 1, 1, 2)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            ConcurrencyDatabaseName,
+            6,
+            true
+        )
+
+        // 既有配置必须落在串行默认值上，升级后不能突然把并发放开。
+        migrated.query(
+            "SELECT maxConcurrentRequests FROM llm_providers WHERE id = 401"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun migrate6To7_addsGroupChatFieldsWithCompatibleDefaults() {
         migrationHelper.createDatabase(GroupChatDatabaseName, 6).apply {
             execSQL(
@@ -437,6 +470,7 @@ class AppDatabaseMigrationTest {
         const val RegexDatabaseName = "app-regex-migration-test"
         const val ImageDatabaseName = "app-image-migration-test"
         const val VoiceDatabaseName = "app-voice-migration-test"
+        const val ConcurrencyDatabaseName = "app-concurrency-migration-test"
         const val GroupChatDatabaseName = "app-group-chat-migration-test"
     }
 }

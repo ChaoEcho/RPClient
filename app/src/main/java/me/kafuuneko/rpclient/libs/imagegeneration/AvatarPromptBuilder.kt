@@ -59,10 +59,3 @@ object AvatarPromptBuilder {
         }.joinToString("\n")
     }
 }
-
-/** 顶层别名函数，便于直接导入或通过 AvatarPromptBuilder.buildAvatarPrompt 调用。 */
-fun buildAvatarPrompt(
-    characterName: String,
-    characterDescription: String,
-    avatarStylePrompt: String
-): String = AvatarPromptBuilder.buildAvatarPrompt(characterName, characterDescription, avatarStylePrompt)

@@ -34,10 +34,10 @@ object AppLogStore {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
-    private val sensitivePatterns = listOf(
-        Regex("""(?i)bearer\s+[a-zA-Z0-9_\-\.]+"""),
+    // 预编译一次；此前每条日志都在 sanitize 内重新编译正则，且漏掉了裸 token 的场景。
+    private val bearerPattern = Regex("""(?i)bearer\s+[a-zA-Z0-9_\-.]+""")
+    private val secretAssignmentPattern =
         Regex("""(?i)(api[_-]?key|password|secret|token|authorization)\s*[:=]\s*["']?([^"',\s]+)["']?""")
-    )
 
     fun init(context: Context) {
         appContext = context.applicationContext
@@ -82,14 +82,10 @@ object AppLogStore {
     }
 
     private fun sanitize(input: String): String {
-        var text = input
-        text = text.replace(Regex("""(?i)bearer\s+[a-zA-Z0-9_\-\.]+"""), "Bearer ***")
-        text = text.replace(
-            Regex("""(?i)(api[_-]?key|password|secret|authorization)\s*[:=]\s*["']?([^"',\s]+)["']?""")
-        ) { matchResult ->
+        val withoutBearer = input.replace(bearerPattern, "Bearer ***")
+        return withoutBearer.replace(secretAssignmentPattern) { matchResult ->
             "${matchResult.groupValues[1]}: ***"
         }
-        return text
     }
 
     private fun writeToFile(entry: AppLogEntry) {

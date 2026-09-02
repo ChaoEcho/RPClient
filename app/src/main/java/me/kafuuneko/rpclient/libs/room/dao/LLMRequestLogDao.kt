@@ -42,4 +42,15 @@ interface LLMRequestLogDao : MutableDao<LLMRequestLog> {
     /** 清空全部调试日志。 */
     @Query("DELETE FROM llm_request_logs")
     suspend fun deleteAll()
+
+    /** 只保留最新的 [keep] 条，防止原始请求/响应 JSON 无上限增长。 */
+    @Query(
+        """
+        DELETE FROM llm_request_logs
+        WHERE id NOT IN (
+            SELECT id FROM llm_request_logs ORDER BY createTime DESC, id DESC LIMIT :keep
+        )
+        """
+    )
+    suspend fun trimToMostRecent(keep: Int)
 }

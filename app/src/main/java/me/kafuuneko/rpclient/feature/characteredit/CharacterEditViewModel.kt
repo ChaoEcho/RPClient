@@ -28,7 +28,9 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.imagegeneration.AVATAR_IMAGE_SIZE
+import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.imagegeneration.AvatarPromptBuilder
+import me.kafuuneko.rpclient.libs.imagegeneration.IMAGE_GENERATION_LIMIT_KEY
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -61,6 +63,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mLLMRepository by inject<LLMRepository>()
     private val mCharacterCardRepository by inject<CharacterCardRepository>()
     private val mImageClient by inject<OpenAICompatibleImageClient>()
+    private val mRequestConcurrencyLimiter by inject<RequestConcurrencyLimiter>()
     private var mPendingUpdate: CharacterCardImportDraft? = null
 
     /** 初始化编辑页，拉取候选世界书与提供商列表，并加载目标角色或新建空表单。 */
@@ -228,13 +231,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             uiState.isAvatarGenerating
         ) return
 
-        val config = ImageGenerationConfig(
-            baseUrl = AppModel.imageGenerationBaseUrl,
-            apiKey = AppModel.imageGenerationApiKey,
-            model = AppModel.imageGenerationModel,
-            size = AVATAR_IMAGE_SIZE
-        )
-        if (config.baseUrl.isBlank() || config.model.isBlank()) {
+        val config = ImageGenerationConfig.fromAppModel(size = AVATAR_IMAGE_SIZE)
+        if (!config.isConfigured) {
             uiState.copy(dialogState = CharacterEditDialogState.None).setup()
             AppViewEvent.PopupToastMessageByResId(R.string.image_generation_not_configured).tryEmit()
             return
@@ -252,7 +250,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         viewModelScope.launch {
             var generatedUuid: String? = null
             try {
-                val generated = mImageClient.generate(config, prompt)
+                // 与聊天配图共用同一个并发配额，否则图片并发上限对头像生成形同虚设。
+                val generated = mRequestConcurrencyLimiter.withPermit(
+                    key = IMAGE_GENERATION_LIMIT_KEY,
+                    limit = AppModel.imageGenerationMaxConcurrentRequests
+                ) {
+                    mImageClient.generate(config, prompt)
+                }
                 generatedUuid = mFileRepository.saveBytes(generated.bytes, generated.mimeType)
                 val avatarUuid = requireNotNull(generatedUuid)
                 generatedUuid = null // replaceDraftAvatar now owns cleanup for this file.
