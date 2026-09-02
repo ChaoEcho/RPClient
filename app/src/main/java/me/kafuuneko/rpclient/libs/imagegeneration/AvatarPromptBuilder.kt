@@ -2,6 +2,20 @@ package me.kafuuneko.rpclient.libs.imagegeneration
 
 const val AVATAR_IMAGE_SIZE = "1024x1024"
 
+/**
+ * 头像外貌提炼的系统提示词。
+ *
+ * 角色卡描述通常包含性格、背景、说话风格与关系设定，直接塞给绘图模型会稀释外貌特征，
+ * 长卡尤其明显。聊天配图已经有等价的场景提炼步骤，这里补上头像侧缺失的那一半。
+ */
+const val AVATAR_APPEARANCE_REFINEMENT_SYSTEM_PROMPT = """
+Extract only the visible physical appearance of the character for a portrait image prompt.
+Include face, hair, eyes, skin, build, clothing, accessories, and distinctive visual marks.
+Do not include personality, backstory, relationships, speech style, abilities, or scene and location.
+Do not include art style, camera, lighting, or rendering instructions.
+Output a single concise English paragraph with no labels, analysis, or extra commentary.
+"""
+
 object AvatarPromptBuilder {
 
     /**
