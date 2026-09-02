@@ -120,6 +120,9 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpFormTextField
+import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
@@ -271,14 +274,17 @@ private fun BasicPanel(
 ) {
     Panel {
         RpSectionHeader(title = stringResource(R.string.basic_info))
-        FormTextField(
-            stringResource(R.string.name),
-            form.name
-        ) { LLMProviderEditUiIntent.ChangeName(it).emit() }
-        FormTextField(
-            stringResource(R.string.base_url),
-            form.baseUrl
-        ) { LLMProviderEditUiIntent.ChangeBaseUrl(it).emit() }
+        RpFormTextField(
+            value = form.name,
+            label = stringResource(R.string.name),
+            onValueChange = { LLMProviderEditUiIntent.ChangeName(it).emit() }
+        )
+        RpFormTextField(
+            value = form.baseUrl,
+            label = stringResource(R.string.base_url),
+            onValueChange = { LLMProviderEditUiIntent.ChangeBaseUrl(it).emit() },
+            keyboardType = KeyboardType.Uri
+        )
         ModernCredentialControl(
             title = stringResource(R.string.api_key),
             icon = Icons.Rounded.Key,
@@ -573,21 +579,21 @@ private fun ParameterPanel(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            FormTextField(
+            RpFormTextField(
                 label = stringResource(R.string.temperature),
                 value = form.temperature,
                 modifier = Modifier.weight(1f),
                 enabled = form.sendTemperature,
                 keyboardType = KeyboardType.Decimal,
-                onChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
+                onValueChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
             )
-            FormTextField(
+            RpFormTextField(
                 label = stringResource(R.string.top_p),
                 value = form.topP,
                 modifier = Modifier.weight(1f),
                 enabled = form.sendTopP,
                 keyboardType = KeyboardType.Decimal,
-                onChange = { LLMProviderEditUiIntent.ChangeTopP(it).emit() }
+                onValueChange = { LLMProviderEditUiIntent.ChangeTopP(it).emit() }
             )
         }
 
@@ -608,16 +614,16 @@ private fun ParameterPanel(
             onChange = { LLMProviderEditUiIntent.ChangeMaxTokens(it).emit() }
         )
         TokenPresetField(
-            label = stringResource(R.string.context) + " " + stringResource(R.string.tokens),
+            label = stringResource(R.string.context_tokens),
             value = form.contextTokens,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
         )
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            FormTextField(
+            RpFormTextField(
                 label = stringResource(R.string.llm_provider_max_concurrent_requests),
                 value = form.maxConcurrentRequests,
                 keyboardType = KeyboardType.Number,
-                onChange = {
+                onValueChange = {
                     LLMProviderEditUiIntent.ChangeMaxConcurrentRequests(it).emit()
                 }
             )
@@ -636,70 +642,16 @@ private fun CollapsibleAdvancedPanel(
     requestExtensionsState: LLMProviderEditRequestExtensionsState,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
-    var isExpanded by rememberSaveable { mutableStateOf(false) }
-
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-        ),
-        modifier = Modifier.fillMaxWidth()
+    RpCollapsibleSettingsGroup(
+        title = stringResource(R.string.advanced_settings),
+        subtitle = stringResource(R.string.advanced_settings_desc),
+        icon = Icons.Rounded.Tune,
+        initiallyExpanded = false
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { isExpanded = !isExpanded }
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RpIconBubble(
-                    icon = Icons.Rounded.Tune,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.advanced_settings),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = stringResource(R.string.advanced_settings_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                }
-                Icon(
-                    imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp)
-                        .padding(bottom = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-                    )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
 
                     Text(
                         stringResource(R.string.provider_type),
@@ -749,10 +701,10 @@ private fun CollapsibleAdvancedPanel(
                             }
                         )
                         if (requestExtensionsState.usesPreferredProvider) {
-                            FormTextField(
+                            RpFormTextField(
                                 label = stringResource(R.string.openrouter_provider_slug),
                                 value = requestExtensionsState.preferredProvider,
-                                onChange = {
+                                onValueChange = {
                                     LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider(it)
                                         .emit()
                                 }
@@ -788,9 +740,12 @@ private fun CollapsibleAdvancedPanel(
                         )
                     }
 
-                    TokenEstimateReserveSlider(
+                    RpPercentageSlider(
+                        title = stringResource(R.string.token_estimate_reserve),
+                        helper = stringResource(R.string.token_estimate_reserve_description),
                         value = form.tokenEstimateReservePercent,
-                        onChange = {
+                        valueRange = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT..MAX_TOKEN_ESTIMATE_RESERVE_PERCENT,
+                        onValueChange = {
                             LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent(it).emit()
                         }
                     )
@@ -807,48 +762,7 @@ private fun CollapsibleAdvancedPanel(
                             LLMProviderEditUiIntent.SelectPostProcessingMode(it).emit()
                         }
                     )
-                }
-            }
         }
-    }
-}
-
-@Composable
-private fun TokenEstimateReserveSlider(
-    value: Int,
-    onChange: (Int) -> Unit
-) {
-    val percent = value.coerceIn(
-        MIN_TOKEN_ESTIMATE_RESERVE_PERCENT,
-        MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.token_estimate_reserve),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleSmall
-            )
-            Text(
-                text = "$percent%",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        Slider(
-            value = percent.toFloat(),
-            onValueChange = { onChange(it.roundToInt()) },
-            valueRange = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat()..
-                    MAX_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat()
-        )
-        Text(
-            text = stringResource(R.string.token_estimate_reserve_description),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -859,12 +773,12 @@ private fun TokenPresetField(
     onChange: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FormTextField(
+        RpFormTextField(
             label = label,
             value = value,
             modifier = Modifier.fillMaxWidth(),
             keyboardType = KeyboardType.Number,
-            onChange = onChange
+            onValueChange = onChange
         )
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1181,30 +1095,6 @@ private fun ModelMetadataText(model: LLMAvailableModel) {
         text = metadata.joinToString(" · "),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
-    )
-}
-
-@Composable
-private fun FormTextField(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    minLines: Int = 1,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    enabled: Boolean = true,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    onChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        modifier = modifier,
-        value = value,
-        enabled = enabled,
-        onValueChange = onChange,
-        label = { Text(label) },
-        minLines = minLines,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        visualTransformation = visualTransformation,
-        shape = RoundedCornerShape(12.dp)
     )
 }
 

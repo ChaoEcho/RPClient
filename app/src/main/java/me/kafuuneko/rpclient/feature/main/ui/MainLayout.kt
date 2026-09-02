@@ -113,32 +113,26 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
-import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
-import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
-import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -148,16 +142,12 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 import me.kafuuneko.rpclient.feature.promptbehavior.ui.titleRes
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
-import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
-import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
-import me.kafuuneko.rpclient.ui.dialog.SliderConfig
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -168,6 +158,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpNavigationChevron
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -359,18 +350,6 @@ private fun DialogSwitch(
             onConfirm = { MainUiIntent.ConfirmItemRename.emit() }
         )
 
-        is MainDialogState.EditGenerationParameter -> NumericEditDialog(
-            title = stringResource(dialogState.parameter.titleRes()),
-            subtitle = stringResource(dialogState.parameter.subtitleRes()),
-            value = dialogState.draftValue,
-            decimalInput = dialogState.parameter.isDecimalInput(),
-            sliderConfig = dialogState.parameter.sliderConfig(),
-            quickOptions = dialogState.parameter.quickOptions(),
-            onValueChange = { MainUiIntent.ChangeGenerationParameterDraft(it).emit() },
-            onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
-            onDismiss = { MainUiIntent.DismissDialog.emit() }
-        )
-
         is MainDialogState.EditUserDescription -> AppPromptEditorDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.user_persona_description),
@@ -381,70 +360,6 @@ private fun DialogSwitch(
             },
             onConfirm = { MainUiIntent.ConfirmUserDescriptionEditor.emit() }
         )
-
-        is MainDialogState.ImportChatCharacterSelection -> ImportChatCharacterDialog(
-            state = dialogState,
-            emit = emit
-        )
-    }
-}
-
-private fun MainGenerationParameter.titleRes(): Int = when (this) {
-    MainGenerationParameter.Temperature -> R.string.temperature
-    MainGenerationParameter.TopP -> R.string.top_p
-    MainGenerationParameter.MaxTokens -> R.string.max_tokens
-    MainGenerationParameter.ContextTokens -> R.string.context
-}
-
-private fun MainGenerationParameter.subtitleRes(): Int = when (this) {
-    MainGenerationParameter.Temperature -> R.string.parameter_temperature_desc
-    MainGenerationParameter.TopP -> R.string.parameter_top_p_desc
-    MainGenerationParameter.MaxTokens -> R.string.parameter_max_tokens_desc
-    MainGenerationParameter.ContextTokens -> R.string.parameter_context_tokens_desc
-}
-
-private fun MainGenerationParameter.isDecimalInput(): Boolean = when (this) {
-    MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> true
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> false
-}
-
-@Composable
-private fun MainGenerationParameter.sliderConfig(): SliderConfig? = when (this) {
-    MainGenerationParameter.Temperature -> SliderConfig(
-        range = 0.00f..2.00f,
-        step = 0.05f,
-        minLabel = stringResource(R.string.parameter_temp_min_label),
-        maxLabel = stringResource(R.string.parameter_temp_max_label)
-    )
-    MainGenerationParameter.TopP -> SliderConfig(
-        range = 0.00f..1.00f,
-        step = 0.05f,
-        minLabel = stringResource(R.string.parameter_topp_min_label),
-        maxLabel = stringResource(R.string.parameter_topp_max_label)
-    )
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> null
-}
-
-@Composable
-private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption> = when (this) {
-    MainGenerationParameter.Temperature -> listOf(
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_precise), "0.20"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_balanced), "0.70"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20")
-    )
-    MainGenerationParameter.TopP -> listOf(
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_focused), "0.50"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_balanced), "0.80"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_rich), "0.95"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00")
-    )
-    MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> {
-        TokenPreset.entries.map { preset ->
-            NumericEditQuickOption(
-                label = preset.displayName,
-                value = preset.value.toString()
-            )
-        }
     }
 }
 
@@ -1458,7 +1373,7 @@ private fun SettingsPage(
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
         item {
-            DataAndDevelopmentPanel(state.chatDataManagementState, emit)
+            DataAndDevelopmentPanel(emit)
         }
     }
 }
@@ -1520,7 +1435,7 @@ private fun UserIdentityPanel(
                         )
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 UserPersonaDescriptionField(
@@ -1589,7 +1504,7 @@ private fun UserPersonaDescriptionField(
             label = { Text(stringResource(R.string.user_persona_description)) },
             minLines = 2,
             maxLines = 4,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             visualTransformation = rememberPromptMacroVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -1689,12 +1604,19 @@ private fun ModelConfigPanel(
         MainProviderSettingsState.Empty -> stringResource(R.string.no_model_configured)
         is MainProviderSettingsState.Available -> {
             val current = providerState.providers.firstOrNull { it.id == providerState.selectedProviderId }
-            when {
-                current == null -> stringResource(R.string.no_model_configured)
-                current.model.isNotBlank() && current.name.isNotBlank() && current.name != current.model -> "${current.name} · ${current.model}"
+            val name = when {
+                current == null -> null
+                current.model.isNotBlank() && current.name.isNotBlank() && current.name != current.model ->
+                    "${current.name} · ${current.model}"
                 current.name.isNotBlank() -> current.name
                 current.model.isNotBlank() -> current.model
-                else -> stringResource(R.string.no_model_configured)
+                else -> null
+            }
+            if (name == null) {
+                stringResource(R.string.no_model_configured)
+            } else {
+                // 上下文预算藏在「模型配置 → 对话模型 → 生成参数」里，这里顺带露出当前值。
+                "$name · ${stringResource(R.string.context_tokens)} ${current?.contextTokens}"
             }
         }
     }
@@ -1733,12 +1655,7 @@ private fun ModelConfigPanel(
             subtitle = chatModelSubtitle,
             onClick = { MainUiIntent.OpenProviderManager.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1750,12 +1667,7 @@ private fun ModelConfigPanel(
             subtitle = imageModelSubtitle,
             onClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1767,12 +1679,7 @@ private fun ModelConfigPanel(
             subtitle = voiceModelSubtitle,
             onClick = { MainUiIntent.OpenTtsSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
     }
@@ -1783,19 +1690,12 @@ private fun PromptAndContextPanel(
     state: MainSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    val postProcessingMode = when (val postState = state.promptBehaviorState.providerPostProcessingState) {
-        is MainProviderPostProcessingState.Available -> postState.mode
-        MainProviderPostProcessingState.Unavailable -> PromptPostProcessingMode.Strict
-    }
-    val postProcessingTitle = stringResource(postProcessingMode.titleRes())
     val exampleTitle = stringResource(state.promptBehaviorState.exampleDialogueBehavior.titleRes())
     val streamingPart = if (state.promptBehaviorState.streamEnabled) {
         " · " + stringResource(R.string.streaming_response)
     } else {
         ""
     }
-    val promptBehaviorSubtitle = "$postProcessingTitle · $exampleTitle$streamingPart"
-
     val capString = if (state.worldInfoBudgetState.budgetCap > 0) {
         state.worldInfoBudgetState.budgetCap.toString()
     } else {
@@ -1806,6 +1706,8 @@ private fun PromptAndContextPanel(
         state.worldInfoBudgetState.budgetPercent,
         capString
     )
+    val promptBehaviorSubtitle =
+        "$exampleTitle$streamingPart · $worldInfoBudgetSubtitle"
 
     val summarySubtitle = if (state.summaryState.autoSummaryEnabled) {
         stringResource(
@@ -1825,12 +1727,7 @@ private fun PromptAndContextPanel(
             subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
             onClick = { MainUiIntent.OpenPromptPreset.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1842,29 +1739,7 @@ private fun PromptAndContextPanel(
             subtitle = promptBehaviorSubtitle,
             onClick = { MainUiIntent.OpenPromptBehaviorSettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.Book,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
-            title = stringResource(R.string.world_info_budget_title),
-            subtitle = worldInfoBudgetSubtitle,
-            onClick = { MainUiIntent.OpenWorldInfoBudgetSettings.emit() },
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
         RpSettingsDivider()
@@ -1876,12 +1751,7 @@ private fun PromptAndContextPanel(
             subtitle = summarySubtitle,
             onClick = { MainUiIntent.OpenSummaryMemorySettings.emit() },
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
+                RpNavigationChevron()
             }
         )
     }
@@ -1889,90 +1759,43 @@ private fun PromptAndContextPanel(
 
 @Composable
 private fun DataAndDevelopmentPanel(
-    chatDataManagementState: MainChatDataManagementState,
     emit: MainUiIntent.() -> Unit
 ) {
-    val isReading = chatDataManagementState == MainChatDataManagementState.Reading
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.Backup,
-            iconColor = Color(0xFF0EA5E9),
-            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
-            title = stringResource(R.string.backup_title),
-            subtitle = stringResource(R.string.backup_entry_subtitle),
-            onClick = { MainUiIntent.OpenBackup.emit() },
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.FileDownload,
-            iconColor = Color(0xFF3B82F6),
-            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
-            title = stringResource(R.string.import_chat),
-            subtitle = if (isReading) {
-                stringResource(R.string.reading_chat_file)
-            } else {
-                stringResource(R.string.import_chat_desc)
-            },
-            enabled = !isReading,
-            onClick = { MainUiIntent.ImportChatClick.emit() },
-            trailing = {
-                if (isReading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.Code,
-            iconColor = Color(0xFFEF4444),
-            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
-            title = stringResource(R.string.developer_mode),
-            subtitle = stringResource(R.string.developer_mode_subtitle),
-            onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
-        RpSettingsDivider()
-        RpSettingsTile(
-            icon = Icons.Rounded.Info,
-            iconColor = MaterialTheme.colorScheme.primary,
-            iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-            title = stringResource(R.string.about),
-            subtitle = stringResource(R.string.about_desc),
-            onClick = { emit(MainUiIntent.OpenAbout) },
-            trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        RpSettingsGroup {
+            RpSettingsTile(
+                icon = Icons.Rounded.Backup,
+                iconColor = Color(0xFF0EA5E9),
+                iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+                title = stringResource(R.string.backup_title),
+                subtitle = stringResource(R.string.backup_entry_subtitle),
+                onClick = { MainUiIntent.OpenBackup.emit() },
+                trailing = { RpNavigationChevron() }
+            )
+            RpSettingsDivider()
+            RpSettingsTile(
+                icon = Icons.Rounded.Code,
+                iconColor = Color(0xFFEF4444),
+                iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
+                title = stringResource(R.string.developer_mode),
+                subtitle = stringResource(R.string.developer_mode_subtitle),
+                onClick = { MainUiIntent.OpenDeveloperSettings.emit() },
+                trailing = { RpNavigationChevron() }
+            )
+        }
+
+        // 关于是应用信息，不属于数据管理，单独成组放在最后。
+        RpSettingsGroup {
+            RpSettingsTile(
+                icon = Icons.Rounded.Info,
+                iconColor = MaterialTheme.colorScheme.primary,
+                iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                title = stringResource(R.string.about),
+                subtitle = stringResource(R.string.about_desc),
+                onClick = { emit(MainUiIntent.OpenAbout) },
+                trailing = { RpNavigationChevron() }
+            )
+        }
     }
 }
 
@@ -2076,7 +1899,6 @@ private fun MainLayoutPreview() {
                     ),
                     providerState = MainProviderSettingsState.Empty,
                     promptBehaviorState = MainPromptBehaviorState(
-                        providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,
                         includeThinkInContext = false,
                         contextTrimmingAlert = true,
@@ -2095,7 +1917,6 @@ private fun MainLayoutPreview() {
                         responseTokens = 800,
                         injectionState = MainSummaryInjectionState.AfterMain
                     ),
-                    debugState = MainDebugSettingsState(enabled = false)
                 )
             ),
             emit = {}
@@ -2134,20 +1955,12 @@ private fun MainSettingsLayoutPreview() {
                                 name = "DeepSeek V3",
                                 model = "deepseek-chat",
                                 baseUrl = "https://api.deepseek.com/v1",
-                                isEnabled = true
+                                isEnabled = true,
+                                contextTokens = 65536
                             )
                         ),
-                        generationParametersState = MainGenerationParametersState(
-                            temperature = 0.8f,
-                            topP = 0.95f,
-                            maxTokens = 4096,
-                            contextTokens = 32768
-                        )
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
-                        providerPostProcessingState = MainProviderPostProcessingState.Available(
-                            mode = PromptPostProcessingMode.Strict
-                        ),
                         exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
                         includeThinkInContext = true,
                         contextTrimmingAlert = true,
@@ -2169,7 +1982,6 @@ private fun MainSettingsLayoutPreview() {
                             role = SummaryInjectionRole.System
                         )
                     ),
-                    debugState = MainDebugSettingsState(enabled = true)
                 )
             ),
             emit = {}

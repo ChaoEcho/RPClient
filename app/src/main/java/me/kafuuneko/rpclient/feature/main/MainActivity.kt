@@ -14,7 +14,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.ui.MainLayout
 import me.kafuuneko.rpclient.feature.imagecrop.ImageCropActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
-import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 应用主页面宿主，承载首页与全局设置。 */
@@ -31,14 +30,6 @@ class MainActivity : CoreActivityWithEvent() {
         ImageCropActivity.getResultFileUuid(result.data)?.let {
             mViewModel.emit(MainUiIntent.UserAvatarCropped(it))
         }
-    }
-
-    /** 对话文件只在 ViewModel 完成解析并由用户选择角色后才会写入数据库。 */
-    private val mChatImportLauncher = registerForActivityResult(
-        GetContentWithMimeTypes()
-    ) { uri ->
-        uri ?: return@registerForActivityResult
-        mViewModel.emit(MainUiIntent.ImportChatResult(uri))
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -71,14 +62,6 @@ class MainActivity : CoreActivityWithEvent() {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
             MainViewEvent.OpenUserAvatarPicker -> mUserAvatarPickerLauncher.launch("image/*")
-            MainViewEvent.OpenChatImporter -> mChatImportLauncher.launch(
-                arrayOf(
-                    "application/x-ndjson",
-                    "application/json",
-                    "text/plain",
-                    "application/octet-stream"
-                )
-            )
         }
     }
 }

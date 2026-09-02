@@ -27,6 +27,9 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.withPostProcessedMessages
+import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicLong
+import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -37,6 +40,17 @@ internal const val DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6"
 internal const val DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 internal const val DEFAULT_GROK_MODEL = "grok-4.5-latest"
 internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
+
+private const val LOG_MODULE = "LLM"
+
+/** 低于该阈值的排队时间是正常抖动，不值得占用日志。 */
+private const val PERMIT_WAIT_LOG_THRESHOLD_MS = 50L
+private const val REQUEST_ID_LENGTH = 4
+private const val RADIX_36 = 36
+
+/** 后台辅助生成使用的独立并发配额标识，避免与正文生成争抢同一个 Provider 许可。 */
+const val LLM_PERMIT_SCOPE_SUMMARY = "summary"
+const val LLM_PERMIT_SCOPE_IMAGE_PROMPT = "image-prompt"
 
 /**
  * 模型配置与生成调用的统一业务入口。
@@ -55,6 +69,8 @@ class LLMRepository(
 ) {
     /** 模型配置表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
+    /** 仅用于生成日志关联 ID，不参与任何业务语义。 */
+    private val mRequestCounter = AtomicLong(0L)
     private val mCharacterLLMProviderAssociationDao =
         mAppDatabase.getCharacterLLMProviderAssociationDao()
 
@@ -214,14 +230,21 @@ class LLMRepository(
         }
     }
 
-    /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
+    /**
+     * 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。
+     *
+     * [permitScope] 让后台辅助任务（摘要、图片提示词提炼）使用独立的并发配额。默认值为 null 时
+     * 与正文生成共享配额；由于流式正文会在整个 collection 期间占用许可，共享配额会让摘要
+     * 一直排队，用户侧表现为“摘要卡住不动”。
+     */
     suspend fun generateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
+        permitScope: String? = null
     ): LLMGenerationResponse {
         return try {
-            withProviderPermit(provider) {
+            withProviderPermit(provider, permitScope) {
                 mLLMClientFactory.create(provider.toConfig()).generate(
                     request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
                 ).requireNonEmptyContent()
@@ -282,15 +305,47 @@ class LLMRepository(
         }
     }
 
+    /**
+     * 所有 LLM 调用的唯一收口，因此并发与耗时埋点都放在这里。
+     *
+     * 记录的是排查并发问题真正需要的四件事：等在配额上的时长、实际请求时长、
+     * 用的哪个 Provider/模型、失败原因。requestId 让同一次请求的多行日志能串起来。
+     */
     private suspend fun <T> withProviderPermit(
         provider: LLMProvider,
+        permitScope: String? = null,
         block: suspend () -> T
     ): T {
+        val key = if (permitScope == null) {
+            "llm-provider:${provider.id}"
+        } else {
+            "llm-provider:${provider.id}:$permitScope"
+        }
+        val requestId = nextRequestId()
+        val queuedAt = SystemClock.elapsedRealtime()
         return mRequestConcurrencyLimiter.withPermit(
-            key = "llm-provider:${provider.id}",
-            limit = provider.maxConcurrentRequests,
-            block = block
-        )
+            key = key,
+            limit = provider.maxConcurrentRequests
+        ) {
+            val startedAt = SystemClock.elapsedRealtime()
+            logPermitAcquired(requestId, provider, key, startedAt - queuedAt)
+            try {
+                val result = block()
+                AppLogger.i(
+                    LOG_MODULE,
+                    "[$requestId] done in ${SystemClock.elapsedRealtime() - startedAt}ms"
+                )
+                result
+            } catch (error: Throwable) {
+                AppLogger.e(
+                    LOG_MODULE,
+                    "[$requestId] failed after ${SystemClock.elapsedRealtime() - startedAt}ms: " +
+                        (error.message ?: error.javaClass.simpleName),
+                    error
+                )
+                throw error
+            }
+        }
     }
 
     private fun streamWithProviderPermit(
@@ -298,9 +353,42 @@ class LLMRepository(
         upstream: Flow<LLMStreamEvent>
     ): Flow<LLMStreamEvent> = flow {
         withProviderPermit(provider) {
-            upstream.collect { event -> emit(event) }
+            // 首 token 延迟是区分「服务端慢」与「本地卡住」的关键指标。
+            val startedAt = SystemClock.elapsedRealtime()
+            var firstEventAt: Long? = null
+            upstream.collect { event ->
+                if (firstEventAt == null && event is LLMStreamEvent.Delta) {
+                    firstEventAt = SystemClock.elapsedRealtime()
+                    AppLogger.i(
+                        LOG_MODULE,
+                        "first token after ${firstEventAt!! - startedAt}ms (${provider.model})"
+                    )
+                }
+                emit(event)
+            }
         }
     }
+
+    private fun logPermitAcquired(
+        requestId: String,
+        provider: LLMProvider,
+        key: String,
+        waitedMs: Long
+    ) {
+        val waited = if (waitedMs >= PERMIT_WAIT_LOG_THRESHOLD_MS) {
+            ", waited ${waitedMs}ms for a permit"
+        } else {
+            ""
+        }
+        AppLogger.i(
+            LOG_MODULE,
+            "[$requestId] ${provider.name} · ${provider.model} " +
+                "(limit ${provider.maxConcurrentRequests} on $key$waited)"
+        )
+    }
+
+    private fun nextRequestId(): String =
+        mRequestCounter.incrementAndGet().toString(RADIX_36).padStart(REQUEST_ID_LENGTH, '0')
 
     /**
      * 在所有协议适配器之前统一执行 Prompt Post-Processing。

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material3.FilterChip
@@ -52,6 +53,9 @@ import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpGroupedTilePadding
+import me.kafuuneko.rpclient.ui.widgets.RpNumberSettingRow
+import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 
 @Composable
@@ -102,30 +106,7 @@ private fun PromptBehaviorSettingsNormal(
                 )
             }
 
-            // 1. 提示词后处理
-            item {
-                RpCollapsibleSettingsGroup(
-                    title = stringResource(R.string.prompt_post_processing_title),
-                    subtitle = stringResource(R.string.prompt_post_processing_desc),
-                    summary = stringResource(state.postProcessingMode.titleRes()),
-                    initiallyExpanded = true
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PromptPostProcessingMode.entries.forEach { mode ->
-                            PromptPostProcessingModeRow(
-                                mode = mode,
-                                selected = mode == state.postProcessingMode,
-                                onClick = { PromptBehaviorSettingsUiIntent.SelectPostProcessingMode(mode).emit() }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 2. 示例对话
+            // 1. 示例对话
             item {
                 RpCollapsibleSettingsGroup(
                     title = stringResource(R.string.example_dialogue_title),
@@ -151,7 +132,7 @@ private fun PromptBehaviorSettingsNormal(
                 }
             }
 
-            // 3. 上下文行为
+            // 2. 上下文行为
             item {
                 RpCollapsibleSettingsGroup(
                     title = stringResource(R.string.context_behavior_title),
@@ -165,7 +146,8 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.prompt_include_think_context_title),
                         subtitle = stringResource(R.string.prompt_include_think_context_desc),
                         checked = state.includeThinkInContext,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleIncludeThinkInContext(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleIncludeThinkInContext(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
                     RpSettingsDivider()
                     RpSettingsSwitchTile(
@@ -175,17 +157,18 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.context_trimming_alert),
                         subtitle = stringResource(R.string.context_trimming_alert_desc),
                         checked = state.contextTrimmingAlert,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleContextTrimmingAlert(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleContextTrimmingAlert(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
                 }
             }
 
-            // 4. 响应行为
+            // 3. 响应行为
             item {
                 RpCollapsibleSettingsGroup(
                     title = stringResource(R.string.response_behavior_title),
                     subtitle = null,
-                    summary = if (state.streamEnabled) "Streaming" else null,
+                    summary = if (state.streamEnabled) stringResource(R.string.streaming_response) else null,
                     initiallyExpanded = true
                 ) {
                     RpSettingsSwitchTile(
@@ -195,67 +178,67 @@ private fun PromptBehaviorSettingsNormal(
                         title = stringResource(R.string.streaming_response),
                         subtitle = stringResource(R.string.streaming_response_desc),
                         checked = state.streamEnabled,
-                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleStreamEnabled(it).emit() }
+                        onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleStreamEnabled(it).emit() },
+                        contentPadding = RpGroupedTilePadding
                     )
+                }
+            }
+
+            // 4. 世界书预算（原独立二级页，只有三个偏好项，不值得单独一个 Activity）
+            item {
+                RpCollapsibleSettingsGroup(
+                    title = stringResource(R.string.world_info_budget_section),
+                    subtitle = stringResource(R.string.world_info_budget_description),
+                    summary = worldInfoBudgetSummary(
+                        percent = state.worldInfoBudgetPercent,
+                        cap = state.worldInfoBudgetCap
+                    ),
+                    initiallyExpanded = false
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        RpPercentageSlider(
+                            title = stringResource(R.string.world_info_context_percent),
+                            value = state.worldInfoBudgetPercent,
+                            helper = stringResource(R.string.world_info_context_percent_helper),
+                            onValueChange = {
+                                PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetPercent(it).emit()
+                            }
+                        )
+                        RpNumberSettingRow(
+                            title = stringResource(R.string.world_info_budget_cap),
+                            value = state.worldInfoBudgetCap.toString(),
+                            helper = stringResource(R.string.world_info_budget_cap_helper),
+                            onValueChange = {
+                                PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetCap(it).emit()
+                            }
+                        )
+                        RpSettingsSwitchTile(
+                            icon = Icons.Rounded.Book,
+                            iconColor = Color(0xFF10B981),
+                            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+                            title = stringResource(R.string.world_info_overflow_alert),
+                            subtitle = stringResource(R.string.world_info_overflow_alert_desc),
+                            checked = state.worldInfoOverflowAlert,
+                            onCheckedChange = {
+                                PromptBehaviorSettingsUiIntent.ToggleWorldInfoOverflowAlert(it).emit()
+                            },
+                            contentPadding = RpGroupedTilePadding
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/** 与设置首页保持一致的世界书预算摘要文案。 */
 @Composable
-private fun PromptPostProcessingModeRow(
-    mode: PromptPostProcessingMode,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(
-            width = if (selected) 1.5.dp else 0.5.dp,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
-            }
-        ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(mode.titleRes()),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(mode.descriptionRes()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
+private fun worldInfoBudgetSummary(percent: Int, cap: Int): String {
+    val capText = if (cap > 0) cap.toString() else stringResource(R.string.unlimited)
+    return stringResource(R.string.world_info_budget_summary, percent, capText)
 }
 
 internal fun PromptPostProcessingMode.titleRes(): Int {
@@ -265,16 +248,6 @@ internal fun PromptPostProcessingMode.titleRes(): Int {
         PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict
         PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict
         PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user
-    }
-}
-
-private fun PromptPostProcessingMode.descriptionRes(): Int {
-    return when (this) {
-        PromptPostProcessingMode.None -> R.string.prompt_post_processing_none_desc
-        PromptPostProcessingMode.Merge -> R.string.prompt_post_processing_merge_desc
-        PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict_desc
-        PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict_desc
-        PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user_desc
     }
 }
 

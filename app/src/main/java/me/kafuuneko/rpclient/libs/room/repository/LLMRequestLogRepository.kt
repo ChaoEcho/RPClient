@@ -6,7 +6,12 @@ import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
 import me.kafuuneko.rpclient.libs.room.model.LLMRequestLogOverview
 
-/** 调试请求日志仓库；只有开启 [AppModel.debugModeEnabled] 时才写入原始内容。 */
+/**
+ * 调试请求日志仓库。
+ *
+ * 原始请求/响应包含完整提示词，隐私敏感度远高于脱敏后的运行日志，因此它是
+ * [AppModel.developerLoggingEnabled] 之下的子开关：主开关关闭时一律不记录。
+ */
 class LLMRequestLogRepository(
     private val mRequestLogDatabase: RequestLogDatabase
 ) {
@@ -39,8 +44,8 @@ class LLMRequestLogRepository(
         requestJson: String,
         responseJson: String
     ): Long {
-        if (!AppModel.debugModeEnabled) return 0L
-        return mLLMRequestLogDao.insertOrReplace(
+        if (!AppModel.developerLoggingEnabled || !AppModel.debugModeEnabled) return 0L
+        val id = mLLMRequestLogDao.insertOrReplace(
             LLMRequestLog(
                 providerName = provider.name,
                 providerType = provider.providerType,
@@ -51,10 +56,20 @@ class LLMRequestLogRepository(
                 responseJson = responseJson
             )
         )
+        // 每条日志都带完整请求与响应 JSON，没有上限会把调试库撑到几百 MB。
+        mLLMRequestLogDao.trimToMostRecent(MAX_RETAINED_LOGS)
+        return id
     }
 
     /** 清空本地调试日志。 */
     suspend fun deleteAll() {
         mLLMRequestLogDao.deleteAll()
+    }
+
+    private companion object {
+        /**
+         * minimal-debt: 固定保留条数；若需要按天或按体积保留，再引入配置项。
+         */
+        const val MAX_RETAINED_LOGS = 500
     }
 }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
@@ -27,7 +29,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,9 +41,16 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,8 +67,14 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 
 /** 页面主标题，带辅助说明，统一页面顶部视觉规范。 */
@@ -366,6 +385,7 @@ fun RpSettingsTile(
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 13.dp),
     onClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
@@ -379,7 +399,7 @@ fun RpSettingsTile(
         modifier = modifier
             .fillMaxWidth()
             .then(clickableModifier)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
@@ -419,6 +439,22 @@ fun RpSettingsTile(
     }
 }
 
+/**
+ * 设置页跳转箭头。
+ *
+ * 各页面此前反复手写同一段 trailing lambda（仅 MainLayout 就有 11 处），
+ * 收敛成一个组件以保证尺寸与透明度一致。
+ */
+@Composable
+fun RpNavigationChevron() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+        modifier = Modifier.size(18.dp)
+    )
+}
+
 /** 现代设置页带 Switch 开关的标准行项。 */
 @Composable
 fun RpSettingsSwitchTile(
@@ -430,7 +466,8 @@ fun RpSettingsSwitchTile(
     icon: ImageVector? = null,
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 13.dp)
 ) {
     RpSettingsTile(
         title = title,
@@ -439,6 +476,7 @@ fun RpSettingsSwitchTile(
         iconColor = iconColor,
         iconContainerColor = iconContainerColor,
         enabled = enabled,
+        contentPadding = contentPadding,
         modifier = modifier,
         onClick = if (enabled) { { onCheckedChange(!checked) } } else null,
         trailing = {
@@ -462,7 +500,8 @@ fun RpSettingsValueTile(
     icon: ImageVector? = null,
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 13.dp)
 ) {
     RpSettingsTile(
         title = title,
@@ -471,6 +510,7 @@ fun RpSettingsValueTile(
         iconColor = iconColor,
         iconContainerColor = iconContainerColor,
         enabled = enabled,
+        contentPadding = contentPadding,
         modifier = modifier,
         onClick = onClick,
         trailing = {
@@ -698,6 +738,157 @@ fun RpCollapsibleSettingsGroup(
 }
 
 /**
+ * 设置页统一表单输入框。
+ *
+ * 此前图片、语音、备份、模型编辑四个页面各自实现了一份，圆角在 12/14/16dp 之间漂移，
+ * 且只有部分页面带密码可见性切换与键盘弹出时的滚动跟随。这里收敛为唯一实现。
+ */
+@Composable
+fun RpFormTextField(
+    value: String,
+    label: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    password: Boolean = false,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    enabled: Boolean = true,
+    imeAction: ImeAction = if (singleLine) ImeAction.Next else ImeAction.Default
+) {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    // 输入框获得焦点后软键盘才完成弹出，延迟一帧再滚动才能真正把它带到可见区域。
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            delay(FIELD_SCROLL_INTO_VIEW_DELAY_MS)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .onFocusChanged { isFocused = it.isFocused },
+        label = { Text(label) },
+        supportingText = supportingText?.let { { Text(it) } },
+        singleLine = singleLine,
+        minLines = minLines,
+        visualTransformation = if (password && !passwordVisible) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
+        trailingIcon = if (password) {
+            {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) {
+                            Icons.Rounded.VisibilityOff
+                        } else {
+                            Icons.Rounded.Visibility
+                        },
+                        contentDescription = stringResource(
+                            if (passwordVisible) R.string.hide else R.string.show
+                        ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            null
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        shape = RoundedCornerShape(FIELD_CORNER_RADIUS)
+    )
+}
+
+/**
+ * 设置页统一下拉选择框，外观与 [RpFormTextField] 完全一致。
+ *
+ * [selectedLabel] 由调用方直接给出，因此“跟随聊天模型”这类不对应任何列表项的占位值
+ * 不需要在 [values] 里造一个假条目。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun <T> RpSettingsDropdown(
+    label: String,
+    selectedLabel: String,
+    values: List<T>,
+    valueLabel: (T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    leadingOption: Pair<String, () -> Unit>? = null
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            supportingText = supportingText?.let { { Text(it) } },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            maxLines = 1,
+            shape = RoundedCornerShape(FIELD_CORNER_RADIUS)
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (leadingOption != null) {
+                DropdownMenuItem(
+                    text = { Text(leadingOption.first) },
+                    onClick = {
+                        leadingOption.second()
+                        expanded = false
+                    }
+                )
+            }
+            values.forEach { value ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = valueLabel(value),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    onClick = {
+                        onSelect(value)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 折叠分组内部使用的磁贴内边距。
+ *
+ * 分组本身已提供水平内边距，磁贴只需保留垂直节奏，否则会与相邻的表单行左边缘错开。
+ */
+val RpGroupedTilePadding = PaddingValues(horizontal = 0.dp, vertical = 13.dp)
+
+/** 设置页表单控件统一圆角；改这里即可整体调整，不要在各页面各写一遍。 */
+private val FIELD_CORNER_RADIUS = 12.dp
+private const val FIELD_SCROLL_INTO_VIEW_DELAY_MS = 300L
+
+/**
  * 通用数字输入行组件。
  */
 @Composable
@@ -737,8 +928,13 @@ fun RpNumberSettingRow(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            // 数字设置项此前弹的是字母键盘。
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
             modifier = Modifier.width(100.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(FIELD_CORNER_RADIUS),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 fontWeight = FontWeight.SemiBold

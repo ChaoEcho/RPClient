@@ -77,9 +77,13 @@ import me.kafuuneko.rpclient.libs.tts.MIMO_VOICES
 import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpFloatSlider
+import me.kafuuneko.rpclient.ui.widgets.RpFormTextField
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsDropdown
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpGroupedTilePadding
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpTagPill
 
@@ -93,23 +97,19 @@ fun TtsSettingsLayout(
         TtsSettingsUiIntent.Back.emit()
     }
 
-    Scaffold(
-        modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.tts_settings_title),
-                onBack = { TtsSettingsUiIntent.Back.emit() }
-            )
-        }
-    ) { paddingValues ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        AppTopBar(
+            title = stringResource(R.string.tts_settings_title),
+            onBack = { TtsSettingsUiIntent.Back.emit() }
+        )
         when (val state = uiState) {
             TtsSettingsUiState.None -> Unit
             is TtsSettingsUiState.Finished -> Unit
-            is TtsSettingsUiState.Normal -> TtsSettingsContent(
-                state = state,
-                emit = emit,
-                modifier = Modifier.padding(paddingValues)
-            )
+            is TtsSettingsUiState.Normal -> TtsSettingsContent(state = state, emit = emit)
         }
     }
 }
@@ -205,16 +205,16 @@ private fun TtsProviderCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
-            width = if (selected) 1.5.dp else 0.8.dp,
+            width = if (selected) 1.5.dp else 0.5.dp,
             color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
         ),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
             else MaterialTheme.colorScheme.surface
         )
     ) {
@@ -257,43 +257,52 @@ private fun SystemPanel(
         .filter { it.languageTag.equals(state.languageTag, ignoreCase = true) }
         .sortedBy { it.displayName.lowercase() }
 
-    RpPanel {
-        RpSectionHeader(title = stringResource(R.string.tts_voice))
-        if (languages.isEmpty()) {
-            Text(
-                text = stringResource(R.string.tts_system_voices_unavailable),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            SettingsDropdown(
-                label = stringResource(R.string.tts_language),
-                selectedValue = state.languageTag,
-                values = languages,
-                valueLabel = { it },
-                onSelect = { TtsSettingsUiIntent.SelectSystemLanguage(it).emit() }
-            )
-            SettingsDropdown(
-                label = stringResource(R.string.tts_voice),
-                selectedValue = state.voiceName,
-                selectedLabel = voices.firstOrNull { it.name == state.voiceName }?.displayName,
-                values = voices,
-                valueLabel = { it.displayName },
-                onSelect = { TtsSettingsUiIntent.SelectSystemVoice(it.name).emit() }
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        RpPanel {
+            RpSectionHeader(title = stringResource(R.string.tts_provider_system))
+            if (languages.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.tts_system_voices_unavailable),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                RpSettingsDropdown(
+                    label = stringResource(R.string.tts_language),
+                    selectedLabel = state.languageTag,
+                    values = languages,
+                    valueLabel = { it },
+                    onSelect = { TtsSettingsUiIntent.SelectSystemLanguage(it).emit() }
+                )
+                RpSettingsDropdown(
+                    label = stringResource(R.string.tts_voice),
+                    selectedLabel = voices.firstOrNull { it.name == state.voiceName }?.displayName
+                        ?: state.voiceName,
+                    values = voices,
+                    valueLabel = { it.displayName },
+                    onSelect = { TtsSettingsUiIntent.SelectSystemVoice(it.name).emit() }
+                )
+            }
         }
 
-        FloatSlider(
-            label = stringResource(R.string.tts_speech_rate),
-            value = state.speechRate,
-            valueRange = 0.25f..3f,
-            onValueChange = { TtsSettingsUiIntent.ChangeSystemSpeechRate(it).emit() }
-        )
-        FloatSlider(
-            label = stringResource(R.string.tts_pitch),
-            value = state.pitch,
-            valueRange = 0.25f..3f,
-            onValueChange = { TtsSettingsUiIntent.ChangeSystemPitch(it).emit() }
-        )
+        RpCollapsibleSettingsGroup(
+            title = stringResource(R.string.tts_voice_parameters),
+            initiallyExpanded = false
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                RpFloatSlider(
+                    title = stringResource(R.string.tts_speech_rate),
+                    value = state.speechRate,
+                    valueRange = 0.25f..3f,
+                    onValueChange = { TtsSettingsUiIntent.ChangeSystemSpeechRate(it).emit() }
+                )
+                RpFloatSlider(
+                    title = stringResource(R.string.tts_pitch),
+                    value = state.pitch,
+                    valueRange = 0.25f..3f,
+                    onValueChange = { TtsSettingsUiIntent.ChangeSystemPitch(it).emit() }
+                )
+            }
+        }
     }
 }
 
@@ -305,30 +314,30 @@ private fun MimoPanel(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         RpPanel {
             RpSectionHeader(title = stringResource(R.string.tts_provider_mimo))
-            SettingsTextField(
+            RpFormTextField(
                 value = state.baseUrl,
                 label = stringResource(R.string.tts_base_url),
                 onValueChange = { TtsSettingsUiIntent.ChangeMimoBaseUrl(it).emit() },
                 keyboardType = KeyboardType.Uri,
                 imeAction = ImeAction.Next
             )
-            SettingsTextField(
+            RpFormTextField(
                 value = state.apiKey,
                 label = stringResource(R.string.tts_api_key),
                 onValueChange = { TtsSettingsUiIntent.ChangeMimoApiKey(it).emit() },
                 password = true,
                 imeAction = ImeAction.Next
             )
-            SettingsTextField(
+            RpFormTextField(
                 value = state.model,
                 label = stringResource(R.string.model_name),
                 onValueChange = { TtsSettingsUiIntent.ChangeMimoModel(it).emit() },
                 imeAction = ImeAction.Done
             )
-            SettingsDropdown(
+            RpSettingsDropdown(
                 label = stringResource(R.string.tts_voice),
-                selectedValue = state.voice,
-                selectedLabel = MIMO_VOICES.firstOrNull { it.id == state.voice }?.label,
+                selectedLabel = MIMO_VOICES.firstOrNull { it.id == state.voice }?.label
+                    ?: state.voice,
                 values = MIMO_VOICES,
                 valueLabel = { it.label },
                 onSelect = { TtsSettingsUiIntent.ChangeMimoVoice(it.id).emit() }
@@ -339,19 +348,16 @@ private fun MimoPanel(
             title = stringResource(R.string.advanced_settings),
             initiallyExpanded = false
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                SettingsTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                RpFormTextField(
                     value = state.instructions,
                     label = stringResource(R.string.tts_mimo_instructions),
                     onValueChange = { TtsSettingsUiIntent.ChangeMimoInstructions(it).emit() },
                     singleLine = false,
                     minLines = 3
                 )
-                FloatSlider(
-                    label = stringResource(R.string.tts_temperature),
+                RpFloatSlider(
+                    title = stringResource(R.string.tts_temperature),
                     value = state.temperature,
                     valueRange = 0f..1.5f,
                     onValueChange = { TtsSettingsUiIntent.ChangeMimoTemperature(it).emit() }
@@ -360,7 +366,8 @@ private fun MimoPanel(
                     title = stringResource(R.string.tts_mimo_streaming),
                     subtitle = stringResource(R.string.tts_mimo_streaming_description),
                     checked = state.streaming,
-                    onCheckedChange = { TtsSettingsUiIntent.ChangeMimoStreaming(it).emit() }
+                    onCheckedChange = { TtsSettingsUiIntent.ChangeMimoStreaming(it).emit() },
+                    contentPadding = RpGroupedTilePadding
                 )
             }
         }
@@ -375,27 +382,33 @@ private fun AzurePanel(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         RpPanel {
             RpSectionHeader(title = stringResource(R.string.tts_provider_azure))
-            SettingsTextField(
+            RpFormTextField(
                 value = state.apiKey,
                 label = stringResource(R.string.tts_api_key),
                 onValueChange = { TtsSettingsUiIntent.ChangeAzureApiKey(it).emit() },
                 password = true,
                 imeAction = ImeAction.Next
             )
-            SettingsTextField(
+            RpFormTextField(
                 value = state.region,
                 label = stringResource(R.string.tts_azure_region),
                 onValueChange = { TtsSettingsUiIntent.ChangeAzureRegion(it).emit() },
                 imeAction = ImeAction.Next
             )
-            SettingsTextField(
+            RpFormTextField(
                 value = state.voice,
                 label = stringResource(R.string.tts_voice),
                 onValueChange = { TtsSettingsUiIntent.ChangeAzureVoice(it).emit() },
                 imeAction = ImeAction.Done
             )
-            FloatSlider(
-                label = stringResource(R.string.tts_speech_rate),
+        }
+
+        RpCollapsibleSettingsGroup(
+            title = stringResource(R.string.tts_voice_parameters),
+            initiallyExpanded = false
+        ) {
+            RpFloatSlider(
+                title = stringResource(R.string.tts_speech_rate),
                 value = state.speechRate,
                 valueRange = 0.5f..2f,
                 onValueChange = { TtsSettingsUiIntent.ChangeAzureSpeechRate(it).emit() }
@@ -415,11 +428,8 @@ private fun VoiceTestPanel(
         title = stringResource(R.string.tts_test_section),
         initiallyExpanded = false
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            SettingsTextField(
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            RpFormTextField(
                 value = previewText,
                 label = stringResource(R.string.tts_preview_text_label),
                 onValueChange = onPreviewTextChange,
@@ -427,142 +437,6 @@ private fun VoiceTestPanel(
                 minLines = 2
             )
             PreviewButton(previewState, previewText, emit)
-        }
-    }
-}
-
-@Composable
-private fun SettingsTextField(
-    value: String,
-    label: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    supportingText: String? = null,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    password: Boolean = false,
-    singleLine: Boolean = true,
-    minLines: Int = 1,
-    imeAction: ImeAction = if (singleLine) ImeAction.Next else ImeAction.Default
-) {
-    val bringIntoViewRequester = remember { BringIntoViewRequester() }
-    var isFocused by remember { mutableStateOf(false) }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(isFocused) {
-        if (isFocused) {
-            delay(300)
-            bringIntoViewRequester.bringIntoView()
-        }
-    }
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .bringIntoViewRequester(bringIntoViewRequester)
-            .onFocusChanged { isFocused = it.isFocused },
-        label = { Text(label) },
-        supportingText = supportingText?.let { { Text(it) } },
-        singleLine = singleLine,
-        minLines = minLines,
-        visualTransformation = if (password && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
-        trailingIcon = if (password) {
-            {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else null,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = keyboardType,
-            imeAction = imeAction
-        ),
-        shape = RoundedCornerShape(12.dp)
-    )
-}
-
-@Composable
-private fun FloatSlider(
-    label: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = "%.2f".format(value),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        Slider(
-            value = value.coerceIn(valueRange.start, valueRange.endInclusive),
-            onValueChange = onValueChange,
-            valueRange = valueRange
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun <T> SettingsDropdown(
-    label: String,
-    selectedValue: String,
-    selectedLabel: String? = null,
-    values: List<T>,
-    valueLabel: (T) -> String,
-    onSelect: (T) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayedValue = selectedLabel ?: values.firstOrNull { valueLabel(it) == selectedValue }?.let(valueLabel)
-        ?: selectedValue
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = displayedValue,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            shape = RoundedCornerShape(12.dp)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            values.forEach { value ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = valueLabel(value),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    onClick = {
-                        onSelect(value)
-                        expanded = false
-                    }
-                )
-            }
         }
     }
 }

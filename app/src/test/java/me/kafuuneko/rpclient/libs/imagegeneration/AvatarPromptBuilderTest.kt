@@ -82,4 +82,18 @@ class AvatarPromptBuilderTest {
     fun constantSizeIsSquare1024() {
         assertEquals("1024x1024", AVATAR_IMAGE_SIZE)
     }
+
+    @Test
+    fun appearanceRefinementPromptExcludesNonVisualAndStyleContent() {
+        val prompt = AVATAR_APPEARANCE_REFINEMENT_SYSTEM_PROMPT
+
+        // 提炼步骤的价值全在这些排除项上：角色卡里性格与背景占大头，
+        // 原样喂给绘图模型会把外貌特征稀释掉。
+        assertTrue(prompt.contains("visible physical appearance"))
+        assertTrue(prompt.contains("Do not include personality"))
+        assertTrue(prompt.contains("backstory"))
+        assertTrue(prompt.contains("relationships"))
+        // 画风由头像风格提示词单独控制，提炼结果里不应再夹带。
+        assertTrue(prompt.contains("Do not include art style"))
+    }
 }

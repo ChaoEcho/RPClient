@@ -349,7 +349,11 @@
     <string name="continue_generation_failed">续写失败</string>
     <string name="impersonation_failed">扮演用户生成失败</string>
     <string name="no_unsummarized_messages">没有未摘要的消息</string>
+    <string name="summary_prompt_templates_title">摘要提示词模板</string>
+    <string name="summary_prompt_templates_desc">在提示词预设中编辑摘要、群聊摘要与注入模板</string>
     <string name="summary_updated">摘要已更新</string>
+    <string name="summary_already_running">已有摘要任务正在执行</string>
+    <string name="summary_budget_too_small">上下文预算太小，无法摘要；请调高上下文 Token 或调低摘要回复 Token</string>
     <string name="summary_failed">摘要失败</string>
     <string name="summary_restored">已恢复上一版摘要</string>
     <string name="no_previous_summary">没有可恢复的摘要快照</string>
@@ -1159,6 +1163,7 @@
     <string name="tts_mimo_voice_chloe">Chloe（英文女声）</string>
     <string name="tts_mimo_voice_milo">Milo（英文男声）</string>
     <string name="tts_mimo_voice_dean">Dean（英文男声）</string>
+    <string name="tts_voice_parameters">语音参数</string>
     <string name="tts_speech_rate">语速</string>
     <string name="tts_pitch">音调</string>
     <string name="tts_preview">试听</string>
@@ -1182,6 +1187,7 @@
     <!-- 完整备份、恢复与 WebDAV 存储 -->
     <string name="backup_title">备份与恢复</string>
     <string name="backup_entry_subtitle">完整备份角色、聊天、故事、模型与应用设置</string>
+    <string name="backup_chat_data_section">聊天数据</string>
     <string name="backup_local_section">本地备份</string>
     <string name="backup_create_full">创建完整备份</string>
     <string name="backup_create_full_desc">创建包含全部业务数据与设置的加密 .rpbackup 文件</string>
@@ -1254,7 +1260,8 @@
     <string name="backup_error_generic">备份操作失败，未应用未经校验的恢复数据。</string>
 
     <string name="llm_provider_max_concurrent_requests">最大并发请求数</string>
-    <string name="llm_provider_max_concurrent_requests_desc">同一模型服务允许同时执行的生成请求数量</string>
+    <string name="llm_provider_max_concurrent_requests_desc">同一模型服务允许同时执行的生成请求数量。单个会话始终一次只生成一条回复，因此该设置只在不同会话之间以及摘要等后台任务上生效。</string>
+    <string name="context_tokens">上下文 Token</string>
     <string name="image_generation_max_concurrent_requests">图片最大并发请求数</string>
     <string name="image_generation_max_concurrent_requests_desc">允许同时执行的图片生成请求数量</string>
     <string name="backup_error_webdav_invalid_response">WebDAV 返回的远程目录格式无法解析</string>
@@ -1279,6 +1286,12 @@
     <string name="developer_logging_desc">安全记录应用自身关键运行与 HTTP 调试信息，默认不记录密钥与聊天内容</string>
     <string name="record_ai_raw_requests_title">记录 AI 原始请求</string>
     <string name="record_ai_raw_requests_desc">原始 AI 请求可能包含角色设定、聊天内容和提示词，仅建议调试时开启</string>
+    <string name="app_logs_desc">脱敏后的运行事件：模型调用、耗时、并发、备份与语音</string>
+    <string name="ai_request_logs_desc">上方子开关开启后记录的完整请求与响应 JSON</string>
+    <string name="developer_runtime_section">运行状态</string>
+    <string name="developer_active_generations">正在生成的会话</string>
+    <string name="developer_active_summaries">正在执行的摘要</string>
+    <string name="developer_buffered_logs">已缓存日志条数</string>
     <string name="app_logs">应用运行日志</string>
     <string name="ai_request_logs">AI 请求日志</string>
     <string name="app_log_search_hint">搜索日志正文或标签...</string>
@@ -1301,8 +1314,8 @@
     <string name="world_info_budget_summary">上下文 %1$d%% · 最大 %2$s Tokens</string>
     <string name="unlimited">不限制</string>
 
-    <string name="prompt_behavior_title">请求与对话策略</string>
-    <string name="prompt_behavior_subtitle">配置提示词后处理、示例对话策略与流式响应</string>
+    <string name="prompt_behavior_title">上下文与请求策略</string>
+    <string name="prompt_behavior_subtitle">示例对话、上下文行为、流式响应与世界书预算</string>
     <string name="world_info_budget_title">世界书预算</string>
     <string name="world_info_budget_subtitle">配置上下文词元预算占比与条目溢出警报</string>
     <string name="summary_memory_subtitle">配置长对话自动总结策略与记忆注入规则</string>

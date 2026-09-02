@@ -114,4 +114,46 @@ class ChatRepositoryGenerationCommitTest {
         assertEquals(10L, session?.latestTime)
         assertEquals("{\"turn\":0}", session?.worldInfoStateJson)
     }
+
+    @Test
+    fun streamingDraft_isReadableMidGenerationWithoutAdvancingSessionMetadata() = runBlocking {
+        val placeholderId = repository.createGenerationPlaceholder(
+            sessionId,
+            ChatMessage.Source.Char,
+            createTime = 20L
+        )
+
+        repository.updateGenerationDraft(placeholderId, "partial reply so far")
+
+        // 进程此刻被系统杀死也能读回已收到的正文，而不是空气泡。
+        assertEquals("partial reply so far", repository.getMessageById(placeholderId)?.content)
+        // 草稿只写正文；会话活跃时间与世界书状态仍留给最终提交推进。
+        val session = repository.getSessionById(sessionId)
+        assertEquals(10L, session?.latestTime)
+        assertEquals("{\"turn\":0}", session?.worldInfoStateJson)
+    }
+
+    @Test
+    fun placeholderWithPersistedDraft_isStillDeletedWhenNothingIsAccepted() = runBlocking {
+        val placeholderId = repository.createGenerationPlaceholder(
+            sessionId,
+            ChatMessage.Source.Char,
+            createTime = 20L
+        )
+        repository.updateGenerationDraft(placeholderId, "draft that regex later strips")
+
+        val committedId = repository.commitGenerationResult(
+            sessionId = sessionId,
+            messageId = placeholderId,
+            source = ChatMessage.Source.Char,
+            content = "",
+            deleteEmptyPlaceholder = true,
+            worldInfoStateJson = "{\"turn\":1}",
+            commitTime = 30L
+        )
+
+        // 清理条件不能再依赖“正文为空”，否则草稿会把占位记录永久留在会话里。
+        assertNull(committedId)
+        assertNull(repository.getMessageById(placeholderId))
+    }
 }

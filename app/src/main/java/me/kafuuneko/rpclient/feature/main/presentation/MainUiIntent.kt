@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import android.net.Uri
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -44,15 +43,9 @@ sealed class MainUiIntent {
 
     data object OpenProviderManager : MainUiIntent()
 
-    data object OpenSelectedProviderEdit : MainUiIntent()
 
-    data class ShowGenerationParameterDialog(
-        val parameter: MainGenerationParameter
-    ) : MainUiIntent()
 
-    data class ChangeGenerationParameterDraft(val value: String) : MainUiIntent()
 
-    data object ConfirmGenerationParameter : MainUiIntent()
 
     data object PickUserAvatarClick : MainUiIntent()
 
@@ -60,15 +53,10 @@ sealed class MainUiIntent {
 
     data object ClearUserAvatar : MainUiIntent()
 
-    data object ImportChatClick : MainUiIntent()
 
-    data class ImportChatResult(val uri: Uri) : MainUiIntent()
 
-    data class ChangeImportCharacterQuery(val value: String) : MainUiIntent()
 
-    data class SelectImportCharacter(val characterId: Long) : MainUiIntent()
 
-    data object ConfirmImportChat : MainUiIntent()
 
     data class ChangeUserName(val value: String) : MainUiIntent()
 
@@ -80,59 +68,30 @@ sealed class MainUiIntent {
 
     data object ConfirmUserDescriptionEditor : MainUiIntent()
 
-    data class SelectProvider(val providerId: Long) : MainUiIntent()
 
-    data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
 
-    data class SelectPostProcessingMode(val mode: PromptPostProcessingMode) : MainUiIntent()
 
-    data class SelectExampleDialogueBehavior(
-        val behavior: ExampleDialogueBehavior
-    ) : MainUiIntent()
 
-    data class ToggleIncludeThinkInContext(val enabled: Boolean) : MainUiIntent()
 
-    data class ChangeWorldInfoBudgetPercent(val value: Int) : MainUiIntent()
 
-    data class ChangeWorldInfoBudgetCap(val value: String) : MainUiIntent()
 
-    data class ToggleWorldInfoOverflowAlert(val enabled: Boolean) : MainUiIntent()
 
-    data class ToggleContextTrimmingAlert(val enabled: Boolean) : MainUiIntent()
 
-    data class ToggleDebugModeEnabled(val enabled: Boolean) : MainUiIntent()
 
-    data class ToggleAutoSummaryEnabled(val enabled: Boolean) : MainUiIntent()
 
-    data class SelectSummaryProvider(val providerId: Long) : MainUiIntent()
 
-    data class ChangeSummaryTriggerMessageCount(val value: String) : MainUiIntent()
 
-    data class ChangeSummaryWordsLimit(val value: String) : MainUiIntent()
 
-    data class ChangeSummaryMaxMessagesPerRequest(val value: String) : MainUiIntent()
 
-    data class ChangeSummaryResponseTokens(val value: String) : MainUiIntent()
 
-    data class SelectSummarySettingsTab(
-        val tab: MainSummarySettingsTab
-    ) : MainUiIntent()
 
-    data class SelectSummaryInjectionPosition(
-        val position: SummaryInjectionPosition
-    ) : MainUiIntent()
 
-    data class ChangeSummaryInjectionDepth(val value: String) : MainUiIntent()
 
-    data class SelectSummaryInjectionRole(
-        val role: SummaryInjectionRole
-    ) : MainUiIntent()
 
     data object OpenPromptPreset : MainUiIntent()
 
     data object OpenPromptBehaviorSettings : MainUiIntent()
 
-    data object OpenWorldInfoBudgetSettings : MainUiIntent()
 
     data object OpenSummaryMemorySettings : MainUiIntent()
 
@@ -140,7 +99,6 @@ sealed class MainUiIntent {
 
     data object OpenRegexScripts : MainUiIntent()
 
-    data object OpenRequestLogs : MainUiIntent()
 
     data object OpenBackup : MainUiIntent()
 

@@ -7,7 +7,9 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.summarymemory.presentation.SummaryMemorySettingsUiIntent
 import me.kafuuneko.rpclient.feature.summarymemory.presentation.SummaryMemorySettingsUiState
 import me.kafuuneko.rpclient.feature.summarymemory.presentation.SummaryProviderItem
+import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
@@ -63,6 +65,15 @@ class SummaryMemorySettingsViewModel : CoreViewModelWithEvent<
                 current.copy(providers = providerItems).setup()
             }
         }
+    }
+
+    /**
+     * 摘要提示词模板与其它模板同住提示词预设页；这里只提供一个入口，
+     * 避免把同一份模板拆到两个页面各编辑一次。
+     */
+    @UiIntentObserver(SummaryMemorySettingsUiIntent.OpenSummaryPromptTemplates::class)
+    private fun onOpenSummaryPromptTemplates() {
+        AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(SummaryMemorySettingsUiIntent.Back::class)

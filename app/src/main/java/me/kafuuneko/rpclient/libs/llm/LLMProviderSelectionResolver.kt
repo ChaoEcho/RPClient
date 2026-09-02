@@ -58,10 +58,23 @@ class LLMProviderSelectionResolver(
     }
 
     /** 解析图片场景提示词配置；未单独设置时跟随角色实际使用的聊天配置。 */
-    suspend fun requireImagePromptProvider(character: Character): LLMProvider {
+    suspend fun requireImagePromptProvider(character: Character): LLMProvider =
+        requireImagePromptProvider(getCharacterProviderId(character))
+
+    /**
+     * 同上，但直接接受角色绑定的配置 ID。
+     *
+     * 角色编辑页在角色尚未落库时也要提炼头像提示词，此时没有 Character 实体可用。
+     */
+    suspend fun requireImagePromptProvider(characterProviderId: Long): LLMProvider {
         val providerId = AppModel.imagePromptLLMProvider
-        if (providerId == 0L) return requireCharacterProvider(character)
-        return requireExplicitProvider(providerId, LLMProviderSelectionScope.Character)
+        if (providerId != 0L) {
+            return requireExplicitProvider(providerId, LLMProviderSelectionScope.Character)
+        }
+        if (characterProviderId != 0L) {
+            return requireExplicitProvider(characterProviderId, LLMProviderSelectionScope.Character)
+        }
+        return requireDefaultProvider()
     }
 
     private suspend fun requireExplicitProvider(

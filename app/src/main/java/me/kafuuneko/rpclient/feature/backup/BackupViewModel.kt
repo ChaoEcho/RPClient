@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.backup
 
 import android.content.Context
+import android.os.Bundle
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -14,6 +15,14 @@ import me.kafuuneko.rpclient.feature.backup.presentation.BackupOperationState
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupUiIntent
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupUiState
 import me.kafuuneko.rpclient.feature.backup.presentation.BackupViewEvent
+import me.kafuuneko.rpclient.feature.backup.presentation.ImportCharacterItem
+import me.kafuuneko.rpclient.feature.chat.ChatActivity
+import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.chat.ChatArchive
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
+import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.backup.BackupContract
 import me.kafuuneko.rpclient.libs.backup.BackupException
@@ -50,6 +59,12 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private var mPendingValidatedBackup: ValidatedBackup? = null
     private var mPendingRemoteItem: RemoteBackupItem? = null
 
+    // 聊天存档导入：解析出的存档在用户选定归属角色前暂存在内存里。
+    private val mChatArchiveRepository by inject<ChatArchiveRepository>()
+    private val mCharacterRepository by inject<CharacterRepository>()
+    private var mChatImportJob: Job? = null
+    private var mPendingChatImport: ChatArchive? = null
+
     @UiIntentObserver(BackupUiIntent.Init::class)
     private fun onInit() {
         if (!isStateOf<BackupUiState.None>()) return
@@ -83,6 +98,9 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private fun onDismissDialog() {
         val state = normalOrNull() ?: return
         if (state.operation != null) return
+        val importDialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection
+        if (importDialog?.isImporting == true) return
+        if (importDialog != null) mPendingChatImport = null
         val pending = mPendingValidatedBackup
         clearPendingDialogInputs()
         state.copy(dialogState = BackupDialogState.None).setup()
@@ -479,6 +497,145 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private fun clearPendingDialogInputs() {
         mPendingRestoreSource = null
         mPendingRemoteItem = null
+    }
+
+    /** 触发系统文件选择器以导入聊天存档文件。 */
+    @UiIntentObserver(BackupUiIntent.ImportChatClick::class)
+    private fun onImportChatClick() {
+        val state = normalOrNull() ?: return
+        if (state.operation != null || mChatImportJob?.isActive == true) return
+        if (state.dialogState != BackupDialogState.None) return
+        BackupViewEvent.OpenChatArchiveDocument.tryEmit()
+    }
+
+    /** 读取并解析导入的聊天存档，匹配候选角色后弹出角色绑定弹窗。 */
+    @UiIntentObserver(BackupUiIntent.ImportChatResult::class)
+    private fun onImportChatResult(intent: BackupUiIntent.ImportChatResult) {
+        val uri = intent.uri ?: return
+        val state = normalOrNull() ?: return
+        if (state.operation != null || mChatImportJob?.isActive == true) return
+        state.copy(isReadingChatArchive = true).setup()
+        mChatImportJob = viewModelScope.launch {
+            try {
+                val archive = mChatArchiveRepository.readImportFromUri(
+                    uri = uri,
+                    fallbackUserName = AppModel.resolvedUserName
+                )
+                val characters = mCharacterRepository.getAllCharacters()
+                mPendingChatImport = archive
+                val current = normalOrNull() ?: return@launch
+                val items = characters.map { it.toImportCharacterItem() }
+                current.copy(
+                    isReadingChatArchive = false,
+                    dialogState = BackupDialogState.ImportChatCharacterSelection(
+                        title = archive.title,
+                        sourceCharacterName = archive.characterNameHint,
+                        messageCount = archive.messages.size,
+                        query = "",
+                        characters = items,
+                        visibleCharacters = items,
+                        selectedCharacterId = ChatCharacterMatcher.suggestCharacterId(
+                            archive,
+                            characters
+                        )
+                    )
+                ).setup()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                AppLogger.e("Backup", "Chat archive import failed: ${error.message}", error)
+                mPendingChatImport = null
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                normalOrNull()?.copy(isReadingChatArchive = false)?.setup()
+            } finally {
+                mChatImportJob = null
+            }
+        }
+    }
+
+    /** 过滤导入弹窗中的候选角色列表。 */
+    @UiIntentObserver(BackupUiIntent.ChangeImportCharacterQuery::class)
+    private fun onChangeImportCharacterQuery(intent: BackupUiIntent.ChangeImportCharacterQuery) {
+        val state = normalOrNull() ?: return
+        val dialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting) return
+        val query = intent.value.trim()
+        val visible = if (query.isBlank()) {
+            dialog.characters
+        } else {
+            dialog.characters.filter { item ->
+                item.name.contains(query, ignoreCase = true) ||
+                    item.details.contains(query, ignoreCase = true)
+            }
+        }
+        state.copy(
+            dialogState = dialog.copy(query = intent.value, visibleCharacters = visible)
+        ).setup()
+    }
+
+    /** 选择导入聊天记录所归属的目标角色。 */
+    @UiIntentObserver(BackupUiIntent.SelectImportCharacter::class)
+    private fun onSelectImportCharacter(intent: BackupUiIntent.SelectImportCharacter) {
+        val state = normalOrNull() ?: return
+        val dialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
+        state.copy(dialogState = dialog.copy(selectedCharacterId = intent.characterId)).setup()
+    }
+
+    /** 将暂存的聊天存档与选定角色绑定并事务落库，成功后直接进入该会话。 */
+    @UiIntentObserver(BackupUiIntent.ConfirmImportChat::class)
+    private fun onConfirmImportChat() {
+        val state = normalOrNull() ?: return
+        val dialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return
+        val characterId = dialog.selectedCharacterId ?: return
+        val archive = mPendingChatImport ?: return
+        if (dialog.isImporting || mChatImportJob?.isActive == true) return
+        state.copy(dialogState = dialog.copy(isImporting = true)).setup()
+        mChatImportJob = viewModelScope.launch {
+            try {
+                val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
+                mPendingChatImport = null
+                normalOrNull()?.let { current ->
+                    val next = if (
+                        current.dialogState is BackupDialogState.ImportChatCharacterSelection
+                    ) {
+                        BackupDialogState.None
+                    } else {
+                        current.dialogState
+                    }
+                    current.copy(dialogState = next).setup()
+                }
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
+                AppViewEvent.StartActivity(
+                    activity = ChatActivity::class.java,
+                    extras = Bundle().apply {
+                        putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
+                    }
+                ).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                AppLogger.e("Backup", "Chat archive save failed: ${error.message}", error)
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                val current = normalOrNull() ?: return@launch
+                val currentDialog = current.dialogState
+                    as? BackupDialogState.ImportChatCharacterSelection
+                    ?: return@launch
+                current.copy(dialogState = currentDialog.copy(isImporting = false)).setup()
+            } finally {
+                mChatImportJob = null
+            }
+        }
+    }
+
+    /** 将 Character 实体映射为导入弹窗中的候选条目。 */
+    private fun Character.toImportCharacterItem(): ImportCharacterItem {
+        return ImportCharacterItem(
+            id = id,
+            name = name,
+            details = creator.takeIf { it.isNotBlank() }
+                ?: description.lineSequence().firstOrNull().orEmpty().take(80)
+        )
     }
 
     private fun normalOrNull(): BackupUiState.Normal? = getOrNull()

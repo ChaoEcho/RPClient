@@ -350,7 +350,11 @@
     <string name="continue_generation_failed">Continue failed</string>
     <string name="impersonation_failed">User impersonation failed</string>
     <string name="no_unsummarized_messages">No unsummarized messages</string>
+    <string name="summary_prompt_templates_title">Summary prompt templates</string>
+    <string name="summary_prompt_templates_desc">Edit the summarize, group summarize, and injection templates in Prompt Presets</string>
     <string name="summary_updated">Summary updated</string>
+    <string name="summary_already_running">A summary is already running</string>
+    <string name="summary_budget_too_small">Context budget is too small to summarize; raise Context Tokens or lower Summary Response Tokens</string>
     <string name="summary_failed">Summary failed</string>
     <string name="summary_restored">Previous summary restored</string>
     <string name="no_previous_summary">No previous summary snapshot</string>
@@ -1164,6 +1168,7 @@
     <string name="tts_mimo_voice_chloe">Chloe (English, female)</string>
     <string name="tts_mimo_voice_milo">Milo (English, male)</string>
     <string name="tts_mimo_voice_dean">Dean (English, male)</string>
+    <string name="tts_voice_parameters">Voice parameters</string>
     <string name="tts_speech_rate">Speaking speed</string>
     <string name="tts_pitch">Pitch</string>
     <string name="tts_preview">Preview</string>
@@ -1187,6 +1192,7 @@
     <!-- Complete backup, restore, and WebDAV storage -->
     <string name="backup_title">Backup &amp; Restore</string>
     <string name="backup_entry_subtitle">Back up characters, chats, stories, model providers, and app settings</string>
+    <string name="backup_chat_data_section">Chat data</string>
     <string name="backup_local_section">Local backup</string>
     <string name="backup_create_full">Create full backup</string>
     <string name="backup_create_full_desc">Create an encrypted .rpbackup file containing all business data and settings</string>
@@ -1259,7 +1265,8 @@
     <string name="backup_error_generic">The backup operation failed. No unvalidated restore was applied.</string>
 
     <string name="llm_provider_max_concurrent_requests">Maximum concurrent requests</string>
-    <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time</string>
+    <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time. A single conversation always generates one reply at a time, so this only takes effect across different conversations and background tasks such as summaries.</string>
+    <string name="context_tokens">Context tokens</string>
     <string name="image_generation_max_concurrent_requests">Maximum concurrent image requests</string>
     <string name="image_generation_max_concurrent_requests_desc">Number of image requests that may run at the same time</string>
     <string name="backup_error_webdav_invalid_response">The WebDAV remote directory response could not be parsed</string>
@@ -1284,6 +1291,12 @@
     <string name="developer_logging_desc">Safely record app runtime logs and HTTP metadata without secrets</string>
     <string name="record_ai_raw_requests_title">Record AI Raw Requests</string>
     <string name="record_ai_raw_requests_desc">Raw requests may contain prompts and sensitive chat content. Only enable for debugging.</string>
+    <string name="app_logs_desc">Sanitized runtime events: model calls, latency, concurrency, backup and TTS</string>
+    <string name="ai_request_logs_desc">Raw request and response JSON captured when the sub-switch above is on</string>
+    <string name="developer_runtime_section">Runtime status</string>
+    <string name="developer_active_generations">Active generations</string>
+    <string name="developer_active_summaries">Active summaries</string>
+    <string name="developer_buffered_logs">Buffered log entries</string>
     <string name="app_logs">App Logs</string>
     <string name="ai_request_logs">AI Request Logs</string>
     <string name="app_log_search_hint">Search logs by keyword or module...</string>
@@ -1306,8 +1319,8 @@
     <string name="world_info_budget_summary">Context %1$d%% · Max %2$s Tokens</string>
     <string name="unlimited">Unlimited</string>
 
-    <string name="prompt_behavior_title">Request &amp; Dialogue Policy</string>
-    <string name="prompt_behavior_subtitle">Configure prompt post-processing, example dialogue, and streaming</string>
+    <string name="prompt_behavior_title">Context &amp; Request Policy</string>
+    <string name="prompt_behavior_subtitle">Example dialogue, context behaviour, streaming, and world book budget</string>
     <string name="world_info_budget_title">World Book Budget</string>
     <string name="world_info_budget_subtitle">Configure context token budget share and overflow alert</string>
     <string name="summary_memory_subtitle">Configure conversation auto-summary and memory injection</string>

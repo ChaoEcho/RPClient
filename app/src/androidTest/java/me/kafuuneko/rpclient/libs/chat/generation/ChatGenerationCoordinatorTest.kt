@@ -98,4 +98,66 @@ class ChatGenerationCoordinatorTest {
 
         secondRelease.complete(Unit)
     }
+
+    @Test
+    fun summaryRunsAlongsideGenerationAndRefusesASecondOneForTheSameKey() = runBlocking {
+        val coordinator = ChatGenerationCoordinator()
+        val generationEntered = CompletableDeferred<Unit>()
+        val summaryEntered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        coordinator.launch(55L) {
+            generationEntered.complete(Unit)
+            release.await()
+        }
+        generationEntered.await()
+
+        // 正文生成不应挡住摘要：两者是独立的任务表。
+        assertTrue(
+            coordinator.launchSummary(chatSummaryKey(55L)) {
+                summaryEntered.complete(Unit)
+                release.await()
+            }
+        )
+        summaryEntered.await()
+        assertTrue(coordinator.isSummaryActive(chatSummaryKey(55L)))
+
+        // 同一个键的第二个摘要请求被拒绝，而不是取消正在跑的那个。
+        assertFalse(coordinator.launchSummary(chatSummaryKey(55L)) { error("must not run") })
+        // 群聊使用独立的键空间，即使会话 ID 数值相同也互不影响。
+        assertTrue(coordinator.launchSummary(groupChatSummaryKey(55L)) { release.await() })
+
+        release.complete(Unit)
+    }
+
+    @Test
+    fun stopSummaryCancelsTheTaskWithoutSuspendingTheCaller() = runBlocking {
+        val coordinator = ChatGenerationCoordinator()
+        val entered = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Unit>()
+
+        coordinator.launchSummary(chatSummaryKey(66L)) {
+            try {
+                entered.complete(Unit)
+                delay(Long.MAX_VALUE)
+            } finally {
+                withContext(NonCancellable) { cancelled.complete(Unit) }
+            }
+        }
+        entered.await()
+
+        // stopSummary 由唯一的意图收集器调用，必须立即返回，不能等待 join。
+        assertTrue(coordinator.stopSummary(chatSummaryKey(66L)))
+        cancelled.await()
+        assertFalse(coordinator.isSummaryActive(chatSummaryKey(66L)))
+        // 取消完成后同一个键可以重新启动。
+        assertTrue(coordinator.launchSummary(chatSummaryKey(66L)) {})
+    }
+
+    @Test
+    fun stopSummaryReportsFalseWhenNothingIsRunning() = runBlocking {
+        val coordinator = ChatGenerationCoordinator()
+        assertFalse(coordinator.stopSummary(chatSummaryKey(77L)))
+        assertFalse(coordinator.isSummaryActive(chatSummaryKey(77L)))
+    }
 }

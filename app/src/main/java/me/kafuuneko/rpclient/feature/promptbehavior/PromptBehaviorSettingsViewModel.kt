@@ -1,17 +1,11 @@
 package me.kafuuneko.rpclient.feature.promptbehavior
 
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.promptbehavior.presentation.PromptBehaviorSettingsUiIntent
 import me.kafuuneko.rpclient.feature.promptbehavior.presentation.PromptBehaviorSettingsUiState
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -19,8 +13,6 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
     PromptBehaviorSettingsUiIntent,
     PromptBehaviorSettingsUiState
 >(PromptBehaviorSettingsUiState.None), KoinComponent {
-
-    private val mLLMRepository by inject<LLMRepository>()
 
     @UiIntentObserver(PromptBehaviorSettingsUiIntent.Init::class)
     private fun onInit() {
@@ -31,28 +23,15 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
                 .getOrDefault(ExampleDialogueBehavior.default.persistedValue)
         )
 
-        val initialState = PromptBehaviorSettingsUiState.Normal(
-            postProcessingMode = PromptPostProcessingMode.Strict,
+        PromptBehaviorSettingsUiState.Normal(
             exampleDialogueBehavior = exampleBehavior,
             includeThinkInContext = AppModel.includeThinkInContext,
             contextTrimmingAlert = AppModel.contextTrimmingAlert,
-            streamEnabled = AppModel.streamEnabled
-        )
-        initialState.setup()
-
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentProviderId = AppModel.currentLLMProvider
-            val provider = mLLMRepository.getProviderById(currentProviderId)
-                ?: mLLMRepository.getEnabledProviders().firstOrNull()
-            val mode = provider?.let {
-                PromptPostProcessingMode.fromOrdinal(it.promptPostProcessingMode)
-            } ?: PromptPostProcessingMode.Strict
-
-            withContext(Dispatchers.Main) {
-                val current = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return@withContext
-                current.copy(postProcessingMode = mode).setup()
-            }
-        }
+            streamEnabled = AppModel.streamEnabled,
+            worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent,
+            worldInfoBudgetCap = AppModel.worldInfoBudgetCap,
+            worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert
+        ).setup()
     }
 
     @UiIntentObserver(PromptBehaviorSettingsUiIntent.Back::class)
@@ -60,22 +39,6 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
         val state = uiStateFlow.value
         if (state is PromptBehaviorSettingsUiState.Finished) return
         PromptBehaviorSettingsUiState.Finished(state).setup()
-    }
-
-    @UiIntentObserver(PromptBehaviorSettingsUiIntent.SelectPostProcessingMode::class)
-    private fun onSelectPostProcessingMode(intent: PromptBehaviorSettingsUiIntent.SelectPostProcessingMode) {
-        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
-        state.copy(postProcessingMode = intent.mode).setup()
-
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentProviderId = AppModel.currentLLMProvider
-            val provider = mLLMRepository.getProviderById(currentProviderId)
-                ?: mLLMRepository.getEnabledProviders().firstOrNull()
-            if (provider != null) {
-                val updated = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
-                mLLMRepository.saveProvider(updated)
-            }
-        }
     }
 
     @UiIntentObserver(PromptBehaviorSettingsUiIntent.SelectExampleDialogueBehavior::class)
@@ -105,4 +68,40 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
         AppModel.streamEnabled = intent.enabled
         state.copy(streamEnabled = intent.enabled).setup()
     }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetPercent::class)
+    private fun onChangeWorldInfoBudgetPercent(
+        intent: PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetPercent
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        val clamped = intent.percent.coerceIn(
+            WORLD_INFO_BUDGET_MIN_PERCENT,
+            WORLD_INFO_BUDGET_MAX_PERCENT
+        )
+        AppModel.worldInfoBudgetPercent = clamped
+        state.copy(worldInfoBudgetPercent = clamped).setup()
+    }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetCap::class)
+    private fun onChangeWorldInfoBudgetCap(
+        intent: PromptBehaviorSettingsUiIntent.ChangeWorldInfoBudgetCap
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        val cap = intent.cap.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        AppModel.worldInfoBudgetCap = cap
+        state.copy(worldInfoBudgetCap = cap).setup()
+    }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ToggleWorldInfoOverflowAlert::class)
+    private fun onToggleWorldInfoOverflowAlert(
+        intent: PromptBehaviorSettingsUiIntent.ToggleWorldInfoOverflowAlert
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        AppModel.worldInfoOverflowAlert = intent.enabled
+        state.copy(worldInfoOverflowAlert = intent.enabled).setup()
+    }
 }
+
+/** 世界书预算占上下文的比例范围；低于下限世界书基本失效，高于上限会挤掉对话历史。 */
+private const val WORLD_INFO_BUDGET_MIN_PERCENT = 5
+private const val WORLD_INFO_BUDGET_MAX_PERCENT = 80

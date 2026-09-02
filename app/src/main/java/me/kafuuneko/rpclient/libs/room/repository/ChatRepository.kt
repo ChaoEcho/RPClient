@@ -607,6 +607,18 @@ class ChatRepository(
     }
 
     /**
+     * 将流式生成的中间正文写入占位消息，使进程被系统回收时不至于丢掉整段回复。
+     *
+     * 只更新正文，不推进会话活跃时间、不失效摘要、不触发图片清理；这些都留给
+     * [commitGenerationResult] 在生成真正结束时一次性完成。
+     */
+    suspend fun updateGenerationDraft(messageId: Long, content: String) {
+        val message = mChatMessageDao.getMessageById(messageId) ?: return
+        if (message.source == ChatMessage.Source.Summary) return
+        mChatMessageDao.update(message.copy(content = content))
+    }
+
+    /**
      * 原子提交一次生成结果的正文、摘要失效、活跃时间与世界书运行时状态。
      *
      * 处理步骤：
@@ -632,7 +644,9 @@ class ChatRepository(
             if (content.isBlank()) {
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
-                    if (placeholder?.sessionId == sessionId && placeholder.content.isBlank()) {
+                    // 占位消息可能已被流式草稿写入过正文，因此不能再用“正文为空”作为删除条件；
+                    // deleteEmptyPlaceholder 本身只在本轮新建消息时为 true，配合来源校验已经足够。
+                    if (placeholder?.sessionId == sessionId && placeholder.source == source) {
                         oldImageFileUuid = placeholder.imageFileUuid
                         mChatMessageDao.deleteMessageById(messageId)
                     }

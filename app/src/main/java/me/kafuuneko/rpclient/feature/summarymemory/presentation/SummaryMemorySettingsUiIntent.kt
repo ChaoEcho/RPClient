@@ -15,4 +15,5 @@ sealed class SummaryMemorySettingsUiIntent {
     data class SelectInjectionPosition(val position: SummaryInjectionPosition) : SummaryMemorySettingsUiIntent()
     data class ChangeInjectionDepth(val depth: String) : SummaryMemorySettingsUiIntent()
     data class SelectInjectionRole(val role: SummaryInjectionRole) : SummaryMemorySettingsUiIntent()
+    data object OpenSummaryPromptTemplates : SummaryMemorySettingsUiIntent()
 }
