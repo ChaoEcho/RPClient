@@ -1793,6 +1793,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             worldInfoStateJson = worldInfoStateJson
         )
         mActiveStreamingGeneration = active
+        // 增量累积器。逐 token 做 String 拼接是整体 O(n²)，长回复会把 UI 线程压满。
+        // 声明在 try 之外，收尾块要靠它拿到完整正文。
+        val contentBuilder = StringBuilder()
         try {
             // 若为创建新消息，在数据库创建占位记录（支持取消时无痕删除）
             if (output is GenerationOutput.Create) {
@@ -1813,6 +1816,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 流式草稿落库节流游标；只用于崩溃/回收时保住已收到的正文。
             var draftPersistedLength = 0
             var draftPersistedAt = SystemClock.elapsedRealtime()
+            // UI 发布节流游标。初值 0 保证第一个 Delta 立即出字。
+            var uiPublishedAt = 0L
             // 收集大模型流式增量事件
             mLLMRepository.streamGenerateWithProvider(
                 provider = provider,
@@ -1822,42 +1827,49 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 currentCoroutineContext().ensureActive()
                 when (event) {
                     is LLMStreamEvent.Delta -> {
-                        active = active.copy(content = active.content + event.content)
-                        mActiveStreamingGeneration = active
+                        contentBuilder.append(event.content)
                         // 节流写库：进程被系统杀死时，最多只丢失最近一段增量而不是整条回复。
                         val draftMessageId = active.messageId
                         val now = SystemClock.elapsedRealtime()
                         if (draftMessageId != null &&
-                            (active.content.length - draftPersistedLength >= STREAM_DRAFT_PERSIST_CHARS ||
+                            (contentBuilder.length - draftPersistedLength >= STREAM_DRAFT_PERSIST_CHARS ||
                                 now - draftPersistedAt >= STREAM_DRAFT_PERSIST_INTERVAL_MS)
                         ) {
-                            draftPersistedLength = active.content.length
+                            draftPersistedLength = contentBuilder.length
                             draftPersistedAt = now
-                            val draft = active.content
+                            val draft = contentBuilder.toString()
                             withContext(Dispatchers.IO) {
                                 mChatRepository.updateGenerationDraft(draftMessageId, draft)
                             }
                         }
-                        // 计算用于 UI 实时展示的正则替换文本（Display 阶段正则）
-                        val displayContent = applyStreamingDisplayRegex(active)
-                        val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
-                        // 仅在内存中替换当前流式消息内容，避免高频写库
-                        uiState.copy(
-                            conversationState = uiState.conversationState.copy(
-                                generationState = ChatGenerationState.Streaming(
-                                    active.messageId,
-                                    active.content
-                                ),
-                                messages = uiState.conversationState.messages.replaceStreamingMessage(
-                                    active.messageId,
-                                    displayContent
+                        // 节流刷新 UI：全文正则与列表重组的成本正比于已收正文长度，
+                        // 逐 token 跑会随回复变长越来越卡，而这一切都在主线程上。
+                        // 末尾不足一个窗口的字符由收尾提交后的 refreshUiState 重新读库补上。
+                        if (now - uiPublishedAt >= STREAM_UI_PUBLISH_INTERVAL_MS) {
+                            uiPublishedAt = now
+                            active = active.copy(content = contentBuilder.toString())
+                            mActiveStreamingGeneration = active
+                            // 计算用于 UI 实时展示的正则替换文本（Display 阶段正则）
+                            val displayContent = applyStreamingDisplayRegex(active)
+                            val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
+                            // 仅在内存中替换当前流式消息内容，避免高频写库
+                            uiState.copy(
+                                conversationState = uiState.conversationState.copy(
+                                    generationState = ChatGenerationState.Streaming(
+                                        active.messageId,
+                                        active.content
+                                    ),
+                                    messages = uiState.conversationState.messages.replaceStreamingMessage(
+                                        active.messageId,
+                                        displayContent
+                                    )
                                 )
+                            ).setup()
+                            mGenerationCoordinator.publish(
+                                sessionId,
+                                ChatGenerationState.Streaming(active.messageId, active.content)
                             )
-                        ).setup()
-                        mGenerationCoordinator.publish(
-                            sessionId,
-                            ChatGenerationState.Streaming(active.messageId, active.content)
-                        )
+                        }
                     }
                     LLMStreamEvent.Connected,
                     is LLMStreamEvent.ReasoningDelta,
@@ -1865,8 +1877,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
             }
         } finally {
-            // 收尾阶段：在 NonCancellable 上下文下执行唯一一次持久化提交，确保部分生成内容安全落库
-            val snapshot = active
+            // 收尾阶段：在 NonCancellable 上下文下执行唯一一次持久化提交，确保部分生成内容安全落库。
+            // 正文取自累积器而非 active：UI 发布是节流的，active.content 可能落后最后一个窗口。
+            val snapshot = active.copy(content = contentBuilder.toString())
             try {
                 withContext(NonCancellable + Dispatchers.IO) {
                     val finalContent = snapshot.content.takeIf { it.isNotBlank() }
@@ -2678,6 +2691,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
  */
 private const val STREAM_DRAFT_PERSIST_CHARS = 400
 private const val STREAM_DRAFT_PERSIST_INTERVAL_MS = 2_000L
+
+// 流式正文刷新到 UI 的最小间隔。约 16fps，肉眼仍是连续出字，
+// 但把全文正则与列表重组的次数从「每 token 一次」降到与回复长度无关。
+private const val STREAM_UI_PUBLISH_INTERVAL_MS = 60L
 
 private fun ChatSpeechState.messageIdOrNull(): String? {
     return when (this) {

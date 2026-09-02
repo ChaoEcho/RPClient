@@ -61,7 +61,10 @@ data class LLMProvider(
 
 const val MIN_LLM_PROVIDER_CONCURRENCY = 1
 const val MAX_LLM_PROVIDER_CONCURRENCY = 16
-const val DEFAULT_LLM_PROVIDER_CONCURRENCY = 1
+
+// 仅作用于新建的 Provider。既有行的默认值由上面的 @ColumnInfo(defaultValue = "1") 决定，
+// 升级路径不得静默放开并发（AppDatabaseMigrationTest 锁定这一点）。
+const val DEFAULT_LLM_PROVIDER_CONCURRENCY = 3
 
 const val DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT = 15
 const val MIN_TOKEN_ESTIMATE_RESERVE_PERCENT = 0

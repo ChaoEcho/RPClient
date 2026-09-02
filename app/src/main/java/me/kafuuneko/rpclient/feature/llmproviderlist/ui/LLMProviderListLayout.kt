@@ -389,6 +389,12 @@ private fun ProviderListCard(
                         }
                     }
                     RpMetaPill(provider.protocol.name)
+                    RpMetaPill(
+                        stringResource(
+                            R.string.llm_provider_concurrency_badge,
+                            provider.maxConcurrentRequests
+                        )
+                    )
                     ProviderStatusDot(isEnabled = provider.isEnabled, isConfigured = provider.isConfigured)
                 }
             }
@@ -495,6 +501,7 @@ private fun LLMProviderListLayoutPreview() {
                         protocol = LLMProviderProtocol.OpenAICompatible,
                         baseUrl = "https://openrouter.ai/api/v1",
                         model = "~anthropic/claude-sonnet-latest",
+                        maxConcurrentRequests = 3,
                         isEnabled = true
                     ),
                     LLMProviderListItem(
@@ -504,6 +511,7 @@ private fun LLMProviderListLayoutPreview() {
                         protocol = LLMProviderProtocol.OpenAICompatible,
                         baseUrl = "https://api.deepseek.com/v1",
                         model = "deepseek-chat",
+                        maxConcurrentRequests = 1,
                         isEnabled = true
                     ),
                     LLMProviderListItem(
@@ -513,6 +521,7 @@ private fun LLMProviderListLayoutPreview() {
                         protocol = LLMProviderProtocol.Gemini,
                         baseUrl = "https://generativelanguage.googleapis.com",
                         model = "gemini-2.5-flash",
+                        maxConcurrentRequests = 1,
                         isEnabled = false
                     )
                 )

@@ -1265,6 +1265,7 @@
     <string name="backup_error_generic">The backup operation failed. No unvalidated restore was applied.</string>
 
     <string name="llm_provider_max_concurrent_requests">Maximum concurrent requests</string>
+    <string name="llm_provider_concurrency_badge">Concurrency %1$d</string>
     <string name="llm_provider_max_concurrent_requests_desc">Number of generation requests this model service may run at the same time. A single conversation always generates one reply at a time, so this only takes effect across different conversations and background tasks such as summaries.</string>
     <string name="context_tokens">Context tokens</string>
     <string name="image_generation_max_concurrent_requests">Maximum concurrent image requests</string>
