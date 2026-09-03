@@ -1,16 +1,16 @@
 package me.kafuuneko.rpclient.feature.tts
 
+import android.os.Bundle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.tts.presentation.AzureTtsSettingsState
-import me.kafuuneko.rpclient.feature.tts.presentation.MimoTtsSettingsState
-import me.kafuuneko.rpclient.feature.tts.presentation.SystemTtsSettingsState
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsPreviewState
+import me.kafuuneko.rpclient.feature.tts.presentation.TtsProviderListItem
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsSettingsUiIntent
 import me.kafuuneko.rpclient.feature.tts.presentation.TtsSettingsUiState
+import me.kafuuneko.rpclient.feature.ttsprovideredit.TtsProviderEditActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -20,7 +20,7 @@ import me.kafuuneko.rpclient.libs.tts.TtsService
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** Owns global TTS preferences and coordinates voice preview playback. */
+/** 语音服务列表页：选择当前服务、进入详情、跨服务通用的试听。 */
 class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSettingsUiState>(
     TtsSettingsUiState.None
 ), KoinComponent {
@@ -31,41 +31,14 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
     @UiIntentObserver(TtsSettingsUiIntent.Init::class)
     private fun onInit() {
         if (!isStateOf<TtsSettingsUiState.None>()) return
+        TtsSettingsUiState.Normal(providers = readProviders()).setup()
+    }
 
-        val initialState = TtsSettingsUiState.Normal(
-            selectedProvider = TtsProviderType.fromPersistedValue(AppModel.ttsProvider),
-            system = SystemTtsSettingsState(
-                languageTag = AppModel.ttsSystemLanguageTag,
-                voiceName = AppModel.ttsSystemVoiceName,
-                speechRate = AppModel.ttsSystemSpeechRate,
-                pitch = AppModel.ttsSystemPitch,
-                voices = emptyList()
-            ),
-            mimo = MimoTtsSettingsState(
-                baseUrl = AppModel.ttsMimoBaseUrl,
-                apiKey = AppModel.ttsMimoApiKey,
-                model = AppModel.ttsMimoModel,
-                voice = AppModel.ttsMimoVoice,
-                instructions = AppModel.ttsMimoInstructions,
-                temperature = AppModel.ttsMimoTemperature,
-                streaming = AppModel.ttsMimoStreaming
-            ),
-            azure = AzureTtsSettingsState(
-                apiKey = AppModel.ttsAzureApiKey,
-                region = AppModel.ttsAzureRegion,
-                voice = AppModel.ttsAzureVoice,
-                speechRate = AppModel.ttsAzureSpeechRate
-            )
-        )
-        initialState.setup()
-
-        viewModelScope.launch {
-            val voices = runCatching { mTtsService.getSystemVoices() }.getOrElse { emptyList() }
-            val state = getOrNull<TtsSettingsUiState.Normal>() ?: return@launch
-            val system = normalizeSystemVoiceSelection(state.system.copy(voices = voices))
-            persistSystemSelectionIfChanged(state.system, system)
-            state.copy(system = system).setup()
-        }
+    /** 详情页里改过的配置状态要在返回后立刻反映到卡片上。 */
+    @UiIntentObserver(TtsSettingsUiIntent.Resume::class)
+    private fun onResume() {
+        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
+        state.copy(providers = readProviders()).setup()
     }
 
     @UiIntentObserver(TtsSettingsUiIntent.Back::class)
@@ -80,124 +53,22 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
     private fun onSelectProvider(intent: TtsSettingsUiIntent.SelectProvider) {
         val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
         AppModel.ttsProvider = intent.provider.persistedValue
-        state.copy(selectedProvider = intent.provider).setup()
+        state.copy(providers = readProviders()).setup()
     }
 
-    @UiIntentObserver(TtsSettingsUiIntent.SelectSystemLanguage::class)
-    private fun onSelectSystemLanguage(intent: TtsSettingsUiIntent.SelectSystemLanguage) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        val selectedVoice = state.system.voices
-            .filter { it.languageTag == intent.languageTag }
-            .firstOrNull { it.name == state.system.voiceName }
-            ?: state.system.voices.firstOrNull { it.languageTag == intent.languageTag }
-        val voiceName = selectedVoice?.name.orEmpty()
-        AppModel.ttsSystemLanguageTag = intent.languageTag
-        AppModel.ttsSystemVoiceName = voiceName
-        state.copy(
-            system = state.system.copy(languageTag = intent.languageTag, voiceName = voiceName)
-        ).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.SelectSystemVoice::class)
-    private fun onSelectSystemVoice(intent: TtsSettingsUiIntent.SelectSystemVoice) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        val voice = state.system.voices.firstOrNull { it.name == intent.voiceName } ?: return
-        AppModel.ttsSystemLanguageTag = voice.languageTag
-        AppModel.ttsSystemVoiceName = voice.name
-        state.copy(
-            system = state.system.copy(languageTag = voice.languageTag, voiceName = voice.name)
-        ).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeSystemSpeechRate::class)
-    private fun onChangeSystemSpeechRate(intent: TtsSettingsUiIntent.ChangeSystemSpeechRate) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsSystemSpeechRate = intent.value
-        state.copy(system = state.system.copy(speechRate = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeSystemPitch::class)
-    private fun onChangeSystemPitch(intent: TtsSettingsUiIntent.ChangeSystemPitch) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsSystemPitch = intent.value
-        state.copy(system = state.system.copy(pitch = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoBaseUrl::class)
-    private fun onChangeMimoBaseUrl(intent: TtsSettingsUiIntent.ChangeMimoBaseUrl) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoBaseUrl = intent.value
-        state.copy(mimo = state.mimo.copy(baseUrl = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoApiKey::class)
-    private fun onChangeMimoApiKey(intent: TtsSettingsUiIntent.ChangeMimoApiKey) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoApiKey = intent.value
-        state.copy(mimo = state.mimo.copy(apiKey = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoModel::class)
-    private fun onChangeMimoModel(intent: TtsSettingsUiIntent.ChangeMimoModel) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoModel = intent.value
-        state.copy(mimo = state.mimo.copy(model = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoVoice::class)
-    private fun onChangeMimoVoice(intent: TtsSettingsUiIntent.ChangeMimoVoice) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoVoice = intent.value
-        state.copy(mimo = state.mimo.copy(voice = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoInstructions::class)
-    private fun onChangeMimoInstructions(intent: TtsSettingsUiIntent.ChangeMimoInstructions) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoInstructions = intent.value
-        state.copy(mimo = state.mimo.copy(instructions = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoTemperature::class)
-    private fun onChangeMimoTemperature(intent: TtsSettingsUiIntent.ChangeMimoTemperature) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoTemperature = intent.value
-        state.copy(mimo = state.mimo.copy(temperature = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeMimoStreaming::class)
-    private fun onChangeMimoStreaming(intent: TtsSettingsUiIntent.ChangeMimoStreaming) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsMimoStreaming = intent.value
-        state.copy(mimo = state.mimo.copy(streaming = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeAzureApiKey::class)
-    private fun onChangeAzureApiKey(intent: TtsSettingsUiIntent.ChangeAzureApiKey) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsAzureApiKey = intent.value
-        state.copy(azure = state.azure.copy(apiKey = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeAzureRegion::class)
-    private fun onChangeAzureRegion(intent: TtsSettingsUiIntent.ChangeAzureRegion) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsAzureRegion = intent.value
-        state.copy(azure = state.azure.copy(region = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeAzureVoice::class)
-    private fun onChangeAzureVoice(intent: TtsSettingsUiIntent.ChangeAzureVoice) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsAzureVoice = intent.value
-        state.copy(azure = state.azure.copy(voice = intent.value)).setup()
-    }
-
-    @UiIntentObserver(TtsSettingsUiIntent.ChangeAzureSpeechRate::class)
-    private fun onChangeAzureSpeechRate(intent: TtsSettingsUiIntent.ChangeAzureSpeechRate) {
-        val state = getOrNull<TtsSettingsUiState.Normal>() ?: return
-        AppModel.ttsAzureSpeechRate = intent.value
-        state.copy(azure = state.azure.copy(speechRate = intent.value)).setup()
+    @UiIntentObserver(TtsSettingsUiIntent.OpenProviderEdit::class)
+    private fun onOpenProviderEdit(intent: TtsSettingsUiIntent.OpenProviderEdit) {
+        if (!isStateOf<TtsSettingsUiState.Normal>()) return
+        stopPreviewInternal()
+        AppViewEvent.StartActivity(
+            activity = TtsProviderEditActivity::class.java,
+            extras = Bundle().apply {
+                putString(
+                    TtsProviderEditActivity.EXTRA_PROVIDER_TYPE,
+                    intent.provider.persistedValue
+                )
+            }
+        ).tryEmit()
     }
 
     @UiIntentObserver(TtsSettingsUiIntent.PreviewSpeech::class)
@@ -259,31 +130,21 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
         }
     }
 
-    private fun normalizeSystemVoiceSelection(
-        system: SystemTtsSettingsState
-    ): SystemTtsSettingsState {
-        if (system.voices.isEmpty()) return system
-        val languageTag = system.voices
-            .firstOrNull { it.languageTag.equals(system.languageTag, ignoreCase = true) }
-            ?.languageTag
-            ?: system.voices.first().languageTag
-        val voiceName = system.voices
-            .filter { it.languageTag.equals(languageTag, ignoreCase = true) }
-            .firstOrNull { it.name == system.voiceName }
-            ?.name
-            ?: system.voices.first { it.languageTag.equals(languageTag, ignoreCase = true) }.name
-        return system.copy(languageTag = languageTag, voiceName = voiceName)
-    }
-
-    private fun persistSystemSelectionIfChanged(
-        previous: SystemTtsSettingsState,
-        current: SystemTtsSettingsState
-    ) {
-        if (previous.languageTag != current.languageTag) {
-            AppModel.ttsSystemLanguageTag = current.languageTag
-        }
-        if (previous.voiceName != current.voiceName) {
-            AppModel.ttsSystemVoiceName = current.voiceName
+    private fun readProviders(): List<TtsProviderListItem> {
+        val current = TtsProviderType.fromPersistedValue(AppModel.ttsProvider)
+        return TtsProviderType.entries.map { provider ->
+            TtsProviderListItem(
+                provider = provider,
+                isCurrent = provider == current,
+                isConfigured = when (provider) {
+                    // 系统朗读走设备自带引擎，没有需要填的凭据。
+                    TtsProviderType.System -> true
+                    TtsProviderType.Mimo ->
+                        AppModel.ttsMimoBaseUrl.isNotBlank() && AppModel.ttsMimoApiKey.isNotBlank()
+                    TtsProviderType.Azure ->
+                        AppModel.ttsAzureApiKey.isNotBlank() && AppModel.ttsAzureRegion.isNotBlank()
+                }
+            )
         }
     }
 }
