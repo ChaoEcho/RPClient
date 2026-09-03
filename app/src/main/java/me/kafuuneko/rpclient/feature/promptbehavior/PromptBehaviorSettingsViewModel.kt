@@ -26,6 +26,7 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
         PromptBehaviorSettingsUiState.Normal(
             exampleDialogueBehavior = exampleBehavior,
             includeThinkInContext = AppModel.includeThinkInContext,
+            keepSystemPromptInSpecialModes = AppModel.keepSystemPromptInSpecialModes,
             contextTrimmingAlert = AppModel.contextTrimmingAlert,
             streamEnabled = AppModel.streamEnabled,
             worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent,
@@ -53,6 +54,15 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
         val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
         AppModel.includeThinkInContext = intent.enabled
         state.copy(includeThinkInContext = intent.enabled).setup()
+    }
+
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ToggleKeepSystemPromptInSpecialModes::class)
+    private fun onToggleKeepSystemPromptInSpecialModes(
+        intent: PromptBehaviorSettingsUiIntent.ToggleKeepSystemPromptInSpecialModes
+    ) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        AppModel.keepSystemPromptInSpecialModes = intent.enabled
+        state.copy(keepSystemPromptInSpecialModes = intent.enabled).setup()
     }
 
     @UiIntentObserver(PromptBehaviorSettingsUiIntent.ToggleContextTrimmingAlert::class)

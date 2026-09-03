@@ -456,7 +456,7 @@ class ChatPromptBuilderTest {
     }
 
     @Test
-    fun impersonateModeRemovesCharacterReplyTasksAndEndsWithUserControl() {
+    fun impersonateModeKeepsSystemFramingAndEndsWithUserControl() {
         val request = builder.build(
             context(
                 character = Character(
@@ -479,8 +479,10 @@ class ChatPromptBuilderTest {
             )
         )
 
-        assertFalse(request.messages.any { it.content.contains("Write Fuka's next reply") })
-        assertFalse(request.messages.any { it.content == "Only write Fuka." })
+        // 主提示词与 PHI 兼作全局沙盒，特殊模式同样注入；任务目标由最后的 Nudge 覆盖。
+        assertTrue(request.messages.any { it.content.contains("Write Fuka's next reply") })
+        assertTrue(request.messages.any { it.content == "Only write Fuka." })
+        // Character Note 只约束角色输出，仍然停用。
         assertFalse(request.messages.any { it.content == "Always write as Fuka." })
         val nudgeMessage = request.messages.first { it.content.contains("point of view of User") }
         assertEquals(LLMMessageRole.User, nudgeMessage.role)
@@ -488,7 +490,7 @@ class ChatPromptBuilderTest {
     }
 
     @Test
-    fun continueFallbackRemovesCharacterReplyTasksAndEndsWithUserNudge() {
+    fun continueKeepsSystemFramingAndEndsWithUserNudge() {
         val request = builder.build(
             context(
                 character = Character(
@@ -514,13 +516,26 @@ class ChatPromptBuilderTest {
 
         val nudgeMessage = request.messages.first { it.content.contains("Continue your last message") }
         val relevant = request.messages.filter {
-            it.content in setOf("Question", "Post history", "Partial answer", nudgeMessage.content)
+            it.content in setOf(
+                "Write Char's next reply.",
+                "Question",
+                "Post history",
+                "Partial answer",
+                nudgeMessage.content
+            )
         }
+        // 主提示词必须排在世界书与历史之前，否则世界书会成为 System 0 被上游风控命中；
+        // 待续写的半截回复由续写模式挪到 PHI 之后，紧贴尾部的 Nudge。
         assertEquals(
-            listOf("Question", "Partial answer", nudgeMessage.content),
+            listOf(
+                "Write Char's next reply.",
+                "Question",
+                "Post history",
+                "Partial answer",
+                nudgeMessage.content
+            ),
             relevant.map { it.content }
         )
-        assertFalse(request.messages.any { it.content == "Write Char's next reply." })
         assertEquals(LLMMessageRole.User, nudgeMessage.role)
         assertEquals(nudgeMessage, request.messages.last())
     }

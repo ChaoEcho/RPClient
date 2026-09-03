@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.prompt.model
 
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -55,4 +56,17 @@ enum class PromptGenerationMode {
  */
 internal fun PromptGenerationMode.usesCharacterReplyTask(): Boolean {
     return this == PromptGenerationMode.Normal || this == PromptGenerationMode.Regenerate
+}
+
+/**
+ * 是否注入主提示词与 PHI。
+ *
+ * 这两段同时承担两件事：一是"让角色写下一条回复"的任务，二是全局沙盒定义与虚构免责声明。
+ * 只按任务维度剥掉它们，世界书就会成为请求的第一条消息，上游内容安全模型看到的开头
+ * 是未加框的剧情描写，严格风控的服务会直接返回 403。因此默认在续写与扮演下也保留，
+ * 由排在最后的模式 Nudge 覆盖任务目标；需要旧行为的用户可以关掉这个开关。
+ */
+internal fun PromptGenerationMode.injectsSystemFraming(): Boolean {
+    return usesCharacterReplyTask() ||
+            runCatching { AppModel.keepSystemPromptInSpecialModes }.getOrDefault(true)
 }

@@ -93,6 +93,12 @@ private fun GroupChatGenerationMode.usesCharacterReplyTask(): Boolean {
     return this == GroupChatGenerationMode.Normal || this == GroupChatGenerationMode.Regenerate
 }
 
+/** 与单聊同义：主提示词与 PHI 还兼作全局沙盒，默认在续写与扮演下保留。 */
+private fun GroupChatGenerationMode.injectsSystemFraming(): Boolean {
+    return usesCharacterReplyTask() ||
+            runCatching { AppModel.keepSystemPromptInSpecialModes }.getOrDefault(true)
+}
+
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
 data class GroupChatPromptBuildResult(
     /** 实际提交给模型的请求。 */
@@ -375,8 +381,8 @@ class GroupChatPromptBuilder(
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             summaryDraft(context)?.let { before += it }
         }
-        // 群聊主提示词同样属于“当前角色回复”任务，续写和扮演用户时必须完全停用。
-        if (context.generationMode.usesCharacterReplyTask()) {
+        // 群聊主提示词同样兼作全局沙盒，缺席时世界书会成为 System 0 被上游风控命中。
+        if (context.generationMode.injectsSystemFraming()) {
             before += requiredSystem(
                 context.mainPrompt(),
                 PromptSourceKind.MainPrompt
@@ -456,8 +462,8 @@ class GroupChatPromptBuilder(
             )
         }
 
-        // 注入历史后指令（Post-history instructions）
-        if (context.generationMode.usesCharacterReplyTask()) {
+        // 注入历史后指令（Post-history instructions），与主提示词同进同出
+        if (context.generationMode.injectsSystemFraming()) {
             context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let {
                 after += requiredSystem(
                     it,

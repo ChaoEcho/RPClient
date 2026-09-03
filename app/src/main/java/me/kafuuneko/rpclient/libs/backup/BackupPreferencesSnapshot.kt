@@ -77,7 +77,9 @@ data class BackupPreferencesSnapshot(
     val debugModeEnabled: Boolean,
     val autoGenerateImageAfterReply: Boolean = false,
     val developerLoggingEnabled: Boolean = false,
-    val imageGenerationAvatarStylePrompt: String? = null
+    val imageGenerationAvatarStylePrompt: String? = null,
+    // 旧备份没有这个键，缺省沿用新默认值（续写保留主提示词）。
+    val keepSystemPromptInSpecialModes: Boolean? = null
 ) {
     /** 将快照应用到当前安装，同时保留安装身份与升级记账。 */
     fun apply() {
@@ -154,6 +156,7 @@ data class BackupPreferencesSnapshot(
         AppModel.contextTrimmingAlert = contextTrimmingAlert
         AppModel.exampleDialogueBehavior = exampleDialogueBehavior
         AppModel.includeThinkInContext = includeThinkInContext
+        AppModel.keepSystemPromptInSpecialModes = keepSystemPromptInSpecialModes ?: true
         AppModel.debugModeEnabled = debugModeEnabled
         AppModel.autoGenerateImageAfterReply = autoGenerateImageAfterReply
         AppModel.developerLoggingEnabled = developerLoggingEnabled
@@ -283,6 +286,7 @@ data class BackupPreferencesSnapshot(
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
                 exampleDialogueBehavior = AppModel.exampleDialogueBehavior,
                 includeThinkInContext = AppModel.includeThinkInContext,
+                keepSystemPromptInSpecialModes = AppModel.keepSystemPromptInSpecialModes,
                 debugModeEnabled = AppModel.debugModeEnabled,
                 autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply,
                 developerLoggingEnabled = AppModel.developerLoggingEnabled

@@ -689,6 +689,8 @@
     <string name="prompt_example_behavior_disabled">禁用</string>
     <string name="prompt_include_think_context_title">上下文包含 think 块</string>
     <string name="prompt_include_think_context_desc">关闭后，后续 prompt 会剥离已保存消息中的 &lt;think&gt;...&lt;/think&gt; 内容。</string>
+    <string name="prompt_keep_system_framing_title">续写时保留主提示词</string>
+    <string name="prompt_keep_system_framing_desc">续写与扮演用户时同样发送主提示词与历史后指令。缺少它们时世界书会成为请求的第一条消息，风控严格的服务可能直接拒绝。若模型改为重开一段回复而不是接着写，可关闭。</string>
     <string name="selected_count">已选 %d 项</string>
     <string name="delete_selected_sessions_title">删除已选会话</string>
     <string name="delete_selected_sessions_message">删除 %d 个已选会话及其所有消息？此操作无法撤销。</string>

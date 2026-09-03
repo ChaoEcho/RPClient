@@ -7,6 +7,10 @@ sealed class PromptBehaviorSettingsUiIntent {
     data object Back : PromptBehaviorSettingsUiIntent()
     data class SelectExampleDialogueBehavior(val behavior: ExampleDialogueBehavior) : PromptBehaviorSettingsUiIntent()
     data class ToggleIncludeThinkInContext(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
+
+    data class ToggleKeepSystemPromptInSpecialModes(
+        val enabled: Boolean
+    ) : PromptBehaviorSettingsUiIntent()
     data class ToggleContextTrimmingAlert(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
     data class ToggleStreamEnabled(val enabled: Boolean) : PromptBehaviorSettingsUiIntent()
     data class ChangeWorldInfoBudgetPercent(val percent: Int) : PromptBehaviorSettingsUiIntent()
