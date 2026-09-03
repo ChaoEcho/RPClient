@@ -13,7 +13,7 @@ import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import kotlinx.coroutines.flow.Flow
 import me.kafuuneko.rpclient.libs.core.ViewEventWrapper
 
-/** Host activity for global text-to-speech settings and voice preview. */
+/** 语音服务列表页宿主。 */
 class TtsSettingsActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<TtsSettingsViewModel>()
 
@@ -36,5 +36,10 @@ class TtsSettingsActivity : CoreActivityWithEvent() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mViewModel.emit(TtsSettingsUiIntent.Init)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mViewModel.emit(TtsSettingsUiIntent.Resume)
     }
 }
