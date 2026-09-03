@@ -107,6 +107,10 @@ data class BackupPreferencesSnapshot(
         AppModel.imageGenerationSize = imageGenerationSize
         AppModel.imageGenerationStylePrompt = imageGenerationStylePrompt
         AppModel.imageGenerationAvatarStylePrompt = imageGenerationAvatarStylePrompt.orEmpty()
+        // 还原后由 ImageProviderRepository 重新判定：备份里带 image_providers 就沿用它，
+        // 旧备份只带上面几个键时则重新播种，否则用户会发现图片服务凭空消失。
+        AppModel.imageProvidersInitialized = false
+        AppModel.currentImageProvider = 0L
         // Prompt 和用户身份按原值恢复，不对用户文本做规范化或裁剪
         AppModel.mainPrompt = mainPrompt
         AppModel.summarizePrompt = summarizePrompt

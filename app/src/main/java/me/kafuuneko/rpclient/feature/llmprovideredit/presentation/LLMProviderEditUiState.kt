@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
-import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
+import me.kafuuneko.rpclient.libs.llm.catalog.ModelCatalogState
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 
 /** 模型配置创建/编辑页面状态树。 */
@@ -17,8 +17,7 @@ sealed class LLMProviderEditUiState {
         val testState: LLMProviderEditTestState = LLMProviderEditTestState.None,
         val requestExtensionsState: LLMProviderEditRequestExtensionsState =
             LLMProviderEditRequestExtensionsState(),
-        val modelCatalogState: LLMProviderEditModelCatalogState =
-            LLMProviderEditModelCatalogState.Idle,
+        val modelCatalogState: ModelCatalogState = ModelCatalogState.Idle,
         val dialogState: LLMProviderEditDialogState = LLMProviderEditDialogState.None
     ) : LLMProviderEditUiState()
 
@@ -60,18 +59,6 @@ sealed class LLMProviderEditTestState {
     data object Failed : LLMProviderEditTestState()
 }
 
-/** 模型目录查询的生命周期与可渲染结果。 */
-sealed class LLMProviderEditModelCatalogState {
-    data object Idle : LLMProviderEditModelCatalogState()
-    data object Loading : LLMProviderEditModelCatalogState()
-    data class Loaded(
-        val models: List<LLMAvailableModel>
-    ) : LLMProviderEditModelCatalogState()
-    data class Failed(
-        val failure: LLMModelCatalogFailure
-    ) : LLMProviderEditModelCatalogState()
-}
-
 /** 模型配置编辑页互斥显示的确认对话框。 */
 sealed class LLMProviderEditDialogState {
     data object None : LLMProviderEditDialogState()
@@ -79,8 +66,5 @@ sealed class LLMProviderEditDialogState {
     data object ApiKeyEditor : LLMProviderEditDialogState()
     data class CustomHeadersEditor(val initialValue: String = "") : LLMProviderEditDialogState()
     data class RequestBodyPatchEditor(val initialValue: String) : LLMProviderEditDialogState()
-    data class ModelPicker(
-        val searchQuery: String,
-        val items: List<LLMAvailableModel>
-    ) : LLMProviderEditDialogState()
+    data class ModelPicker(val items: List<LLMAvailableModel>) : LLMProviderEditDialogState()
 }

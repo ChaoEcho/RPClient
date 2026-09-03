@@ -37,8 +37,6 @@ sealed class LLMProviderEditUiIntent {
 
     data object ShowModelPicker : LLMProviderEditUiIntent()
 
-    data class ChangeModelSearch(val value: String) : LLMProviderEditUiIntent()
-
     data class SelectAvailableModel(val modelId: String) : LLMProviderEditUiIntent()
 
     data object ShowCustomHeadersEditor : LLMProviderEditUiIntent()

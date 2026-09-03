@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.libs.room.dao.GroupChatMemberDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatMessageDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatSessionDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatSummaryDao
+import me.kafuuneko.rpclient.libs.room.dao.ImageProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
@@ -32,6 +33,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -55,6 +57,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         ChatSession::class,
         ChatMessage::class,
         LLMProvider::class,
+        ImageProvider::class,
         FileEntity::class,
         GroupChatSession::class,
         GroupChatMember::class,
@@ -68,14 +71,15 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         StoryCharacter::class,
         StoryLorebookEntry::class
     ],
-    version = 7,
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
-        AutoMigration(from = 6, to = 7)
+        AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8)
     ],
     exportSchema = true
 )
@@ -89,6 +93,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getChatSessionDao(): ChatSessionDao
     abstract fun getChatMessageDao(): ChatMessageDao
     abstract fun getLLMProviderDao(): LLMProviderDao
+
+    abstract fun getImageProviderDao(): ImageProviderDao
     abstract fun getFileDao(): FileDao
     abstract fun getGroupChatSessionDao(): GroupChatSessionDao
     abstract fun getGroupChatMemberDao(): GroupChatMemberDao

@@ -1076,10 +1076,8 @@
     <string name="no_model_provider_banner">Модель не настроена. Нажмите здесь, чтобы настроить ключ API.</string>
     <string name="go_to_model_settings">Настроить</string>
 
-    <string name="image_generation">Генерация изображений</string>
     <string name="image_generation_base_url">Базовый URL</string>
     <string name="image_generation_api_key">API-ключ</string>
-    <string name="image_generation_model">Модель изображения</string>
     <string name="image_generation_size">Размер изображения</string>
     <string name="image_generation_style_prompt">Стилевой промпт</string>
     <string name="image_prompt_model">Модель промпта сцены</string>

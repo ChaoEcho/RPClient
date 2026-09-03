@@ -1114,11 +1114,8 @@
     <string name="no_model_provider_banner">No model configured. Tap here to set up an API key.</string>
     <string name="go_to_model_settings">Configure</string>
 
-    <string name="image_generation">Image generation</string>
-    <string name="image_generation_settings_subtitle">Configure model, endpoint, size, and visual style</string>
     <string name="image_generation_base_url">Base URL</string>
     <string name="image_generation_api_key">API key</string>
-    <string name="image_generation_model">Image model</string>
     <string name="image_generation_size">Image size</string>
     <string name="image_generation_style_prompt">Style prompt</string>
     <string name="image_generation_service_section">Image Service</string>
@@ -1128,7 +1125,6 @@
     <string name="image_generation_scene_style_prompt_desc">Applied to scene images generated in chat</string>
     <string name="image_generation_avatar_style_prompt">Character avatar style</string>
     <string name="image_generation_avatar_style_prompt_desc">Only affects character avatars; always uses single-character, single-panel, square portrait composition</string>
-    <string name="image_generation_save">Save</string>
     <string name="image_generation_saved">Image generation settings saved</string>
     <string name="image_prompt_model">Scene prompt model</string>
     <string name="image_prompt_model_helper">Refines the latest chat turn into a concise visible scene before image generation.</string>
@@ -1140,6 +1136,20 @@
     <string name="image_generating">Generating image…</string>
     <string name="image_generation_retry">Retry</string>
     <string name="image_generation_not_configured">Configure an image generation Base URL and model in Settings first.</string>
+    <!-- 图片服务多配置 -->
+    <string name="image_provider_title">Image Services</string>
+    <string name="image_provider_list_subtitle">Manage image generation endpoints and pick the one in use.</string>
+    <string name="image_provider_edit_subtitle">Base URL, key, model and per-service concurrency.</string>
+    <string name="all_image_providers">All Services</string>
+    <string name="create_image_provider">Add Service</string>
+    <string name="edit_image_provider">Edit Service</string>
+    <string name="no_image_providers_title">No image service yet</string>
+    <string name="no_image_providers_subtitle">Add one to enable avatar and in-chat image generation.</string>
+    <string name="add_first_image_provider">Add the first service</string>
+    <string name="delete_image_provider">Delete image service</string>
+    <string name="delete_image_provider_message">Delete \"%1$s\"? Images already generated are kept.</string>
+    <string name="image_provider_deleted">Image service deleted</string>
+    <string name="image_provider_delete_failed">Failed to delete the image service</string>
     <string name="image_generation_in_progress">An image is already being generated.</string>
     <string name="auto_generate_image_after_reply">Text + image replies</string>
     <string name="auto_generate_image_after_reply_enabled">Enabled</string>

@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -146,6 +147,22 @@ interface BackupDao {
     /** 清空模型配置表。 */
     @Query("DELETE FROM llm_providers")
     suspend fun deleteAllLLMProviders()
+
+    /** 统计图片服务数量。 */
+    @Query("SELECT COUNT(*) FROM image_providers")
+    suspend fun countImageProviders(): Long
+
+    /** 按主键正序分页读取图片服务。 */
+    @Query("SELECT * FROM image_providers ORDER BY id ASC LIMIT :limit OFFSET :offset")
+    suspend fun readImageProviders(limit: Int, offset: Int): List<ImageProvider>
+
+    /** 批量写入图片服务并拒绝主键冲突。 */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertImageProviders(items: List<ImageProvider>)
+
+    /** 清空图片服务表。 */
+    @Query("DELETE FROM image_providers")
+    suspend fun deleteAllImageProviders()
 
     /** 统计文件记录数量。 */
     @Query("SELECT COUNT(*) FROM files")

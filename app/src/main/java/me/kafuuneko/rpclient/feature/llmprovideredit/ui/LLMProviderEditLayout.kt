@@ -98,13 +98,11 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
-import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditModelCatalogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
-import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
-import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
+import me.kafuuneko.rpclient.libs.llm.catalog.ModelCatalogState
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -122,6 +120,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpCollapsibleSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpFormTextField
+import me.kafuuneko.rpclient.ui.widgets.RpModelNameField
+import me.kafuuneko.rpclient.ui.widgets.RpModelPickerDialog
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
@@ -269,7 +269,7 @@ private fun ProviderPresetsSection(
 @Composable
 private fun BasicPanel(
     form: LLMProviderEditForm,
-    modelCatalogState: LLMProviderEditModelCatalogState,
+    modelCatalogState: ModelCatalogState,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
@@ -294,10 +294,13 @@ private fun BasicPanel(
             onClear = { LLMProviderEditUiIntent.ClearApiKey.emit() },
             onKeepExisting = { LLMProviderEditUiIntent.KeepExistingApiKey.emit() }
         )
-        ModelField(
+        RpModelNameField(
             value = form.model,
             catalogState = modelCatalogState,
-            emit = emit
+            onValueChange = { LLMProviderEditUiIntent.ChangeModel(it).emit() },
+            onQueryModels = { LLMProviderEditUiIntent.QueryModels.emit() },
+            onCancelQuery = { LLMProviderEditUiIntent.CancelModelQuery.emit() },
+            onOpenPicker = { LLMProviderEditUiIntent.ShowModelPicker.emit() }
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -316,168 +319,6 @@ private fun BasicPanel(
                 onCheckedChange = { LLMProviderEditUiIntent.ToggleEnabled(it).emit() }
             )
         }
-    }
-}
-
-@Composable
-private fun ModelField(
-    value: String,
-    catalogState: LLMProviderEditModelCatalogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = value,
-            onValueChange = {
-                LLMProviderEditUiIntent.ChangeModel(it).emit()
-            },
-            label = { Text(stringResource(R.string.model_name)) },
-            trailingIcon = {
-                val loading = catalogState is LLMProviderEditModelCatalogState.Loading
-                IconButton(
-                    onClick = {
-                        if (loading) {
-                            LLMProviderEditUiIntent.CancelModelQuery.emit()
-                        } else {
-                            LLMProviderEditUiIntent.QueryModels.emit()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (loading) {
-                            Icons.Rounded.Close
-                        } else {
-                            Icons.Rounded.Refresh
-                        },
-                        contentDescription = stringResource(
-                            if (loading) {
-                                R.string.cancel_model_query
-                            } else {
-                                R.string.query_models
-                            }
-                        )
-                    )
-                }
-            },
-            shape = RoundedCornerShape(12.dp)
-        )
-        ModelCatalogSupportingView(catalogState, emit)
-    }
-}
-
-@Composable
-private fun ModelCatalogSupportingView(
-    state: LLMProviderEditModelCatalogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
-) {
-    when (state) {
-        LLMProviderEditModelCatalogState.Idle -> {
-            Text(
-                text = stringResource(R.string.model_manual_input_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
-
-        LLMProviderEditModelCatalogState.Loading -> {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(start = 4.dp)
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp
-                )
-                Text(
-                    text = stringResource(R.string.querying_models),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        is LLMProviderEditModelCatalogState.Loaded -> {
-            if (state.models.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_available_models_returned),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                    border = BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { LLMProviderEditUiIntent.ShowModelPicker.emit() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.available_models_found,
-                                state.models.size
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        is LLMProviderEditModelCatalogState.Failed -> {
-            Text(
-                text = modelCatalogFailureText(state.failure),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun modelCatalogFailureText(failure: LLMModelCatalogFailure): String {
-    return when (failure) {
-        LLMModelCatalogFailure.Unauthorized -> stringResource(R.string.generation_error_unauthorized)
-        LLMModelCatalogFailure.Forbidden -> stringResource(R.string.generation_error_forbidden)
-        LLMModelCatalogFailure.RateLimited -> stringResource(R.string.generation_error_rate_limited)
-        LLMModelCatalogFailure.UnsupportedEndpoint -> stringResource(R.string.model_query_unsupported)
-        LLMModelCatalogFailure.Network -> stringResource(R.string.generation_error_network)
-        LLMModelCatalogFailure.InvalidResponse -> stringResource(R.string.model_query_invalid_response)
-        is LLMModelCatalogFailure.HttpFailure -> stringResource(
-            R.string.generation_error_http,
-            failure.statusCode
-        )
-
-        LLMModelCatalogFailure.Unknown -> stringResource(R.string.model_query_failed)
     }
 }
 
@@ -980,122 +821,12 @@ private fun DialogSwitch(
             )
         }
 
-        is LLMProviderEditDialogState.ModelPicker -> ModelPickerDialog(
-            state = dialogState,
-            emit = emit
+        is LLMProviderEditDialogState.ModelPicker -> RpModelPickerDialog(
+            models = dialogState.items,
+            onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
+            onSelect = { LLMProviderEditUiIntent.SelectAvailableModel(it).emit() }
         )
     }
-}
-
-@Composable
-private fun ModelPickerDialog(
-    state: LLMProviderEditDialogState.ModelPicker,
-    emit: LLMProviderEditUiIntent.() -> Unit
-) {
-    AppDialogScaffold(
-        onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
-        title = stringResource(R.string.choose_model),
-        badgeIcon = Icons.Rounded.Search,
-        badgeTone = DialogBadgeTone.Primary,
-        confirmText = "",
-        onConfirm = null,
-        dismissText = stringResource(R.string.cancel),
-        onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = {
-                    LLMProviderEditUiIntent.ChangeModelSearch(it).emit()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.search_models)) },
-                leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-            if (state.items.isEmpty()) {
-                Text(
-                    stringResource(R.string.no_matching_models),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 380.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(state.items, key = { it.id }) { model ->
-                        ModelPickerItem(model, emit)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelPickerItem(
-    model: LLMAvailableModel,
-    emit: LLMProviderEditUiIntent.() -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                LLMProviderEditUiIntent.SelectAvailableModel(model.id).emit()
-            }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = model.displayName,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            if (model.displayName != model.id) {
-                Text(
-                    text = model.id,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
-                )
-            }
-            ModelMetadataText(model)
-        }
-    }
-}
-
-@Composable
-private fun ModelMetadataText(model: LLMAvailableModel) {
-    val metadata = listOfNotNull(
-        model.contextTokens?.let {
-            stringResource(R.string.model_context_tokens, it)
-        },
-        model.maxOutputTokens?.let {
-            stringResource(R.string.model_max_output_tokens, it)
-        }
-    )
-    if (metadata.isEmpty()) return
-    Text(
-        text = metadata.joinToString(" · "),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
-    )
 }
 
 @Composable

@@ -19,7 +19,6 @@ import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
-import me.kafuuneko.rpclient.libs.imagegeneration.IMAGE_GENERATION_LIMIT_KEY
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.imagegeneration.buildFallbackScenePrompt
@@ -31,9 +30,12 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
+import me.kafuuneko.rpclient.libs.room.entity.imageProviderPermitKey
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_IMAGE_PROMPT
 
@@ -42,6 +44,7 @@ class ChatImageGenerationCoordinator(
     private val chatRepository: ChatRepository,
     private val characterRepository: CharacterRepository,
     private val fileRepository: FileRepository,
+    private val imageProviderRepository: ImageProviderRepository,
     private val imageClient: OpenAICompatibleImageClient,
     private val llmRepository: LLMRepository,
     private val providerSelectionResolver: LLMProviderSelectionResolver,
@@ -92,7 +95,8 @@ class ChatImageGenerationCoordinator(
                 clearState(messageId)
                 return
             }
-            if (!preparation.config.isConfigured) {
+            val provider = preparation.provider
+            if (provider == null || !preparation.config.isConfigured) {
                 publish(
                     messageId,
                     ChatImageGenerationTaskState.Failed(
@@ -111,8 +115,8 @@ class ChatImageGenerationCoordinator(
                 stylePrompt = preparation.stylePrompt
             )
             val generated: GeneratedImage = requestConcurrencyLimiter.withPermit(
-                key = IMAGE_GENERATION_LIMIT_KEY,
-                limit = AppModel.imageGenerationMaxConcurrentRequests
+                key = imageProviderPermitKey(provider.id),
+                limit = provider.maxConcurrentRequests
             ) {
                 imageClient.generate(preparation.config, prompt)
             }
@@ -166,13 +170,15 @@ class ChatImageGenerationCoordinator(
             return null
         }
         val character = characterRepository.getCharacterById(session.characterId) ?: return null
+        val provider = imageProviderRepository.getSelectedProvider()
         return ImageGenerationPreparation(
             target = target,
             character = character,
             recentUserMessage = messages.take(targetIndex)
                 .lastOrNull { it.source == ChatMessage.Source.User }
                 ?.content.orEmpty(),
-            config = ImageGenerationConfig.fromAppModel(),
+            provider = provider,
+            config = provider?.let { ImageGenerationConfig.fromProvider(it) } ?: EMPTY_IMAGE_CONFIG,
             stylePrompt = AppModel.imageGenerationStylePrompt
         )
     }
@@ -250,11 +256,15 @@ class ChatImageGenerationCoordinator(
         val target: ChatMessage,
         val character: Character,
         val recentUserMessage: String,
+        val provider: ImageProvider?,
         val config: ImageGenerationConfig,
         val stylePrompt: String
     )
 
     private companion object {
+        /** 没有可用图片服务时的占位配置，走与"未配置"完全相同的提示路径。 */
+        val EMPTY_IMAGE_CONFIG = ImageGenerationConfig("", "", "", "")
+
         const val IMAGE_SCENE_REFINEMENT_SYSTEM_PROMPT = """
 Refine the latest roleplay turn into a concise English description of the visible scene for an image prompt.
 Include only visible subjects, location, current actions, pose, facial expression, spatial interaction, and relevant objects.

@@ -18,7 +18,6 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.model.toEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
-import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditModelCatalogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
@@ -35,8 +34,8 @@ import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterFallbacks
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProvider
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProviderEnabled
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
+import me.kafuuneko.rpclient.libs.llm.catalog.ModelCatalogState
 import me.kafuuneko.rpclient.libs.llm.catalog.classifyModelCatalogFailure
-import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -104,9 +103,9 @@ class LLMProviderEditViewModel :
             uiState.copy(
                 testState = LLMProviderEditTestState.None,
                 modelCatalogState = if (
-                    uiState.modelCatalogState is LLMProviderEditModelCatalogState.Loading
+                    uiState.modelCatalogState is ModelCatalogState.Loading
                 ) {
-                    LLMProviderEditModelCatalogState.Idle
+                    ModelCatalogState.Idle
                 } else {
                     uiState.modelCatalogState
                 },
@@ -222,7 +221,7 @@ class LLMProviderEditViewModel :
         val provider = uiState.form.toCatalogConfigOrNullWithToast() ?: return
         // 进入模型目录拉取中状态
         uiState.copy(
-            modelCatalogState = LLMProviderEditModelCatalogState.Loading
+            modelCatalogState = ModelCatalogState.Loading
         ).setup()
         mModelCatalogJob = viewModelScope.launch {
             val runningJob = currentCoroutineContext()[Job]
@@ -235,7 +234,7 @@ class LLMProviderEditViewModel :
                     getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 // 更新加载成功的模型列表
                 latestState.copy(
-                    modelCatalogState = LLMProviderEditModelCatalogState.Loaded(
+                    modelCatalogState = ModelCatalogState.Loaded(
                         models = models
                     )
                 ).setup()
@@ -248,7 +247,7 @@ class LLMProviderEditViewModel :
                 val latestState =
                     getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 latestState.copy(
-                    modelCatalogState = LLMProviderEditModelCatalogState.Failed(
+                    modelCatalogState = ModelCatalogState.Failed(
                         failure = failure
                     )
                 ).setup()
@@ -263,9 +262,9 @@ class LLMProviderEditViewModel :
     private fun onCancelModelQuery() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         cancelModelCatalogQuery()
-        if (uiState.modelCatalogState is LLMProviderEditModelCatalogState.Loading) {
+        if (uiState.modelCatalogState is ModelCatalogState.Loading) {
             uiState.copy(
-                modelCatalogState = LLMProviderEditModelCatalogState.Idle
+                modelCatalogState = ModelCatalogState.Idle
             ).setup()
         }
     }
@@ -275,32 +274,11 @@ class LLMProviderEditViewModel :
     private fun onShowModelPicker() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         val catalogState = uiState.modelCatalogState
-                as? LLMProviderEditModelCatalogState.Loaded
+                as? ModelCatalogState.Loaded
             ?: return
         if (catalogState.models.isEmpty()) return
         uiState.copy(
-            dialogState = LLMProviderEditDialogState.ModelPicker(
-                searchQuery = "",
-                items = catalogState.models
-            )
-        ).setup()
-    }
-
-    /** 在模型选择弹窗中根据关键词过滤模型。 */
-    @UiIntentObserver(LLMProviderEditUiIntent.ChangeModelSearch::class)
-    private fun onChangeModelSearch(intent: LLMProviderEditUiIntent.ChangeModelSearch) {
-        val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
-        val dialogState = uiState.dialogState
-                as? LLMProviderEditDialogState.ModelPicker
-            ?: return
-        val models = (
-                uiState.modelCatalogState as? LLMProviderEditModelCatalogState.Loaded
-                )?.models ?: return
-        uiState.copy(
-            dialogState = dialogState.copy(
-                searchQuery = intent.value,
-                items = models.filterForSearch(intent.value)
-            )
+            dialogState = LLMProviderEditDialogState.ModelPicker(catalogState.models)
         ).setup()
     }
 
@@ -595,7 +573,7 @@ class LLMProviderEditViewModel :
             requestExtensionsState = updatedForm.toRequestExtensionsState(),
             testState = LLMProviderEditTestState.None,
             modelCatalogState = if (invalidateModelCatalog) {
-                LLMProviderEditModelCatalogState.Idle
+                ModelCatalogState.Idle
             } else {
                 uiState.modelCatalogState
             }
@@ -708,18 +686,6 @@ class LLMProviderEditViewModel :
             preferredProvider = routing.preferredProvider,
             allowFallbacks = routing.allowFallbacks
         )
-    }
-
-    /** 在模型列表中按 ID 或显示名称进行大小写不敏感的搜索过滤。 */
-    private fun List<LLMAvailableModel>.filterForSearch(
-        query: String
-    ): List<LLMAvailableModel> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return filter { model ->
-            model.id.contains(normalizedQuery, ignoreCase = true) ||
-                    model.displayName.contains(normalizedQuery, ignoreCase = true)
-        }
     }
 
     /** 取消模型目录查询协程任务。 */

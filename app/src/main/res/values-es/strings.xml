@@ -1073,10 +1073,8 @@
     <string name="no_model_provider_banner">Sin modelo configurado. Toque aquí para configurar una clave de API.</string>
     <string name="go_to_model_settings">Configurar</string>
 
-    <string name="image_generation">Generación de imágenes</string>
     <string name="image_generation_base_url">URL base</string>
     <string name="image_generation_api_key">Clave de API</string>
-    <string name="image_generation_model">Modelo de imagen</string>
     <string name="image_generation_size">Tamaño de imagen</string>
     <string name="image_generation_style_prompt">Indicación de estilo</string>
     <string name="image_prompt_model">Modelo de prompt de escena</string>

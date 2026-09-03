@@ -66,6 +66,7 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -197,6 +198,7 @@ internal val appModules = module {
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)
     singleOf(::LLMRepository)
+    singleOf(::ImageProviderRepository)
     singleOf(::LLMRequestLogRepository)
     singleOf(::FileRepository)
     singleOf(::CharacterCardRepository)

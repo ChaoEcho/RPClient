@@ -1067,10 +1067,8 @@
     <string name="no_model_provider_banner">モデルが設定されていません。タップして API キーを設定してください。</string>
     <string name="go_to_model_settings">設定する</string>
 
-    <string name="image_generation">画像生成</string>
     <string name="image_generation_base_url">ベースURL</string>
     <string name="image_generation_api_key">APIキー</string>
-    <string name="image_generation_model">画像モデル</string>
     <string name="image_generation_size">画像サイズ</string>
     <string name="image_generation_style_prompt">スタイルプロンプト</string>
     <string name="image_prompt_model">シーンプロンプトモデル</string>
