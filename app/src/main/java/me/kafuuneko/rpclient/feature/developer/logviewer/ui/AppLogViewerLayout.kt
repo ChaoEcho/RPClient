@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
@@ -101,7 +102,13 @@ private fun AppLogViewerNormal(
             title = stringResource(R.string.app_logs),
             onBack = { AppLogViewerUiIntent.Back.emit() },
             actions = {
-                IconButton(onClick = { AppLogViewerUiIntent.ExportLogs.emit() }) {
+                IconButton(onClick = { AppLogViewerUiIntent.SaveLogsClick.emit() }) {
+                    Icon(
+                        imageVector = Icons.Rounded.FileDownload,
+                        contentDescription = stringResource(R.string.save_logs_to_file)
+                    )
+                }
+                IconButton(onClick = { AppLogViewerUiIntent.CopyLogs.emit() }) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = stringResource(R.string.export_logs)

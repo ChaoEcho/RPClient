@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +21,13 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 class AppLogViewerActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<AppLogViewerViewModel>()
+
+    /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
+    private val mLogExporterLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        uri?.let { mViewModel.emit(AppLogViewerUiIntent.SaveLogsResult(it)) }
+    }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -45,6 +53,8 @@ class AppLogViewerActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             is AppLogViewerViewEvent.CopyText -> copyLogs(viewEvent.text)
+            is AppLogViewerViewEvent.OpenLogExporter ->
+                mLogExporterLauncher.launch(viewEvent.fileName)
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }

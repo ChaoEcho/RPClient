@@ -1314,6 +1314,11 @@
     <string name="ai_request_logs">AI Request Logs</string>
     <string name="app_log_search_hint">Search logs by keyword or module...</string>
     <string name="export_logs">Export Logs</string>
+    <string name="save_logs_to_file">Save to file</string>
+    <string name="export_request_logs_to_file">Export to file</string>
+    <string name="log_export_success">Logs saved</string>
+    <string name="log_export_failed">Could not save the logs</string>
+    <string name="request_log_export_hint">Exported entries contain full prompts and responses.</string>
     <string name="clear_logs_title">Clear Logs</string>
     <string name="clear_logs_confirm_desc">Are you sure you want to clear all in-memory and rolling app logs?</string>
     <string name="logs_cleared">App logs cleared</string>

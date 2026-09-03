@@ -31,6 +31,16 @@ interface LLMRequestLogDao : MutableDao<LLMRequestLog> {
         offset: Int
     ): List<LLMRequestLogOverview>
 
+    /** 导出用：按时间倒序分页读取完整行。逐页读出、逐行写盘，不在内存里拼整串。 */
+    @Query(
+        """
+        SELECT * FROM llm_request_logs
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+    suspend fun getLogs(limit: Int, offset: Int): List<LLMRequestLog>
+
     /** 按 ID 读取复制或查看所需的完整请求 JSON。 */
     @Query("SELECT requestJson FROM llm_request_logs WHERE id = :id")
     suspend fun getRequestJson(id: Long): String?

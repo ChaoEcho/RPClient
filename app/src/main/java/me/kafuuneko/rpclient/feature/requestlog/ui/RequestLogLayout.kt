@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.ExpandMore
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.ButtonDefaults
@@ -97,6 +98,15 @@ private fun NormalView(
                 onBack = { RequestLogUiIntent.Back.emit() },
                 actions = {
                     if (logs.isNotEmpty()) {
+                        IconButton(onClick = { emit(RequestLogUiIntent.ExportLogsClick) }) {
+                            Icon(
+                                imageVector = Icons.Rounded.FileDownload,
+                                contentDescription = stringResource(
+                                    R.string.export_request_logs_to_file
+                                ),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                         IconButton(onClick = { emit(RequestLogUiIntent.ShowClearConfirmDialog) }) {
                             Icon(
                                 imageVector = Icons.Rounded.Delete,
@@ -132,6 +142,16 @@ private fun NormalView(
                         icon = Icons.Rounded.DataObject,
                         title = stringResource(R.string.no_request_logs),
                         subtitle = stringResource(R.string.no_request_logs_desc)
+                    )
+                }
+            } else {
+                // 导出的是原始载荷，用户按导出键之前必须知道里面有什么。
+                item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.FileDownload,
+                        title = stringResource(R.string.export_request_logs_to_file),
+                        subtitle = stringResource(R.string.request_log_export_hint)
                     )
                 }
             }

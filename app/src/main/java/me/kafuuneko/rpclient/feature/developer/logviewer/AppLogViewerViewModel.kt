@@ -1,10 +1,13 @@
 package me.kafuuneko.rpclient.feature.developer.logviewer
 
+import android.content.Context
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.developer.logviewer.presentation.AppLogViewerUiIntent
 import me.kafuuneko.rpclient.feature.developer.logviewer.presentation.AppLogViewerUiState
@@ -15,12 +18,17 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.debug.AppLogEntry
 import me.kafuuneko.rpclient.libs.debug.AppLogLevel
 import me.kafuuneko.rpclient.libs.debug.AppLogStore
+import me.kafuuneko.rpclient.utils.formatTimestamp
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 @OptIn(FlowPreview::class)
 class AppLogViewerViewModel : CoreViewModelWithEvent<
     AppLogViewerUiIntent,
     AppLogViewerUiState
->(AppLogViewerUiState.None) {
+>(AppLogViewerUiState.None), KoinComponent {
+    private val mContext by inject<Context>()
+
 
     @UiIntentObserver(AppLogViewerUiIntent.Init::class)
     private fun onInit() {
@@ -102,14 +110,40 @@ class AppLogViewerViewModel : CoreViewModelWithEvent<
         AppViewEvent.PopupToastMessageByResId(R.string.logs_cleared).tryEmit()
     }
 
-    @UiIntentObserver(AppLogViewerUiIntent.ExportLogs::class)
-    private fun onExportLogs() {
+    @UiIntentObserver(AppLogViewerUiIntent.CopyLogs::class)
+    private fun onCopyLogs() {
         val formatted = AppLogStore.exportFormattedLogs()
         if (formatted.isNotBlank()) {
             AppLogViewerViewEvent.CopyText(formatted).tryEmit()
         } else {
             AppViewEvent.PopupToastMessageByResId(R.string.no_logs_title).tryEmit()
         }
+    }
+
+    @UiIntentObserver(AppLogViewerUiIntent.SaveLogsClick::class)
+    private fun onSaveLogsClick() {
+        if (AppLogStore.exportFormattedLogs().isBlank()) {
+            AppViewEvent.PopupToastMessageByResId(R.string.no_logs_title).tryEmit()
+            return
+        }
+        val timestamp = System.currentTimeMillis().formatTimestamp("yyyyMMdd-HHmmss")
+        AppLogViewerViewEvent.OpenLogExporter("rpclient-log-$timestamp.txt").tryEmit()
+    }
+
+    @UiIntentObserver(AppLogViewerUiIntent.SaveLogsResult::class)
+    private suspend fun onSaveLogsResult(intent: AppLogViewerUiIntent.SaveLogsResult) {
+        // exportFormattedLogs() 已经做过 Bearer / api_key 脱敏，这里不再二次处理。
+        val formatted = AppLogStore.exportFormattedLogs()
+        val succeeded = withContext(Dispatchers.IO) {
+            runCatching {
+                mContext.contentResolver.openOutputStream(intent.uri)?.use { output ->
+                    output.write(formatted.toByteArray(Charsets.UTF_8))
+                } ?: error("Cannot open export target")
+            }.isSuccess
+        }
+        AppViewEvent.PopupToastMessageByResId(
+            if (succeeded) R.string.log_export_success else R.string.log_export_failed
+        ).tryEmit()
     }
 
     private fun filterLogs(
