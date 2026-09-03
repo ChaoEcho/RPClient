@@ -26,6 +26,11 @@ class LLMRequestLogRepository(
         return mLLMRequestLogDao.getLogOverviews(previewLength, limit, offset)
     }
 
+    /** 导出用：分页读取完整行，调用方逐页写盘。 */
+    suspend fun getLogs(limit: Int, offset: Int): List<LLMRequestLog> {
+        return mLLMRequestLogDao.getLogs(limit, offset)
+    }
+
     /** 按需读取单条日志的完整请求 JSON。 */
     suspend fun getRequestJson(id: Long): String? {
         return mLLMRequestLogDao.getRequestJson(id)

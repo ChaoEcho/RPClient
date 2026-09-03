@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +23,13 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 /** LLM 请求日志页面宿主，处理复制与 JSON 详情导航。 */
 class RequestLogActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<RequestLogViewModel>()
+
+    /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
+    private val mLogExporterLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-ndjson")
+    ) { uri ->
+        uri?.let { mViewModel.emit(RequestLogUiIntent.ExportLogsResult(it)) }
+    }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -48,6 +56,8 @@ class RequestLogActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             is RequestLogViewEvent.CopyText -> copyText(viewEvent.text)
             is RequestLogViewEvent.OpenJson -> openJson(viewEvent.title, viewEvent.json)
+            is RequestLogViewEvent.OpenLogExporter ->
+                mLogExporterLauncher.launch(viewEvent.fileName)
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }

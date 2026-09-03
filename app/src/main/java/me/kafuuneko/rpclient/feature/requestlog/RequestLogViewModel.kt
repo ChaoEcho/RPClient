@@ -1,5 +1,12 @@
 package me.kafuuneko.rpclient.feature.requestlog
 
+import android.content.Context
+
+import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
@@ -7,8 +14,11 @@ import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogDialogSta
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogViewEvent
+import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
 import me.kafuuneko.rpclient.libs.room.model.LLMRequestLogOverview
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -28,6 +38,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     RequestLogUiState.None
 ), KoinComponent {
     private val mLLMRequestLogRepository by inject<LLMRequestLogRepository>()
+    private val mContext by inject<Context>()
 
     /** 初始化日志列表，从数据库加载首批轻量摘要。 */
     @UiIntentObserver(RequestLogUiIntent.Init::class)
@@ -53,6 +64,46 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
             canLoadMore = page.canLoadMore,
             isLoadingMore = false
         ).setup()
+    }
+
+    /** 触发系统文档创建器，选好位置后再真正读库写盘。 */
+    @UiIntentObserver(RequestLogUiIntent.ExportLogsClick::class)
+    private fun onExportLogsClick() {
+        val uiState = getOrNull<RequestLogUiState.Normal>() ?: return
+        if (uiState.logs.isEmpty()) return
+        val timestamp = System.currentTimeMillis().formatTimestamp("yyyyMMdd-HHmmss")
+        RequestLogViewEvent.OpenLogExporter("rpclient-request-log-$timestamp.ndjson").tryEmit()
+    }
+
+    /**
+     * 以 NDJSON 逐行写出全部请求日志。
+     *
+     * 每条日志都带完整请求与响应体，全部拼成一个字符串足以撑爆内存，因此按页读、按行写。
+     */
+    @UiIntentObserver(RequestLogUiIntent.ExportLogsResult::class)
+    private suspend fun onExportLogsResult(intent: RequestLogUiIntent.ExportLogsResult) {
+        if (!isStateOf<RequestLogUiState.Normal>()) return
+        val succeeded = withContext(Dispatchers.IO) {
+            runCatching {
+                val output = mContext.contentResolver.openOutputStream(intent.uri)
+                    ?: error("Cannot open export target")
+                output.bufferedWriter(Charsets.UTF_8).use { writer ->
+                    var offset = 0
+                    while (true) {
+                        val page = mLLMRequestLogRepository.getLogs(PAGE_SIZE, offset)
+                        if (page.isEmpty()) break
+                        page.forEach { log ->
+                            writer.write(EXPORT_GSON.toJson(log.toExportJson()))
+                            writer.newLine()
+                        }
+                        offset += page.size
+                    }
+                }
+            }.isSuccess
+        }
+        AppViewEvent.PopupToastMessageByResId(
+            if (succeeded) R.string.log_export_success else R.string.log_export_failed
+        ).tryEmit()
     }
 
     /** 处理返回操作，迁移至 Finished 状态。 */
@@ -161,7 +212,30 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         }
     }
 
+    /**
+     * 请求体与响应体本身就是 JSON 文本，能解析就内嵌成对象，解析不了再退回字符串，
+     * 保证导出文件对 jq 之类的工具直接可用。
+     */
+    private fun LLMRequestLog.toExportJson(): JsonObject = JsonObject().apply {
+        addProperty("id", id)
+        addProperty("createTime", createTime)
+        addProperty("providerName", providerName)
+        addProperty("protocol", protocol.name)
+        addProperty("model", model)
+        addProperty("isStreaming", isStreaming)
+        add("request", requestJson.toJsonElementOrString())
+        add("response", responseJson.toJsonElementOrString())
+    }
+
+    private fun String.toJsonElementOrString(): JsonElement =
+        runCatching { JsonParser.parseString(this) }
+            .getOrNull()
+            ?.takeIf { it.isJsonObject || it.isJsonArray }
+            ?: JsonPrimitive(this)
+
     private companion object {
+        val EXPORT_GSON: Gson = Gson()
+
         /** 单页日志数量。 */
         const val PAGE_SIZE = 50
         /** 列表展示时的 JSON 预览文本截断最大长度。 */

@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.requestlog.presentation
 
+import android.net.Uri
+
 /** 请求日志页的用户意图。 */
 sealed class RequestLogUiIntent {
     data object Init : RequestLogUiIntent()
@@ -15,6 +17,10 @@ sealed class RequestLogUiIntent {
     data class OpenRequestJson(val logId: Long, val title: String) : RequestLogUiIntent()
 
     data class OpenResponseJson(val logId: Long, val title: String) : RequestLogUiIntent()
+
+    data object ExportLogsClick : RequestLogUiIntent()
+
+    data class ExportLogsResult(val uri: Uri) : RequestLogUiIntent()
 
     data object ShowClearConfirmDialog : RequestLogUiIntent()
 

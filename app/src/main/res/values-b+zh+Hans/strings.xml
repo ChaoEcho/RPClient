@@ -1309,6 +1309,11 @@
     <string name="ai_request_logs">AI 请求日志</string>
     <string name="app_log_search_hint">搜索日志正文或标签...</string>
     <string name="export_logs">导出日志</string>
+    <string name="save_logs_to_file">保存到文件</string>
+    <string name="export_request_logs_to_file">导出到文件</string>
+    <string name="log_export_success">日志已保存</string>
+    <string name="log_export_failed">日志保存失败</string>
+    <string name="request_log_export_hint">导出内容包含完整提示词与响应。</string>
     <string name="clear_logs_title">清空日志</string>
     <string name="clear_logs_confirm_desc">确定要清空内存缓冲区和日志文件中的所有应用运行日志吗？</string>
     <string name="logs_cleared">应用日志已清空</string>
