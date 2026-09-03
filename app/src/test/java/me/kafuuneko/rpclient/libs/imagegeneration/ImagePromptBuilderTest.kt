@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.imagegeneration
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,5 +38,64 @@ class ImagePromptBuilderTest {
 
         assertTrue(prompt.contains("The user reaches for the same book."))
         assertTrue(prompt.contains("Aster catches the book and looks surprised."))
+    }
+
+    @Test
+    fun fallbackStripsClosedThinkBlocksFromInputs() {
+        val prompt = buildFallbackScenePrompt(
+            recentUserMessage = "<think>user internal thought</think>The user reaches for the same book.",
+            assistantReply = "<think>\nAster decides to catch the book\n</think>\nAster catches the book and looks surprised."
+        )
+
+        assertTrue(prompt.contains("The user reaches for the same book."))
+        assertTrue(prompt.contains("Aster catches the book and looks surprised."))
+        assertFalse(prompt.contains("user internal thought"))
+        assertFalse(prompt.contains("Aster decides to catch the book"))
+        assertFalse(prompt.contains("<think>", ignoreCase = true))
+        assertFalse(prompt.contains("</think>", ignoreCase = true))
+    }
+
+    @Test
+    fun fallbackStripsUnclosedThinkBlocksFromInputs() {
+        val prompt = buildFallbackScenePrompt(
+            recentUserMessage = "The user reaches for the book.<think>unclosed thought",
+            assistantReply = "Aster catches the book.<think>unclosed reasoning"
+        )
+
+        assertTrue(prompt.contains("The user reaches for the book."))
+        assertTrue(prompt.contains("Aster catches the book."))
+        assertFalse(prompt.contains("unclosed thought"))
+        assertFalse(prompt.contains("unclosed reasoning"))
+        assertFalse(prompt.contains("<think>", ignoreCase = true))
+    }
+
+    @Test
+    fun fallbackStripsCaseInsensitiveThinkBlocks() {
+        val prompt = buildFallbackScenePrompt(
+            recentUserMessage = "<THINK>planning</THINK>User waits.",
+            assistantReply = "<Think>pondering</Think>Aster nods."
+        )
+
+        assertTrue(prompt.contains("User waits."))
+        assertTrue(prompt.contains("Aster nods."))
+        assertFalse(prompt.contains("planning"))
+        assertFalse(prompt.contains("pondering"))
+        assertFalse(prompt.contains("<think>", ignoreCase = true))
+    }
+
+    @Test
+    fun fallbackWithOnlyThinkBlocksYieldsDefaultOrUserScene() {
+        val promptOnlyThinkReply = buildFallbackScenePrompt(
+            recentUserMessage = "User waits.",
+            assistantReply = "<think>only reasoning here</think>"
+        )
+        assertEquals("The user visibly says or does: User waits.", promptOnlyThinkReply)
+        assertFalse(promptOnlyThinkReply.contains("only reasoning here"))
+
+        val promptBothOnlyThink = buildFallbackScenePrompt(
+            recentUserMessage = "<think>user thought</think>",
+            assistantReply = "<think>only reasoning here</think>"
+        )
+        assertEquals("The character remains in the current scene.", promptBothOnlyThink)
     }
 }

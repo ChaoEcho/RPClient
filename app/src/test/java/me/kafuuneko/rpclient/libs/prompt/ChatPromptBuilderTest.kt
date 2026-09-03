@@ -70,6 +70,23 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun normalPromptStripsThinkBlocksFromHistoryMessagesByDefault() {
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.Char, "<think>\ninternal reasoning\n</think>\nVisible reply"),
+                    chatMessage(2L, ChatMessage.Source.User, "Continue")
+                )
+            )
+        )
+
+        val outbound = result.request.messages.joinToString("\n") { it.content }
+        assertTrue(outbound.contains("Visible reply"))
+        assertFalse(outbound.contains("internal reasoning"))
+        assertFalse(outbound.contains("<think>", ignoreCase = true))
+    }
+
+    @Test
     fun promptOnlyRegexChangesOutboundHistoryAndIsInspected() {
         val script = ScopedRegexScript(
             script = RegexScript(
