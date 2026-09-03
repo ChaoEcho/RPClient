@@ -1109,11 +1109,8 @@
     <string name="no_model_provider_banner">尚未配置模型服务，点击前往配置 API Key</string>
     <string name="go_to_model_settings">前往配置</string>
 
-    <string name="image_generation">图片生成</string>
-    <string name="image_generation_settings_subtitle">配置模型、接口、尺寸与生成风格</string>
     <string name="image_generation_base_url">Base URL</string>
     <string name="image_generation_api_key">API 密钥</string>
-    <string name="image_generation_model">图片模型</string>
     <string name="image_generation_size">图片尺寸</string>
     <string name="image_generation_style_prompt">风格提示词</string>
     <string name="image_generation_service_section">图像服务</string>
@@ -1123,7 +1120,6 @@
     <string name="image_generation_scene_style_prompt_desc">应用于聊天回复生成的场景图片</string>
     <string name="image_generation_avatar_style_prompt">角色头像风格</string>
     <string name="image_generation_avatar_style_prompt_desc">仅影响角色头像；头像始终使用单人物、单画面、正方形构图</string>
-    <string name="image_generation_save">保存</string>
     <string name="image_generation_saved">图像生成配置已保存</string>
     <string name="image_prompt_model">图片提示词模型</string>
     <string name="image_prompt_model_helper">在生成图片前，将最近对话整理为简洁的可见场景描述。</string>
@@ -1135,6 +1131,20 @@
     <string name="image_generating">正在生成图片…</string>
     <string name="image_generation_retry">重试</string>
     <string name="image_generation_not_configured">请先在设置中配置图片生成 Base URL 和模型。</string>
+    <!-- 图片服务多配置 -->
+    <string name="image_provider_title">图片服务</string>
+    <string name="image_provider_list_subtitle">管理图片生成端点，并选择当前使用的一条。</string>
+    <string name="image_provider_edit_subtitle">Base URL、密钥、模型与该服务的并发上限。</string>
+    <string name="all_image_providers">全部服务</string>
+    <string name="create_image_provider">新增服务</string>
+    <string name="edit_image_provider">编辑服务</string>
+    <string name="no_image_providers_title">还没有图片服务</string>
+    <string name="no_image_providers_subtitle">添加一条后即可生成头像与聊天配图。</string>
+    <string name="add_first_image_provider">添加第一条服务</string>
+    <string name="delete_image_provider">删除图片服务</string>
+    <string name="delete_image_provider_message">确定删除“%1$s”？已生成的图片不会被删除。</string>
+    <string name="image_provider_deleted">图片服务已删除</string>
+    <string name="image_provider_delete_failed">删除图片服务失败</string>
     <string name="image_generation_in_progress">已有图片生成任务正在进行。</string>
     <string name="auto_generate_image_after_reply">文图并生</string>
     <string name="auto_generate_image_after_reply_enabled">已开启</string>

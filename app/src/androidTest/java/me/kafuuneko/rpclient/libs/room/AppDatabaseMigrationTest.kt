@@ -465,6 +465,39 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate7To8_createsEmptyImageProviderTable() {
+        migrationHelper.createDatabase(ImageProviderDatabaseName, 7).apply {
+            execSQL(
+                """
+                INSERT INTO character (
+                    id, name, avatar, characterTags, description, personality, scenario,
+                    firstMessages, examplesOfDialogue, postHistoryInstructions
+                ) VALUES (101, 'character', '', '[]', '', '', '', '[]', '', '')
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            ImageProviderDatabaseName,
+            8,
+            true
+        )
+
+        // 建表迁移不搬运任何数据：旧的单条图片配置存在 Kotpref 里，
+        // 由 ImageProviderRepository.ensureDefaultProvider() 在首次读取时播种。
+        migrated.query("SELECT COUNT(*) FROM image_providers").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
+        }
+        migrated.query("SELECT COUNT(*) FROM character WHERE id = 101").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"
@@ -472,5 +505,6 @@ class AppDatabaseMigrationTest {
         const val VoiceDatabaseName = "app-voice-migration-test"
         const val ConcurrencyDatabaseName = "app-concurrency-migration-test"
         const val GroupChatDatabaseName = "app-group-chat-migration-test"
+        const val ImageProviderDatabaseName = "app-image-provider-migration-test"
     }
 }

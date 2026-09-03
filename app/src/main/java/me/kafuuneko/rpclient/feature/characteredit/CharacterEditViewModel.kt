@@ -37,12 +37,13 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.imagegeneration.AVATAR_APPEARANCE_REFINEMENT_SYSTEM_PROMPT
 import me.kafuuneko.rpclient.libs.imagegeneration.AvatarPromptBuilder
-import me.kafuuneko.rpclient.libs.imagegeneration.IMAGE_GENERATION_LIMIT_KEY
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.imageProviderPermitKey
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_IMAGE_PROMPT
@@ -67,6 +68,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 ), KoinComponent {
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
+    private val mImageProviderRepository by inject<ImageProviderRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mCharacterCardRepository by inject<CharacterCardRepository>()
@@ -240,13 +242,6 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             uiState.isAvatarGenerating
         ) return
 
-        val config = ImageGenerationConfig.fromAppModel(size = AVATAR_IMAGE_SIZE)
-        if (!config.isConfigured) {
-            uiState.copy(dialogState = CharacterEditDialogState.None).setup()
-            AppViewEvent.PopupToastMessageByResId(R.string.image_generation_not_configured).tryEmit()
-            return
-        }
-
         val characterName = uiState.form.name
         val characterDescription = uiState.form.description
         val characterProviderId = uiState.form.llmProviderId
@@ -255,6 +250,20 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             isAvatarGenerating = true
         ).setup()
         viewModelScope.launch {
+            val provider = withContext(Dispatchers.IO) {
+                mImageProviderRepository.getSelectedProvider()
+            }
+            val config = provider?.let {
+                ImageGenerationConfig.fromProvider(it, size = AVATAR_IMAGE_SIZE)
+            }
+            if (provider == null || config == null || !config.isConfigured) {
+                getOrNull<CharacterEditUiState.Normal>()
+                    ?.copy(isAvatarGenerating = false)
+                    ?.setup()
+                AppViewEvent.PopupToastMessageByResId(R.string.image_generation_not_configured)
+                    .tryEmit()
+                return@launch
+            }
             var generatedUuid: String? = null
             try {
                 val prompt = AvatarPromptBuilder.buildAvatarPrompt(
@@ -266,10 +275,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                     ),
                     avatarStylePrompt = AppModel.imageGenerationAvatarStylePrompt
                 )
-                // 与聊天配图共用同一个并发配额，否则图片并发上限对头像生成形同虚设。
+                // 与聊天配图共用同一条图片服务的配额，否则并发上限对头像生成形同虚设。
                 val generated = mRequestConcurrencyLimiter.withPermit(
-                    key = IMAGE_GENERATION_LIMIT_KEY,
-                    limit = AppModel.imageGenerationMaxConcurrentRequests
+                    key = imageProviderPermitKey(provider.id),
+                    limit = provider.maxConcurrentRequests
                 ) {
                     mImageClient.generate(config, prompt)
                 }

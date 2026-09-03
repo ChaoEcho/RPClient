@@ -32,6 +32,15 @@ object BackupContract {
         "tables/story_characters.jsonl",
         "tables/story_lorebook_entries.jsonl"
     )
+
+    /**
+     * 本版本之后才出现的表。
+     *
+     * 旧备份里没有这些条目，缺失时按空表处理；若按必需表校验，升级后所有历史备份都会被判为损坏。
+     */
+    val optionalTableEntries = listOf(
+        "tables/image_providers.jsonl"
+    )
 }
 
 /** 解密后 ZIP 中的版本化清单。 */

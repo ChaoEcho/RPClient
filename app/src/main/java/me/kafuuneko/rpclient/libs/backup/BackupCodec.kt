@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -164,7 +165,22 @@ class BackupCodec internal constructor(
             }
             tableFiles[entryName] = tableFile
         }
-        if (manifest.tableCounts.keys != BackupContract.requiredTableEntries.toSet()) {
+        // 可选表只在备份里出现过时才校验，缺失即视为空表
+        BackupContract.optionalTableEntries.forEach { entryName ->
+            if (!manifest.tableCounts.containsKey(entryName)) return@forEach
+            val tableFile = File(contentDirectory, entryName)
+            if (!tableFile.isFile) throw BackupException.RestoreValidationFailed()
+            val type = requireNotNull(TABLE_TYPES[entryName])
+            if (manifest.tableCounts[entryName] != validateJsonLines(tableFile, type)) {
+                throw BackupException.RestoreValidationFailed()
+            }
+            tableFiles[entryName] = tableFile
+        }
+        val knownEntries =
+            (BackupContract.requiredTableEntries + BackupContract.optionalTableEntries).toSet()
+        if (!manifest.tableCounts.keys.containsAll(BackupContract.requiredTableEntries) ||
+            !knownEntries.containsAll(manifest.tableCounts.keys)
+        ) {
             throw BackupException.RestoreValidationFailed()
         }
         // FileEntity 引用的每个 hash 都必须有内容正确的物理资产
@@ -291,6 +307,7 @@ class BackupCodec internal constructor(
             "tables/chat_sessions.jsonl" to ChatSession::class.java,
             "tables/chat_messages.jsonl" to ChatMessage::class.java,
             "tables/llm_providers.jsonl" to LLMProvider::class.java,
+            "tables/image_providers.jsonl" to ImageProvider::class.java,
             FILES_TABLE_ENTRY to FileEntity::class.java,
             "tables/group_chat_sessions.jsonl" to GroupChatSession::class.java,
             "tables/group_chat_members.jsonl" to GroupChatMember::class.java,

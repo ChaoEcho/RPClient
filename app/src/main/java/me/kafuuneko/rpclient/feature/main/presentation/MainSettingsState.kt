@@ -11,6 +11,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 data class MainSettingsState(
     val identityState: MainUserIdentityState,
     val providerState: MainProviderSettingsState,
+    // 当前图片服务的一行摘要；图片配置在数据库里，Composable 读不到，必须由 VM 预先算好。
+    val imageProviderSummary: String,
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
     val summaryState: MainSummarySettingsState

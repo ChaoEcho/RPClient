@@ -102,7 +102,7 @@ sealed class MainUiIntent {
 
     data object OpenBackup : MainUiIntent()
 
-    data object OpenImageGenerationSettings : MainUiIntent()
+    data object OpenImageProviderList : MainUiIntent()
 
     data object OpenTtsSettings : MainUiIntent()
 

@@ -1357,7 +1357,7 @@ private fun SettingsPage(
             ) { MainUiIntent.OpenProviderManager.emit() }
         }
         item {
-            ModelConfigPanel(state.providerState, emit)
+            ModelConfigPanel(state.providerState, state.imageProviderSummary, emit)
         }
 
         // ================= 3. 提示词与上下文 =================
@@ -1598,6 +1598,7 @@ private fun UserAvatarPicker(
 @Composable
 private fun ModelConfigPanel(
     providerState: MainProviderSettingsState,
+    imageProviderSummary: String,
     emit: MainUiIntent.() -> Unit
 ) {
     val chatModelSubtitle = when (providerState) {
@@ -1621,9 +1622,7 @@ private fun ModelConfigPanel(
         }
     }
 
-    val imageModelSubtitle = if (AppModel.imageGenerationModel.isNotBlank()) {
-        AppModel.imageGenerationModel
-    } else {
+    val imageModelSubtitle = imageProviderSummary.ifBlank {
         stringResource(R.string.no_model_configured)
     }
 
@@ -1665,7 +1664,7 @@ private fun ModelConfigPanel(
             iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
             title = stringResource(R.string.image_model),
             subtitle = imageModelSubtitle,
-            onClick = { MainUiIntent.OpenImageGenerationSettings.emit() },
+            onClick = { MainUiIntent.OpenImageProviderList.emit() },
             trailing = {
                 RpNavigationChevron()
             }
@@ -1904,6 +1903,7 @@ private fun MainLayoutPreview() {
                         contextTrimmingAlert = true,
                         streamEnabled = true
                     ),
+                    imageProviderSummary = "",
                     worldInfoBudgetState = MainWorldInfoBudgetState(
                         budgetPercent = 25,
                         budgetCap = 0,
@@ -1966,6 +1966,7 @@ private fun MainSettingsLayoutPreview() {
                         contextTrimmingAlert = true,
                         streamEnabled = true
                     ),
+                    imageProviderSummary = "",
                     worldInfoBudgetState = MainWorldInfoBudgetState(
                         budgetPercent = 25,
                         budgetCap = 2048,

@@ -16,7 +16,7 @@ import me.kafuuneko.rpclient.feature.developer.DeveloperSettingsActivity
 import me.kafuuneko.rpclient.feature.promptbehavior.PromptBehaviorSettingsActivity
 import me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity
 import me.kafuuneko.rpclient.feature.backup.BackupActivity
-import me.kafuuneko.rpclient.feature.imagegeneration.ImageGenerationSettingsActivity
+import me.kafuuneko.rpclient.feature.imageproviderlist.ImageProviderListActivity
 import me.kafuuneko.rpclient.feature.tts.TtsSettingsActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
@@ -83,6 +83,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
@@ -110,6 +111,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
 ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
+    private val mImageProviderRepository by inject<ImageProviderRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
@@ -553,11 +555,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(BackupActivity::class.java).tryEmit()
     }
 
-    /** 打开全局图像生成设置。 */
-    @UiIntentObserver(MainUiIntent.OpenImageGenerationSettings::class)
-    private fun onOpenImageGenerationSettings() {
+    /** 打开图片服务列表。 */
+    @UiIntentObserver(MainUiIntent.OpenImageProviderList::class)
+    private fun onOpenImageProviderList() {
         if (!isStateOf<MainUiState.Normal>()) return
-        AppViewEvent.StartActivity(ImageGenerationSettingsActivity::class.java).tryEmit()
+        AppViewEvent.StartActivity(ImageProviderListActivity::class.java).tryEmit()
     }
 
     /** 打开全局语音与朗读设置。 */
@@ -780,6 +782,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
+            imageProviderSummary = buildImageProviderSummary(),
             promptBehaviorState = MainPromptBehaviorState(
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
@@ -804,6 +807,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 injectionState = buildSummaryInjectionState(readSummaryInjectionPosition())
             )
         )
+    }
+
+    /** 拼出当前图片服务的一行摘要，没有配置时返回空串由 UI 兜底文案。 */
+    private suspend fun buildImageProviderSummary(): String {
+        val provider = mImageProviderRepository.getSelectedProvider() ?: return ""
+        return listOf(provider.name, provider.model)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(" · ")
     }
 
     /** 构建供应商配置子状态，无可用供应商时返回 Empty。 */

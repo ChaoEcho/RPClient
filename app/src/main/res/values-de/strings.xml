@@ -1071,10 +1071,8 @@
     <string name="no_model_provider_banner">Kein Modell konfiguriert. Tippe hier, um einen API-Schlüssel einzurichten.</string>
     <string name="go_to_model_settings">Konfigurieren</string>
 
-    <string name="image_generation">Bildgenerierung</string>
     <string name="image_generation_base_url">Basis-URL</string>
     <string name="image_generation_api_key">API-Schlüssel</string>
-    <string name="image_generation_model">Bildmodell</string>
     <string name="image_generation_size">Bildgröße</string>
     <string name="image_generation_style_prompt">Stil-Prompt</string>
     <string name="image_prompt_model">Szenen-Prompt-Modell</string>

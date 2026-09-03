@@ -5,6 +5,9 @@ import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_IMAGE_PROVIDER_BASE_URL
+import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_IMAGE_PROVIDER_CONCURRENCY
+import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_IMAGE_PROVIDER_SIZE
 
 /**
  * 应用级持久偏好模型。
@@ -192,26 +195,20 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var ttsAzureVoice by stringPref(default = "zh-CN-XiaoxiaoNeural")
     var ttsAzureSpeechRate by floatPref(default = 1f)
 
-    // OpenAI-compatible 图像生成服务的基础 URL。
-    var imageGenerationBaseUrl by stringPref(default = "https://api.openai.com/v1")
+    // 当前选中的图片生成服务 ID。
+    var currentImageProvider by longPref()
 
-    // OpenAI-compatible 图像生成服务的 API Key。
+    // image_providers 是否已完成首次播种，防止用户删除全部配置后被自动重建。
+    var imageProvidersInitialized by booleanPref(default = false)
+
+    // 以下五个键是 image_providers 建表之前的单条图片配置，**只读不写**：
+    // 新代码一律走 ImageProviderRepository，这里仅供首次播种与旧备份还原读取。
+    var imageGenerationBaseUrl by stringPref(default = DEFAULT_IMAGE_PROVIDER_BASE_URL)
     var imageGenerationApiKey by stringPref(default = "")
-
-    // OpenAI-compatible 图像生成模型名。
     var imageGenerationModel by stringPref(default = "gpt-image-2")
-
-    // OpenAI-compatible 图像生成尺寸。
-    var imageGenerationSize by stringPref(default = "1024x1024")
-
-    // 图片生成 HTTP 请求的并发范围与默认值。
-    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MIN = 1
-    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_MAX = 8
-    const val IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_DEFAULT = 1
-
-    // 图片生成服务独立于 LLM Provider 的最大并发请求数。
+    var imageGenerationSize by stringPref(default = DEFAULT_IMAGE_PROVIDER_SIZE)
     var imageGenerationMaxConcurrentRequests by intPref(
-        default = IMAGE_GENERATION_MAX_CONCURRENT_REQUESTS_DEFAULT
+        default = DEFAULT_IMAGE_PROVIDER_CONCURRENCY
     )
 
     // 单聊回复完成后是否自动生成对应图片。

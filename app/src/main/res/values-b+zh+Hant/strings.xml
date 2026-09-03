@@ -1095,11 +1095,8 @@
     <string name="no_model_provider_banner">尚未設定模型服務，點擊前往設定 API Key</string>
     <string name="go_to_model_settings">前往設定</string>
 
-    <string name="image_generation">圖片生成</string>
-    <string name="image_generation_settings_subtitle">配置模型、介面、尺寸與生成風格</string>
     <string name="image_generation_base_url">Base URL</string>
     <string name="image_generation_api_key">API 金鑰</string>
-    <string name="image_generation_model">圖片模型</string>
     <string name="image_generation_size">圖片尺寸</string>
     <string name="image_generation_style_prompt">風格提示詞</string>
     <string name="image_prompt_model">圖片提示詞模型</string>

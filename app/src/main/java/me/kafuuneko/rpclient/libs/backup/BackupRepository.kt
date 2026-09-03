@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -233,6 +234,7 @@ class BackupRepository(
         "tables/chat_sessions.jsonl" to mBackupDao.countChatSessions(),
         "tables/chat_messages.jsonl" to mBackupDao.countChatMessages(),
         "tables/llm_providers.jsonl" to mBackupDao.countLLMProviders(),
+        "tables/image_providers.jsonl" to mBackupDao.countImageProviders(),
         "tables/files.jsonl" to mBackupDao.countFiles(),
         "tables/group_chat_sessions.jsonl" to mBackupDao.countGroupChatSessions(),
         "tables/group_chat_members.jsonl" to mBackupDao.countGroupChatMembers(),
@@ -272,6 +274,7 @@ class BackupRepository(
         writeTable(zip, "tables/chat_sessions.jsonl", mBackupDao::readChatSessions)
         writeTable(zip, "tables/chat_messages.jsonl", mBackupDao::readChatMessages)
         writeTable(zip, "tables/llm_providers.jsonl", mBackupDao::readLLMProviders)
+        writeTable(zip, "tables/image_providers.jsonl", mBackupDao::readImageProviders)
         writeTable(zip, "tables/files.jsonl", mBackupDao::readFiles)
         writeTable(zip, "tables/group_chat_sessions.jsonl", mBackupDao::readGroupChatSessions)
         writeTable(zip, "tables/group_chat_members.jsonl", mBackupDao::readGroupChatMembers)
@@ -334,12 +337,14 @@ class BackupRepository(
         mBackupDao.deleteAllGroupChatSessions()
         mBackupDao.deleteAllLorebooks()
         mBackupDao.deleteAllLLMProviders()
+        mBackupDao.deleteAllImageProviders()
         mBackupDao.deleteAllCharacters()
     }
 
     private suspend fun insertBusinessTables(backup: ValidatedBackup) {
         restoreTable(backup, "tables/characters.jsonl", Character::class.java, mBackupDao::insertCharacters)
         restoreTable(backup, "tables/llm_providers.jsonl", LLMProvider::class.java, mBackupDao::insertLLMProviders)
+        restoreTable(backup, "tables/image_providers.jsonl", ImageProvider::class.java, mBackupDao::insertImageProviders)
         restoreTable(backup, "tables/lorebooks.jsonl", Lorebook::class.java, mBackupDao::insertLorebooks)
         restoreTable(backup, "tables/group_chat_sessions.jsonl", GroupChatSession::class.java, mBackupDao::insertGroupChatSessions)
         restoreTable(backup, "tables/stories.jsonl", Story::class.java, mBackupDao::insertStories)
@@ -381,7 +386,8 @@ class BackupRepository(
         insertBatch: suspend (List<T>) -> Unit
     ) {
         val batch = ArrayList<T>(BackupContract.PAGE_SIZE)
-        val file = backup.tableFiles.getValue(entryName)
+        // 可选表在旧备份里不存在，直接跳过而不是抛异常
+        val file = backup.tableFiles[entryName] ?: return
         BufferedReader(InputStreamReader(FileInputStream(file), Charsets.UTF_8)).use { reader ->
             while (true) {
                 val line = reader.readLine() ?: break

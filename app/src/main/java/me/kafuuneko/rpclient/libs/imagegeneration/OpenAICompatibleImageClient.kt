@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.imagegeneration
 
 import com.google.gson.JsonObject
-import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.debug.AppLogger
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
@@ -23,18 +23,18 @@ data class ImageGenerationConfig(
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && model.isNotBlank()
 
     companion object {
-        /** 从全局偏好读取图片服务配置；[size] 允许头像等场景覆盖为固定尺寸。 */
-        fun fromAppModel(size: String = AppModel.imageGenerationSize) = ImageGenerationConfig(
-            baseUrl = AppModel.imageGenerationBaseUrl,
-            apiKey = AppModel.imageGenerationApiKey,
-            model = AppModel.imageGenerationModel,
+        /** 从图片服务记录构造运行时配置；[size] 允许头像等场景覆盖为固定尺寸。 */
+        fun fromProvider(
+            provider: ImageProvider,
+            size: String = provider.size
+        ) = ImageGenerationConfig(
+            baseUrl = provider.baseUrl,
+            apiKey = provider.apiKey,
+            model = provider.model,
             size = size
         )
     }
 }
-
-/** 图片生成共用的并发配额键；聊天配图与头像生成共享同一个上限。 */
-const val IMAGE_GENERATION_LIMIT_KEY = "image-generation"
 
 data class GeneratedImage(
     val bytes: ByteArray,
