@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
+import me.kafuuneko.rpclient.libs.imagegeneration.CharacterVisualIdentityResolver
 import me.kafuuneko.rpclient.libs.imagegeneration.GeneratedImage
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
@@ -45,6 +46,7 @@ class ChatImageGenerationCoordinator(
     private val characterRepository: CharacterRepository,
     private val fileRepository: FileRepository,
     private val imageProviderRepository: ImageProviderRepository,
+    private val visualIdentityResolver: CharacterVisualIdentityResolver,
     private val imageClient: OpenAICompatibleImageClient,
     private val llmRepository: LLMRepository,
     private val providerSelectionResolver: LLMProviderSelectionResolver,
@@ -107,9 +109,12 @@ class ChatImageGenerationCoordinator(
             }
 
             val scenePrompt = refineImageScene(preparation, sessionId)
+            // 传提炼后的外貌而不是整张角色卡，否则性格与背景会稀释外貌特征。
+            val characterAppearance =
+                visualIdentityResolver.resolveForCharacter(preparation.character)
             val prompt = buildImagePrompt(
                 characterName = preparation.character.name,
-                characterDescription = preparation.character.description,
+                characterDescription = characterAppearance,
                 scenario = preparation.character.scenario,
                 scenePrompt = scenePrompt,
                 stylePrompt = preparation.stylePrompt
@@ -218,7 +223,12 @@ class ChatImageGenerationCoordinator(
             response.content.trim().takeIf { it.isNotEmpty() } ?: fallback
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            // 静默回退会让"图突然不像了"变成无从排查的玄学，这里必须留痕。
+            AppLogger.w(
+                "Image",
+                "Scene refinement failed, falling back to raw turn text: ${error.message}"
+            )
             fallback
         }
     }

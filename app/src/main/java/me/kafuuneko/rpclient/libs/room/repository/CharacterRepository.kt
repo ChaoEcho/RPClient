@@ -104,6 +104,11 @@ class CharacterRepository(
         saveCharacter(character)
     }
 
+    /** 写回外貌提炼缓存；角色已被删除时静默忽略。 */
+    suspend fun updateVisualIdentity(id: Long, visualIdentity: String) {
+        mCharacterDao.updateVisualIdentity(id, visualIdentity)
+    }
+
     /**
      * 在事务内重读角色并只修改扩展 JSON，保留同时期提交的其他角色字段。
      *

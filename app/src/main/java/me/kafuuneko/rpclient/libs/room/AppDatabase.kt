@@ -71,7 +71,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         StoryCharacter::class,
         StoryLorebookEntry::class
     ],
-    version = 8,
+    version = 9,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
@@ -79,7 +79,8 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
-        AutoMigration(from = 7, to = 8)
+        AutoMigration(from = 7, to = 8),
+        AutoMigration(from = 8, to = 9)
     ],
     exportSchema = true
 )
