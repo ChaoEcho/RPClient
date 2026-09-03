@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.injectsSystemFraming
 import me.kafuuneko.rpclient.libs.prompt.model.usesCharacterReplyTask
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -277,9 +278,9 @@ class ChatPromptBuilder(
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }
-        // 主提示词描述的是“让角色生成下一条回复”这一任务，只能用于普通回复和重新生成。
-        // 扮演用户或续写时继续注入角色卡覆盖提示，会让同一请求同时出现两个互斥目标。
-        if (context.generationMode.usesCharacterReplyTask()) {
+        // 主提示词同时是任务描述与全局沙盒定义，缺席时世界书会成为 System 0 被上游风控命中。
+        // 特殊模式下的任务目标由排在最后的 Nudge 覆盖，见 injectsSystemFraming 的说明。
+        if (context.generationMode.injectsSystemFraming()) {
             beforeHistory += PromptPiece(
                 LLMMessageRole.System,
                 readCharacterMainPrompt(context),
@@ -349,8 +350,8 @@ class ChatPromptBuilder(
 
         // 组装历史消息之后的固定指令区段
         val afterHistory = buildList {
-            // PHI 与主提示词共同约束“下一条角色回复”，特殊生成模式必须由自己的任务提示接管。
-            if (context.generationMode.usesCharacterReplyTask()) {
+            // PHI 承载最新轮次规范与虚构免责声明，和主提示词同进同出。
+            if (context.generationMode.injectsSystemFraming()) {
                 add(
                     PromptPiece.required(
                         role = LLMMessageRole.User,

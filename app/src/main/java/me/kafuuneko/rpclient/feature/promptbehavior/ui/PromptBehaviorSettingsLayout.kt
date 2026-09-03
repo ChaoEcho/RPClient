@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -147,6 +148,21 @@ private fun PromptBehaviorSettingsNormal(
                         subtitle = stringResource(R.string.prompt_include_think_context_desc),
                         checked = state.includeThinkInContext,
                         onCheckedChange = { PromptBehaviorSettingsUiIntent.ToggleIncludeThinkInContext(it).emit() },
+                        contentPadding = RpGroupedTilePadding
+                    )
+                    RpSettingsDivider()
+                    RpSettingsSwitchTile(
+                        icon = Icons.Rounded.Shield,
+                        iconColor = Color(0xFF0EA5E9),
+                        iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+                        title = stringResource(R.string.prompt_keep_system_framing_title),
+                        subtitle = stringResource(R.string.prompt_keep_system_framing_desc),
+                        checked = state.keepSystemPromptInSpecialModes,
+                        onCheckedChange = {
+                            PromptBehaviorSettingsUiIntent
+                                .ToggleKeepSystemPromptInSpecialModes(it)
+                                .emit()
+                        },
                         contentPadding = RpGroupedTilePadding
                     )
                     RpSettingsDivider()

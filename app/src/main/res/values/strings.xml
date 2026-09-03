@@ -706,6 +706,8 @@
     <string name="prompt_example_behavior_disabled">Disabled</string>
     <string name="prompt_include_think_context_title">Include think blocks in context</string>
     <string name="prompt_include_think_context_desc">When disabled, saved &lt;think&gt;...&lt;/think&gt; blocks are stripped from future prompts.</string>
+    <string name="prompt_keep_system_framing_title">Keep main prompt when continuing</string>
+    <string name="prompt_keep_system_framing_desc">Continue and Impersonate also send the main prompt and post-history instructions. Without them the world info becomes the first message and strict providers may reject the request. Turn off if your model starts a new reply instead of continuing.</string>
     <string name="selected_count">%d selected</string>
     <string name="delete_selected_sessions_title">Delete selected sessions</string>
     <string name="delete_selected_sessions_message">Delete %d selected sessions and all their messages? This cannot be undone.</string>

@@ -412,7 +412,7 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
-    fun continueFallbackOmitsCharacterReplyTasksAndEndsWithUserControl() {
+    fun continueKeepsSystemFramingAndEndsWithUserControl() {
         val lyra = character(1, "Lyra").copy(
             postHistoryInstructions = "Group PHI",
             systemPrompt = "Write Lyra's next reply.",
@@ -450,8 +450,11 @@ class GroupChatPromptBuilderTest {
                 it.content == "Lyra: Partial" ||
                 it === continueNudge
         }
+        // 主提示词与 PHI 保留并保持首尾包裹；Group Nudge 仍由续写自己的任务提示接管。
         assertEquals(
             listOf(
+                "Write Lyra's next reply.",
+                "Group PHI",
                 "Lyra: Partial",
                 continueNudge.content
             ),
@@ -462,7 +465,7 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
-    fun impersonateOmitsGroupNudgeAndPlacesControlPromptLast() {
+    fun impersonateKeepsSystemFramingAndPlacesControlPromptLast() {
         val lyra = character(1, "Lyra").copy(
             postHistoryInstructions = "Group PHI",
             systemPrompt = "Write Lyra's next reply."
@@ -488,8 +491,8 @@ class GroupChatPromptBuilderTest {
         )
 
         assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
-        assertFalse(request.messages.any { it.content == "Write Lyra's next reply." })
-        assertFalse(request.messages.any { it.content == "Group PHI" })
+        assertTrue(request.messages.any { it.content == "Write Lyra's next reply." })
+        assertTrue(request.messages.any { it.content == "Group PHI" })
         assertFalse(request.messages.any { it.content == "Always write as Lyra." })
         assertTrue(request.messages.last().content.contains("point of view of Alex"))
         assertEquals(LLMMessageRole.User, request.messages.last().role)

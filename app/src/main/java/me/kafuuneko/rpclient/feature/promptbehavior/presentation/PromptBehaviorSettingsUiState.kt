@@ -8,6 +8,7 @@ sealed class PromptBehaviorSettingsUiState {
     data class Normal(
         val exampleDialogueBehavior: ExampleDialogueBehavior,
         val includeThinkInContext: Boolean,
+        val keepSystemPromptInSpecialModes: Boolean,
         val contextTrimmingAlert: Boolean,
         val streamEnabled: Boolean,
         val worldInfoBudgetPercent: Int,
