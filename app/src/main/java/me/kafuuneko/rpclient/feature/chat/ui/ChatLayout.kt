@@ -66,6 +66,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -303,6 +304,11 @@ private fun ChatNormal(
         }
     }
 
+    // 只有最新的助手回复能重生成，中间那条改了会破坏后续历史（ChatViewModel 会拒绝）。
+    val latestAssistantMessageId = remember(state.conversationState.messages) {
+        state.conversationState.messages.lastOrNull { it.role == MessageRole.Assistant }?.id
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -366,6 +372,7 @@ private fun ChatNormal(
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
                     isFirstMessage = index == 0,
+                    isLatestAssistantMessage = message.id == latestAssistantMessageId,
                     onImageClick = { uuid -> previewFileUuid = uuid },
                     emit = emit
                 )
@@ -802,6 +809,7 @@ private fun MessageBubble(
     editing: Boolean,
     editingDraft: String,
     isFirstMessage: Boolean,
+    isLatestAssistantMessage: Boolean,
     onImageClick: (String) -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -974,7 +982,12 @@ private fun MessageBubble(
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            MessageActions(message, isFirstMessage, emit)
+                            MessageActions(
+                                message = message,
+                                isFirstMessage = isFirstMessage,
+                                isLatestAssistantMessage = isLatestAssistantMessage,
+                                emit = emit
+                            )
                         }
                     }
                 }
@@ -1467,10 +1480,16 @@ private fun QuickActionPill(
     label: String,
     enabled: Boolean = true,
     active: Boolean = false,
+    danger: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
+    val accentColor = if (danger) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
@@ -1486,7 +1505,9 @@ private fun QuickActionPill(
             0.5.dp,
             if (enabled) {
                 if (active) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                    accentColor.copy(alpha = 0.55f)
+                } else if (danger) {
+                    accentColor.copy(alpha = 0.3f)
                 } else {
                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                 }
@@ -1513,7 +1534,7 @@ private fun QuickActionPill(
                 tint = when {
                     !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     active -> MaterialTheme.colorScheme.onPrimaryContainer
-                    else -> MaterialTheme.colorScheme.primary
+                    else -> accentColor
                 },
                 modifier = Modifier.size(14.dp)
             )
@@ -1524,6 +1545,7 @@ private fun QuickActionPill(
                 color = when {
                     !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     active -> MaterialTheme.colorScheme.onPrimaryContainer
+                    danger -> accentColor
                     else -> MaterialTheme.colorScheme.onSurface
                 }
             )
@@ -1535,95 +1557,67 @@ private fun QuickActionPill(
 private fun MessageActions(
     message: ChatMessageUiModel,
     isFirstMessage: Boolean,
+    isLatestAssistantMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-        IconButton(
-            onClick = { ChatUiIntent.CopyMessage(message.id).emit() },
-            modifier = Modifier.size(30.dp)
-        ) {
-            Icon(
-                Icons.Rounded.ContentCopy,
-                contentDescription = stringResource(R.string.copy),
-                modifier = Modifier.size(17.dp),
-                tint = iconColor
+    val isAssistant = message.role == MessageRole.Assistant
+    // 顺序按"读 → 写 → 重来 → 结构性/破坏性"，把分支挪离中间位，减少误触。
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        QuickActionPill(
+            icon = Icons.Rounded.ContentCopy,
+            label = stringResource(R.string.copy),
+            onClick = { ChatUiIntent.CopyMessage(message.id).emit() }
+        )
+        QuickActionPill(
+            icon = Icons.Rounded.Edit,
+            label = stringResource(R.string.edit),
+            onClick = { ChatUiIntent.StartEditMessage(message.id).emit() }
+        )
+        if (isAssistant && !message.isStreaming) {
+            QuickActionPill(
+                icon = Icons.Rounded.AutoAwesome,
+                label = stringResource(
+                    if (message.imageFileUuid == null) {
+                        R.string.generate_image
+                    } else {
+                        R.string.regenerate_image
+                    }
+                ),
+                onClick = { ChatUiIntent.GenerateImage(message.id).emit() }
             )
-        }
-        IconButton(
-            onClick = { ChatUiIntent.StartEditMessage(message.id).emit() },
-            modifier = Modifier.size(30.dp)
-        ) {
-            Icon(
-                Icons.Rounded.Edit,
-                contentDescription = stringResource(R.string.edit),
-                modifier = Modifier.size(17.dp),
-                tint = iconColor
-            )
-        }
-        if (message.role == MessageRole.Assistant && !message.isStreaming) {
-            IconButton(
-                onClick = { ChatUiIntent.GenerateImage(message.id).emit() },
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.AutoAwesome,
-                    contentDescription = stringResource(
-                        if (message.imageFileUuid == null) R.string.generate_image else R.string.regenerate_image
-                    ),
-                    modifier = Modifier.size(17.dp),
-                    tint = iconColor
-                )
-            }
         }
         if (!isFirstMessage) {
-            IconButton(
-                onClick = { ChatUiIntent.BranchFromMessage(message.id).emit() },
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.Tune,
-                    contentDescription = stringResource(R.string.branch_from_message),
-                    modifier = Modifier.size(17.dp),
-                    tint = iconColor
+            if (isAssistant) {
+                // 非最新回复直接置灰，而不是点了之后弹一条"只能重生成最新回复"。
+                QuickActionPill(
+                    icon = Icons.Rounded.Refresh,
+                    label = stringResource(R.string.regenerate),
+                    enabled = isLatestAssistantMessage,
+                    onClick = { ChatUiIntent.RegenerateFromMessage(message.id).emit() }
+                )
+                QuickActionPill(
+                    icon = Icons.Rounded.AutoFixHigh,
+                    label = stringResource(R.string.regenerate_with_instruction),
+                    enabled = isLatestAssistantMessage,
+                    onClick = { ChatUiIntent.OpenGuidedRegenerate(message.id).emit() }
                 )
             }
-            if (message.role == MessageRole.Assistant) {
-                IconButton(
-                    onClick = { ChatUiIntent.OpenGuidedRegenerate(message.id).emit() },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.AutoFixHigh,
-                        contentDescription = stringResource(R.string.regenerate_with_instruction),
-                        modifier = Modifier.size(17.dp),
-                        tint = iconColor
-                    )
-                }
-                IconButton(
-                    onClick = { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Refresh,
-                        contentDescription = stringResource(R.string.regenerate),
-                        modifier = Modifier.size(17.dp),
-                        tint = iconColor
-                    )
-                }
-            }
-            IconButton(
-                onClick = { ChatUiIntent.DeleteMessageClick(message.id).emit() },
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    modifier = Modifier.size(17.dp),
-                    tint = iconColor
-                )
-            }
+            QuickActionPill(
+                // 与同屏表示"生成参数"的 Tune 图标区分开。
+                icon = Icons.AutoMirrored.Rounded.CallSplit,
+                label = stringResource(R.string.branch_from_message),
+                onClick = { ChatUiIntent.BranchFromMessage(message.id).emit() }
+            )
+            QuickActionPill(
+                icon = Icons.Rounded.Delete,
+                label = stringResource(R.string.delete),
+                danger = true,
+                onClick = { ChatUiIntent.DeleteMessageClick(message.id).emit() }
+            )
         }
     }
 }
