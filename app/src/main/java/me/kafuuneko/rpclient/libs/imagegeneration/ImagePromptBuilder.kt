@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.imagegeneration
 
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
+
 /**
  * Builds the final deterministic image prompt from identity, scene context, composition, and style.
  *
@@ -54,8 +56,8 @@ fun buildFallbackScenePrompt(
     recentUserMessage: String?,
     assistantReply: String
 ): String {
-    val userMessage = recentUserMessage?.trim().orEmpty()
-    val reply = assistantReply.trim()
+    val userMessage = recentUserMessage?.stripThinkBlocks().orEmpty()
+    val reply = assistantReply.stripThinkBlocks()
     return buildString {
         if (userMessage.isNotEmpty()) {
             append("The user visibly says or does: ")

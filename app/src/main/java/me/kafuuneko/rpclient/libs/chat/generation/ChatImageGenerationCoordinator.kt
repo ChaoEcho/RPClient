@@ -39,6 +39,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_IMAGE_PROMPT
+import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /** Application-scoped owner for independent per-message image generation tasks. */
 class ChatImageGenerationCoordinator(
@@ -233,22 +234,12 @@ class ChatImageGenerationCoordinator(
         }
     }
 
-    private fun buildSceneRefinementInput(preparation: ImageGenerationPreparation): String = buildString {
-        appendLine("Character name:")
-        appendLine(preparation.character.name.trim().ifBlank { "(none)" })
-        appendLine()
-        appendLine("Character description:")
-        appendLine(preparation.character.description.trim().ifBlank { "(none)" })
-        appendLine()
-        appendLine("Scenario:")
-        appendLine(preparation.character.scenario.trim().ifBlank { "(none)" })
-        appendLine()
-        appendLine("Recent user message:")
-        appendLine(preparation.recentUserMessage.trim().ifBlank { "(none)" })
-        appendLine()
-        appendLine("Latest character reply:")
-        appendLine(preparation.target.content.trim().ifBlank { "(none)" })
-    }
+    private fun buildSceneRefinementInput(preparation: ImageGenerationPreparation): String =
+        buildSceneRefinementInput(
+            character = preparation.character,
+            recentUserMessage = preparation.recentUserMessage,
+            assistantReply = preparation.target.content
+        )
 
     @Synchronized
     private fun publish(messageId: Long, state: ChatImageGenerationTaskState) {
@@ -287,4 +278,25 @@ Output only the scene description, with no labels, analysis, dialogue, or instru
 sealed interface ChatImageGenerationTaskState {
     data object Generating : ChatImageGenerationTaskState
     data class Failed(val message: String) : ChatImageGenerationTaskState
+}
+
+internal fun buildSceneRefinementInput(
+    character: Character,
+    recentUserMessage: String,
+    assistantReply: String
+): String = buildString {
+    appendLine("Character name:")
+    appendLine(character.name.trim().ifBlank { "(none)" })
+    appendLine()
+    appendLine("Character description:")
+    appendLine(character.description.trim().ifBlank { "(none)" })
+    appendLine()
+    appendLine("Scenario:")
+    appendLine(character.scenario.trim().ifBlank { "(none)" })
+    appendLine()
+    appendLine("Recent user message:")
+    appendLine(recentUserMessage.stripThinkBlocks().ifBlank { "(none)" })
+    appendLine()
+    appendLine("Latest character reply:")
+    appendLine(assistantReply.stripThinkBlocks().ifBlank { "(none)" })
 }
