@@ -60,10 +60,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 fun AboutLayout(
     uiState: AboutUiState,
     onBack: () -> Unit,
-    onCopyDeveloperEmail: () -> Unit,
-    onOpenRepository: () -> Unit,
-    onRateApp: () -> Unit,
-    onOpenFeedback: () -> Unit
+    onOpenLicense: () -> Unit,
+    onOpenUpstream: () -> Unit
 ) {
     Scaffold(
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
@@ -76,23 +74,19 @@ fun AboutLayout(
     ) { paddingValues ->
         AboutViewContent(
             uiState = uiState,
-            onCopyDeveloperEmail = onCopyDeveloperEmail,
-            onOpenRepository = onOpenRepository,
-            onRateApp = onRateApp,
-            onOpenFeedback = onOpenFeedback,
+            onOpenLicense = onOpenLicense,
+            onOpenUpstream = onOpenUpstream,
             modifier = Modifier.padding(paddingValues)
         )
     }
 }
 
-/** 关于页正文内容，组织品牌头部、特色评分卡片、社区互动组、支持信息组与致谢页脚。 */
+/** 关于页正文：品牌头部、许可与归属分组、版权页脚。 */
 @Composable
 private fun AboutViewContent(
     uiState: AboutUiState,
-    onCopyDeveloperEmail: () -> Unit,
-    onOpenRepository: () -> Unit,
-    onRateApp: () -> Unit,
-    onOpenFeedback: () -> Unit,
+    onOpenLicense: () -> Unit,
+    onOpenUpstream: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -106,21 +100,11 @@ private fun AboutViewContent(
         // - 品牌核心展示头部（包含双层圆角容器图标、应用名、版本胶囊与标语）
         AboutHeroHeader(appVersionName = uiState.appVersionName)
 
-        // - 精选特色好评卡片（突出星级评分与 Google Play 引导）
-        AboutRatingCard(onRateApp = onRateApp)
-
-        // - 社区与反馈分组（涵盖 Issue 追踪与 GitHub 仓库）
-        AboutCommunitySection(
-            repoName = uiState.githubRepoName,
-            onOpenFeedback = onOpenFeedback,
-            onOpenRepository = onOpenRepository
-        )
-
-        // - 关于与支持分组（涵盖开发者联系与开源许可证声明）
-        AboutSupportSection(
-            developerEmail = uiState.developerEmail,
-            onCopyDeveloperEmail = onCopyDeveloperEmail,
-            onOpenRepository = onOpenRepository
+        // - 许可与归属：MIT 全文入口 + 上游项目
+        AboutLicenseSection(
+            upstreamRepoName = uiState.upstreamRepoName,
+            onOpenLicense = onOpenLicense,
+            onOpenUpstream = onOpenUpstream
         )
 
         // - 底部致谢与版权声明
@@ -207,194 +191,12 @@ private fun AboutHeroHeader(
     }
 }
 
-/** 现代特色好评卡片：金色星级徽标、清晰说明与一键跳转按钮。 */
+/** 许可与归属分组：MIT 全文（应用内阅读）与上游项目链接。 */
 @Composable
-private fun AboutRatingCard(
-    onRateApp: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onRateApp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // - 星级评价行与 Google Play 徽标
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(5) {
-                        Icon(
-                            imageVector = Icons.Rounded.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFB800),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                ) {
-                    Text(
-                        text = stringResource(R.string.rate_on_google_play),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
-            }
-
-            // - 标题与引导文案
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.rate_card_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.rate_card_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                    lineHeight = 18.sp
-                )
-            }
-
-            // - 行动按钮
-            Button(
-                onClick = onRateApp,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                contentPadding = PaddingValues(vertical = 10.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.rate_card_action),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** 社区与反馈分组卡片：聚合 GitHub Issues 反馈与代码开源主页。 */
-@Composable
-private fun AboutCommunitySection(
-    repoName: String,
-    onOpenFeedback: () -> Unit,
-    onOpenRepository: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.section_community),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-        RpSettingsGroup {
-            RpSettingsTile(
-                icon = Icons.Rounded.BugReport,
-                iconColor = MaterialTheme.colorScheme.secondary,
-                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
-                title = stringResource(R.string.feedback_label),
-                subtitle = stringResource(R.string.feedback_desc),
-                onClick = onOpenFeedback,
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.feedback_github_issues),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            )
-            RpSettingsDivider()
-            RpSettingsTile(
-                icon = Icons.Rounded.Code,
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
-                title = stringResource(R.string.github_repo_label),
-                subtitle = repoName,
-                onClick = onOpenRepository,
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.visit_repo),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            )
-        }
-    }
-}
-
-/** 关于与支持分组卡片：聚合开发者交流邮箱与开源 MIT 许可证说明。 */
-@Composable
-private fun AboutSupportSection(
-    developerEmail: String,
-    onCopyDeveloperEmail: () -> Unit,
-    onOpenRepository: () -> Unit
+private fun AboutLicenseSection(
+    upstreamRepoName: String,
+    onOpenLicense: () -> Unit,
+    onOpenUpstream: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -409,48 +211,47 @@ private fun AboutSupportSection(
         )
         RpSettingsGroup {
             RpSettingsTile(
-                icon = Icons.Rounded.Email,
-                iconColor = MaterialTheme.colorScheme.primary,
-                iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                title = stringResource(R.string.developer_contact),
-                subtitle = stringResource(R.string.copy_email_hint),
-                onClick = onCopyDeveloperEmail,
-                trailing = {
-                    Text(
-                        text = developerEmail,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                icon = Icons.Rounded.Info,
+                iconColor = MaterialTheme.colorScheme.secondary,
+                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer
+                    .copy(alpha = 0.45f),
+                title = stringResource(R.string.open_source_license),
+                subtitle = stringResource(R.string.open_source_license_desc),
+                onClick = onOpenLicense,
+                trailing = { AboutTileTrailing(label = "MIT") }
             )
             RpSettingsDivider()
             RpSettingsTile(
-                icon = Icons.Rounded.Info,
-                iconColor = MaterialTheme.colorScheme.secondary,
-                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
-                title = stringResource(R.string.open_source_license),
-                subtitle = stringResource(R.string.open_source_license_desc),
-                onClick = onOpenRepository,
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "MIT",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
+                icon = Icons.Rounded.Code,
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    .copy(alpha = 0.45f),
+                title = stringResource(R.string.upstream_project),
+                subtitle = upstreamRepoName,
+                onClick = onOpenUpstream,
+                trailing = { AboutTileTrailing(label = stringResource(R.string.visit_repo)) }
             )
         }
+    }
+}
+
+@Composable
+private fun AboutTileTrailing(label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+            modifier = Modifier.size(16.dp)
+        )
     }
 }
 
@@ -486,16 +287,12 @@ private fun AboutLayoutPreview() {
         AboutLayout(
             uiState = AboutUiState(
                 appVersionName = "2026.2.2",
-                githubRepoUrl = "https://github.com/KafuuNeko/RPClient",
-                githubRepoName = "KafuuNeko/RPClient",
-                developerEmail = "developer@example.com",
-                githubIssuesUrl = "https://github.com/KafuuNeko/RPClient/issues"
+                upstreamRepoUrl = "https://github.com/KafuuNeko/RPClient",
+                upstreamRepoName = "KafuuNeko/RPClient"
             ),
             onBack = {},
-            onCopyDeveloperEmail = {},
-            onOpenRepository = {},
-            onRateApp = {},
-            onOpenFeedback = {}
+            onOpenLicense = {},
+            onOpenUpstream = {}
         )
     }
 }

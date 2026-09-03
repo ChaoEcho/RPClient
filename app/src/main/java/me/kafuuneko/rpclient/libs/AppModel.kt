@@ -15,10 +15,7 @@ import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_IMAGE_PROVIDER_SIZE
  * 这里只存放跨会话的全局设置和 Prompt 模板；角色、聊天及世界书等领域数据由 Room 管理。
  */
 object AppModel : KotprefModel() {
-    // 应用联系邮箱。
-    const val EMAIL = "kafuuneko@gmail.com"
-
-    // 仓库地址。
+    // 上游仓库地址，用于关于页的归属声明。
     const val GITHUB_REPO = "https://github.com/KafuuNeko/RPClient"
 
     // 最后一个成功完成的业务升级步骤 versionCode；保留属性名以兼容既有偏好键。
