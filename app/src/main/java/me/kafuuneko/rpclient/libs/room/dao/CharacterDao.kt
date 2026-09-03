@@ -30,6 +30,10 @@ interface CharacterDao : MutableDao<Character> {
      *
      * @param id 角色 id。
      */
+    /** 只更新外貌提炼缓存，避免与同时期的角色编辑互相覆盖。 */
+    @Query("UPDATE character SET visualIdentity = :visualIdentity WHERE id = :id")
+    suspend fun updateVisualIdentity(id: Long, visualIdentity: String)
+
     @Query("DELETE FROM character WHERE id = :id")
     suspend fun deleteCharacterById(id: Long)
 

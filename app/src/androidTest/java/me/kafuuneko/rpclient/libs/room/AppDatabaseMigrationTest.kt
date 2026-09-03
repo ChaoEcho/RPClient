@@ -498,6 +498,37 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migrate8To9_addsEmptyVisualIdentityToExistingCharacters() {
+        migrationHelper.createDatabase(VisualIdentityDatabaseName, 8).apply {
+            execSQL(
+                """
+                INSERT INTO character (
+                    id, name, avatar, characterTags, description, personality, scenario,
+                    firstMessages, examplesOfDialogue, postHistoryInstructions
+                ) VALUES (101, 'character', '', '[]', 'long description', '', '', '[]', '', '')
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            VisualIdentityDatabaseName,
+            9,
+            true
+        )
+
+        // 既有角色必须落在空缓存上：迁移不能凭空造出一份没提炼过的外貌。
+        migrated.query(
+            "SELECT description, visualIdentity FROM character WHERE id = 101"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("long description", cursor.getString(0))
+            assertEquals("", cursor.getString(1))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"
@@ -506,5 +537,6 @@ class AppDatabaseMigrationTest {
         const val ConcurrencyDatabaseName = "app-concurrency-migration-test"
         const val GroupChatDatabaseName = "app-group-chat-migration-test"
         const val ImageProviderDatabaseName = "app-image-provider-migration-test"
+        const val VisualIdentityDatabaseName = "app-visual-identity-migration-test"
     }
 }

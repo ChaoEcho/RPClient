@@ -65,7 +65,11 @@ data class Character(
     val depthPromptRole: Int = 0,
     // 从角色卡 data.character_book 导入并绑定的世界书 ID；0 表示未绑定。
     @ColumnInfo(defaultValue = "0")
-    val characterLorebookId: Long = 0L
+    val characterLorebookId: Long = 0L,
+    // 从角色描述里提炼出的纯外貌段落，供配图与头像复用；空串表示尚未提炼。
+    // 它是缓存而不是用户数据：角色保存时一律清空，由下一次出图重新提炼。
+    @ColumnInfo(defaultValue = "")
+    val visualIdentity: String = ""
 ) {
     /** 解析角色标签 JSON；损坏数据由 Gson 工具按空列表处理。 */
     fun getCharacterTagList(): List<String> {

@@ -28,15 +28,9 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.imagegeneration.AVATAR_IMAGE_SIZE
-import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
-import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
-import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.imagegeneration.AVATAR_APPEARANCE_REFINEMENT_SYSTEM_PROMPT
 import me.kafuuneko.rpclient.libs.imagegeneration.AvatarPromptBuilder
+import me.kafuuneko.rpclient.libs.imagegeneration.CharacterVisualIdentityResolver
 import me.kafuuneko.rpclient.libs.imagegeneration.ImageGenerationConfig
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -46,7 +40,6 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
-import me.kafuuneko.rpclient.libs.room.repository.LLM_PERMIT_SCOPE_IMAGE_PROMPT
 import me.kafuuneko.rpclient.utils.orSingleBlank
 import me.kafuuneko.rpclient.utils.removeAtOrSelf
 import me.kafuuneko.rpclient.utils.updateAt
@@ -69,12 +62,12 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mImageProviderRepository by inject<ImageProviderRepository>()
+    private val mVisualIdentityResolver by inject<CharacterVisualIdentityResolver>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mCharacterCardRepository by inject<CharacterCardRepository>()
     private val mImageClient by inject<OpenAICompatibleImageClient>()
     private val mRequestConcurrencyLimiter by inject<RequestConcurrencyLimiter>()
-    private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private var mPendingUpdate: CharacterCardImportDraft? = null
 
     /** 初始化编辑页，拉取候选世界书与提供商列表，并加载目标角色或新建空表单。 */
@@ -268,10 +261,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             try {
                 val prompt = AvatarPromptBuilder.buildAvatarPrompt(
                     characterName = characterName,
-                    characterDescription = refineAvatarAppearance(
+                    characterDescription = mVisualIdentityResolver.refineDraft(
                         characterName = characterName,
                         characterDescription = characterDescription,
-                        characterProviderId = characterProviderId
+                        promptProviderId = characterProviderId
                     ),
                     avatarStylePrompt = AppModel.imageGenerationAvatarStylePrompt
                 )
@@ -306,58 +299,6 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                     }
                 }
             }
-        }
-    }
-
-    /**
-     * 用模型把角色描述提炼成纯外貌段落。
-     *
-     * 与聊天配图的场景提炼是同一手法：角色卡里性格、背景、关系占了大头，原样喂给绘图
-     * 模型会把外貌特征稀释掉。任何失败都回退到原始描述，绝不因此挡住头像生成。
-     */
-    private suspend fun refineAvatarAppearance(
-        characterName: String,
-        characterDescription: String,
-        characterProviderId: Long
-    ): String {
-        val description = characterDescription.trim()
-        if (description.length < AVATAR_REFINEMENT_MIN_LENGTH) return description
-        return try {
-            val provider = withContext(Dispatchers.IO) {
-                mProviderSelectionResolver.requireImagePromptProvider(characterProviderId)
-            }
-            val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = provider,
-                    request = LLMGenerationRequest(
-                        messages = listOf(
-                            LLMMessage(
-                                LLMMessageRole.System,
-                                AVATAR_APPEARANCE_REFINEMENT_SYSTEM_PROMPT
-                            ),
-                            LLMMessage(
-                                LLMMessageRole.User,
-                                "Character name:\n${characterName.trim().ifBlank { "(none)" }}\n\n" +
-                                    "Character description:\n$description"
-                            )
-                        ),
-                        options = LLMGenerationOptions(
-                            temperature = AVATAR_REFINEMENT_TEMPERATURE,
-                            maxTokens = AVATAR_REFINEMENT_MAX_TOKENS
-                        ),
-                        includeReasoningInContent = false,
-                        captureReasoning = false,
-                        isPromptFinalized = true
-                    ),
-                    permitScope = LLM_PERMIT_SCOPE_IMAGE_PROMPT
-                )
-            }
-            response.content.trim().takeIf { it.isNotEmpty() } ?: description
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (error: Exception) {
-            AppLogger.w("Image", "Avatar appearance refinement failed: ${error.message}")
-            description
         }
     }
 
@@ -1002,10 +943,4 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         }
     }
 
-    private companion object {
-        /** 短描述本身就是外貌，多一次模型往返只会增加延迟。 */
-        const val AVATAR_REFINEMENT_MIN_LENGTH = 80
-        const val AVATAR_REFINEMENT_TEMPERATURE = 0.2f
-        const val AVATAR_REFINEMENT_MAX_TOKENS = 220
-    }
 }

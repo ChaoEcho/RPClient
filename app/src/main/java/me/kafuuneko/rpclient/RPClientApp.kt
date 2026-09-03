@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.imagegeneration.CharacterVisualIdentityResolver
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
@@ -124,6 +125,7 @@ internal val appModules = module {
     singleOf(::RequestConcurrencyLimiter)
     singleOf(::AiTaskForegroundController)
     single { ChatGenerationCoordinator(get()) }
+    singleOf(::CharacterVisualIdentityResolver)
     singleOf(::ChatImageGenerationCoordinator)
 
     singleOf(::OpenAICompatibleImageClient)
