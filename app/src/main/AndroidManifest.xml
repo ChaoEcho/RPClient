@@ -80,7 +80,7 @@
             android:name=".feature.chat.ChatActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"
-            android:windowSoftInputMode="adjustPan" />
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.chatcreate.ChatCreateActivity"
             android:exported="false"
@@ -90,7 +90,7 @@
             android:name=".feature.groupchat.GroupChatActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"
-            android:windowSoftInputMode="adjustPan" />
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.groupchatcreate.GroupChatCreateActivity"
             android:exported="false"
