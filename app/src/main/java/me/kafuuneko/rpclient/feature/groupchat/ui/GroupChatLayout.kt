@@ -301,7 +301,7 @@ private fun GroupChatSettingsView(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1765,7 +1765,7 @@ private fun Composer(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 )
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom

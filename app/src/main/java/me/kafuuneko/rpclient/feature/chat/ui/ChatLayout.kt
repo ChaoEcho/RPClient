@@ -293,6 +293,9 @@ private fun ChatNormal(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
                 .onSizeChanged { size ->
                     val newHeight = size.height
                     if (previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
@@ -409,6 +412,9 @@ private fun CustomChatTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
                 .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1188,7 +1194,7 @@ private fun ChatInputBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 )
         ) {
             Box(
@@ -1381,7 +1387,7 @@ private fun ChatSettingsPage(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
