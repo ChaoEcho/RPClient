@@ -40,10 +40,10 @@ class PromptMacroResolver(
 
         // 解析带参数的格式化宏与动态开场白宏
         result = result.replace(Regex("""\{\{\s*newline::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            "\n".repeat(it.groupValues[1].toIntOrNull()?.coerceAtLeast(0) ?: 1)
+            "\n".repeat(it.groupValues[1].toIntOrNull() ?: 1)
         }
         result = result.replace(Regex("""\{\{\s*space::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            " ".repeat(it.groupValues[1].toIntOrNull()?.coerceAtLeast(0) ?: 1)
+            " ".repeat(it.groupValues[1].toIntOrNull() ?: 1)
         }
         result = result.replace(Regex("""\{\{\s*charFirstMessage::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
             firstMessages.getOrNull(it.groupValues[1].toIntOrNull() ?: -1).orEmpty()

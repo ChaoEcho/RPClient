@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs
 import com.chibatching.kotpref.KotprefModel
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
@@ -12,7 +13,7 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
  *
  * 这里只存放跨会话的全局设置和 Prompt 模板；角色、聊天及世界书等领域数据由 Room 管理。
  */
-object AppModel : KotprefModel() {
+object AppModel : KotprefModel(), PromptPreferences {
     // 应用联系邮箱。
     const val EMAIL = "kafuuneko@gmail.com"
 
@@ -173,49 +174,49 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var llmRoutingInstallationId by stringPref(default = "")
 
     // 主提示词（Main Prompt），注入每次普通对话生成的系统区。
-    var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)
+    override var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)
 
     // 摘要提示词（Summarize Prompt），用于自动或手动总结聊天历史。
     var summarizePrompt by stringPref(default = DEFAULT_SUMMARIZE_PROMPT)
 
     // 全局历史后指令，追加在聊天历史之后；角色卡可通过 {{original}} 覆盖或继承该内容。
-    var postHistoryInstructions by stringPref(default = DEFAULT_POST_HISTORY_INSTRUCTIONS)
+    override var postHistoryInstructions by stringPref(default = DEFAULT_POST_HISTORY_INSTRUCTIONS)
 
     // 辅助提示词，随角色定义和世界书固定区一起放在聊天历史之前。
-    var auxiliaryPrompt by stringPref(default = DEFAULT_AUXILIARY_PROMPT)
+    override var auxiliaryPrompt by stringPref(default = DEFAULT_AUXILIARY_PROMPT)
 
     // 扮演用户提示词，生成用户视角消息时作为尾部系统指令。
-    var impersonationPrompt by stringPref(default = DEFAULT_IMPERSONATION_PROMPT)
+    override var impersonationPrompt by stringPref(default = DEFAULT_IMPERSONATION_PROMPT)
 
     // 新聊天边界提示词，插入在设定区和真实聊天历史之间。
-    var newChatPrompt by stringPref(default = DEFAULT_NEW_CHAT_PROMPT)
+    override var newChatPrompt by stringPref(default = DEFAULT_NEW_CHAT_PROMPT)
 
     // 示例聊天边界提示词，插入在每个示例对话块之前。
-    var newExampleChatPrompt by stringPref(default = DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
+    override var newExampleChatPrompt by stringPref(default = DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
 
     // 续写提示词，继续最新助手回复时作为尾部系统指令。
-    var continueNudgePrompt by stringPref(default = DEFAULT_CONTINUE_NUDGE_PROMPT)
+    override var continueNudgePrompt by stringPref(default = DEFAULT_CONTINUE_NUDGE_PROMPT)
 
     // 空消息替换文本；输入框为空时若该字段非空，则使用它作为用户消息发送。
     var replaceEmptyMessagePrompt by stringPref(default = DEFAULT_REPLACE_EMPTY_MESSAGE_PROMPT)
 
     // 世界书格式模板，使用 {0} 包装已激活的世界书条目。
-    var worldInfoFormat by stringPref(default = DEFAULT_WORLD_INFO_FORMAT)
+    override var worldInfoFormat by stringPref(default = DEFAULT_WORLD_INFO_FORMAT)
 
     // 场景格式模板，使用 {{scenario}} 包装角色场景文本。
-    var scenarioFormat by stringPref(default = DEFAULT_SCENARIO_FORMAT)
+    override var scenarioFormat by stringPref(default = DEFAULT_SCENARIO_FORMAT)
 
     // 性格格式模板，使用 {{personality}} 包装角色性格文本。
-    var personalityFormat by stringPref(default = DEFAULT_PERSONALITY_FORMAT)
+    override var personalityFormat by stringPref(default = DEFAULT_PERSONALITY_FORMAT)
 
     // 用户人设格式模板，使用 {{persona}} 包装人设正文，并可用 {{user}} 引用用户名。
-    var userPersonaFormat by stringPref(default = DEFAULT_USER_PERSONA_FORMAT)
+    override var userPersonaFormat by stringPref(default = DEFAULT_USER_PERSONA_FORMAT)
 
     // 全局群聊生成尾部提示词，可由具体群聊会话覆盖。
-    var groupNudgePrompt by stringPref(default = DEFAULT_GROUP_NUDGE_PROMPT)
+    override var groupNudgePrompt by stringPref(default = DEFAULT_GROUP_NUDGE_PROMPT)
 
     // 全局群聊开始提示词，可由具体群聊会话覆盖。
-    var newGroupChatPrompt by stringPref(default = DEFAULT_NEW_GROUP_CHAT_PROMPT)
+    override var newGroupChatPrompt by stringPref(default = DEFAULT_NEW_GROUP_CHAT_PROMPT)
 
     // 群聊专用摘要提示词。
     var groupSummarizePrompt by stringPref(default = DEFAULT_GROUP_SUMMARIZE_PROMPT)
@@ -262,24 +263,24 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var summaryResponseTokens by intPref(default = 1000)
 
     // 总结记忆注入常规聊天 Prompt 时使用的包装模板。
-    var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+    override var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
 
     // 摘要注入位置使用 SummaryInjectionPosition.persistedValue 持久化。
-    var summaryInjectionPosition by intPref(
+    override var summaryInjectionPosition by intPref(
         default = SummaryInjectionPosition.default.persistedValue
     )
 
     // 摘要位于聊天内时，从聊天末尾向前计算的插入深度。
-    var summaryInjectionDepth by intPref(default = 2)
+    override var summaryInjectionDepth by intPref(default = 2)
 
     // 摘要位于聊天内时使用的消息角色，对应 SummaryInjectionRole.persistedValue。
-    var summaryInjectionRole by intPref(default = 0)
+    override var summaryInjectionRole by intPref(default = 0)
 
     // 世界书占输入 Prompt 预算的百分比。
-    var worldInfoBudgetPercent by intPref(default = 25)
+    override var worldInfoBudgetPercent by intPref(default = 25)
 
     // 世界书固定 Token 上限；0 表示仅使用上下文百分比，不额外设上限。
-    var worldInfoBudgetCap by intPref(default = 0)
+    override var worldInfoBudgetCap by intPref(default = 0)
 
     // 世界书候选条目因独立预算未进入 Prompt 时是否提示用户。
     var worldInfoOverflowAlert by booleanPref(default = true)
@@ -291,7 +292,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var exampleDialogueBehavior by intPref(default = ExampleDialogueBehavior.default.persistedValue)
 
     // 是否把已保存消息中的 <think>...</think> 思考块继续纳入后续上下文。
-    var includeThinkInContext by booleanPref(default = false)
+    override var includeThinkInContext by booleanPref(default = false)
 
     // 普通生成最多读取的最近历史消息数；0 表示不限制并保持旧版行为。
     var maxPromptHistoryMessages by intPref(default = DEFAULT_MAX_PROMPT_HISTORY_MESSAGES)

@@ -19,6 +19,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.TestPromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
@@ -32,7 +33,11 @@ class GroupChatPromptBuilderTest {
     @Test
     fun userPersonaUsesSharedFormatAndCurrentSpeakerMacros() {
         val lyra = character(1, "Lyra")
-        val request = GroupChatPromptBuilder().build(
+        val request = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(
+                userPersonaFormat = "Profile of {{user}}: {{persona}}"
+            )
+        ).build(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -51,7 +56,7 @@ class GroupChatPromptBuilderTest {
 
         assertTrue(
             request.messages.any {
-                it.content == "User Persona (Alex):\nAlex trusts Lyra."
+                it.content == "Profile of Alex: Alex trusts Lyra."
             }
         )
     }
@@ -62,6 +67,7 @@ class GroupChatPromptBuilderTest {
             examplesOfDialogue = "<START>\nUser: Example question\nLyra: Example answer"
         )
         val request = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
                 ExampleDialogueBehavior.Disabled
             }
@@ -109,6 +115,7 @@ class GroupChatPromptBuilderTest {
             override fun countText(text: String): Int = text.length
         }
         val result = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mRequestFinalizer = PromptRequestFinalizer { tokenizer },
             mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
                 providerReads += 1
@@ -142,7 +149,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun groupPromptUsesSamePromptOnlyRegexPipeline() {
         val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -190,7 +197,7 @@ class GroupChatPromptBuilderTest {
             userName = "Alex",
             userDescription = ""
         )
-        val request = GroupChatPromptBuilder().build(
+        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
             GroupChatPromptContext(
                 session = session,
                 members = listOf(member(lyra, 0), member(mina, 1)),
@@ -231,7 +238,7 @@ class GroupChatPromptBuilderTest {
             depthPromptPrompt = "Mina depth",
             depthPromptDepth = 1
         )
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -271,7 +278,7 @@ class GroupChatPromptBuilderTest {
             depthPromptPrompt = "Always write as Lyra.",
             depthPromptDepth = 0
         )
-        val request = GroupChatPromptBuilder().build(
+        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -319,7 +326,7 @@ class GroupChatPromptBuilderTest {
             postHistoryInstructions = "Group PHI",
             systemPrompt = "Write Lyra's next reply."
         )
-        val request = GroupChatPromptBuilder().build(
+        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -350,7 +357,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun groupContinueAlwaysEndsWithUserNudge() {
         val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -390,7 +397,7 @@ class GroupChatPromptBuilderTest {
     fun finalGroupPromptStaysWithinBudgetAndExplainsRemovedHistory() {
         val lyra = character(1, "Lyra")
         val mina = character(2, "Mina")
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -426,6 +433,7 @@ class GroupChatPromptBuilderTest {
             override fun countText(text: String): Int = text.length
         }
         val result = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mRequestFinalizer = PromptRequestFinalizer { tokenizer }
         ).buildWithMetadata(
             GroupChatPromptContext(
@@ -482,6 +490,7 @@ class GroupChatPromptBuilderTest {
             override fun countText(text: String): Int = text.length
         }
         val result = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mRequestFinalizer = PromptRequestFinalizer { tokenizer }
         ).buildWithMetadata(
             GroupChatPromptContext(
@@ -532,6 +541,7 @@ class GroupChatPromptBuilderTest {
         }
         assertThrows(PromptBudgetExceededException::class.java) {
             GroupChatPromptBuilder(
+                mPreferences = TestPromptPreferences(),
                 mRequestFinalizer = PromptRequestFinalizer { tokenizer }
             ).buildWithMetadata(
                 GroupChatPromptContext(
@@ -598,8 +608,8 @@ class GroupChatPromptBuilderTest {
             candidateLorebookEntries = listOf(entry)
         )
 
-        val normal = GroupChatPromptBuilder().build(baseContext)
-        val regenerated = GroupChatPromptBuilder().build(
+        val normal = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(baseContext)
+        val regenerated = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
             baseContext.copy(generationMode = GroupChatGenerationMode.Regenerate)
         )
 
@@ -642,7 +652,7 @@ class GroupChatPromptBuilderTest {
             candidateLorebookEntries = listOf(entry)
         )
 
-        val request = GroupChatPromptBuilder().build(context)
+        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(context)
 
         assertTrue(request.messages.any { it.content.contains(entry.content) })
     }

@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
@@ -11,6 +10,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
@@ -114,6 +114,7 @@ data class GroupChatPromptBuildResult(
  * - 上下文预算与协议适配：统一交由 [PromptRequestFinalizer] 进行 Token 预算裁剪与格式后处理
  */
 class GroupChatPromptBuilder(
+    private val mPreferences: PromptPreferences,
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
         me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
@@ -150,15 +151,11 @@ class GroupChatPromptBuilder(
      */
     fun buildWithMetadata(context: GroupChatPromptContext): GroupChatPromptBuildResult {
         val exampleBehavior = mExampleDialogueBehaviorProvider.current()
-        // 计算可用 Prompt Token 预算（总上下文扣除最大响应 Token）
-        val maxPromptTokens = (
-            context.provider.contextTokens - context.provider.maxTokens
-        ).coerceAtLeast(0)
-        // 解析世界书全局 Token 预算上限
+        // 扣除回复预留，再由统一预算函数归一化并应用世界书上限
         val worldBudget = resolveWorldInfoBudget(
-            promptTokenBudget = maxPromptTokens,
-            contextPercent = readWorldInfoBudgetPercent(),
-            tokenBudgetCap = readWorldInfoBudgetCap()
+            promptTokenBudget = context.provider.contextTokens - context.provider.maxTokens,
+            contextPercent = mPreferences.worldInfoBudgetPercent,
+            tokenBudgetCap = mPreferences.worldInfoBudgetCap
         )
         val regexHits = mutableListOf<RegexExecutionHit>()
         val regexErrors = mutableListOf<RegexExecutionError>()
@@ -394,7 +391,7 @@ class GroupChatPromptBuilder(
         // 注入用户形象设定（User persona）
         before += requiredSystem(
             renderUserPersonaTemplate(
-                template = readUserPersonaFormat(),
+                template = mPreferences.userPersonaFormat,
                 userName = context.session.userName,
                 userDescription = context.session.userDescription,
                 characterName = context.speaker.name
@@ -404,7 +401,7 @@ class GroupChatPromptBuilder(
         // 注入合并后的成员角色卡
         before += buildCharacterCards(context)
         // 注入辅助提示词
-        readAuxiliaryPrompt().takeIf { it.isNotBlank() }?.let {
+        mPreferences.auxiliaryPrompt.takeIf { it.isNotBlank() }?.let {
             before += optionalSystem(
                 it.resolve(context, memberNames),
                 PromptSource(PromptSourceKind.AuxiliaryPrompt),
@@ -546,7 +543,7 @@ class GroupChatPromptBuilder(
                 .filter { it.isNotBlank() }
                 .flatMap { block ->
                     buildList {
-                        readNewExampleChatPrompt().takeIf { it.isNotBlank() }?.let {
+                        mPreferences.newExampleChatPrompt.takeIf { it.isNotBlank() }?.let {
                             add(
                                 optionalSystem(
                                     it,
@@ -734,7 +731,7 @@ class GroupChatPromptBuilder(
     /** 过滤群聊历史消息中的 `<think>...</think>` 推理思考块。 */
     private fun sanitizeHistory(messages: List<GroupChatMessage>): List<GroupChatMessage> {
         return messages.mapNotNull { message ->
-            val cleaned = if (readIncludeThinkInContext()) {
+            val cleaned = if (mPreferences.includeThinkInContext) {
                 message.content
             } else {
                 message.content.stripThinkBlocks()
@@ -764,7 +761,7 @@ class GroupChatPromptBuilder(
 
     /** 读取并解析群聊主提示词。 */
     private fun GroupChatPromptContext.mainPrompt(): String {
-        val original = readMainPrompt()
+        val original = mPreferences.mainPrompt
         return session.systemPromptOverride.trim()
             .ifBlank {
                 speaker.systemPrompt.trim().ifBlank { original }
@@ -774,7 +771,7 @@ class GroupChatPromptBuilder(
 
     /** 读取并解析群聊历史后指令。 */
     private fun GroupChatPromptContext.postHistoryInstructions(): String {
-        val original = readPostHistoryInstructions()
+        val original = mPreferences.postHistoryInstructions
         return speaker.postHistoryInstructions.trim()
             .ifBlank { original }
             .resolve(this, memberNames(), original)
@@ -783,13 +780,13 @@ class GroupChatPromptBuilder(
     /** 读取群聊任务引导词（Group Nudge）。 */
     private fun GroupChatPromptContext.groupNudgePrompt(): String {
         return session.groupNudgePromptOverride.trim()
-            .ifBlank { readGroupNudgePrompt() }
+            .ifBlank { mPreferences.groupNudgePrompt }
     }
 
     /** 读取新群聊标记提示词。 */
     private fun GroupChatPromptContext.newGroupChatPrompt(): String {
         return session.newGroupChatPromptOverride.trim()
-            .ifBlank { readNewGroupChatPrompt() }
+            .ifBlank { mPreferences.newGroupChatPrompt }
     }
 
     /** 将群聊消息实体转换为带发言者前缀的 Prompt 草稿。 */
@@ -837,12 +834,12 @@ class GroupChatPromptBuilder(
 
     /** 格式化世界书条目内容。 */
     private fun formatWorldInfo(content: String): String {
-        return readWorldInfoFormat().replace("{0}", content)
+        return mPreferences.worldInfoFormat.replace("{0}", content)
     }
 
     /** 格式化性格描述文本。 */
     private fun formatPersonality(content: String): String {
-        return readPersonalityFormat().let { template ->
+        return mPreferences.personalityFormat.let { template ->
             if (template.contains("{{personality}}")) {
                 template.replace("{{personality}}", content)
             } else {
@@ -853,7 +850,7 @@ class GroupChatPromptBuilder(
 
     /** 格式化场景描述文本。 */
     private fun formatScenario(content: String): String {
-        return readScenarioFormat().let { template ->
+        return mPreferences.scenarioFormat.let { template ->
             if (template.contains("{{scenario}}")) {
                 template.replace("{{scenario}}", content)
             } else {
@@ -861,77 +858,6 @@ class GroupChatPromptBuilder(
             }
         }
     }
-
-    /** 读取全局主提示词。 */
-    private fun readMainPrompt(): String =
-        runCatching { AppModel.mainPrompt }.getOrDefault(AppModel.DEFAULT_MAIN_PROMPT)
-
-    /** 读取历史后指令。 */
-    private fun readPostHistoryInstructions(): String =
-        runCatching { AppModel.postHistoryInstructions }.getOrDefault("")
-
-    /** 读取辅助提示词。 */
-    private fun readAuxiliaryPrompt(): String =
-        runCatching { AppModel.auxiliaryPrompt }
-            .getOrDefault(AppModel.DEFAULT_AUXILIARY_PROMPT)
-
-    /** 读取扮演用户提示词。 */
-    private fun readImpersonationPrompt(): String =
-        runCatching { AppModel.impersonationPrompt }
-            .getOrDefault(AppModel.DEFAULT_IMPERSONATION_PROMPT)
-
-    /** 读取续写引导提示词。 */
-    private fun readContinueNudgePrompt(): String =
-        runCatching { AppModel.continueNudgePrompt }
-            .getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
-
-    /** 读取示例对话分隔标记提示词。 */
-    private fun readNewExampleChatPrompt(): String =
-        runCatching { AppModel.newExampleChatPrompt }
-            .getOrDefault(AppModel.DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
-
-    /** 读取群聊任务引导提示词（Group Nudge）。 */
-    private fun readGroupNudgePrompt(): String =
-        runCatching { AppModel.groupNudgePrompt }
-            .getOrDefault(AppModel.DEFAULT_GROUP_NUDGE_PROMPT)
-
-    /** 读取新群聊标记提示词。 */
-    private fun readNewGroupChatPrompt(): String =
-        runCatching { AppModel.newGroupChatPrompt }
-            .getOrDefault(AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT)
-
-    /** 读取世界书包装模板。 */
-    private fun readWorldInfoFormat(): String =
-        runCatching { AppModel.worldInfoFormat }
-            .getOrDefault(AppModel.DEFAULT_WORLD_INFO_FORMAT)
-
-    /** 读取性格包装模板。 */
-    private fun readPersonalityFormat(): String =
-        runCatching { AppModel.personalityFormat }
-            .getOrDefault(AppModel.DEFAULT_PERSONALITY_FORMAT)
-
-    /** 读取场景包装模板。 */
-    private fun readScenarioFormat(): String =
-        runCatching { AppModel.scenarioFormat }
-            .getOrDefault(AppModel.DEFAULT_SCENARIO_FORMAT)
-
-    /** 读取统一用户人设包装模板。 */
-    private fun readUserPersonaFormat(): String =
-        runCatching { AppModel.userPersonaFormat }
-            .getOrDefault(AppModel.DEFAULT_USER_PERSONA_FORMAT)
-
-    /** 读取世界书预算百分比。 */
-    private fun readWorldInfoBudgetPercent(): Int =
-        runCatching { AppModel.worldInfoBudgetPercent }.getOrDefault(25)
-
-    /** 读取世界书绝对 Token 预算上限。 */
-    private fun readWorldInfoBudgetCap(): Int =
-        runCatching { AppModel.worldInfoBudgetCap }
-            .getOrDefault(0)
-
-    /** 读取是否在上下文中保留推理思考块。 */
-    private fun readIncludeThinkInContext(): Boolean =
-        runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
 
     /** 读取 Prompt 后处理模式。 */
     private fun readPostProcessingMode(provider: LLMProvider): PromptPostProcessingMode {
@@ -941,30 +867,26 @@ class GroupChatPromptBuilder(
     /** 读取摘要注入位置。 */
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
         return SummaryInjectionPosition.fromPersistedValue(
-            runCatching { AppModel.summaryInjectionPosition }
-                .getOrDefault(SummaryInjectionPosition.default.persistedValue)
+            mPreferences.summaryInjectionPosition
         )
     }
 
     /** 读取摘要注入深度。 */
     private fun readSummaryInjectionDepth(): Int {
-        return runCatching { AppModel.summaryInjectionDepth }
-            .getOrDefault(2)
-            .coerceAtLeast(0)
+        return mPreferences.summaryInjectionDepth.coerceAtLeast(0)
     }
 
     /** 读取摘要注入角色。 */
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
         return SummaryInjectionRole.fromPersistedValue(
-            runCatching { AppModel.summaryInjectionRole }.getOrDefault(0)
+            mPreferences.summaryInjectionRole
         )
     }
 
     /** 构建群聊摘要消息草稿。 */
     private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         if (context.summary.isBlank()) return null
-        val template = runCatching { AppModel.summaryInjectionTemplate }
-            .getOrDefault(AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+        val template = mPreferences.summaryInjectionTemplate
         val content = if (template.contains("{{summary}}", ignoreCase = true)) {
             template.replace("{{summary}}", context.summary, ignoreCase = true)
         } else {
@@ -988,8 +910,8 @@ class GroupChatPromptBuilder(
         val content = when (context.generationMode) {
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
-            GroupChatGenerationMode.Continue -> readContinueNudgePrompt()
-            GroupChatGenerationMode.Impersonate -> readImpersonationPrompt()
+            GroupChatGenerationMode.Continue -> mPreferences.continueNudgePrompt
+            GroupChatGenerationMode.Impersonate -> mPreferences.impersonationPrompt
         }.resolve(context, context.memberNames())
         val sourceKind = when (context.generationMode) {
             GroupChatGenerationMode.Continue -> PromptSourceKind.ContinueNudge

@@ -2,7 +2,11 @@ package me.kafuuneko.rpclient.feature.imagecrop.model
 
 import me.kafuuneko.rpclient.model.SquareCropSelection
 
-/** 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。 */
+/**
+ * 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。
+ *
+ * 由已解码位图的宽高比创建；缩放和平移边界由 [update] 与 [rotateRight] 维持。
+ */
 data class ImageCropTransform(
     /** 原始图像的宽高比。 */
     val sourceAspectRatio: Float,
@@ -45,8 +49,8 @@ data class ImageCropTransform(
         val appliedZoomChange = newZoom / zoom
         val baseWidth = maxOf(effectiveAspectRatio, 1f)
         val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
-        val maxOffsetX = ((baseWidth * newZoom - 1f) / 2f).coerceAtLeast(0f)
-        val maxOffsetY = ((baseHeight * newZoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetX = (baseWidth * newZoom - 1f) / 2f
+        val maxOffsetY = (baseHeight * newZoom - 1f) / 2f
         return copy(
             zoom = newZoom,
             offsetX = (offsetX * appliedZoomChange + panX).coerceIn(-maxOffsetX, maxOffsetX),
@@ -61,8 +65,8 @@ data class ImageCropTransform(
         val nextEffectiveAspect = if (isNextRotated90) 1f / sourceAspectRatio else sourceAspectRatio
         val nextBaseW = maxOf(nextEffectiveAspect, 1f)
         val nextBaseH = maxOf(1f / nextEffectiveAspect, 1f)
-        val maxOffsetX = ((nextBaseW * zoom - 1f) / 2f).coerceAtLeast(0f)
-        val maxOffsetY = ((nextBaseH * zoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetX = (nextBaseW * zoom - 1f) / 2f
+        val maxOffsetY = (nextBaseH * zoom - 1f) / 2f
         return copy(
             rotationDegrees = nextRotation,
             offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX),
@@ -72,11 +76,9 @@ data class ImageCropTransform(
 
     /** 水平镜像翻转并反转 X 轴偏移量。 */
     fun flipHorizontal(): ImageCropTransform {
-        val baseWidth = maxOf(effectiveAspectRatio, 1f)
-        val maxOffsetX = ((baseWidth * zoom - 1f) / 2f).coerceAtLeast(0f)
         return copy(
             isFlippedHorizontal = !isFlippedHorizontal,
-            offsetX = (-offsetX).coerceIn(-maxOffsetX, maxOffsetX)
+            offsetX = -offsetX
         )
     }
 
@@ -111,4 +113,3 @@ data class ImageCropTransform(
         const val MAX_ZOOM = 8f
     }
 }
-

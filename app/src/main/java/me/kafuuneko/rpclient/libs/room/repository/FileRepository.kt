@@ -327,7 +327,7 @@ class FileRepository(
         ) {
             sampleSize *= 2L
         }
-        return sampleSize.toInt().coerceAtLeast(1)
+        return sampleSize.toInt()
     }
 
     private fun calculateLongEdgeSampleSize(width: Int, height: Int, maxDimension: Int): Int {

@@ -330,9 +330,7 @@ class ChatArchiveCodec(
     }
 
     private fun JsonObject.stringOrNull(key: String): String? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asString }.getOrNull()
-        }
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.asString
     }
 
     private fun JsonObject.longOrNull(key: String): Long? {
@@ -348,9 +346,7 @@ class ChatArchiveCodec(
     }
 
     private fun JsonObject.booleanOrNull(key: String): Boolean? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asBoolean }.getOrNull()
-        }
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.asBoolean
     }
 
     private fun JsonElement?.toTimestampOrNull(): Long? {
@@ -358,7 +354,7 @@ class ChatArchiveCodec(
         if (primitive.isNumber) {
             return primitive.asLong.normalizeEpoch()
         }
-        val value = runCatching { primitive.asString.trim() }.getOrNull() ?: return null
+        val value = primitive.asString.trim()
         value.toLongOrNull()?.let { return it.normalizeEpoch() }
         runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()?.let { return it }
         runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }

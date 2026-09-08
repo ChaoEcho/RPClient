@@ -57,6 +57,11 @@ class WorldBookBudgeterTest {
 
     @Test
     fun globalBudgetNormalizesPersistedSettings() {
+        // 百分比归一化后，即使输入预算达到 Int 上限，结果也不会溢出。
+        assertEquals(
+            Int.MAX_VALUE,
+            resolveWorldInfoBudget(Int.MAX_VALUE, Int.MAX_VALUE, 0)
+        )
         assertEquals(
             10_000,
             resolveWorldInfoBudget(10_000, 120, 0)
@@ -125,20 +130,22 @@ class WorldBookBudgeterTest {
     }
 
     @Test
-    fun smallLorebookBudgetIsAnAbsoluteTokenLimit() {
-        val entry = entry(id = 1L, content = "x".repeat(26), order = 10)
+    fun lorebookBudgetIsAnAbsoluteTokenLimit() {
+        // 小于和大于 100 的配置均为 Token 数；全局预算避开 100，以区分百分比误读。
+        listOf(25, 101).forEach { budget ->
+            val entry = entry(id = 1L, content = "x".repeat(budget + 1), order = 10)
+            val selection = fitWorldInfoToBudget(
+                result = WorldBookActivationResult(listOf(entry)),
+                globalTokenBudget = 1_000,
+                lorebooks = mapOf(
+                    1L to Lorebook(id = 1L, name = "Book", tokenBudget = budget)
+                ),
+                tokenizer = tokenizer
+            )
 
-        val selection = fitWorldInfoToBudget(
-            result = WorldBookActivationResult(listOf(entry)),
-            globalTokenBudget = 100,
-            lorebooks = mapOf(
-                1L to Lorebook(id = 1L, name = "Book", tokenBudget = 25)
-            ),
-            tokenizer = tokenizer
-        )
-
-        assertEquals(emptyList<LorebookEntry>(), selection.result.activatedEntries)
-        assertEquals(PromptOmissionReason.WorldInfoBudget, selection.omittedItems.single().reason)
+            assertTrue("Budget $budget must be an absolute Token limit", selection.result.activatedEntries.isEmpty())
+            assertEquals(PromptOmissionReason.WorldInfoBudget, selection.omittedItems.single().reason)
+        }
     }
 
     @Test
@@ -154,22 +161,6 @@ class WorldBookBudgeterTest {
 
         assertEquals(listOf(entry), selection.result.activatedEntries)
         assertTrue(selection.omittedItems.isEmpty())
-    }
-
-    @Test
-    fun largeLorebookBudgetIsAnAbsoluteTokenLimit() {
-        val entry = entry(id = 1L, content = "x".repeat(102), order = 10)
-
-        val selection = fitWorldInfoToBudget(
-            result = WorldBookActivationResult(listOf(entry)),
-            globalTokenBudget = 1_000,
-            lorebooks = mapOf(
-                1L to Lorebook(id = 1L, name = "Book", tokenBudget = 101)
-            ),
-            tokenizer = tokenizer
-        )
-
-        assertEquals(emptyList<LorebookEntry>(), selection.result.activatedEntries)
     }
 
     @Test

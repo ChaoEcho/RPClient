@@ -90,12 +90,11 @@ internal fun String.hasValidOpenRouterRoutingPreferences(): Boolean {
 }
 
 private fun String.updateOpenRouterPatch(block: (JsonObject) -> Unit): String {
-    val root = runCatching { JsonParser.parseString(this).asJsonObject.deepCopy() }
+    val root = runCatching { JsonParser.parseString(this).asJsonObject }
         .getOrElse { JsonObject() }
     val provider = root.get("provider")
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?.deepCopy()
         ?: JsonObject()
     block(provider)
     if (provider.size() == 0) root.remove("provider") else root.add("provider", provider)

@@ -33,6 +33,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
@@ -116,11 +117,11 @@ internal val appModules = module {
     single<ExampleDialogueBehaviorProvider> {
         ExampleDialogueBehaviorProvider {
             ExampleDialogueBehavior.fromPersistedValue(
-                runCatching { AppModel.exampleDialogueBehavior }
-                    .getOrDefault(ExampleDialogueBehavior.default.persistedValue)
+                AppModel.exampleDialogueBehavior
             )
         }
     }
+    single<PromptPreferences> { AppModel }
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::ChatArchiveCodec)

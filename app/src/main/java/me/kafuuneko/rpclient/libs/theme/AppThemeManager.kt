@@ -22,10 +22,8 @@ class AppThemeManager {
         mThemeModeFlow.value = themeMode
     }
 
-    /** 读取持久化主题；存储异常或旧版本未知值均回退为跟随系统。 */
+    /** 读取持久化主题；旧版本未知值回退为跟随系统。 */
     private fun readThemeMode(): AppThemeMode {
-        val persistedValue = runCatching { AppModel.themeMode }
-            .getOrDefault(AppThemeMode.FollowSystem.persistedValue)
-        return AppThemeMode.fromPersistedValue(persistedValue)
+        return AppThemeMode.fromPersistedValue(AppModel.themeMode)
     }
 }

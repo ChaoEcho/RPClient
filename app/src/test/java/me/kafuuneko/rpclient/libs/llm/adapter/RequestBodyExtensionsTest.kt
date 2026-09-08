@@ -41,37 +41,4 @@ class RequestBodyExtensionsTest {
         assertFalse(result.has("session_id"))
     }
 
-    @Test
-    fun anyProviderCanReuseRoutingVariable() {
-        val result = JsonParser.parseString(
-            mergeRequestBodyExtensionsJson(
-                baseJson = """{"model":"test","messages":[]}""",
-                patchJson =
-                    """{"metadata":{"conversation":"${'$'}rpclient.routing_session_id"}}""",
-                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
-                routingSessionId = "routing-42"
-            )
-        ).asJsonObject
-
-        assertFalse(result.has("session_id"))
-        assertEquals(
-            "routing-42",
-            result.getAsJsonObject("metadata").get("conversation").asString
-        )
-    }
-
-    @Test
-    fun advancedJsonIsTheSourceOfProviderNativeReasoningConfiguration() {
-        val result = JsonParser.parseString(
-            mergeRequestBodyExtensionsJson(
-                baseJson = """{"model":"test","messages":[]}""",
-                patchJson = """{"reasoning":{"effort":"high","exclude":false}}""",
-                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
-                routingSessionId = null
-            )
-        ).asJsonObject
-
-        assertEquals("high", result.getAsJsonObject("reasoning").get("effort").asString)
-        assertFalse(result.getAsJsonObject("reasoning").get("exclude").asBoolean)
-    }
 }

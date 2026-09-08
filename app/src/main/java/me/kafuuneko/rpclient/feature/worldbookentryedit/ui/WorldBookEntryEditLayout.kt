@@ -506,7 +506,7 @@ private fun ContentWorkbenchPanel(
     emit: WorldBookEntryEditUiIntent.() -> Unit
 ) {
     val charCount = form.content.length
-    val estimatedTokens = (charCount / 3.5).toInt().coerceAtLeast(0)
+    val estimatedTokens = (charCount / 3.5).toInt()
 
     Panel {
         Row(

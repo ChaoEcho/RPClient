@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.libs.room
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -15,7 +14,6 @@ class RequestLogBackupRulesTest {
         val excludes = root.getElementsByTagName("exclude").asElements()
 
         assertEquals(ExpectedPaths, excludes.databasePaths())
-        assertFalse(excludes.databasePaths().contains("primary.sqlite"))
     }
 
     @Test

@@ -88,7 +88,7 @@ class AboutActivity : CoreActivity() {
     /** 安全打开外部超链接，若无可用浏览器则回退至复制链接到剪贴板。 */
     private fun safeOpenUrl(url: String) {
         try {
-            startActivity(repositoryIntent(url))
+            startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
         } catch (_: ActivityNotFoundException) {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(
@@ -98,6 +98,3 @@ class AboutActivity : CoreActivity() {
         }
     }
 }
-
-/** 构造只包含公开 URI 的外部浏览 Intent。 */
-internal fun repositoryIntent(url: String): Intent = Intent(Intent.ACTION_VIEW, url.toUri())

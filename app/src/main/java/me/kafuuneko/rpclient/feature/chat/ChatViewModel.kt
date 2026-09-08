@@ -1071,7 +1071,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
         val copyText = message.content.toMessageCopyText(
-            includeThinkBlocks = runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
+            includeThinkBlocks = AppModel.includeThinkInContext
         )
         if (copyText.isBlank()) return
         ChatViewEvent.CopyText(copyText).emit()

@@ -146,7 +146,7 @@ class CharacterCardRepository(
     }
 
     private fun ByteArray.toPngOrFallback(): ByteArray {
-        if (isNotEmpty() && CharacterCardPngCodec.isPng(this)) return this
+        if (CharacterCardPngCodec.isPng(this)) return this
         val bitmap = runCatching { BitmapFactory.decodeByteArray(this, 0, size) }.getOrNull()
         if (bitmap != null) {
             return ByteArrayOutputStream().use { output ->

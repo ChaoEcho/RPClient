@@ -149,8 +149,8 @@ internal fun JsonObject.arrayOrNull(name: String): JsonArray? {
 /** 将缺失、JSON null 或伪 null 字符串统一读取为空文本。 */
 internal fun JsonObject.cleanString(name: String): String {
     val element = get(name) ?: return ""
-    if (element.isJsonNull || !element.isJsonPrimitive) return ""
-    return cleanContentString(runCatching { element.asString }.getOrDefault(""))
+    if (!element.isJsonPrimitive) return ""
+    return cleanContentString(element.asString)
 }
 
 /** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
@@ -162,7 +162,7 @@ internal fun cleanContentString(value: String): String {
 internal fun JsonObject.booleanOrFalse(name: String): Boolean {
     val element = get(name) ?: return false
     if (!element.isJsonPrimitive) return false
-    return runCatching { element.asBoolean }.getOrDefault(false)
+    return element.asBoolean
 }
 
 /** 安全读取可能缺失或类型异常的整数字段。 */

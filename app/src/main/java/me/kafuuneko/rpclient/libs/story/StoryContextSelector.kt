@@ -84,7 +84,7 @@ class StoryContextSelector {
             splitRange(content, range, tokenizer, maxChunkTokens).map { chunk ->
                 CandidateChunk(
                     range = chunk,
-                    distance = (target.start - chunk.end).coerceAtLeast(0),
+                    distance = target.start - chunk.end,
                     tokenCount = tokenizer.countText(content.substring(chunk.start, chunk.end))
                 )
             }
@@ -170,20 +170,20 @@ class StoryContextSelector {
                     high = middle - 1
                 }
             }
-            val end = content.safeUtf16Boundary(best.coerceAtLeast(start + 1), start, range.end)
+            val end = content.safeUtf16Boundary(best, start, range.end)
             result += TextRange(start, end)
             start = end
         }
         return result
     }
 
-    /** 确保切分位置不落入 UTF-16 代理对中间。 */
+    /** 调整二分查找范围内的切分位置，避免落入 UTF-16 代理对中间。 */
     private fun String.safeUtf16Boundary(index: Int, minimum: Int, maximum: Int): Int {
-        var safe = index.coerceIn(minimum + 1, maximum)
-        if (safe in (minimum + 1)..<maximum && this[safe].isLowSurrogate() && this[safe - 1].isHighSurrogate()) {
-            safe = if (safe - 1 > minimum) safe - 1 else (safe + 1).coerceAtMost(maximum)
+        var safe = index
+        if (safe < maximum && this[safe].isLowSurrogate() && this[safe - 1].isHighSurrogate()) {
+            safe = if (safe - 1 > minimum) safe - 1 else safe + 1
         }
-        return safe.coerceAtLeast(minimum + 1)
+        return safe
     }
 
     /** 文本起止索引范围。 */

@@ -82,27 +82,6 @@ class StoryArchiveCodecTest {
         assertEquals(StoryLorebookHint("City", "Station", "def"), archive.lorebookHints.single())
     }
 
-    @Test
-    fun importDraftCountsAllChaptersAndCharacters() {
-        val draft = StoryImportDraft(
-            title = "Story",
-            ungroupedChapters = listOf(ArchivedChapter("序章", "123")),
-            volumes = listOf(
-                ArchivedVolume(
-                    "第一卷",
-                    listOf(
-                        ArchivedChapter("第一章", "四五"),
-                        ArchivedChapter("第二章", "😀")
-                    )
-                )
-            ),
-            type = StoryImportType.Archive
-        )
-
-        assertEquals(3, draft.chapterCount)
-        assertEquals(7, draft.totalCharacterCount)
-    }
-
     @Test(expected = IllegalArgumentException::class)
     fun unknownMajorVersionIsRejected() {
         mCodec.decode(

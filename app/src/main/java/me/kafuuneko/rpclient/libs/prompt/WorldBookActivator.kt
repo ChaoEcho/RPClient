@@ -347,15 +347,14 @@ class WorldBookActivator {
                 .sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
                 .firstOrNull()
             val winner = prioritized ?: entries.weightedRandom()
-            entries.filterNot { it.id == winner?.id }.forEach { selectedIds -= it.id }
+            entries.filterNot { it.id == winner.id }.forEach { selectedIds -= it.id }
         }
 
         return filter { it.id in selectedIds }.sortedForActivation()
     }
 
-    /** 依权重从条目列表中按轮盘赌加权随机选取一个条目。 */
-    private fun List<LorebookEntry>.weightedRandom(): LorebookEntry? {
-        if (isEmpty()) return null
+    /** 从已筛选出的非空候选列表中按权重随机选取一个条目。 */
+    private fun List<LorebookEntry>.weightedRandom(): LorebookEntry {
         val weighted = map { it to (it.groupWeight ?: 100).coerceAtLeast(1) }
         val total = weighted.sumOf { it.second }
         var roll = Random.nextInt(total)

@@ -32,10 +32,9 @@ internal fun resolveWorldInfoBudget(
     val normalizedPercent = contextPercent.coerceIn(0, 100)
     val percentageBudget = (
         (normalizedPromptBudget.toLong() * normalizedPercent + 50L) / 100L
-        ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt().coerceAtLeast(1)
-    val normalizedCap = tokenBudgetCap.coerceAtLeast(0)
-    return if (normalizedCap > 0 && percentageBudget > normalizedCap) {
-        normalizedCap
+        ).toInt().coerceAtLeast(1)
+    return if (tokenBudgetCap in 1..<percentageBudget) {
+        tokenBudgetCap
     } else {
         percentageBudget
     }

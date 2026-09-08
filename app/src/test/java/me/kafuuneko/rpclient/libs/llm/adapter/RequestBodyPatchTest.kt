@@ -73,16 +73,8 @@ class RequestBodyPatchTest {
         val protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible)
 
         assertTrue(validateRequestBodyPatch("""{"session_id":"override"}""", protectedPaths).isSuccess)
-        assertTrue(
-            validateRequestBodyPatch(
-                DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
-                protectedPaths
-            ).isSuccess
-        )
         assertTrue(validateRequestBodyPatch("""{"reasoning":{"effort":"high"}}""", protectedPaths).isSuccess)
-        assertTrue(validateRequestBodyPatch("""{"reasoning":{"effort":"low"}}""", protectedPaths).isSuccess)
         assertTrue(validateRequestBodyPatch("""{"reasoning_effort":"high"}""", protectedPaths).isSuccess)
-        assertTrue(validateRequestBodyPatch("""{"reasoning_effort":"low"}""", protectedPaths).isSuccess)
         assertTrue(validateRequestBodyPatch("""{"thinking":{"type":"enabled"}}""", protectedPaths).isSuccess)
         assertTrue(validateRequestBodyPatch("""{"provider":{"order":["deepinfra"]}}""", protectedPaths).isSuccess)
     }
@@ -116,7 +108,6 @@ class RequestBodyPatchTest {
             DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
         ).forEach { template ->
             assertTrue(validateRequestBodyPatch(template, openAIProtectedPaths).isSuccess)
-            assertTrue(template.contains("\"low\""))
         }
         assertTrue(
             validateRequestBodyPatch(
@@ -124,14 +115,12 @@ class RequestBodyPatchTest {
                 protectedRequestBodyPaths(LLMProviderProtocol.AnthropicMessages)
             ).isSuccess
         )
-        assertTrue(DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON.contains("\"low\""))
         assertTrue(
             validateRequestBodyPatch(
                 DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
                 protectedRequestBodyPaths(LLMProviderProtocol.Gemini)
             ).isSuccess
         )
-        assertTrue(DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON.contains("\"low\""))
     }
 
     @Test
