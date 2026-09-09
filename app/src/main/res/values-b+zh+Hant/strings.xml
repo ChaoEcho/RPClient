@@ -167,6 +167,7 @@
     <string name="token_usage_proxy_estimate">代理預估</string>
     <string name="token_usage_source_format">輸入：%1$s · 輸出：%2$s</string>
     <string name="token_usage_tokenizer">Tokenizer：%1$s</string>
+    <string name="token_usage_host">Host：%1$s (%2$s)</string>
     <string name="token_usage_stream">串流</string>
     <string name="token_usage_once">單次</string>
     <string name="token_usage_cached_input">快取輸入 %1$s</string>
@@ -766,6 +767,7 @@
     <string name="prompt_inspector_omitted_detail">%1$d Token · %2$s</string>
     <string name="prompt_inspector_final_messages">最終訊息順序</string>
     <string name="prompt_inspector_item_tokens">%1$d Token</string>
+    <string name="prompt_inspector_image_meta">[圖片 %1$d] %2$d × %3$d · %4$s · %5$d 位元組 · ~%6$d Token（預估）</string>
     <string name="prompt_inspector_unavailable">請先產生一次回覆，再開啟 Prompt 檢查器</string>
     <string name="prompt_trimmed_warning">部分 Prompt 區段已為符合上下文限制而移除。開啟 Prompt 檢查器查看詳情。</string>
     <string name="prompt_tokenizer_model_aware">模型感知的本機 BPE</string>
@@ -1151,4 +1153,28 @@
     <string name="no_model_provider_desc">RPClient 是本機端工具，不包含內建模型服務。請先在「模型設定」中新增並啟用您的 API Key（如 OpenAI、Gemini、Claude、DeepSeek 等）即可開始對話。</string>
     <string name="no_model_provider_banner">尚未設定模型服務，點擊前往設定 API Key</string>
     <string name="go_to_model_settings">前往設定</string>
+    <string name="image_input_capability">圖片輸入</string>
+    <string name="image_capability_auto">自動</string>
+    <string name="image_capability_supported">支援</string>
+    <string name="image_capability_unsupported">不支援</string>
+    <string name="image_capability_hint">未知模型仍可嘗試。系統不會默默略過任何圖片。</string>
+    <string name="attach_images">新增圖片</string>
+    <string name="message_image">訊息圖片</string>
+    <string name="image_missing">圖片已遺失</string>
+    <string name="image_loading">正在載入圖片…</string>
+    <string name="image_original">原始</string>
+    <string name="image_send_preview">傳送預覽</string>
+    <string name="image_close">關閉</string>
+    <string name="image_save">儲存圖片</string>
+    <string name="image_error_unsupported">此模型不支援圖片。請更換模型後重試。</string>
+    <string name="image_error_missing">訊息歷史中的圖片已遺失。請先還原圖片或編輯訊息，再重試。</string>
+    <string name="image_error_invalid">圖片已損毀，或格式不受支援。</string>
+    <string name="image_error_large">圖片請求超過大小限制。請減少圖片或縮短歷史紀錄。</string>
+    <string name="image_error_count">請求包含過多圖片（最多 12 張）。</string>
+    <string name="image_prepare_failed">無法處理該圖片，可能已遺失或超過限制。請重新選擇靜態圖片（最多四張，每張 32 MiB / 4800 萬像素）。</string>
+    <string name="image_edit_ended">編輯狀態已結束。請重新開啟訊息編輯器後再選擇圖片。</string>
+    <string name="image_retry">重試回覆</string>
+    <string name="image_export_warning">此文字匯出不含圖片，也無法還原圖片。僅匯出文字嗎？</string>
+    <string name="image_export_text">僅匯出文字</string>
+    <string name="image_summary_paused">圖片摘要失敗。自動摘要已暫停，請在設定中更換摘要模型並恢復。</string>
 </resources>

@@ -167,6 +167,7 @@
     <string name="token_usage_proxy_estimate">Ước tính proxy</string>
     <string name="token_usage_source_format">Đầu vào: %1$s · Đầu ra: %2$s</string>
     <string name="token_usage_tokenizer">Tokenizer: %1$s</string>
+    <string name="token_usage_host">Host: %1$s (%2$s)</string>
     <string name="token_usage_stream">Luồng</string>
     <string name="token_usage_once">Một lần</string>
     <string name="token_usage_cached_input">Đầu vào bộ nhớ đệm %1$s</string>
@@ -856,6 +857,7 @@ Thất bại: %2$d</string>
     <string name="prompt_inspector_omitted_detail">%1$d token · %2$s</string>
     <string name="prompt_inspector_final_messages">Thứ tự tin nhắn cuối cùng</string>
     <string name="prompt_inspector_item_tokens">%1$d token</string>
+    <string name="prompt_inspector_image_meta">[Hình ảnh %1$d] %2$d × %3$d · %4$s · %5$d byte · ~%6$d token (ước tính)</string>
     <string name="prompt_inspector_unavailable">Tạo phản hồi trước khi mở Trình kiểm tra Prompt</string>
     <string name="prompt_trimmed_warning">Một số phần Prompt đã bị loại bỏ để nằm trong giới hạn ngữ cảnh. Mở Trình kiểm tra Prompt để xem chi tiết.</string>
     <string name="prompt_tokenizer_model_aware">BPE cục bộ theo mô hình</string>
@@ -1157,4 +1159,28 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="go_to_model_settings">Cấu hình</string>
     <string name="prompt_max_history_messages">Số tin nhắn lịch sử tối đa trong prompt</string>
     <string name="prompt_max_history_messages_helper">Chỉ dùng các tin nhắn gần nhất khi tạo thông thường; 0 sẽ tắt giới hạn</string>
+    <string name="image_input_capability">Nhập hình ảnh</string>
+    <string name="image_capability_auto">Tự động</string>
+    <string name="image_capability_supported">Được hỗ trợ</string>
+    <string name="image_capability_unsupported">Không được hỗ trợ</string>
+    <string name="image_capability_hint">Có thể thử với các mô hình không xác định. Hình ảnh không bao giờ bị bỏ qua một cách âm thầm.</string>
+    <string name="attach_images">Thêm hình ảnh</string>
+    <string name="message_image">Hình ảnh tin nhắn</string>
+    <string name="image_missing">Thiếu hình ảnh</string>
+    <string name="image_loading">Đang tải hình ảnh…</string>
+    <string name="image_original">Bản gốc</string>
+    <string name="image_send_preview">Xem trước khi gửi</string>
+    <string name="image_close">Đóng</string>
+    <string name="image_save">Lưu hình ảnh</string>
+    <string name="image_error_unsupported">Mô hình này không hỗ trợ hình ảnh. Hãy đổi mô hình và thử lại.</string>
+    <string name="image_error_missing">Thiếu một hình ảnh trong lịch sử. Hãy khôi phục hoặc chỉnh sửa tin nhắn trước khi thử lại.</string>
+    <string name="image_error_invalid">Hình ảnh bị hỏng hoặc định dạng không được hỗ trợ.</string>
+    <string name="image_error_large">Yêu cầu hình ảnh vượt quá giới hạn kích thước. Hãy giảm bớt hình ảnh hoặc lịch sử.</string>
+    <string name="image_error_count">Yêu cầu chứa quá nhiều hình ảnh (tối đa 12).</string>
+    <string name="image_prepare_failed">Không thể xử lý hình ảnh, hình ảnh bị thiếu hoặc vượt quá giới hạn. Hãy chọn lại ảnh tĩnh (tối đa bốn ảnh; mỗi ảnh 32 MiB / 48 megapixel).</string>
+    <string name="image_edit_ended">Việc chỉnh sửa đã kết thúc. Hãy mở lại trình chỉnh sửa tin nhắn trước khi chọn hình ảnh.</string>
+    <string name="image_retry">Thử lại phản hồi</string>
+    <string name="image_export_warning">Bản xuất văn bản này không bao gồm hình ảnh và không thể khôi phục chúng. Chỉ xuất văn bản?</string>
+    <string name="image_export_text">Chỉ xuất văn bản</string>
+    <string name="image_summary_paused">Tóm tắt hình ảnh thất bại. Tóm tắt tự động đã tạm dừng; hãy đổi mô hình tóm tắt và tiếp tục trong cài đặt.</string>
 </resources>

@@ -167,6 +167,7 @@
     <string name="token_usage_proxy_estimate">Приблизительная оценка</string>
     <string name="token_usage_source_format">Вход: %1$s · Выход: %2$s</string>
     <string name="token_usage_tokenizer">Токенизатор: %1$s</string>
+    <string name="token_usage_host">Хост: %1$s (%2$s)</string>
     <string name="token_usage_stream">Потоковый</string>
     <string name="token_usage_once">Одиночный</string>
     <string name="token_usage_cached_input">Кэшированный вход %1$s</string>
@@ -754,6 +755,7 @@
     <string name="prompt_inspector_omitted_detail">%1$d токенов · %2$s</string>
     <string name="prompt_inspector_final_messages">Итоговый порядок сообщений</string>
     <string name="prompt_inspector_item_tokens">%1$d токенов</string>
+    <string name="prompt_inspector_image_meta">[Изображение %1$d] %2$d × %3$d · %4$s · %5$d байт · ~%6$d токенов (оценка)</string>
     <string name="prompt_inspector_unavailable">Сгенерируйте ответ перед открытием инспектора промпта</string>
     <string name="prompt_trimmed_warning">Некоторые разделы промпта удалены, чтобы уложиться в лимит контекста. Откройте инспектор промпта для подробностей.</string>
     <string name="prompt_tokenizer_model_aware">локальный BPE с учетом модели</string>
@@ -1161,4 +1163,28 @@
     <string name="go_to_model_settings">Настроить</string>
     <string name="prompt_max_history_messages">Максимум сообщений истории в промпте</string>
     <string name="prompt_max_history_messages_helper">Для обычной генерации использовать только последние сообщения; 0 отключает ограничение</string>
+    <string name="image_input_capability">Ввод изображений</string>
+    <string name="image_capability_auto">Авто</string>
+    <string name="image_capability_supported">Поддерживается</string>
+    <string name="image_capability_unsupported">Не поддерживается</string>
+    <string name="image_capability_hint">Неизвестные модели можно попробовать. Изображения никогда не пропускаются незаметно.</string>
+    <string name="attach_images">Добавить изображения</string>
+    <string name="message_image">Изображение сообщения</string>
+    <string name="image_missing">Изображение отсутствует</string>
+    <string name="image_loading">Загрузка изображения…</string>
+    <string name="image_original">Оригинал</string>
+    <string name="image_send_preview">Предпросмотр отправки</string>
+    <string name="image_close">Закрыть</string>
+    <string name="image_save">Сохранить изображение</string>
+    <string name="image_error_unsupported">Эта модель не поддерживает изображения. Смените модель и повторите попытку.</string>
+    <string name="image_error_missing">Изображение из истории отсутствует. Восстановите его или измените сообщение перед повторной попыткой.</string>
+    <string name="image_error_invalid">Изображение повреждено или его формат не поддерживается.</string>
+    <string name="image_error_large">Запрос изображения превышает ограничение размера. Уменьшите количество изображений или историю.</string>
+    <string name="image_error_count">Запрос содержит слишком много изображений (не более 12).</string>
+    <string name="image_prepare_failed">Не удалось обработать изображение: оно отсутствует или превышает ограничение. Выберите статическое изображение ещё раз (не более четырёх; по 32 МиБ / 48 мегапикселей каждое).</string>
+    <string name="image_edit_ended">Редактирование уже завершено. Откройте редактор сообщения заново, прежде чем выбирать изображения.</string>
+    <string name="image_retry">Повторить ответ</string>
+    <string name="image_export_warning">Этот экспорт текста не включает изображения и не может их восстановить. Экспортировать только текст?</string>
+    <string name="image_export_text">Экспортировать только текст</string>
+    <string name="image_summary_paused">Не удалось создать сводку по изображению. Автоматические сводки приостановлены; смените модель сводок и возобновите в настройках.</string>
 </resources>

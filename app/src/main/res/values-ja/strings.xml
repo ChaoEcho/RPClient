@@ -168,6 +168,7 @@
     <string name="token_usage_proxy_estimate">概算値</string>
     <string name="token_usage_source_format">入力：%1$s · 出力：%2$s</string>
     <string name="token_usage_tokenizer">Tokenizer: %1$s</string>
+    <string name="token_usage_host">ホスト: %1$s (%2$s)</string>
     <string name="token_usage_stream">ストリーミング</string>
     <string name="token_usage_once">単発</string>
     <string name="token_usage_cached_input">キャッシュ済み入力 %1$s</string>
@@ -752,6 +753,7 @@
     <string name="prompt_inspector_omitted_detail">%1$d トークン · %2$s</string>
     <string name="prompt_inspector_final_messages">最終メッセージ順</string>
     <string name="prompt_inspector_item_tokens">%1$d トークン</string>
+    <string name="prompt_inspector_image_meta">[画像 %1$d] %2$d × %3$d · %4$s · %5$d バイト · 約 %6$d トークン（推定）</string>
     <string name="prompt_inspector_unavailable">プロンプトインスペクターを開く前に返信を生成してください</string>
     <string name="prompt_trimmed_warning">コンテキスト制限内に収めるため、一部のプロンプトセクションが削除されました。詳細はプロンプトインスペクターで確認してください。</string>
     <string name="prompt_tokenizer_model_aware">モデル対応ローカル BPE</string>
@@ -1152,4 +1154,28 @@
     <string name="go_to_model_settings">設定する</string>
     <string name="prompt_max_history_messages">プロンプトの最大履歴メッセージ数</string>
     <string name="prompt_max_history_messages_helper">通常生成では最新のメッセージのみを使用します。0 は無制限です</string>
+    <string name="image_input_capability">画像入力</string>
+    <string name="image_capability_auto">自動</string>
+    <string name="image_capability_supported">対応</string>
+    <string name="image_capability_unsupported">非対応</string>
+    <string name="image_capability_hint">不明なモデルでも試行できます。画像が黙って省略されることはありません。</string>
+    <string name="attach_images">画像を追加</string>
+    <string name="message_image">メッセージ画像</string>
+    <string name="image_missing">画像が見つかりません</string>
+    <string name="image_loading">画像を読み込み中…</string>
+    <string name="image_original">元の画像</string>
+    <string name="image_send_preview">送信プレビュー</string>
+    <string name="image_close">閉じる</string>
+    <string name="image_save">画像を保存</string>
+    <string name="image_error_unsupported">このモデルは画像に対応していません。モデルを変更して再試行してください。</string>
+    <string name="image_error_missing">履歴内の画像が見つかりません。復元するかメッセージを編集してから再試行してください。</string>
+    <string name="image_error_invalid">画像が破損しているか、形式が対応していません。</string>
+    <string name="image_error_large">画像リクエストがサイズ上限を超えています。画像や履歴を減らしてください。</string>
+    <string name="image_error_count">リクエストに含まれる画像が多すぎます（最大 12 枚）。</string>
+    <string name="image_prepare_failed">画像を処理できなかったか、見つからないか、上限を超えています。静止画像を選び直してください（最大 4 枚、各 32 MiB / 4800 万画素）。</string>
+    <string name="image_edit_ended">編集はすでに終了しています。画像を選択する前にメッセージ編集を開き直してください。</string>
+    <string name="image_retry">返信を再試行</string>
+    <string name="image_export_warning">このテキスト書き出しには画像が含まれず、復元もできません。テキストのみを書き出しますか？</string>
+    <string name="image_export_text">テキストのみを書き出す</string>
+    <string name="image_summary_paused">画像の要約に失敗しました。自動要約は一時停止中です。設定で要約モデルを変更して再開してください。</string>
 </resources>

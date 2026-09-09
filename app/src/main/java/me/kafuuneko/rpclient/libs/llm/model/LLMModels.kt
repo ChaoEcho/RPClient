@@ -109,6 +109,8 @@ data class LLMProviderConfig(
     val sendTopP: Boolean = true,
     /** 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。 */
     val useServerReportedUsage: Boolean = false,
+    /** 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。 */
+    val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
     /** 已持久化配置的主键；编辑页未保存的临时配置为空。 */
     val providerId: Long? = null
 )
@@ -129,8 +131,15 @@ data class LLMMessage(
     /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
     /** 当前对象承载的正文内容。 */
-    val content: String
-)
+    val content: String,
+    /** 非空时为实际发送的有序内容；旧调用方继续使用纯文本构造。 */
+    val blocks: List<LLMContentBlock> = emptyList()
+) {
+    val contentBlocks: List<LLMContentBlock>
+        get() = blocks.ifEmpty { listOf(LLMContentBlock.Text(content)) }
+    val images: List<LLMImageReference>
+        get() = blocks.filterIsInstance<LLMContentBlock.Image>().map { it.reference }
+}
 
 /**
  * 通用生成参数。为空时使用当前模型配置的默认值。

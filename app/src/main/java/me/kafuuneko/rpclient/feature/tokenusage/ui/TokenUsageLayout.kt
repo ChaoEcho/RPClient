@@ -761,7 +761,7 @@ private fun RecentRequestCard(item: TokenUsageRecordItem) {
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
                     Text(
-                        text = "Host: ${item.endpoint} (${item.providerName})",
+                        text = stringResource(R.string.token_usage_host, item.endpoint, item.providerName),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )

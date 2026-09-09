@@ -293,7 +293,9 @@ class RegexScriptViewModel :
             )
         )
         // 汇集替换输出与异常信息
-        val errors = result.errors.joinToString("\n") { "${it.scriptName}: ${it.message}" }
+        val errors = result.errors.joinToString("\n") {
+            "${it.scriptName}: ${mContext.getString(R.string.regex_execution_invalid)}"
+        }
         state.copy(
             testOutput = listOf(result.text, errors).filter { it.isNotBlank() }.joinToString("\n\n")
         ).setup()

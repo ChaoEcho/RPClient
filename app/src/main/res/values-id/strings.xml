@@ -167,6 +167,7 @@
     <string name="token_usage_proxy_estimate">Estimasi proksi</string>
     <string name="token_usage_source_format">Input: %1$s · Output: %2$s</string>
     <string name="token_usage_tokenizer">Tokenizer: %1$s</string>
+    <string name="token_usage_host">Host: %1$s (%2$s)</string>
     <string name="token_usage_stream">Streaming</string>
     <string name="token_usage_once">Sekali</string>
     <string name="token_usage_cached_input">Input dalam cache %1$s</string>
@@ -856,6 +857,7 @@ Gagal: %2$d</string>
     <string name="prompt_inspector_omitted_detail">%1$d token · %2$s</string>
     <string name="prompt_inspector_final_messages">Urutan pesan akhir</string>
     <string name="prompt_inspector_item_tokens">%1$d token</string>
+    <string name="prompt_inspector_image_meta">[Gambar %1$d] %2$d × %3$d · %4$s · %5$d bita · ~%6$d token (perkiraan)</string>
     <string name="prompt_inspector_unavailable">Hasilkan balasan sebelum membuka Pemeriksa Prompt</string>
     <string name="prompt_trimmed_warning">Beberapa bagian Prompt dihapus agar tetap berada dalam batas konteks. Buka Pemeriksa Prompt untuk detailnya.</string>
     <string name="prompt_tokenizer_model_aware">BPE lokal sadar model</string>
@@ -1157,4 +1159,28 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="go_to_model_settings">Konfigurasikan</string>
     <string name="prompt_max_history_messages">Maksimum pesan riwayat prompt</string>
     <string name="prompt_max_history_messages_helper">Gunakan hanya pesan terbaru untuk pembuatan normal; 0 menonaktifkan batas</string>
+    <string name="image_input_capability">Input gambar</string>
+    <string name="image_capability_auto">Otomatis</string>
+    <string name="image_capability_supported">Didukung</string>
+    <string name="image_capability_unsupported">Tidak didukung</string>
+    <string name="image_capability_hint">Model yang tidak dikenal dapat dicoba. Gambar tidak pernah dihilangkan secara diam-diam.</string>
+    <string name="attach_images">Tambah gambar</string>
+    <string name="message_image">Gambar pesan</string>
+    <string name="image_missing">Gambar hilang</string>
+    <string name="image_loading">Memuat gambar…</string>
+    <string name="image_original">Asli</string>
+    <string name="image_send_preview">Pratinjau kirim</string>
+    <string name="image_close">Tutup</string>
+    <string name="image_save">Simpan gambar</string>
+    <string name="image_error_unsupported">Model ini tidak mendukung gambar. Ganti model dan coba lagi.</string>
+    <string name="image_error_missing">Gambar dari riwayat hilang. Pulihkan atau edit pesan sebelum mencoba lagi.</string>
+    <string name="image_error_invalid">Gambar rusak atau formatnya tidak didukung.</string>
+    <string name="image_error_large">Permintaan gambar melebihi batas ukuran. Kurangi gambar atau riwayat.</string>
+    <string name="image_error_count">Permintaan berisi terlalu banyak gambar (maksimum 12).</string>
+    <string name="image_prepare_failed">Gambar tidak dapat diproses, hilang, atau melebihi batas. Pilih lagi gambar statis (maksimal empat; masing-masing 32 MiB / 48 megapiksel).</string>
+    <string name="image_edit_ended">Pengeditan sudah berakhir. Buka kembali editor pesan sebelum memilih gambar.</string>
+    <string name="image_retry">Coba lagi balasan</string>
+    <string name="image_export_warning">Ekspor teks ini tidak menyertakan gambar dan tidak dapat memulihkannya. Ekspor teks saja?</string>
+    <string name="image_export_text">Ekspor teks saja</string>
+    <string name="image_summary_paused">Gagal meringkas gambar. Ringkasan otomatis dijeda; ganti model ringkasan dan lanjutkan di pengaturan.</string>
 </resources>

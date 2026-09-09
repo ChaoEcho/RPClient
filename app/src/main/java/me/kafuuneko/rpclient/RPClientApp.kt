@@ -16,10 +16,12 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
@@ -47,6 +49,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -77,6 +80,7 @@ class RPClientApp : Application() {
         runBlocking(Dispatchers.IO) {
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
+            koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
         }
     }
 }
@@ -102,13 +106,16 @@ internal val appModules = module {
             mOkHttpClient = get(),
             mLLMRequestLogRepository = get(),
             mLLMTokenUsageRepository = get(),
-            mPromptTokenizerRegistry = get()
+            mPromptTokenizerRegistry = get(),
+            mImageRuntime = get(),
+            mImageCapabilities = get()
         )
     }
     singleOf(::LLMProviderSelectionResolver)
     singleOf(::AppThemeManager)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
+    singleOf(::ImageInputCapabilityResolver)
     singleOf(::FormattedHistoryBuilder)
     singleOf(::PromptMacroResolver)
     singleOf(::WorldBookActivator)
@@ -173,6 +180,8 @@ internal val appModules = module {
     singleOf(::LLMRequestLogRepository)
     singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
+    singleOf(::MessageImageRepository)
+    singleOf(::MessageImageRuntime)
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)

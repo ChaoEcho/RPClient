@@ -168,6 +168,7 @@
     <string name="token_usage_proxy_estimate">Näherungsschätzung</string>
     <string name="token_usage_source_format">Eingabe: %1$s · Ausgabe: %2$s</string>
     <string name="token_usage_tokenizer">Tokenizer: %1$s</string>
+    <string name="token_usage_host">Host: %1$s (%2$s)</string>
     <string name="token_usage_stream">Streaming</string>
     <string name="token_usage_once">Einmalig</string>
     <string name="token_usage_cached_input">Zwischengespeicherte Eingabe %1$s</string>
@@ -753,6 +754,7 @@
     <string name="prompt_inspector_omitted_detail">%1$d Tokens · %2$s</string>
     <string name="prompt_inspector_final_messages">Endgültige Nachrichtenreihenfolge</string>
     <string name="prompt_inspector_item_tokens">%1$d Tokens</string>
+    <string name="prompt_inspector_image_meta">[Bild %1$d] %2$d × %3$d · %4$s · %5$d Bytes · ~%6$d Tokens (geschätzt)</string>
     <string name="prompt_inspector_unavailable">Generiere eine Antwort, bevor du den Prompt-Inspektor öffnest</string>
     <string name="prompt_trimmed_warning">Einige Prompt-Abschnitte wurden entfernt, um im Kontextlimit zu bleiben. Öffne den Prompt-Inspektor für Details.</string>
     <string name="prompt_tokenizer_model_aware">modellbewusstes lokales BPE</string>
@@ -1156,4 +1158,28 @@
     <string name="go_to_model_settings">Konfigurieren</string>
     <string name="prompt_max_history_messages">Maximale Prompt-Verlaufsnachrichten</string>
     <string name="prompt_max_history_messages_helper">Bei normaler Generierung nur die neuesten Nachrichten verwenden; 0 deaktiviert das Limit</string>
+    <string name="image_input_capability">Bildeingabe</string>
+    <string name="image_capability_auto">Automatisch</string>
+    <string name="image_capability_supported">Unterstützt</string>
+    <string name="image_capability_unsupported">Nicht unterstützt</string>
+    <string name="image_capability_hint">Unbekannte Modelle können ausprobiert werden. Bilder werden nie stillschweigend weggelassen.</string>
+    <string name="attach_images">Bilder hinzufügen</string>
+    <string name="message_image">Nachrichtenbild</string>
+    <string name="image_missing">Bild fehlt</string>
+    <string name="image_loading">Bild wird geladen…</string>
+    <string name="image_original">Original</string>
+    <string name="image_send_preview">Sende-Vorschau</string>
+    <string name="image_close">Schließen</string>
+    <string name="image_save">Bild speichern</string>
+    <string name="image_error_unsupported">Dieses Modell unterstützt keine Bilder. Ändere das Modell und versuche es erneut.</string>
+    <string name="image_error_missing">Ein Bild aus dem Verlauf fehlt. Stelle es wieder her oder bearbeite die Nachricht, bevor du es erneut versuchst.</string>
+    <string name="image_error_invalid">Das Bild ist beschädigt oder sein Format wird nicht unterstützt.</string>
+    <string name="image_error_large">Die Bildanfrage überschreitet das Größenlimit. Reduziere Bilder oder Verlauf.</string>
+    <string name="image_error_count">Die Anfrage enthält zu viele Bilder (maximal 12).</string>
+    <string name="image_prepare_failed">Das Bild konnte nicht verarbeitet werden, fehlt oder überschreitet das Limit. Wähle erneut ein statisches Bild (höchstens vier; je 32 MiB / 48 Megapixel).</string>
+    <string name="image_edit_ended">Die Bearbeitung wurde bereits beendet. Öffne den Nachrichteneditor erneut, bevor du Bilder auswählst.</string>
+    <string name="image_retry">Antwort erneut versuchen</string>
+    <string name="image_export_warning">Dieser Textexport enthält keine Bilder und kann sie nicht wiederherstellen. Nur Text exportieren?</string>
+    <string name="image_export_text">Nur Text exportieren</string>
+    <string name="image_summary_paused">Die Bildzusammenfassung ist fehlgeschlagen. Automatische Zusammenfassungen sind pausiert; ändere das Zusammenfassungsmodell und setze sie in den Einstellungen fort.</string>
 </resources>

@@ -49,8 +49,7 @@ class RegexScriptEngine {
                 // 捕获语法或替换异常，隔离错误以确保后续脚本继续执行
                 errors += RegexExecutionError(
                     scriptId = script.id,
-                    scriptName = script.scriptName,
-                    message = "Invalid regex script"
+                    scriptName = script.scriptName
                 )
             }
         }

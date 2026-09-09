@@ -144,10 +144,8 @@ data class RegexExecutionHit(
 data class RegexExecutionError(
     /** 当前操作关联的正则脚本 ID。 */
     val scriptId: String,
-    /** 正则脚本的显示名称。 */
-    val scriptName: String,
-    /** 需要展示或传递的消息内容。 */
-    val message: String
+    /** 正则脚本的显示名称；界面提示统一映射为本地化资源，不携带异常原文。 */
+    val scriptName: String
 )
 
 /** 一次脚本链执行后的文本、命中信息和隔离错误。 */

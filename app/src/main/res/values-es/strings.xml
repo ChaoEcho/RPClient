@@ -167,6 +167,7 @@
     <string name="token_usage_proxy_estimate">Estimación aproximada</string>
     <string name="token_usage_source_format">Entrada: %1$s · Salida: %2$s</string>
     <string name="token_usage_tokenizer">Tokenizador: %1$s</string>
+    <string name="token_usage_host">Host: %1$s (%2$s)</string>
     <string name="token_usage_stream">Streaming</string>
     <string name="token_usage_once">Única</string>
     <string name="token_usage_cached_input">Entrada en caché %1$s</string>
@@ -856,6 +857,7 @@
     <string name="prompt_inspector_omitted_detail">%1$d tokens · %2$s</string>
     <string name="prompt_inspector_final_messages">Orden final de mensajes</string>
     <string name="prompt_inspector_item_tokens">%1$d tokens</string>
+    <string name="prompt_inspector_image_meta">[Imagen %1$d] %2$d × %3$d · %4$s · %5$d bytes · ~%6$d tokens (estimado)</string>
     <string name="prompt_inspector_unavailable">Genere una respuesta antes de abrir el Inspector de prompt</string>
     <string name="prompt_trimmed_warning">Se eliminaron algunas secciones del prompt para no superar el límite de contexto. Abra el Inspector de prompt para ver detalles.</string>
     <string name="prompt_tokenizer_model_aware">BPE local compatible con el modelo</string>
@@ -1158,4 +1160,28 @@
     <string name="go_to_model_settings">Configurar</string>
     <string name="prompt_max_history_messages">Máximo de mensajes históricos en el prompt</string>
     <string name="prompt_max_history_messages_helper">Usar solo los mensajes más recientes en la generación normal; 0 desactiva el límite</string>
+    <string name="image_input_capability">Entrada de imagen</string>
+    <string name="image_capability_auto">Automático</string>
+    <string name="image_capability_supported">Compatible</string>
+    <string name="image_capability_unsupported">No compatible</string>
+    <string name="image_capability_hint">Se puede probar con modelos desconocidos. Las imágenes nunca se omiten silenciosamente.</string>
+    <string name="attach_images">Añadir imágenes</string>
+    <string name="message_image">Imagen del mensaje</string>
+    <string name="image_missing">Imagen ausente</string>
+    <string name="image_loading">Cargando imagen…</string>
+    <string name="image_original">Original</string>
+    <string name="image_send_preview">Vista previa de envío</string>
+    <string name="image_close">Cerrar</string>
+    <string name="image_save">Guardar imagen</string>
+    <string name="image_error_unsupported">Este modelo no admite imágenes. Cambia el modelo y vuelve a intentarlo.</string>
+    <string name="image_error_missing">Falta una imagen del historial. Restáurala o edita el mensaje antes de volver a intentarlo.</string>
+    <string name="image_error_invalid">La imagen está dañada o su formato no es compatible.</string>
+    <string name="image_error_large">La solicitud de imagen supera el límite de tamaño. Reduce las imágenes o el historial.</string>
+    <string name="image_error_count">La solicitud contiene demasiadas imágenes (máximo 12).</string>
+    <string name="image_prepare_failed">No se pudo procesar la imagen, falta o supera el límite. Vuelve a elegir una imagen estática (como máximo cuatro; 32 MiB / 48 megapíxeles cada una).</string>
+    <string name="image_edit_ended">La edición ya ha finalizado. Vuelve a abrir el editor de mensajes antes de seleccionar imágenes.</string>
+    <string name="image_retry">Reintentar respuesta</string>
+    <string name="image_export_warning">Esta exportación de texto no incluye imágenes y no puede restaurarlas. ¿Exportar solo el texto?</string>
+    <string name="image_export_text">Exportar solo el texto</string>
+    <string name="image_summary_paused">No se pudo resumir la imagen. Los resúmenes automáticos están en pausa; cambia el modelo de resumen y reactívalos en los ajustes.</string>
 </resources>
