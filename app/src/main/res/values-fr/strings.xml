@@ -1195,4 +1195,6 @@
     <string name="summary_token_limit_title">Limite de sortie du résumé atteinte</string>
     <string name="summary_token_limit_message">Le résumé a atteint la limite de tokens de sortie et n’a pas été enregistré. Le raisonnement consomme aussi cette limite. Dans Paramètres → “%1$s” → “%2$s”, augmentez “%3$s”, puis réessayez.</string>
     <string name="summary_go_to_settings">Ouvrir les paramètres</string>
+    <string name="image_move_earlier">Déplacer cette image avant</string>
+    <string name="image_more_count">%1$d images supplémentaires</string>
 </resources>

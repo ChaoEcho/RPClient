@@ -1189,4 +1189,6 @@
     <string name="summary_token_limit_title">요약 출력 한도 도달</string>
     <string name="summary_token_limit_message">요약이 출력 토큰 한도에 도달하여 저장되지 않았습니다. 모델의 추론도 이 한도를 사용합니다. 설정 → “%1$s” → “%2$s”에서 “%3$s”를 늘린 후 다시 시도하세요.</string>
     <string name="summary_go_to_settings">설정으로 이동</string>
+    <string name="image_move_earlier">이미지를 앞으로 이동</string>
+    <string name="image_more_count">이미지 %1$d개 더 보기</string>
 </resources>

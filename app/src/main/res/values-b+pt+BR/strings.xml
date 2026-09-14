@@ -1198,4 +1198,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="summary_token_limit_title">Limite de saída do resumo atingido</string>
     <string name="summary_token_limit_message">O resumo atingiu o limite de tokens de saída e não foi salvo. O raciocínio também consome esse limite. Vá a Configurações → “%1$s” → “%2$s”, aumente “%3$s” e tente novamente.</string>
     <string name="summary_go_to_settings">Ir para configurações</string>
+    <string name="image_move_earlier">Mover imagem para antes</string>
+    <string name="image_more_count">Mais %1$d imagens</string>
 </resources>

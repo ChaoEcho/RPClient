@@ -1195,4 +1195,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="summary_token_limit_title">Đã đạt giới hạn đầu ra của bản tóm tắt</string>
     <string name="summary_token_limit_message">Bản tóm tắt đã đạt giới hạn token đầu ra và chưa được lưu. Suy luận cũng sử dụng hạn mức này. Vào Cài đặt → “%1$s” → “%2$s”, tăng “%3$s” rồi thử lại.</string>
     <string name="summary_go_to_settings">Mở cài đặt</string>
+    <string name="image_move_earlier">Di chuyển ảnh lên trước</string>
+    <string name="image_more_count">Thêm %1$d ảnh</string>
 </resources>

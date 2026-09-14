@@ -1196,4 +1196,6 @@
     <string name="summary_token_limit_title">Summary output limit reached</string>
     <string name="summary_token_limit_message">The summary reached its output token limit and was not saved. Thinking also uses this allowance. Go to Settings → “%1$s” → “%2$s” and increase “%3$s”, then try again.</string>
     <string name="summary_go_to_settings">Go to settings</string>
+    <string name="image_move_earlier">Move image earlier</string>
+    <string name="image_more_count">%1$d more images</string>
 </resources>

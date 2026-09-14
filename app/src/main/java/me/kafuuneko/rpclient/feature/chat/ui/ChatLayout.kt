@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -40,6 +41,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -86,8 +88,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -129,6 +134,8 @@ import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
+import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
+import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.message.MessageImageStrip
 import me.kafuuneko.rpclient.ui.message.MessageImageViewer
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -737,6 +744,8 @@ private fun MessageBubble(
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
+    val imageIds = if (editing && isUser) imageState.editing else message.imageUuids
+    val hasImageHeader = imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || (editing && isUser)
     var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
@@ -765,11 +774,7 @@ private fun MessageBubble(
             Surface(
                 modifier = Modifier
                     .widthIn(max = if (isUser) 310.dp else 295.dp)
-                    .clickable {
-                        if (!editing) {
-                            showActions = !showActions
-                        }
-                    },
+                    .clickable(enabled = !editing) { showActions = !showActions },
                 shape = when (message.role) {
                     MessageRole.User -> RoundedCornerShape(
                         topStart = 18.dp,
@@ -813,10 +818,12 @@ private fun MessageBubble(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        // 图片消息为标题预留同样高度，添加按钮出现时不推动下方网格。
+                        modifier = Modifier.fillMaxWidth().heightIn(min = if (hasImageHeader) 32.dp else 0.dp)
                     ) {
                         Text(
                             text = message.speaker,
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                         )
@@ -827,9 +834,21 @@ private fun MessageBubble(
                             color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                         )
+                        if (editing && isUser) {
+                            Spacer(Modifier.width(4.dp))
+                            MessageImageEditButton(imageState) { ChatUiIntent.ImageAction(it).emit() }
+                        }
                     }
-                    MessageImageStrip(if (editing && isUser) imageState.editing else message.imageUuids,
-                        imageState, editable = editing && isUser, editing = true) { ChatUiIntent.ImageAction(it).emit() }
+                    MessageImageGallery(imageIds, imageState, editing = editing && isUser) {
+                        ChatUiIntent.ImageAction(it).emit()
+                    }
+                    if (editing && isUser) imageState.errorResId?.let { errorResId ->
+                        Text(
+                            text = stringResource(errorResId),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     if (editing) {
                         MessageEditContent(
                             draft = editingDraft,
@@ -941,9 +960,11 @@ private fun MessageEditContent(
     isUser: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // 编辑框沿用正文排版，短消息仅占一行，长消息在高度上限内滚动。
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodyMedium,
             value = draft,
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
             minLines = 1,
@@ -953,6 +974,8 @@ private fun MessageEditContent(
                 focusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 cursorColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                focusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.06f) else Color.Transparent,
+                unfocusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.04f) else Color.Transparent,
                 focusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
             )
@@ -967,7 +990,8 @@ private fun MessageEditContent(
             ) {
                 Text(
                     stringResource(R.string.cancel),
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary
+                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Normal
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -1977,6 +2001,61 @@ private fun AvatarPreview(
                     .clip(RoundedCornerShape(cornerRadius)),
                 contentScale = ContentScale.Crop
             )
+        }
+    }
+}
+
+/** 同屏对照普通态与编辑态，便于检查图片位置和短文本编辑高度。 */
+@Preview(name = "图片消息 · 普通与编辑", widthDp = 360, heightDp = 700)
+@Composable
+private fun PreviewImageMessageEditing() {
+    PreviewImageMessages(listOf(3 to false, 3 to true))
+}
+
+/** 覆盖单图、双图、四图与折叠多图，检查窄屏下的裁切和布局。 */
+@Preview(name = "图片消息 · 数量适配", widthDp = 320, heightDp = 1100)
+@Composable
+private fun PreviewImageMessageCounts() {
+    PreviewImageMessages(listOf(1 to false, 2 to false, 4 to true, 6 to false))
+}
+
+@Composable
+private fun PreviewImageMessages(examples: List<Pair<Int, Boolean>>) {
+    // 合成横向缩略图只供预览，覆盖裁切边界而不依赖私有图片文件或异步加载。
+    val thumbnails = remember {
+        (0..5).associate { index ->
+            val bitmap = ImageBitmap(240, 160)
+            val canvas = Canvas(bitmap)
+            canvas.drawRect(0f, 0f, 240f, 160f, Paint().apply { color = Color(0xFF203D50) })
+            canvas.drawCircle(Offset(120f, 60f), 32f, Paint().apply { color = Color(0xFFDBAD72) })
+            canvas.drawRect(0f, 105f, 240f, 160f, Paint().apply { color = Color(0xFF47706C) })
+            index.toString() to bitmap
+        }
+    }
+    val character = ChatCharacterItem(1, "Preview", "", "", "", "", "", "", "P", Color.Blue)
+    AppTheme(darkTheme = true, dynamicColor = false) {
+        Column(
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState()).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            examples.forEachIndexed { index, (count, editing) ->
+                val ids = thumbnails.keys.take(count)
+                MessageBubble(
+                    imageState = MessageImageState(editing = ids, thumbnails = thumbnails, canAddEditing = count < 4),
+                    message = ChatMessageUiModel(
+                        id = index.toString(), role = MessageRole.User, speaker = "You",
+                        content = "还有很多呢", parts = listOf(MessageContentPart.Text("还有很多呢")),
+                        time = "19:28", tokenCount = 0, imageUuids = ids
+                    ),
+                    character = character,
+                    expandedThinkBlockIds = emptySet(),
+                    editing = editing,
+                    editingDraft = "还有很多呢",
+                    isFirstMessage = false,
+                    emit = {}
+                )
+            }
         }
     }
 }

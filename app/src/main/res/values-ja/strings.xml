@@ -1190,4 +1190,6 @@
     <string name="summary_token_limit_title">要約の出力上限に達しました</string>
     <string name="summary_token_limit_message">要約が出力トークンの上限に達したため、今回の結果は保存されていません。モデルの思考もこの上限に含まれます。設定 → “%1$s” → “%2$s”で“%3$s”を増やしてから、もう一度お試しください。</string>
     <string name="summary_go_to_settings">設定を開く</string>
+    <string name="image_move_earlier">画像を前に移動</string>
+    <string name="image_more_count">ほか %1$d 枚の画像</string>
 </resources>

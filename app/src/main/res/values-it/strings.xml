@@ -1173,4 +1173,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="summary_token_limit_title">Limite di output del riepilogo raggiunto</string>
     <string name="summary_token_limit_message">Il riepilogo ha raggiunto il limite di token di output e non è stato salvato. Anche il ragionamento consuma questo limite. Vai a Impostazioni → “%1$s” → “%2$s”, aumenta “%3$s” e riprova.</string>
     <string name="summary_go_to_settings">Apri impostazioni</string>
+    <string name="image_move_earlier">Sposta immagine prima</string>
+    <string name="image_more_count">Altre %1$d immagini</string>
 </resources>

@@ -1189,4 +1189,6 @@
     <string name="summary_token_limit_title">摘要輸出額度不足</string>
     <string name="summary_token_limit_message">摘要已達到輸出 Token 上限，未儲存本次結果。模型思考也會占用此額度。請前往設定頁的“%1$s”→“%2$s”，提高“%3$s”後重試。</string>
     <string name="summary_go_to_settings">前往設定</string>
+    <string name="image_move_earlier">將圖片前移</string>
+    <string name="image_more_count">還有 %1$d 張圖片</string>
 </resources>

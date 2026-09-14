@@ -1199,4 +1199,6 @@
     <string name="summary_token_limit_title">Достигнут лимит вывода сводки</string>
     <string name="summary_token_limit_message">Сводка достигла лимита выходных токенов и не была сохранена. Рассуждения модели тоже расходуют этот лимит. Откройте Настройки → “%1$s” → “%2$s”, увеличьте “%3$s” и повторите попытку.</string>
     <string name="summary_go_to_settings">Открыть настройки</string>
+    <string name="image_move_earlier">Переместить изображение раньше</string>
+    <string name="image_more_count">Ещё изображений: %1$d</string>
 </resources>

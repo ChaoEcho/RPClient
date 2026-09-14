@@ -1195,4 +1195,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="summary_token_limit_title">Batas keluaran ringkasan tercapai</string>
     <string name="summary_token_limit_message">Ringkasan mencapai batas token keluaran dan tidak disimpan. Penalaran juga menggunakan kuota ini. Buka Pengaturan → “%1$s” → “%2$s”, naikkan “%3$s”, lalu coba lagi.</string>
     <string name="summary_go_to_settings">Buka pengaturan</string>
+    <string name="image_move_earlier">Pindahkan gambar lebih awal</string>
+    <string name="image_more_count">%1$d gambar lagi</string>
 </resources>
