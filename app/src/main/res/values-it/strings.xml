@@ -1175,4 +1175,11 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="summary_go_to_settings">Apri impostazioni</string>
     <string name="image_move_earlier">Sposta immagine prima</string>
     <string name="image_more_count">Altre %1$d immagini</string>
+
+    <!-- About page -->
+    <string name="about_app_information">Informazioni sull’app</string>
+    <string name="about_version">Versione</string>
+    <string name="about_build_number">Numero build</string>
+    <string name="about_brand_keywords">Personaggi · Storie · Creazione · Possibilità</string>
+    <string name="about_rate_action">Valuta app</string>
 </resources>

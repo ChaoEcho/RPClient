@@ -1198,4 +1198,14 @@
     <string name="summary_go_to_settings">Go to settings</string>
     <string name="image_move_earlier">Move image earlier</string>
     <string name="image_more_count">%1$d more images</string>
+
+    <!-- About page -->
+    <string name="about_app_information">App information</string>
+    <string name="about_version">Version</string>
+    <string name="about_build_number">Build number</string>
+    <string name="about_brand_keywords">Characters · Stories · Creation · Possibilities</string>
+    <string name="about_rate_action">Rate app</string>
+    <string name="about_brand_name" translatable="false">RPClient</string>
+    <string name="about_dev_badge" translatable="false">DEV</string>
+    <string name="about_github" translatable="false">GitHub</string>
 </resources>

@@ -1192,4 +1192,11 @@
     <string name="summary_go_to_settings">設定を開く</string>
     <string name="image_move_earlier">画像を前に移動</string>
     <string name="image_more_count">ほか %1$d 枚の画像</string>
+
+    <!-- About page -->
+    <string name="about_app_information">アプリ情報</string>
+    <string name="about_version">バージョン</string>
+    <string name="about_build_number">ビルド番号</string>
+    <string name="about_brand_keywords">キャラクター · 物語 · 創作 · 広がる可能性</string>
+    <string name="about_rate_action">評価する</string>
 </resources>

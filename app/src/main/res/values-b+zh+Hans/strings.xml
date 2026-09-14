@@ -1193,4 +1193,11 @@
     <string name="summary_go_to_settings">前往设置</string>
     <string name="image_move_earlier">将图片前移</string>
     <string name="image_more_count">还有 %1$d 张图片</string>
+
+    <!-- About page -->
+    <string name="about_app_information">应用信息</string>
+    <string name="about_version">版本</string>
+    <string name="about_build_number">Build 编号</string>
+    <string name="about_brand_keywords">角色 · 故事 · 创作 · 更多可能</string>
+    <string name="about_rate_action">去评分</string>
 </resources>

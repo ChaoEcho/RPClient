@@ -1191,4 +1191,11 @@
     <string name="summary_go_to_settings">설정으로 이동</string>
     <string name="image_move_earlier">이미지를 앞으로 이동</string>
     <string name="image_more_count">이미지 %1$d개 더 보기</string>
+
+    <!-- About page -->
+    <string name="about_app_information">앱 정보</string>
+    <string name="about_version">버전</string>
+    <string name="about_build_number">빌드 번호</string>
+    <string name="about_brand_keywords">캐릭터 · 이야기 · 창작 · 더 많은 가능성</string>
+    <string name="about_rate_action">앱 평가</string>
 </resources>

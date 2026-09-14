@@ -1200,4 +1200,11 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="summary_go_to_settings">Ir para configurações</string>
     <string name="image_move_earlier">Mover imagem para antes</string>
     <string name="image_more_count">Mais %1$d imagens</string>
+
+    <!-- About page -->
+    <string name="about_app_information">Informações do aplicativo</string>
+    <string name="about_version">Versão</string>
+    <string name="about_build_number">Número da compilação</string>
+    <string name="about_brand_keywords">Personagens · Histórias · Criação · Possibilidades</string>
+    <string name="about_rate_action">Avaliar app</string>
 </resources>

@@ -1198,4 +1198,11 @@
     <string name="summary_go_to_settings">Ir a ajustes</string>
     <string name="image_move_earlier">Mover imagen hacia delante</string>
     <string name="image_more_count">%1$d imágenes más</string>
+
+    <!-- About page -->
+    <string name="about_app_information">Información de la aplicación</string>
+    <string name="about_version">Versión</string>
+    <string name="about_build_number">Número de compilación</string>
+    <string name="about_brand_keywords">Personajes · Historias · Creación · Posibilidades</string>
+    <string name="about_rate_action">Valorar app</string>
 </resources>

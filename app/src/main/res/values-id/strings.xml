@@ -1197,4 +1197,11 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="summary_go_to_settings">Buka pengaturan</string>
     <string name="image_move_earlier">Pindahkan gambar lebih awal</string>
     <string name="image_more_count">%1$d gambar lagi</string>
+
+    <!-- About page -->
+    <string name="about_app_information">Informasi aplikasi</string>
+    <string name="about_version">Versi</string>
+    <string name="about_build_number">Nomor build</string>
+    <string name="about_brand_keywords">Karakter · Cerita · Kreasi · Kemungkinan</string>
+    <string name="about_rate_action">Beri rating</string>
 </resources>

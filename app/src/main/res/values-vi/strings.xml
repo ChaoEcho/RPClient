@@ -1197,4 +1197,11 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="summary_go_to_settings">Mở cài đặt</string>
     <string name="image_move_earlier">Di chuyển ảnh lên trước</string>
     <string name="image_more_count">Thêm %1$d ảnh</string>
+
+    <!-- About page -->
+    <string name="about_app_information">Thông tin ứng dụng</string>
+    <string name="about_version">Phiên bản</string>
+    <string name="about_build_number">Số bản dựng</string>
+    <string name="about_brand_keywords">Nhân vật · Câu chuyện · Sáng tạo · Khả năng</string>
+    <string name="about_rate_action">Đánh giá</string>
 </resources>
