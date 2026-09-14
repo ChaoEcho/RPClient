@@ -12,5 +12,5 @@ sealed class GroupChatGenerationState {
         /** 当前流程需要处理的总数量。 */
         val total: Int
     ) : GroupChatGenerationState()
-    data class Failed(val message: String) : GroupChatGenerationState()
+    data class Failed(val message: String, val canRetryReply: Boolean = false) : GroupChatGenerationState()
 }

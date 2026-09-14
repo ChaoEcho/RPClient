@@ -96,7 +96,9 @@ data class PromptInspectionItem(
     val tokenCount: Int,
     /** 当前对象承载的正文内容。 */
     val content: String,
-    val images: List<LLMImageReference> = emptyList()
+    val images: List<LLMImageReference> = emptyList(),
+    /** 与 images 同序，本次模型的图片估值，不属于资源固有信息。 */
+    val imageTokenCounts: List<Long> = emptyList()
 )
 
 /**
@@ -155,5 +157,6 @@ data class PromptMessageDraft(
     val canDrop: Boolean,
     /** 合并消息包含的全部领域来源；未合并消息默认只包含 [source]。 */
     val sources: List<PromptSource> = listOf(source),
-    val images: List<LLMImageReference> = emptyList()
+    val images: List<LLMImageReference> = emptyList(),
+    val unavailableImages: List<UnavailablePromptImage> = emptyList()
 )

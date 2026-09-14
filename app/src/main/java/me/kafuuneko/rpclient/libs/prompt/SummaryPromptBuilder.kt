@@ -1,18 +1,21 @@
 package me.kafuuneko.rpclient.libs.prompt
 
-import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
-import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
+import me.kafuuneko.rpclient.libs.prompt.model.requireAvailable
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /** 摘要消息首次读取窗口，后续仅在完整窗口仍符合预算时按倍数扩展。 */
@@ -51,7 +54,8 @@ class SummaryPromptBuilder(
         existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?,
-        messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
@@ -78,9 +82,11 @@ class SummaryPromptBuilder(
                     existingSummary = safeExistingSummary,
                     messages = sanitized.subList(0, prefix.size),
                     provider = provider,
-                    messageImages = messageImages
+                    messageImages = messageImages,
+                    unavailableImages = unavailableImages
                 ),
-                promptBudget
+                promptBudget,
+                prefix.sumOf { unavailableImages[it.id].orEmpty().size }
             )
         }
         // 若存在候选消息但连单条都超出预算则抛出异常
@@ -93,10 +99,13 @@ class SummaryPromptBuilder(
                     session,
                     safeExistingSummary,
                     listOf(sanitized.first()),
-                    provider, messageImages
+                    provider, messageImages, unavailableImages
                 )
             )
-            throw PromptBudgetExceededException(required, promptBudget)
+            throw PromptBudgetExceededException(
+                (required.toLong() + tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
+                promptBudget
+            )
         }
         val sanitizedSelected = sanitized.take(selected.size)
         // 组装最终的总结生成请求
@@ -108,7 +117,7 @@ class SummaryPromptBuilder(
                 session,
                 safeExistingSummary,
                 sanitizedSelected,
-                provider, messageImages
+                provider, messageImages, unavailableImages
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
@@ -118,6 +127,7 @@ class SummaryPromptBuilder(
             ),
             isPromptFinalized = true
         )
+        selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return SummaryPromptBuildResult(request, selected)
     }
 
@@ -130,7 +140,8 @@ class SummaryPromptBuilder(
         existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?,
-        messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
     ): List<LLMMessage> {
         val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
@@ -169,7 +180,9 @@ class SummaryPromptBuilder(
                 LLMContentBlock.Text(message.content)
         }
         return buildRawSummaryMessages(instruction, existingSummary, history,
-            historyBlocks.takeIf { messageImages.values.any { images -> images.isNotEmpty() } })
+            historyBlocks.takeIf { messages.any { message ->
+                !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
+            } })
     }
 
 }
@@ -291,10 +304,19 @@ internal fun String.summarySafeContent(): String {
 }
 
 /** 摘要前缀同时受图片数量、发送字节与视觉 Token 限制，保持连续前缀的单调成本。 */
-internal fun countSummaryTokens(tokenizer: PromptTokenizer, messages: List<LLMMessage>, budget: Int): Int {
+internal fun countSummaryTokens(
+    tokenizer: PromptTokenizer,
+    messages: List<LLMMessage>,
+    budget: Int,
+    unavailableCount: Int = 0
+): Int {
     val images = messages.flatMap { it.images }
-    val bytes = images.sumOf { (it.byteCount + 2) / 3 * 4 + 256 } +
-        messages.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() * 6 } + 4096
-    if (images.size > 12 || (images.isNotEmpty() && bytes > 16L * 1024 * 1024)) return budget + 1
-    return tokenizer.countMessagesUpTo(messages, budget)
+    val imageCount = images.size + unavailableCount
+    val bytes = estimateImageRequestBytes(messages, unavailableCount)
+    if (imageCount > MessageImagePolicy.MAX_IMAGES_PER_REQUEST ||
+        (imageCount > 0 && bytes > MessageImagePolicy.MAX_REQUEST_BYTES)) return (budget.toLong() + 1).toTokenInt()
+    val unavailableTokens = tokenizer.countUnavailableImages(unavailableCount)
+    if (unavailableTokens > budget) return (budget.toLong() + 1).toTokenInt()
+    return (tokenizer.countMessagesUpTo(messages, budget - unavailableTokens.toInt()).toLong() +
+        unavailableTokens).toTokenInt()
 }

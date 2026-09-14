@@ -14,7 +14,9 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.model.requireAvailable
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 
 /** 最终可发送请求及其同源检查报告。 */
 data class PromptFinalizationResult(
@@ -74,7 +76,8 @@ class PromptRequestFinalizer(
         postProcessingMode: PromptPostProcessingMode,
         strictPromptPlaceholder: String,
         postProcessingNames: PromptPostProcessingNames = PromptPostProcessingNames(),
-        preOmittedItems: List<PromptOmittedItem> = emptyList()
+        preOmittedItems: List<PromptOmittedItem> = emptyList(),
+        tokenizer: PromptTokenizer = tokenizerFor(provider?.let { it.copy(model = model?.takeIf(String::isNotBlank) ?: it.model) })
     ): PromptFinalizationResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val promptBudget = maxContextTokens - maxResponseTokens
@@ -85,7 +88,7 @@ class PromptRequestFinalizer(
         }
 
         val environment = PromptFinalizationEnvironment(
-            tokenizer = tokenizerFor(provider),
+            tokenizer = tokenizer,
             model = model,
             options = options,
             includeReasoningInContent = includeReasoningInContent,
@@ -95,12 +98,12 @@ class PromptRequestFinalizer(
             promptBudget = promptBudget,
             postProcessingMode = postProcessingMode
         )
-        val filteredDrafts = drafts.filter { it.content.isNotBlank() || it.images.isNotEmpty() }
+        val filteredDrafts = drafts.filter { it.content.isNotBlank() || it.images.isNotEmpty() || it.unavailableImages.isNotEmpty() }
         val omitted = preOmittedItems.toMutableList()
         if (
             postProcessingMode == PromptPostProcessingMode.None &&
             environment.tokenizer.supportsIncrementalMessageCounting &&
-            filteredDrafts.none { it.images.isNotEmpty() } &&
+            filteredDrafts.none { it.images.isNotEmpty() || it.unavailableImages.isNotEmpty() } &&
             (provider == null || provider.protocol == LLMProviderProtocol.OpenAICompatible)
         ) {
             return finalizeWithoutPostProcessing(
@@ -121,21 +124,23 @@ class PromptRequestFinalizer(
                 ), provider?.protocol
             )
             val messages = processed.map { messageWithBlocks(it.role, it.blocks) }
-            val finalTokenCount = environment.tokenizer.countMessages(messages)
+            val unavailable = processed.flatMap { it.unavailableImages }
+            val finalTokenCount = (environment.tokenizer.countMessages(messages).toLong() +
+                environment.tokenizer.countUnavailableImages(unavailable.size)).toTokenInt()
             // 满足输入预算，构建最终请求与检查报告
-            val imageCount = messages.sumOf { it.images.size }
-            val imageBytes =
-                messages.sumOf { message -> message.images.sumOf { ((it.byteCount + 2) / 3) * 4 + 256 } }
-            val requestBytes =
-                imageBytes + messages.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() * 6 } +
-                        (provider?.requestBodyPatchJson?.toByteArray(Charsets.UTF_8)?.size
-                            ?: 0) + 4096
+            val imageCount = messages.sumOf { it.images.size } + unavailable.size
+            val requestBytes = estimateImageRequestBytes(
+                messages, unavailable.size, provider?.requestBodyPatchJson.orEmpty()
+            )
             val reason = when {
-                imageCount > 12 -> PromptOmissionReason.ImageCount
-                imageCount > 0 && requestBytes > 16L * 1024 * 1024 -> PromptOmissionReason.RequestBytes
+                imageCount > MessageImagePolicy.MAX_IMAGES_PER_REQUEST -> PromptOmissionReason.ImageCount
+                imageCount > 0 && requestBytes > MessageImagePolicy.MAX_REQUEST_BYTES -> PromptOmissionReason.RequestBytes
                 else -> PromptOmissionReason.ContextBudget
             }
-            if (finalTokenCount <= promptBudget && imageCount <= 12 && (imageCount == 0 || requestBytes <= 16L * 1024 * 1024)) {
+            val resourcesFit = imageCount <= MessageImagePolicy.MAX_IMAGES_PER_REQUEST &&
+                (imageCount == 0 || requestBytes <= MessageImagePolicy.MAX_REQUEST_BYTES)
+            if (finalTokenCount <= promptBudget && resourcesFit) {
+                unavailable.requireAvailable()
                 return createFinalizationResult(
                     processed = processed,
                     messages = messages,
@@ -163,7 +168,9 @@ class PromptRequestFinalizer(
             removed.sources.forEach { source ->
                 omitted += PromptOmittedItem(
                     source = source,
-                    tokenCount = environment.tokenizer.countText(removed.content) + removed.images.sumOf { it.estimatedTokens },
+                    tokenCount = (environment.tokenizer.countText(removed.content).toLong() +
+                        environment.tokenizer.countImages(removed.images) +
+                        environment.tokenizer.countUnavailableImages(removed.unavailableImages.size)).toTokenInt(),
                     reason = reason
                 )
             }
@@ -193,7 +200,7 @@ class PromptRequestFinalizer(
         }
         // 完整列表固定开销只探测一次，后续每次移除直接减去已缓存的消息成本
         var remainingCount = countedDrafts.size
-        var currentTokenCount = countedDrafts.sumOf { it.messageTokenCount }
+        var currentTokenCount = countedDrafts.sumOf { it.messageTokenCount.toLong() }
         if (countedDrafts.isNotEmpty()) {
             currentTokenCount += environment.tokenizer.countMessages(
                 listOf(countedDrafts.first().message)
@@ -211,7 +218,7 @@ class PromptRequestFinalizer(
         while (currentTokenCount > environment.promptBudget) {
             val removed = removalOrder.getOrNull(removalIndex)
                 ?: throw PromptBudgetExceededException(
-                    currentTokenCount,
+                    currentTokenCount.toTokenInt(),
                     environment.promptBudget
                 )
             removalIndex += 1
@@ -241,7 +248,7 @@ class PromptRequestFinalizer(
         return createFinalizationResult(
             processed = processed,
             messages = retained.map { it.message },
-            finalTokenCount = currentTokenCount,
+            finalTokenCount = currentTokenCount.toTokenInt(),
             omitted = omitted,
             environment = environment,
             itemTokenCounts = retained.map { it.messageTokenCount }
@@ -286,7 +293,8 @@ class PromptRequestFinalizer(
                         tokenCount = itemTokenCounts?.get(index)
                             ?: environment.tokenizer.countMessage(messages[index]),
                         content = message.content,
-                        images = messages[index].images
+                        images = messages[index].images,
+                        imageTokenCounts = messages[index].images.map { environment.tokenizer.countImages(listOf(it)) }
                     )
                 },
                 omittedItems = omitted
@@ -306,6 +314,7 @@ class PromptRequestFinalizer(
                     role = it.role,
                     content = it.content,
                     sources = it.sources,
+                    unavailableImages = it.unavailableImages,
                     blocks = it.images.map { image -> LLMContentBlock.Image(image) } + LLMContentBlock.Text(
                         it.content
                     )

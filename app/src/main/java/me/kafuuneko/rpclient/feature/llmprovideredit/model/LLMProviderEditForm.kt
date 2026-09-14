@@ -1,11 +1,12 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -70,6 +71,8 @@ data class LLMProviderEditForm(
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     /** 当前记录或配置是否启用。 */
     val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    /** 图片本地预估类别，禁用图片时仍保留选择。 */
+    val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
     val isEnabled: Boolean = true
 ) {
     /** 校验并转换表单；敏感鉴权字段由 ViewModel 在转换时显式提供。 */
@@ -117,6 +120,7 @@ data class LLMProviderEditForm(
             useServerReportedUsage = useServerReportedUsage,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
             imageInputSetting = imageInputSetting,
+            imageTokenEstimatorType = imageTokenEstimatorType,
             isEnabled = isEnabled,
             createTime = createTime
         )

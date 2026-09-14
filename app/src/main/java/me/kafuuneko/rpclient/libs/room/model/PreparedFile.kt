@@ -26,5 +26,4 @@ object MessageImagePolicy {
     const val SEND_LONG_EDGE = 1536
     const val MAX_SEND_BYTES = 2L * 1024 * 1024
     const val MAX_REQUEST_BYTES = 16L * 1024 * 1024
-    const val UNKNOWN_IMAGE_TOKENS = 4096
 }

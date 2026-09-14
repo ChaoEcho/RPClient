@@ -14,6 +14,8 @@ sealed class LLMProviderEditUiState {
         val mode: LLMProviderEditMode,
         /** 当前页面正在编辑的表单数据。 */
         val form: LLMProviderEditForm,
+        /** ViewModel 根据用户设置与可信目录解析，Compose 只控制显示。 */
+        val showImageTokenEstimator: Boolean = true,
         /** 进入编辑页时保存的初始表单快照。 */
         val initialForm: LLMProviderEditForm = form,
         /** 当前页面数据库或资源操作的加载状态。 */

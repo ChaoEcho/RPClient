@@ -9,6 +9,8 @@ import java.io.OutputStream
 import java.util.Base64
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
@@ -45,18 +47,18 @@ internal data class PreparedWireBody(val body: RequestBody, val logJson: String,
  * - JSON 树仅含随机图片占位符，实际 Base64 逐图流式写入有界临时文件。
  * - Patch 之后精确校验字节数，流式和非流式共用同一准备入口。
  */
-internal class MultimodalWireCodec(private val provider: LLMProviderConfig) {
+internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
     private val mImages = mutableMapOf<String, LLMImageReference>()
 
     /** 根据协议生成内容数组，保持图文次序，纯文本 OpenAI / Anthropic 保持字符串。 */
     fun content(message: LLMMessage): Any {
-        if (message.images.isEmpty() && provider.protocol != LLMProviderProtocol.Gemini) return message.content
+        if (message.images.isEmpty() && mProvider.protocol != LLMProviderProtocol.Gemini) return message.content
         return JSONArray().also { array ->
             message.contentBlocks.forEach { block ->
                 when (block) {
                     is LLMContentBlock.Text -> if (block.text.isNotBlank()) {
                         array.put(JSONObject().put("text", block.text).apply {
-                            if (provider.protocol != LLMProviderProtocol.Gemini) put("type", "text")
+                            if (mProvider.protocol != LLMProviderProtocol.Gemini) put("type", "text")
                         })
                     }
                     is LLMContentBlock.Image -> array.put(image(block.reference))
@@ -69,7 +71,7 @@ internal class MultimodalWireCodec(private val provider: LLMProviderConfig) {
     private fun image(reference: LLMImageReference): JSONObject {
         val marker = "rpclient-image-${UUID.randomUUID()}"
         mImages[marker] = reference
-        return when (provider.protocol) {
+        return when (mProvider.protocol) {
             LLMProviderProtocol.OpenAICompatible -> JSONObject().put("type", "image_url")
                 .put("image_url", JSONObject().put("url", marker))
             LLMProviderProtocol.Gemini -> JSONObject().put("inlineData", JSONObject()
@@ -84,7 +86,7 @@ internal class MultimodalWireCodec(private val provider: LLMProviderConfig) {
     suspend fun prepare(payload: JSONObject, request: LLMGenerationRequest, runtime: MessageImageRuntime?): PreparedWireBody {
         val json = payload.toString()
         if (mImages.isEmpty()) return PreparedWireBody(json.toRequestBody(JsonMediaType), json)
-        if (provider.imageInputSetting == ImageInputSetting.Unsupported) throw ImageRequestException(ImageRequestFailure.Unsupported)
+        if (mProvider.imageInputSetting == ImageInputSetting.Unsupported) throw ImageRequestException(ImageRequestFailure.Unsupported)
         if (mImages.size > MessageImagePolicy.MAX_IMAGES_PER_REQUEST) throw ImageRequestException(ImageRequestFailure.TooMany)
         require(request.messages.none { it.role == LLMMessageRole.System && it.images.isNotEmpty() }) {
             "System instructions cannot contain user images"
@@ -93,9 +95,11 @@ internal class MultimodalWireCodec(private val provider: LLMProviderConfig) {
         val file = media.createRequestFile()
         try {
             // 有界输出在写入过程中终止，避免超大 Patch 或图片占满磁盘。
-            file.outputStream().buffered().use { output ->
-                val bounded = LimitedOutputStream(output, MessageImagePolicy.MAX_REQUEST_BYTES)
-                write(JsonParser.parseString(json), bounded, media)
+            withContext(Dispatchers.IO) {
+                file.outputStream().buffered().use { output ->
+                    val bounded = LimitedOutputStream(output, MessageImagePolicy.MAX_REQUEST_BYTES)
+                    write(JsonParser.parseString(json), bounded, media)
+                }
             }
             val log = mImages.entries.fold(json) { value, (marker, ref) ->
                 value.replace(marker, "[image data omitted, cannot be replayed directly: " +
@@ -108,49 +112,60 @@ internal class MultimodalWireCodec(private val provider: LLMProviderConfig) {
         }
     }
 
-    /** 递归写 JSON 的小型结构，图片字符串直接串流，不生成完整 Base64 对象。 */
+    /** 在调用方的 IO 上下文递归写 JSON，图片占位符由独立租约写出。 */
     private suspend fun write(element: JsonElement, output: OutputStream, runtime: MessageImageRuntime) {
+        currentCoroutineContext().ensureActive()
+        // 结构节点只输出标点与键，不为每个标点重复切换线程。
         when {
             element.isJsonObject -> {
-                withContext(Dispatchers.IO) { output.write('{'.code) }
+                output.write('{'.code)
                 element.asJsonObject.entrySet().forEachIndexed { index, (key, value) ->
                     if (index > 0) output.write(','.code)
                     output.write(JsonPrimitive(key).toString().toByteArray(Charsets.UTF_8))
                     output.write(':'.code)
                     write(value, output, runtime)
                 }
-                withContext(Dispatchers.IO) { output.write('}'.code) }
+                output.write('}'.code)
             }
             element.isJsonArray -> {
-                withContext(Dispatchers.IO) { output.write('['.code) }
+                output.write('['.code)
                 element.asJsonArray.forEachIndexed { index, value ->
                     if (index > 0) output.write(','.code)
                     write(value, output, runtime)
                 }
-                withContext(Dispatchers.IO) { output.write(']'.code) }
+                output.write(']'.code)
             }
-            element.isJsonPrimitive && element.asJsonPrimitive.isString && element.asString in mImages -> {
-                val reference = mImages.getValue(element.asString)
-                withContext(Dispatchers.IO) {
-                    output.write('"'.code)
-                    if (provider.protocol == LLMProviderProtocol.OpenAICompatible) {
-                        output.write("data:${reference.mimeType};base64,".toByteArray())
-                    }
-                }
-                runtime.withSendFile(reference) { file ->
-                    val nonClosing = object : FilterOutputStream(output) {
-                        override fun close() { flush() }
-                        override fun write(bytes: ByteArray, offset: Int, length: Int) { out.write(bytes, offset, length) }
-                    }
-                    Base64.getEncoder().wrap(nonClosing).use { encoded -> file.inputStream().use { it.copyTo(encoded) } }
-                }
-                withContext(Dispatchers.IO) { output.write('"'.code) }
-            }
-            else -> withContext(Dispatchers.IO) {
-                output.write(element.toString().toByteArray(Charsets.UTF_8))
-            }
+            // 仅本次登记的随机占位符可触发资源读取，普通字符串保持 JSON 转义。
+            element.isJsonPrimitive && element.asJsonPrimitive.isString && element.asString in mImages ->
+                writeImage(mImages.getValue(element.asString), output, runtime)
+            else -> output.write(element.toString().toByteArray(Charsets.UTF_8))
         }
     }
+
+    /** 持资源租约流式编码单张图片；关闭 Base64 包装流只刷新，不关闭外层 JSON。 */
+    private suspend fun writeImage(reference: LLMImageReference, output: OutputStream, runtime: MessageImageRuntime) {
+        output.write('"'.code)
+        if (mProvider.protocol == LLMProviderProtocol.OpenAICompatible) {
+            output.write("data:${reference.mimeType};base64,".toByteArray(Charsets.UTF_8))
+        }
+        val context = currentCoroutineContext()
+        // 文件版本一致性与租约由 Runtime 保证，编码器只持有当前单图缓冲区。
+        runtime.withSendFile(reference) { file ->
+            Base64.getEncoder().wrap(NonClosingOutputStream(output)).use { encoded ->
+                file.inputStream().use { input ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        context.ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        encoded.write(buffer, 0, count)
+                    }
+                }
+            }
+        }
+        output.write('"'.code)
+    }
+
 }
 
 /** 在写入前检查剩余字节，完整 JSON 不能超过客户端约束。 */
@@ -166,4 +181,10 @@ private class LimitedOutputStream(output: OutputStream, private val mMaximum: Lo
         out.write(bytes, offset, length)
         mCount += length
     }
+}
+
+/** Base64 结束时写出尾部填充，但 JSON 输出流仍由最外层 use 持有。 */
+private class NonClosingOutputStream(output: OutputStream) : FilterOutputStream(output) {
+    override fun close() { flush() }
+    override fun write(bytes: ByteArray, offset: Int, length: Int) { out.write(bytes, offset, length) }
 }

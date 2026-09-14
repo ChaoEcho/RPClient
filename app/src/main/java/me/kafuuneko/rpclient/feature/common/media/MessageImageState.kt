@@ -10,6 +10,8 @@ data class MessageImageState(
     val editing: List<String> = emptyList(),
     val thumbnails: Map<String, ImageBitmap?> = emptyMap(),
     val processing: Boolean = false,
+    val canAddDraft: Boolean = true,
+    val canAddEditing: Boolean = true,
     /** 图片选择或处理失败时展示的本地化提示资源；null 表示当前没有错误。 */
     @param:StringRes val errorResId: Int? = null,
     val preview: ImagePreviewState? = null
@@ -31,6 +33,8 @@ sealed interface MessageImageAction {
     data class Remove(val uuid: String, val editing: Boolean = false) : MessageImageAction
     data class Move(val uuid: String, val editing: Boolean = false) : MessageImageAction
     data class Load(val uuid: String) : MessageImageAction
+    data class RegisterDisplay(val uuid: String) : MessageImageAction
+    data class ReleaseDisplay(val uuid: String) : MessageImageAction
     data class Preview(val ids: List<String>, val index: Int, val sendVersion: Boolean = false) : MessageImageAction
     data object CancelProcessing : MessageImageAction
     data object ClosePreview : MessageImageAction

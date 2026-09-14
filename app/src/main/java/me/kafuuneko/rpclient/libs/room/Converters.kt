@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room
 
 import androidx.room.TypeConverter
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -17,6 +18,15 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
  * 枚举名称属于持久化格式的一部分；重命名成员时必须提供数据库迁移，不能只修改 Kotlin 名称。
  */
 class Converters {
+    /** 未知历史名称保守回退到自动，保证数据库仍可打开。 */
+    @TypeConverter
+    fun toImageTokenEstimatorType(value: String): ImageTokenEstimatorType =
+        ImageTokenEstimatorType.entries.firstOrNull { it.name == value } ?: ImageTokenEstimatorType.Automatic
+
+    /** 持久化稳定名称，避免枚举新增改变既有配置。 */
+    @TypeConverter
+    fun fromImageTokenEstimatorType(value: ImageTokenEstimatorType): String = value.name
+
     @TypeConverter
     fun toChatMessageSource(value: String): ChatMessage.Source {
         return ChatMessage.Source.valueOf(value)

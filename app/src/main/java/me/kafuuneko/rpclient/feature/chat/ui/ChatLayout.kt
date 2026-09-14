@@ -371,7 +371,7 @@ private fun ChatNormal(
         }
         MessageImageStrip(state.imageState.draft, state.imageState, editable = true,
             enabled = !state.conversationState.generationState.isGenerating()) { ChatUiIntent.ImageAction(it).emit() }
-        if (state.conversationState.generationState is ChatGenerationState.Failed) {
+        if ((state.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply == true) {
             TextButton(onClick = { ChatUiIntent.RetryImageReply.emit() }) { Text(stringResource(R.string.image_retry)) }
         }
         MessageImageViewer(state.imageState) { ChatUiIntent.ImageAction(it).emit() }

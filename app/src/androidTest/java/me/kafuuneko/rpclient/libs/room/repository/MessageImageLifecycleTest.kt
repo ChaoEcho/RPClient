@@ -6,6 +6,10 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.InputStream
+import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,10 +40,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.InputStream
-import java.util.UUID
 
 /** 使用独立私有目录和真实 Room 验证跨存储提交，避免测试修改应用已有原图。 */
 @RunWith(AndroidJUnit4::class)
@@ -108,7 +108,7 @@ class MessageImageLifecycleTest {
         assertEquals(2, database.getFileDao().countByHash(first.file.hash))
         // 复制后再删除源会话，读取结果证明文件所有权已经独立。
         val branch = chat.createBranchSession(sessionId, message.key.messageId, "branch")
-        val copied = chat.getMessageImagePage(branch, 10).messages.single()
+        val copied = chat.getChatPageData(branch, 10).page.messageImages.single()
         assertEquals(listOf(0, 1), copied.images.map { it.image.position })
         assertNotEquals(message.images.map { it.image.imageUuid }, copied.images.map { it.image.imageUuid })
         chat.deleteSession(sessionId)
@@ -297,11 +297,12 @@ class MessageImageLifecycleTest {
         val snapshot = chat.getMessagesWithImages(ids.reversed())
         assertEquals(ids.reversed(), snapshot.map { it.key.messageId })
         assertEquals(a.file.uuid, snapshot.first().images.single().image.imageUuid)
-        val latest = chat.getMessageImagePage(sessionId, 2)
-        assertEquals(ids.takeLast(2), latest.messages.map { it.key.messageId })
+        val latest = chat.getChatPageData(sessionId, 2).page
+        assertEquals(ids.takeLast(2), latest.messages.map { it.id })
+        assertEquals(a.file.uuid, latest.messageImages.last().images.single().image.imageUuid)
         val before = latest.messages.first()
-        val previous = chat.getMessageImagePage(sessionId, 2, before.createTime, before.key.messageId)
-        assertEquals(ids.dropLast(2).takeLast(2), previous.messages.map { it.key.messageId })
+        val previous = chat.getMessagePageBefore(sessionId, before.createTime, before.id, 2)
+        assertEquals(ids.dropLast(2).takeLast(2), previous.messages.map { it.id })
         assertEquals(1005, previous.totalMessageCount)
         chat.deleteMessagesBySessionId(sessionId)
         assertNull(files.getFileEntity(a.file.uuid))
@@ -364,9 +365,9 @@ class MessageImageLifecycleTest {
         chat.commitGenerationResult(sessionId, single.key.messageId, ChatMessage.Source.User, "", true, "{}")
         assertNotNull(chat.getMessageById(single.key.messageId))
         assertNotNull(files.getFileEntity(c.file.uuid))
-        val page = group.getMessageImagePage(groupId, 1)
-        assertEquals(1, page.messages.size)
-        assertEquals(2, page.messages.single().images.size)
+        val page = requireNotNull(group.getGroupChatPageData(groupId, 1))
+        assertEquals(1, page.data.messages.size)
+        assertEquals(2, page.messageImages.single().images.size)
         group.deleteMessage(message.key.messageId)
         assertNull(files.getFileEntity(a.file.uuid))
     }

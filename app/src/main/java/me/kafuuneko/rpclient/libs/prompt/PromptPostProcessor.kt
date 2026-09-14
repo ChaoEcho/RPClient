@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 
 /**
  * 在协议适配前改写通用消息结构。
@@ -70,7 +71,8 @@ internal data class TrackedPromptMessage(
     val content: String,
     /** 当前 Prompt 项合并后保留的原始来源列表。 */
     val sources: List<PromptSource>,
-    val blocks: List<LLMContentBlock> = listOf(LLMContentBlock.Text(content))
+    val blocks: List<LLMContentBlock> = listOf(LLMContentBlock.Text(content)),
+    val unavailableImages: List<UnavailablePromptImage> = emptyList()
 )
 
 /**
@@ -104,7 +106,8 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
                     .filter { it.isNotBlank() }
                     .joinToString("\n\n"),
                 sources = (previous.sources + message.sources).distinct(),
-                blocks = mergeContentBlocks(previous.blocks + message.blocks)
+                blocks = mergeContentBlocks(previous.blocks + message.blocks),
+                unavailableImages = previous.unavailableImages + message.unavailableImages
             )
         } else {
             merged += message
@@ -183,7 +186,7 @@ private fun List<TrackedPromptMessage>.toSingleUserMessage(
         }
         message.copy(
             role = LLMMessageRole.User, content = content,
-            blocks = if (message.blocks.any { it is LLMContentBlock.Image }) {
+            blocks = if (message.unavailableImages.isNotEmpty() || message.blocks.any { it is LLMContentBlock.Image }) {
                 val speaker = when (message.role) {
                     LLMMessageRole.User -> names.userName.ifBlank { "User" }
                     LLMMessageRole.Assistant -> names.characterName.ifBlank { "Assistant" }

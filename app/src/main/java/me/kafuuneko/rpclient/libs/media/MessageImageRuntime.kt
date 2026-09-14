@@ -9,6 +9,7 @@ import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -21,7 +22,10 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
+import me.kafuuneko.rpclient.libs.prompt.model.PromptImagePreparation
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
+import me.kafuuneko.rpclient.libs.room.model.MessageImageWithFile
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -57,23 +61,52 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         }
     }
 
-    /** 为一致聚合历史生成图片元数据，纯逻辑 Builder 不访问文件系统。 */
-    suspend fun references(messages: List<MessageWithImages>): Map<Long, List<LLMImageReference>> =
+    /** 为候选历史收集资源与受控失败，错误是否阻断发送由最终选择决定。 */
+    suspend fun prepareCandidates(messages: List<MessageWithImages>): PromptImagePreparation =
         withContext(Dispatchers.IO) {
-            messages.associate { message ->
-                message.key.messageId to message.images.map { attachment ->
-                    val index = attachment.file ?: throw ImageRequestException(ImageRequestFailure.Missing)
+            val ready = mutableMapOf<Long, List<LLMImageReference>>()
+            val unavailable = mutableMapOf<Long, List<UnavailablePromptImage>>()
+            // 按消息和附件原顺序遍历，失败项不能使纯图消息变成空消息。
+            for (message in messages) {
+                val images = mutableListOf<LLMImageReference>()
+                val failures = mutableListOf<UnavailablePromptImage>()
+                for (attachment in message.images) {
                     try {
-                        mFiles.withFileLease(index.uuid) { original ->
-                            mMutex.withLock { prepareVersion(index.uuid, index.hash, original) }
-                        }
-                    } catch (error: Exception) {
-                        currentCoroutineContext().ensureActive()
-                        throw if (error is ImageRequestException) error else ImageRequestException(ImageRequestFailure.InvalidImage)
+                        images += prepareAttachment(attachment)
+                    } catch (error: ImageRequestException) {
+                        if (error.failure != ImageRequestFailure.Missing &&
+                            error.failure != ImageRequestFailure.InvalidImage) throw error
+                        failures += UnavailablePromptImage(message.key.messageId,
+                            attachment.image.imageUuid, attachment.image.position, error.failure)
                     }
                 }
+                if (images.isNotEmpty()) ready[message.key.messageId] = images
+                if (failures.isNotEmpty()) unavailable[message.key.messageId] = failures
             }
+            PromptImagePreparation(ready, unavailable)
         }
+
+    /** 只归类明确资源 IO 错误；协程取消和未知程序错误继续传播。 */
+    private suspend fun prepareAttachment(attachment: MessageImageWithFile): LLMImageReference {
+        val index = attachment.file ?: throw ImageRequestException(ImageRequestFailure.Missing)
+        return try {
+            mFiles.withFileLease(index.uuid) { original ->
+                mMutex.withLock { prepareVersion(index.uuid, index.hash, original) }
+            }
+        } catch (error: IOException) {
+            currentCoroutineContext().ensureActive()
+            throw ImageRequestException(ImageRequestFailure.InvalidImage)
+        }
+    }
+
+    /** 严格准备入口供直接发送资源的调用方使用，候选裁剪使用 prepareCandidates。 */
+    suspend fun references(messages: List<MessageWithImages>): Map<Long, List<LLMImageReference>> {
+        val prepared = prepareCandidates(messages)
+        prepared.unavailable.values.firstOrNull { it.isNotEmpty() }?.first()?.let {
+            throw ImageRequestException(it.failure)
+        }
+        return prepared.references
+    }
 
     /** 持原图租约重新核对发送快照，回调期间缓存不会被其他图片处理回收。 */
     suspend fun <T> withSendFile(reference: LLMImageReference, block: (File) -> T): T =
@@ -128,7 +161,7 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         if (!target.isFile) {
             validate(original)
             var bitmap = decode(original, MessageImagePolicy.SEND_LONG_EDGE)
-                ?: error("The image is damaged or its format is not supported by this device")
+                ?: throw ImageRequestException(ImageRequestFailure.InvalidImage)
             val temporary = File(mCache, UUID.randomUUID().toString())
             try {
                 // 透明图片保留 Alpha；高噪声图片逐步缩小，确保发送大小受控。
@@ -138,11 +171,11 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
                         FileOutputStream(temporary).use { output ->
                             val format =
                                 if (bitmap.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-                            check(bitmap.compress(format, 85, output)) { "Could not process the image" }
+                            if (!bitmap.compress(format, 85, output)) throw ImageRequestException(ImageRequestFailure.InvalidImage)
                         }
                     }
                     if (temporary.length() <= MessageImagePolicy.MAX_SEND_BYTES) break
-                    require(maxOf(bitmap.width, bitmap.height) > 128) { "The image exceeds the send size limit" }
+                    if (maxOf(bitmap.width, bitmap.height) <= 128) throw ImageRequestException(ImageRequestFailure.InvalidImage)
                     val scaled = bitmap.scale(
                         (bitmap.width * 0.75).roundToInt().coerceAtLeast(1),
                         (bitmap.height * 0.75).roundToInt().coerceAtLeast(1)
@@ -150,7 +183,7 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
                     bitmap.recycle()
                     bitmap = scaled
                 }
-                check(temporary.renameTo(target)) { "Could not cache the image" }
+                if (!temporary.renameTo(target)) throw IOException("Could not cache the image")
             } finally {
                 bitmap.recycle()
                 temporary.delete()
@@ -166,22 +199,17 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
             }
         }
         val bounds = bounds(target)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw ImageRequestException(ImageRequestFailure.InvalidImage)
         return LLMImageReference(uuid, key, bounds.outMimeType, bounds.outWidth, bounds.outHeight, target.length())
     }
 
     /** 通过解码器与容器结构校验真实格式，禁止伪 MIME、动画和超大像素。 */
     private fun validate(file: File) {
-        require(file.length() <= MessageImagePolicy.MAX_ORIGINAL_BYTES) { "The original image exceeds 32 MiB" }
+        requireValidImage(file.length() <= MessageImagePolicy.MAX_ORIGINAL_BYTES)
         val bounds = bounds(file)
-        require(bounds.outWidth > 0 && bounds.outHeight > 0) {
-            "The image is damaged or its format is not supported by this device"
-        }
-        require(bounds.outWidth.toLong() * bounds.outHeight <= MessageImagePolicy.MAX_ORIGINAL_PIXELS) {
-            "The original image exceeds 48 megapixels"
-        }
-        require(bounds.outMimeType in setOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif")) {
-            "Only static JPEG, PNG, WebP and device-readable HEIC images are supported"
-        }
+        requireValidImage(bounds.outWidth > 0 && bounds.outHeight > 0)
+        requireValidImage(bounds.outWidth.toLong() * bounds.outHeight <= MessageImagePolicy.MAX_ORIGINAL_PIXELS)
+        requireValidImage(bounds.outMimeType in setOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"))
         // PNG / WebP 按容器块跳转检查动画标记，不将压缩像素误识别成块头。
         RandomAccessFile(file, "r").use { input ->
             var offset = if (bounds.outMimeType == "image/png") 8L else 12L
@@ -191,10 +219,15 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
                 val size = if (png) input.readInt().toLong() and 0xffffffffL else 0L
                 val name = ByteArray(4).also { input.readFully(it) }.toString(Charsets.US_ASCII)
                 val length = if (png) size else Integer.reverseBytes(input.readInt()).toLong() and 0xffffffffL
-                require(name !in setOf("acTL", "ANIM", "ANMF")) { "Animated images are not supported, select a static image" }
+                requireValidImage(name !in setOf("acTL", "ANIM", "ANMF"))
                 offset += 8 + length + if (png) 4 else length % 2
             }
         }
+    }
+
+    /** 解码和格式限制属于受控资源错误，不能与程序性 require 混淆。 */
+    private fun requireValidImage(valid: Boolean) {
+        if (!valid) throw ImageRequestException(ImageRequestFailure.InvalidImage)
     }
 
     /** 读取像素信息，不分配整图内存。 */

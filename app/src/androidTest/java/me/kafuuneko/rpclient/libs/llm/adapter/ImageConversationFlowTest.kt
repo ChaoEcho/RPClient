@@ -35,6 +35,7 @@ import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -50,6 +51,7 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -83,12 +85,24 @@ class ImageConversationFlowTest {
                 assertEquals("unsent draft", draftState.conversationState.inputDraft)
                 assertEquals(1, draftState.imageState.draft.size)
                 vm.emit(ChatUiIntent.ChangeInputDraft(""))
+                val provider = fixture.db.getLLMProviderDao().getProviderById(AppModel.currentLLMProvider)!!
+                fixture.db.getLLMProviderDao().update(provider.copy(imageInputSetting = ImageInputSetting.Unsupported))
                 vm.emit(ChatUiIntent.SendMessage)
-                withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first { it.conversationState.generationState is ChatGenerationState.Failed } }
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.generationState is ChatGenerationState.Failed }
+                val rejected = vm.uiStateFlow.value as ChatUiState.Normal
+                assertFalse((rejected.conversationState.generationState as ChatGenerationState.Failed).canRetryReply)
+                assertEquals(draftState.imageState.draft, rejected.imageState.draft)
+                assertTrue(fixture.server.requests.isEmpty())
+                fixture.db.getLLMProviderDao().update(provider)
+                vm.emit(ChatUiIntent.SendMessage)
+                await { ((vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.generationState as? ChatGenerationState.Failed)?.canRetryReply == true }
+                val committed = repository.getMessagesWithImages(repository.getAllChatMessagesBySessionId(id).map { it.id })
                 vm.emit(ChatUiIntent.DismissDialog)
                 vm.emit(ChatUiIntent.RetryImageReply)
                 await { repository.getAllChatMessagesBySessionId(id).any { it.source == ChatMessage.Source.Char } }
                 assertEquals(1, repository.getAllChatMessagesBySessionId(id).count { it.source == ChatMessage.Source.User })
+                val retried = repository.getMessagesWithImages(committed.map { it.key.messageId })
+                assertEquals(committed, retried)
                 assertTrue(fixture.server.requests.take(2).all { "data:image/" in it })
                 // 后续文字轮次仍然携带历史图片；手动摘要读取图片，成功后不再永久携带旧图。
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.generationState == ChatGenerationState.Idle }
@@ -139,12 +153,48 @@ class ImageConversationFlowTest {
                 assertEquals("unsent draft", draftState.conversationState.inputDraft)
                 assertEquals(1, draftState.imageState.draft.size)
                 vm.emit(GroupChatUiIntent.ChangeInputDraft(""))
+                fixture.server.failAtRequest = 2
                 vm.emit(GroupChatUiIntent.SendMessage)
-                await { repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character } == 2 }
-                await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState is GroupChatGenerationState.Failed }
+                val failed = (vm.uiStateFlow.value as GroupChatUiState.Normal).conversationState.generationState as GroupChatGenerationState.Failed
+                assertTrue(failed.canRetryReply)
+                assertEquals(1, repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character })
+                val session = repository.getSessionById(id)!!
+                fixture.db.getGroupChatSessionDao().update(session.copy(autoModeEnabled = true))
+                fixture.server.stallAtRequest = 4
+                vm.emit(GroupChatUiIntent.RetryImageReply)
+                vm.emit(GroupChatUiIntent.RetryImageReply)
+                // 同一 Job 中 B 恢复成功后进入 AutoMode，第四个请求必须已释放旧图保护。
+                await { fixture.server.requests.size == 4 }
                 assertEquals(1, repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.User })
-                assertEquals(2, fixture.server.requests.size)
-                assertTrue(fixture.server.requests.all { "data:image/" in it })
+                assertTrue(fixture.server.requests.take(3).all { "data:image/" in it })
+                assertFalse("data:image/" in fixture.server.requests[3])
+                vm.emit(GroupChatUiIntent.StopGeneration)
+                await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                assertEquals(2, repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character })
+                // 停止后的新批次使用不支持图片的模型，已退出历史窗口的旧图不能阻断请求。
+                fixture.db.getGroupChatSessionDao().update(session.copy(autoModeEnabled = false))
+                val provider = fixture.db.getLLMProviderDao().getProviderById(AppModel.currentLLMProvider)!!
+                fixture.db.getLLMProviderDao().update(provider.copy(imageInputSetting = ImageInputSetting.Unsupported))
+                vm.emit(GroupChatUiIntent.SendMessage)
+                await { fixture.server.requests.size >= 5 }
+                await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                assertTrue(fixture.server.requests.drop(3).all { "data:image/" !in it })
+                // Continue / Regenerate 失败恢复保留各自模式；重生成的删除只在原入口执行一次。
+                for (regenerate in listOf(false, true)) {
+                    val before = repository.getGroupChatData(id)!!.messages
+                    val replies = before.count { it.source == GroupChatMessage.Source.Character }
+                    fixture.server.failNext = true
+                    if (regenerate) vm.emit(GroupChatUiIntent.RegenerateMessage(before.last().id))
+                    else vm.emit(GroupChatUiIntent.ContinueLast)
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState is GroupChatGenerationState.Failed }
+                    val failedRequest = JSONObject(fixture.server.requests.last()).getJSONArray("messages").toString()
+                    vm.emit(GroupChatUiIntent.RetryImageReply)
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    assertEquals(failedRequest, JSONObject(fixture.server.requests.last()).getJSONArray("messages").toString())
+                    assertEquals(replies + if (regenerate) 0 else 1,
+                        repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character })
+                }
                 screenshot("group-images.png")
             }
             repository.deleteSession(id)
@@ -249,7 +299,9 @@ class ImageConversationFlowTest {
         val port: Int get() = socket.localPort
         val requests = CopyOnWriteArrayList<String>()
         @Volatile var failNext = false
+        @Volatile var failAtRequest = -1
         @Volatile var stallNext = false
+        @Volatile var stallAtRequest = -1
         private val worker = thread(isDaemon = true, name = "image-model-fixture") {
             while (!socket.isClosed) {
                 try {
@@ -266,7 +318,7 @@ class ImageConversationFlowTest {
                         val body = ByteArray(length)
                         input.readFully(body)
                         requests += body.toString(Charsets.UTF_8)
-                        if (stallNext) {
+                        if (stallNext || requests.size == stallAtRequest) {
                             stallNext = false
                             client.getOutputStream().apply {
                                 write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n".toByteArray())
@@ -276,7 +328,7 @@ class ImageConversationFlowTest {
                             input.read()
                             return@use
                         }
-                        val failure = failNext.also { failNext = false }
+                        val failure = failNext.also { failNext = false } || requests.size == failAtRequest
                         val response = if (failure) """{"error":{"message":"fixture failure"}}""" else """{"choices":[{"message":{"content":"A blue square is visible."},"finish_reason":"stop"}]}"""
                         val bytes = response.toByteArray()
                         client.getOutputStream().apply {

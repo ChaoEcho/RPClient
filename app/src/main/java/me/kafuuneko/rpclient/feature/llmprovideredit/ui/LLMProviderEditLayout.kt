@@ -56,6 +56,8 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -107,6 +109,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -203,7 +206,7 @@ private fun LLMProviderEditNormal(
                     )
                 }
             }
-            item { BasicPanel(state.form, state.modelCatalogState, emit) }
+            item { BasicPanel(state.form, state.modelCatalogState, state.showImageTokenEstimator, emit) }
             item { ParameterPanel(state.form, emit) }
             item {
                 CollapsibleAdvancedPanel(
@@ -282,6 +285,7 @@ private fun ProviderPresetsSection(
 private fun BasicPanel(
     form: LLMProviderEditForm,
     modelCatalogState: LLMProviderEditModelCatalogState,
+    showImageTokenEstimator: Boolean,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
@@ -299,6 +303,11 @@ private fun BasicPanel(
             }
         }
         Text(stringResource(R.string.image_capability_hint), style = MaterialTheme.typography.bodySmall)
+        if (showImageTokenEstimator) {
+            ImageTokenEstimatorSelector(form.imageTokenEstimatorType) {
+                LLMProviderEditUiIntent.SelectImageTokenEstimator(it).emit()
+            }
+        }
 
         FormTextField(
             stringResource(R.string.name),
@@ -850,6 +859,39 @@ private fun CollapsibleAdvancedPanel(
 }
 
 /** 渲染模型配置独立的本地 Token 预估器选择项。 */
+/** 图片策略只提供一个类别选择，沿用现有单选控件。 */
+@Composable
+private fun ImageTokenEstimatorSelector(
+    selected: ImageTokenEstimatorType,
+    onSelect: (ImageTokenEstimatorType) -> Unit
+) {
+    val labels = mapOf(
+        ImageTokenEstimatorType.Automatic to stringResource(R.string.local_token_estimator_automatic),
+        ImageTokenEstimatorType.Generic to stringResource(R.string.image_estimator_generic),
+        ImageTokenEstimatorType.OpenAiTile4o to stringResource(R.string.image_estimator_tile_4o),
+        ImageTokenEstimatorType.OpenAiTile4oMini to stringResource(R.string.image_estimator_tile_mini),
+        ImageTokenEstimatorType.OpenAiPatch41Mini to stringResource(R.string.image_estimator_patch_41),
+        ImageTokenEstimatorType.OpenAiPatch54 to stringResource(R.string.image_estimator_patch_54),
+        ImageTokenEstimatorType.ClaudeStandard to stringResource(R.string.image_estimator_claude_standard),
+        ImageTokenEstimatorType.ClaudeHighResolution to stringResource(R.string.image_estimator_claude_high),
+        ImageTokenEstimatorType.Gemini3 to stringResource(R.string.image_estimator_gemini)
+    )
+    // 选择只影响本地估值，不向请求写入新的图片参数。
+    Text(stringResource(R.string.image_token_estimator), style = MaterialTheme.typography.titleSmall)
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text(labels.getValue(selected)) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            ImageTokenEstimatorType.entries.forEach { type ->
+                DropdownMenuItem(text = { Text(labels.getValue(type)) }, onClick = {
+                    expanded = false
+                    onSelect(type)
+                })
+            }
+        }
+    }
+}
+
 @Composable
 private fun LocalTokenEstimatorSelector(
     selected: LocalTokenEstimatorType,

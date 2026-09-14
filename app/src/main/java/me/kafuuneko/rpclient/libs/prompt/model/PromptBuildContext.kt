@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.prompt.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -50,7 +51,8 @@ data class PromptBuildContext(
     val generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
     /** 当前对象关联或允许执行的正则脚本列表。 */
     val regexScripts: List<ScopedRegexScript> = emptyList(),
-    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
+    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+    val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
 )
 
 /** 本次构建对应的用户操作，会影响尾部指令和世界书生成类型过滤。 */

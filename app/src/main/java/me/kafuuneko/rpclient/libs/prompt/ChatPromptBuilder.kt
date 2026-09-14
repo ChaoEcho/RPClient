@@ -123,7 +123,8 @@ class ChatPromptBuilder(
         val inChatPieces = buildInChatPieces(context, worldInfo)
         val examplePieces = buildExamplePieces(context, worldInfo, exampleBehavior)
         // 清洗历史消息推理块，并执行用户输入/AI 输出的 Prompt 阶段 Regex 处理
-        val historyMessages = context.messages.sanitizeThinkBlocks(context.messageImages.keys).mapIndexed { index, message ->
+        val imageMessageIds = context.messageImages.keys + context.unavailableImages.keys
+        val historyMessages = context.messages.sanitizeThinkBlocks(imageMessageIds).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
                 ChatMessage.Source.User -> mRegexProcessor.applyPrompt(
@@ -152,7 +153,9 @@ class ChatPromptBuilder(
             }
         }
         // 组装格式化历史文本供 {{history}} 宏使用
-        val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name, context.messageImages.mapValues { it.value.size })
+        val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name, (context.messageImages.keys + context.unavailableImages.keys).associateWith {
+            context.messageImages[it].orEmpty().size + context.unavailableImages[it].orEmpty().size
+        })
         // 组装合并了 At Depth 注入项的聊天历史草稿列表
         val chatMessages = buildChatMessages(
             historyMessages,
@@ -235,7 +238,8 @@ class ChatPromptBuilder(
                 userName = context.userName,
                 characterName = context.character.name
             ),
-            preOmittedItems = worldSelection.omittedItems
+            preOmittedItems = worldSelection.omittedItems,
+            tokenizer = tokenizer
         )
         // 组装检查器元数据
         val inspection = finalized.inspection.copy(
@@ -588,12 +592,19 @@ class ChatPromptBuilder(
         outlets: Map<String, String>
     ): List<PromptMessageDraft> {
         val lastHistoryIndex = historyMessages.lastIndex
+        val latestUserId = historyMessages.lastOrNull { it.source == ChatMessage.Source.User }?.id
         // 映射历史消息草稿，除最后一条外均允许在超出预算时被裁剪
         val chatMessages = historyMessages.mapIndexed { index, message ->
+            val hasImages = !context.messageImages[message.id].isNullOrEmpty() ||
+                !context.unavailableImages[message.id].isNullOrEmpty()
+            val protectsUserImages = hasImages && message.id == latestUserId
             message.toPromptDraft(
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != lastHistoryIndex && (context.messageImages[message.id].isNullOrEmpty() || message.id != historyMessages.lastOrNull { it.source == ChatMessage.Source.User }?.id)
-            ).copy(images = context.messageImages[message.id].orEmpty())
+                canDrop = index != lastHistoryIndex && !protectsUserImages
+            ).copy(
+                images = context.messageImages[message.id].orEmpty(),
+                unavailableImages = context.unavailableImages[message.id].orEmpty()
+            )
         }.toMutableList()
         // 若存在当前用户正在输入的消息，执行正则替换并作为末尾 User 消息加入
         context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {

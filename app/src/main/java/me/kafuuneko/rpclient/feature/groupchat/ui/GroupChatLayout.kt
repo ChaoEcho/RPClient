@@ -226,7 +226,7 @@ private fun GroupChatNormalView(
         bottomBar = {
             Column {
             MessageImageStrip(state.imageState.draft, state.imageState, editable = true, enabled = !generating) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
-            if (state.conversationState.generationState is GroupChatGenerationState.Failed) {
+            if ((state.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
                 TextButton(onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) }) { Text(stringResource(R.string.image_retry)) }
             }
             MessageImageViewer(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }

@@ -94,7 +94,7 @@ internal class LLMTokenUsageTrackingClient(
         usage: LLMUsage?,
         startNanos: Long
     ) {
-        val tokenizer = mTokenizerRegistry.resolveForUsage(mProvider)
+        val tokenizer = mTokenizerRegistry.resolveForUsage(mProvider.copy(model = request.model?.takeIf { it.isNotBlank() } ?: mProvider.model))
         // 关闭服务端用量后不混用响应中的任何计数，确保两侧来源均为本地估算
         val acceptedUsage = usage.takeIf { mProvider.useServerReportedUsage }
         val reportedInput = acceptedUsage.reportedInputTokens()

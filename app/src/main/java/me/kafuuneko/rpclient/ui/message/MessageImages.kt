@@ -18,11 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,11 +44,12 @@ fun MessageImageStrip(
     editing: Boolean = false, enabled: Boolean = true, emit: (MessageImageAction) -> Unit
 ) {
     if (ids.isEmpty() && !editable) return
+    val currentEmit by rememberUpdatedState(emit)
     Column {
         if (editable) Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(
                 onClick = { emit(MessageImageAction.Choose(editing)) },
-                enabled = enabled && !state.processing && ids.size < 4
+                enabled = enabled && !state.processing && (if (editing) state.canAddEditing else state.canAddDraft)
             ) {
                 Text(stringResource(R.string.attach_images))
             }
@@ -67,7 +69,10 @@ fun MessageImageStrip(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ids.forEachIndexed { index, uuid ->
-                LaunchedEffect(uuid) { emit(MessageImageAction.Load(uuid)) }
+                DisposableEffect(uuid) {
+                    currentEmit(MessageImageAction.RegisterDisplay(uuid))
+                    onDispose { currentEmit(MessageImageAction.ReleaseDisplay(uuid)) }
+                }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         Modifier
@@ -134,7 +139,8 @@ fun MessageImageViewer(state: MessageImageState, emit: (MessageImageAction) -> U
                     .height(340.dp)
                     .pointerInput(preview.index) {
                         detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 8f); offset += pan
+                            scale = (scale * zoom).coerceIn(1f, 8f)
+                            offset += pan
                         }
                     }, contentAlignment = Alignment.Center) {
                     preview.bitmap?.let { bitmap ->
@@ -144,8 +150,10 @@ fun MessageImageViewer(state: MessageImageState, emit: (MessageImageAction) -> U
                             Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
-                                    scaleX = scale; scaleY = scale; translationX =
-                                    offset.x; translationY = offset.y
+                                    scaleX = scale
+                                    scaleY = scale
+                                    translationX = offset.x
+                                    translationY = offset.y
                                 },
                             contentScale = ContentScale.Fit
                         )

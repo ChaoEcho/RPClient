@@ -1,14 +1,15 @@
 package me.kafuuneko.rpclient.feature.common.media
 
 import androidx.compose.ui.graphics.asImageBitmap
+import java.util.UUID
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import java.util.UUID
 
 /**
  * 每个聊天 ViewModel 独占的图片交互协调器。
@@ -22,6 +23,8 @@ class MessageImageCoordinator(
 ) {
     private val mOwner = UUID.randomUUID().toString()
     private val mPrepared = mutableMapOf<String, PreparedFile>()
+    private val mDisplayReferences = mutableMapOf<String, Int>()
+    private val mLoading = mutableSetOf<String>()
     private var mPickEditing = false
     private var mSaveUuid: String? = null
     private var mEditingActive = false
@@ -32,6 +35,8 @@ class MessageImageCoordinator(
     suspend fun releaseDrafts() {
         mPrepared.values.toList().forEach { mFiles.releasePrepared(it) }
         mPrepared.clear()
+        mDisplayReferences.clear()
+        mLoading.clear()
     }
 
     /** 根据用户选择的输入位置记录本次系统选择器目标。 */
@@ -93,20 +98,19 @@ class MessageImageCoordinator(
             when (action) {
                 is MessageImageAction.Picked -> pick(action)
                 is MessageImageAction.Load -> load(action.uuid)
+                is MessageImageAction.RegisterDisplay -> {
+                    mDisplayReferences[action.uuid] = (mDisplayReferences[action.uuid] ?: 0) + 1
+                    load(action.uuid)
+                }
+                is MessageImageAction.ReleaseDisplay -> {
+                    val remaining = (mDisplayReferences[action.uuid] ?: 0) - 1
+                    if (remaining > 0) mDisplayReferences[action.uuid] = remaining
+                    else mDisplayReferences.remove(action.uuid)
+                    publish(state)
+                }
                 is MessageImageAction.Remove -> remove(action)
-                is MessageImageAction.Move -> {
-                    val ids = (if (action.editing) state.editing else state.draft).toMutableList()
-                    val index = ids.indexOf(action.uuid)
-                    if (index > 0) { ids.removeAt(index); ids.add(index - 1, action.uuid) }
-                    publish(if (action.editing) state.copy(editing = ids) else state.copy(draft = ids))
-                }
-                is MessageImageAction.Preview -> {
-                    val uuid = action.ids.getOrNull(action.index) ?: return
-                    publish(state.copy(preview = ImagePreviewState(action.ids, action.index, sendVersion = action.sendVersion)))
-                    val bitmap = if (action.sendVersion) mRuntime.loadSendPreview(uuid, mPrepared[uuid])
-                        else mRuntime.load(uuid, mPrepared[uuid], 3072)
-                    publish(state.copy(preview = state.preview?.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
-                }
+                is MessageImageAction.Move -> move(action)
+                is MessageImageAction.Preview -> preview(action)
                 MessageImageAction.ClosePreview -> publish(state.copy(preview = null))
                 is MessageImageAction.SaveResult -> mSaveUuid?.let {
                     mRuntime.save(it, action.uri, mPrepared[it])
@@ -131,7 +135,7 @@ class MessageImageCoordinator(
             return
         }
         val initial = if (editing) state.editing else state.draft
-        require(initial.size + action.uris.size <= 4) { "A message can contain at most four images" }
+        require(initial.size + action.uris.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         publish(state.copy(processing = true, errorResId = null))
         try {
             for (uri in action.uris) {
@@ -144,12 +148,37 @@ class MessageImageCoordinator(
         } finally { publish(state.copy(processing = false)) }
     }
 
-    /** 可见列表请求缩略图，缓存最多保留近期缩略图，避免分页历史累积 Bitmap。 */
+    /** 同一 UUID 的解码去重；null 是已完成的缺图结果，不能自动循环重试。 */
     private suspend fun load(uuid: String) {
-        if (state.thumbnails.containsKey(uuid)) return
-        val bitmap = mRuntime.load(uuid, mPrepared[uuid])?.asImageBitmap()
-        publish(state.copy(thumbnails = state.thumbnails.entries.toList().takeLast(63)
-            .associate { it.toPair() } + (uuid to bitmap)))
+        if (state.thumbnails.containsKey(uuid) || !mLoading.add(uuid)) return
+        try {
+            val bitmap = mRuntime.load(uuid, mPrepared[uuid])?.asImageBitmap()
+            publish(state.copy(thumbnails = state.thumbnails + (uuid to bitmap)))
+        } finally {
+            mLoading.remove(uuid)
+        }
+    }
+
+    /** 调整草稿中的顺序，不改变任何文件所有权。 */
+    private fun move(action: MessageImageAction.Move) {
+        val ids = (if (action.editing) state.editing else state.draft).toMutableList()
+        val index = ids.indexOf(action.uuid)
+        if (index <= 0) return
+        ids.removeAt(index)
+        ids.add(index - 1, action.uuid)
+        publish(if (action.editing) state.copy(editing = ids) else state.copy(draft = ids))
+    }
+
+    /** 大图仅在当前查看器仍对应同一次请求时发布，避免迟到结果覆盖新图。 */
+    private suspend fun preview(action: MessageImageAction.Preview) {
+        val uuid = action.ids.getOrNull(action.index) ?: return
+        val preview = ImagePreviewState(action.ids, action.index, sendVersion = action.sendVersion)
+        publish(state.copy(preview = preview))
+        val bitmap = if (action.sendVersion) mRuntime.loadSendPreview(uuid, mPrepared[uuid])
+            else mRuntime.load(uuid, mPrepared[uuid], 3072)
+        if (state.preview === preview) {
+            publish(state.copy(preview = preview.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
+        }
     }
 
     /** 移除草稿释放暂存；移除历史附件仅更改编辑顺序，保存时才删除。 */
@@ -159,8 +188,23 @@ class MessageImageCoordinator(
             else state.copy(draft = state.draft - action.uuid))
     }
 
+    /**
+     * 草稿、编辑和组合中的图片受到保护；64 是历史缓存回收目标。
+     * 保护项超过目标时允许短时超出，解除保护后立即回收，避免可见图退回加载状态。
+     */
     private fun publish(value: MessageImageState) {
-        state = value
-        mChanged(value)
+        val protected = value.draft.toSet() + value.editing + mDisplayReferences.keys
+        val removable = value.thumbnails.keys.filter { it !in protected }
+        val excess = (value.thumbnails.size - HISTORY_CACHE_TARGET).coerceAtLeast(0)
+        state = value.copy(
+            thumbnails = value.thumbnails - removable.take(excess).toSet(),
+            canAddDraft = value.draft.size < MessageImagePolicy.MAX_IMAGES_PER_MESSAGE,
+            canAddEditing = value.editing.size < MessageImagePolicy.MAX_IMAGES_PER_MESSAGE
+        )
+        mChanged(state)
+    }
+
+    private companion object {
+        const val HISTORY_CACHE_TARGET = 64
     }
 }

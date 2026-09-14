@@ -450,7 +450,7 @@ private fun InspectionItemCard(
                         image.height,
                         image.mimeType,
                         image.byteCount,
-                        image.estimatedTokens
+                        item.imageTokenCounts.getOrElse(index) { 0L }
                     ),
                     style = MaterialTheme.typography.bodySmall
                 )

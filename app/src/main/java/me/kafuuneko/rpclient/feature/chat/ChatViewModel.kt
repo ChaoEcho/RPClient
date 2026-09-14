@@ -77,6 +77,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
+import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -115,24 +116,21 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.RetryImageReply::class)
     private suspend fun onRetryImageReply() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if ((uiState.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply != true) return
         val sessionId = mSessionId ?: return
         val messageId = mRetryUserMessageId ?: return
-        if (mGenerationJob?.isActive == true) return
-        val message = mChatRepository.getMessageById(messageId) ?: return
-        if (message.sessionId != sessionId) return
+        if (mGenerationJob?.isCompleted == false) return
+        // 按当前会话再次校验持久化目标，不能依赖按钮显示时的旧快照。
+        val message = mChatRepository.getMessageById(messageId)
+        if (message?.sessionId != sessionId || message.source != ChatMessage.Source.User) {
+            clearReplyRetry()
+            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
+            return
+        }
         mGenerationJob = viewModelScope.launch {
             try {
                 refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Requesting)
-                val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
-                recordPromptInspection(built.inspection)
-                if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, built.provider, built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char), built.worldInfoStateJson)
-                } else {
-                    generateOnce(sessionId, built.provider, built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char), built.worldInfoStateJson)
-                }
-                mRetryUserMessageId = null
+                generateCommittedReply(sessionId)
                 maybeAutoSummarize(sessionId)
             } catch (error: Exception) {
                 val failure = error.toGenerationFailurePresentation(mContext, R.string.generation_failed) ?: return@launch
@@ -141,8 +139,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试入口。 */
+    private fun clearReplyRetry() {
+        mRetryUserMessageId = null
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val failed = uiState.conversationState.generationState as? ChatGenerationState.Failed ?: return
+        uiState.copy(conversationState = uiState.conversationState.copy(
+            generationState = failed.copy(canRetryReply = false)
+        )).setup()
+    }
+
     /** 结束页面时释放本 ViewModel 拥有的未提交图片。 */
     override fun onCleared() {
+        clearReplyRetry()
         super.onCleared()
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
@@ -159,7 +168,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val action = intent.action
-        if (mGenerationJob?.isActive == true && action !is MessageImageAction.Load &&
+        if (mGenerationJob?.isCompleted == false && action !is MessageImageAction.Load &&
+            action !is MessageImageAction.RegisterDisplay && action !is MessageImageAction.ReleaseDisplay &&
             action !is MessageImageAction.Preview && action != MessageImageAction.ClosePreview &&
             action != MessageImageAction.Save && action !is MessageImageAction.SaveResult) return
         // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
@@ -313,7 +323,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 LoadedChatMessagePage(
                     items = page.messages.toDisplayMessageItems(
                         context = displayContext,
-                        newerMessageCount = uiState.conversationState.messages.size
+                        newerMessageCount = uiState.conversationState.messages.size,
+                        messageImages = page.messageImages
                     ),
                     cursor = page.messages.firstOrNull()?.toChatMessageCursor(),
                     canLoadOlderMessages = page.canLoadOlderMessages,
@@ -424,12 +435,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             continueLastAssistantMessage(sessionId)
             return
         }
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
 
         // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
+        clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             var committed = false
             runCatching {
@@ -454,28 +466,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     inputDraft = "",
                     generationState = ChatGenerationState.Requesting
                 )
-                // 构建 Prompt 请求并记录检查项
-                val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
-                recordPromptInspection(built.inspection)
-                // 分发调用大模型生成角色回复
-                if (AppModel.streamEnabled) {
-                    generateStreaming(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
-                    )
-                } else {
-                    generateOnce(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
-                    )
-                }
-                mRetryUserMessageId = null
+                generateCommittedReply(sessionId)
                 // 检查并按需触发自动总结
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -496,6 +487,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
             }
         }
+    }
+
+    /** 为已提交的用户消息生成回复；成功后先释放恢复目标，再运行独立的摘要流程。 */
+    private suspend fun generateCommittedReply(sessionId: Long) {
+        val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+        recordPromptInspection(built.inspection)
+        val output = GenerationOutput.Create(ChatMessage.Source.Char)
+        // 首次发送和失败恢复共享相同分发，恢复时不再提交用户正文或附件。
+        if (AppModel.streamEnabled) {
+            generateStreaming(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
+        } else {
+            generateOnce(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
+        }
+        clearReplyRetry()
     }
 
     /**
@@ -520,8 +525,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 若有活跃任务被取消返回 true，否则返回 false
      */
     private suspend fun cancelActiveGeneration(): Boolean {
+        clearReplyRetry()
         val job = mGenerationJob ?: return false
-        if (!job.isActive) return false
+        if (job.isCompleted) return false
         job.cancelAndJoin()
         return true
     }
@@ -596,7 +602,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val messageId = intent.messageId.toLongOrNull() ?: return
         // 拦截并发生成
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -807,7 +813,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         // 校验是否正处于忙碌或已在导出中
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -839,7 +845,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         // 校验前置互斥状态
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(
                 R.string.stop_generation_before_exporting
             ).tryEmit()
@@ -883,7 +889,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSummarizeNow() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
@@ -897,7 +903,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onRestorePreviousSummary() {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true || mSummaryJob?.isActive == true) return
+        if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
         val restored = withContext(Dispatchers.IO) {
             mChatRepository.restorePreviousSummary(sessionId)
         }
@@ -941,7 +947,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
     private fun onDeleteSessionClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             return
         }
@@ -971,7 +977,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         // 生成中禁止删除
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -987,6 +993,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         AppViewEvent.PopupToastMessageByResId(R.string.chat_deleted).tryEmit()
         // 关闭退出聊天页面
+        clearReplyRetry()
         ChatUiState.finished(uiStateFlow.value).setup()
     }
 
@@ -998,7 +1005,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DeleteMessageClick::class)
     private fun onDeleteMessageClick(intent: ChatUiIntent.DeleteMessageClick) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             return
         }
@@ -1016,7 +1023,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onConfirmDeleteMessage(intent: ChatUiIntent.ConfirmDeleteMessage) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             uiState.copy(dialogState = ChatDialogState.None).setup()
             return
@@ -1026,6 +1033,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.deleteMessage(messageId)
         }
+        if (mRetryUserMessageId == messageId) clearReplyRetry()
         AppViewEvent.PopupToastMessageByResId(R.string.message_deleted).tryEmit()
         refreshUiState(sessionId = sessionId)
     }
@@ -1374,7 +1382,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截：若已有生成任务在运行则拒绝
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1392,6 +1400,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 启动重生成协程任务
+        clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 // 更新 UI 为请求中状态
@@ -1464,7 +1473,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
@@ -1478,6 +1487,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
         // 启动续写任务
+        clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 refreshUiState(
@@ -1543,11 +1553,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 并发拦截
-        if (mGenerationJob?.isActive == true) {
+        if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
         // 启动模仿用户生成任务
+        clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 refreshUiState(
@@ -1988,7 +1999,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             require(mChatRepository.getSummaryGenerationContext(sessionId, allowRefreshLatest, windowSize) == context) {
                 "Summary input changed, retry"
             }
-            val summaryImages = mImageRuntime.references(mChatRepository.getMessagesWithImages(context.messages.map { it.id }))
+            val summaryImages = mImageRuntime.prepareCandidates(mChatRepository.getMessagesWithImages(context.messages.map { it.id }))
             // 格式化与 BPE Token 统计属于 CPU 密集任务，不能占用 UI 主线程
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
@@ -1998,7 +2009,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     session = data.session,
                     existingSummary = context.existingSummary,
                     messages = context.messages,
-                    messageImages = summaryImages,
+                    messageImages = summaryImages.references,
+                    unavailableImages = summaryImages.unavailable,
                     provider = data.provider
                 )
             }
@@ -2069,7 +2081,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 组装 PromptBuildContext 并调用 Prompt 构建器
         val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val regexScripts = mRegexRepository.activeScripts(listOf(character))
-        val imageReferences = mImageRuntime.references(mChatRepository.getMessagesWithImages(generationHistory.messages.map { it.id }))
+        val imageReferences = mImageRuntime.prepareCandidates(mChatRepository.getMessagesWithImages(generationHistory.messages.map { it.id }))
         val buildResult = withContext(Dispatchers.Default) {
             mChatPromptBuilder.buildWithMetadata(
                 PromptBuildContext(
@@ -2079,7 +2091,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     session = session.copy(creatorNotes = creatorNotes),
                     summary = generationHistory.summary,
                     messages = generationHistory.messages,
-                    messageImages = imageReferences,
+                    messageImages = imageReferences.references,
+                    unavailableImages = imageReferences.unavailable,
                     currentUserMessage = null,
                     totalMessageCount = generationHistory.totalMessageCount,
                     candidateLorebookEntries = lorebookEntries,
@@ -2170,7 +2183,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val pageData = mChatRepository.getChatPageData(sessionId, messageLimit)
         val messagePage = pageData.page
         val displayContext = ChatMessageDisplayContext(session, character)
-        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext)
+        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext, messageImages = messagePage.messageImages)
         mMessageDisplayContext = displayContext
         mOldestLoadedMessageCursor = messagePage.messages.firstOrNull()?.toChatMessageCursor()
         // 获取摘要、世界书及角色头像资源
@@ -2202,7 +2215,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 hasAssistantMessage = pageData.hasCharacterMessage,
                 canLoadOlderMessages = messagePage.canLoadOlderMessages,
                 inputDraft = inputDraft,
-                generationState = generationState,
+                generationState = if (generationState is ChatGenerationState.Failed) {
+                    generationState.copy(canRetryReply = mRetryUserMessageId?.let {
+                        mChatRepository.getMessageById(it)?.sessionId == sessionId
+                    } == true)
+                } else generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft
@@ -2237,6 +2254,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun List<ChatMessage>.toDisplayMessageItems(
         context: ChatMessageDisplayContext,
+        messageImages: List<MessageWithImages>,
         newerMessageCount: Int = 0
     ): List<ChatMessageUiModel> {
         val regexScripts = mRegexRepository.activeScripts(listOf(context.character))
@@ -2269,7 +2287,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (result == null) message else message.copy(content = result)
         }
-        val imageMap = mChatRepository.getMessagesWithImages(map { it.id }).associate { it.key.messageId.toString() to it.images.map { image -> image.image.imageUuid } }
+        val imageMap = messageImages.associate { snapshot ->
+            snapshot.key.messageId.toString() to snapshot.images.map { it.image.imageUuid }
+        }
         return displayMessages.toChatMessageItems(
             characterName = context.character.name,
             userName = context.session.userName,

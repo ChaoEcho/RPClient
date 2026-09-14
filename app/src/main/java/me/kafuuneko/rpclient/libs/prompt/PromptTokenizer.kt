@@ -4,16 +4,21 @@ import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import kotlin.math.ceil
+import me.kafuuneko.rpclient.libs.llm.image.GENERIC_IMAGE_TOKENS
+import me.kafuuneko.rpclient.libs.llm.image.ImageTokenCounter
+import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
+import me.kafuuneko.rpclient.libs.room.entity.toConfig
 
 /**
  * Prompt Token 统计抽象。
@@ -46,17 +51,23 @@ interface PromptTokenizer {
         return countText(text)
     }
 
+    /** 图片计数统一入口；没有 Provider 的兼容调用使用 Generic。 */
+    fun countImages(images: List<LLMImageReference>): Long = images.size.toLong() * GENERIC_IMAGE_TOKENS
+
+    /** 缺失尺寸的候选仍参与原有总预算，Unsupported 覆盖后返回零。 */
+    fun countUnavailableImages(count: Int): Long = count.toLong() * GENERIC_IMAGE_TOKENS
+
     /** 统计一条消息的角色、正文及固定模板开销。 */
     fun countMessage(message: LLMMessage): Int {
-        return MESSAGE_OVERHEAD_TOKENS +
+        return (MESSAGE_OVERHEAD_TOKENS.toLong() +
             countText(message.role.name.lowercase()) +
-            countText(message.content) + message.images.sumOf { it.estimatedTokens }
+            countText(message.content) + countImages(message.images)).toTokenInt()
     }
 
     /** 统计完整消息列表，并预留模型开始回复所需的模板开销。 */
     fun countMessages(messages: List<LLMMessage>): Int {
         if (messages.isEmpty()) return 0
-        return messages.sumOf(::countMessage) + RESPONSE_PRIMER_TOKENS
+        return (messages.sumOf { countMessage(it).toLong() } + RESPONSE_PRIMER_TOKENS).toTokenInt()
     }
 
     /**
@@ -72,12 +83,12 @@ interface PromptTokenizer {
         var total = RESPONSE_PRIMER_TOKENS
         if (total > maxTokens) return overLimitTokenCount(maxTokens)
         for (message in messages) {
-            val fixedMessageTokens = MESSAGE_OVERHEAD_TOKENS +
-                countText(message.role.name.lowercase()) + message.images.sumOf { it.estimatedTokens }
+            val fixedMessageTokens = MESSAGE_OVERHEAD_TOKENS.toLong() +
+                countText(message.role.name.lowercase()) + countImages(message.images)
             if (fixedMessageTokens > maxTokens - total) {
                 return overLimitTokenCount(maxTokens)
             }
-            total += fixedMessageTokens
+            total += fixedMessageTokens.toInt()
             val remainingTokens = maxTokens - total
             val contentTokens = countTextUpTo(message.content, remainingTokens)
             if (contentTokens > remainingTokens) {
@@ -111,7 +122,9 @@ fun interface PromptTokenizerResolver {
  * 模型配置的估算预留。这些模型服务未提供适合 Android 离线集成的官方 Tokenizer，
  * 因此调试名称会明确标记 proxy，避免把估算值误解为精确计数。
  */
-class PromptTokenizerRegistry : PromptTokenizerResolver {
+class PromptTokenizerRegistry(
+    private val mImages: ImageTokenEstimatorRegistry = ImageTokenEstimatorRegistry()
+) : PromptTokenizerResolver {
     private val mEncodingRegistry by lazy { Encodings.newDefaultEncodingRegistry() }
     private val mO200k by lazy {
         JTokkitPromptTokenizer(mEncodingRegistry.getEncoding(EncodingType.O200K_BASE))
@@ -171,7 +184,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
             providerType = provider.providerType,
             reservePercent = reservePercent,
             estimatorType = provider.localTokenEstimatorType
-        )
+        ).withImageCounter(mImages.resolve(provider.toConfig()))
     }
 
     /**
@@ -186,7 +199,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
             providerType = provider.providerType,
             reservePercent = 0,
             estimatorType = provider.localTokenEstimatorType
-        )
+        ).withImageCounter(mImages.resolve(provider))
     }
 
     private fun resolve(
@@ -327,3 +340,22 @@ private class EstimatedBpePromptTokenizer(
         return ceil(baseTokens * 100.0 / (100 - reservePercent)).toInt().coerceAtLeast(1)
     }
 }
+
+/** 在既有文本实现上绑定本次图片策略；消息算法沿用接口默认实现，避免委托绕过能力门禁。 */
+private fun PromptTokenizer.withImageCounter(counter: ImageTokenCounter): PromptTokenizer {
+    val textTokenizer = this
+    // 只复用文本方法，不能使用接口委托，否则 countMessage 会绕过这里的图片策略。
+    return object : PromptTokenizer {
+        override val name = textTokenizer.name
+        override val strategy = textTokenizer.strategy
+        override val reservePercent = textTokenizer.reservePercent
+        override val supportsIncrementalMessageCounting = textTokenizer.supportsIncrementalMessageCounting
+        override fun countText(text: String) = textTokenizer.countText(text)
+        override fun countTextUpTo(text: String, maxTokens: Int) = textTokenizer.countTextUpTo(text, maxTokens)
+        override fun countImages(images: List<LLMImageReference>) = counter.count(images)
+        override fun countUnavailableImages(count: Int) = counter.countUnavailable(count)
+    }
+}
+
+/** 兼容既有 Int 接口，溢出时饱和而非回绕成负数。 */
+internal fun Long.toTokenInt(): Int = coerceIn(0, Int.MAX_VALUE.toLong()).toInt()

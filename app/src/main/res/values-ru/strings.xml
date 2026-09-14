@@ -1187,4 +1187,13 @@
     <string name="image_export_warning">Этот экспорт текста не включает изображения и не может их восстановить. Экспортировать только текст?</string>
     <string name="image_export_text">Экспортировать только текст</string>
     <string name="image_summary_paused">Не удалось создать сводку по изображению. Автоматические сводки приостановлены; смените модель сводок и возобновите в настройках.</string>
+    <string name="image_token_estimator">Оценка токенов изображения</string>
+    <string name="image_estimator_generic">Общая приблизительная оценка</string>
+    <string name="image_estimator_claude_standard">Claude стандартный</string>
+    <string name="image_estimator_claude_high">Claude высокое разрешение</string>
+    <string name="image_estimator_tile_4o">GPT-4o / GPT-4.1 (Tile)</string>
+    <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
+    <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
+    <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
+    <string name="image_estimator_gemini">Gemini 3</string>
 </resources>

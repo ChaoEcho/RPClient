@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -59,6 +60,9 @@ data class LLMProvider(
     // 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。
     @ColumnInfo(defaultValue = "'Auto'")
     val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    /** 图片本地预估类别，禁用图片时仍保留选择。 */
+    @ColumnInfo(defaultValue = "'Automatic'")
+    val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
     // 是否启用
     val isEnabled: Boolean = true,
     // 创建时间
@@ -90,5 +94,6 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     sendTopP = sendTopP,
     useServerReportedUsage = useServerReportedUsage,
     imageInputSetting = imageInputSetting,
+    imageTokenEstimatorType = imageTokenEstimatorType,
     providerId = id
 )

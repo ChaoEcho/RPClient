@@ -26,6 +26,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
@@ -37,6 +38,8 @@ import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProviderEna
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.llm.catalog.classifyModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -72,6 +75,7 @@ class LLMProviderEditViewModel :
     private var mTestJob: Job? = null
 
     /** 模型目录查询与生成测试互不替代，因此使用独立任务管理取消。 */
+    private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
     private var mModelCatalogJob: Job? = null
     private var mApiKeyReplacement: String? = null
     private var mInitialApiKey = ""
@@ -88,6 +92,7 @@ class LLMProviderEditViewModel :
         LLMProviderEditUiState.Normal(
             mode = if (provider == null) LLMProviderEditMode.Create else LLMProviderEditMode.Edit,
             form = form,
+            showImageTokenEstimator = form.canEstimateImages(),
             requestExtensionsState = form.toRequestExtensionsState()
         ).setup()
     }
@@ -136,12 +141,18 @@ class LLMProviderEditViewModel :
                 sendTemperature = capabilities.defaultSendTemperature,
                 sendTopP = capabilities.defaultSendTopP,
                 localTokenEstimatorType = preset.defaultLocalTokenEstimatorType,
+                imageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
                 useServerReportedUsage = preset.defaultUseServerReportedUsage
             )
         }
     }
 
-    /** 保存用户明确指定的图片输入能力，不发送探测请求。 */
+    /** 保存图片预估类别，不改变实际发送参数。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectImageTokenEstimator::class)
+    private fun onSelectImageTokenEstimator(intent: LLMProviderEditUiIntent.SelectImageTokenEstimator) =
+        updateForm { copy(imageTokenEstimatorType = intent.value) }
+
+    /** 切换能力时保留原类别，只更新可选状态。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeImageInput::class)
     private fun onChangeImageInput(intent: LLMProviderEditUiIntent.ChangeImageInput) =
         updateForm { copy(imageInputSetting = intent.value) }
@@ -242,6 +253,7 @@ class LLMProviderEditViewModel :
                     getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 // 更新加载成功的模型列表
                 latestState.copy(
+                    showImageTokenEstimator = latestState.form.canEstimateImages(),
                     modelCatalogState = LLMProviderEditModelCatalogState.Loaded(
                         models = models
                     )
@@ -605,6 +617,7 @@ class LLMProviderEditViewModel :
         val updatedForm = uiState.form.block()
         uiState.copy(
             form = updatedForm,
+            showImageTokenEstimator = updatedForm.canEstimateImages(),
             requestExtensionsState = updatedForm.toRequestExtensionsState(),
             testState = LLMProviderEditTestState.None,
             modelCatalogState = if (invalidateModelCatalog) {
@@ -615,6 +628,23 @@ class LLMProviderEditViewModel :
         ).setup()
     }
 
+    /** 使用与模型目录查询相同的连接身份，不让无关数字表单错误影响能力显示。 */
+    private fun LLMProviderEditForm.canEstimateImages(): Boolean {
+        val provider = LLMProviderConfig(
+            providerId = id,
+            name = name.trim(),
+            providerType = providerType,
+            protocol = protocol,
+            baseUrl = baseUrl.trim(),
+            apiKey = resolveApiKey().orEmpty().trim(),
+            model = model.trim(),
+            customHeadersJson = customHeadersJson.trim(),
+            requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
+            imageInputSetting = imageInputSetting
+        )
+        return mImageCapabilities.resolve(provider) != ImageInputSetting.Unsupported
+    }
+
     /** 将表单转换为用于模型目录查询的临时 Config 对象。 */
     private fun LLMProviderEditForm.toCatalogConfigOrNullWithToast(): LLMProviderConfig? {
         if (baseUrl.isBlank()) {
@@ -623,6 +653,7 @@ class LLMProviderEditViewModel :
         }
         val apiKey = resolveApiKey() ?: return null
         return LLMProviderConfig(
+            providerId = id,
             name = name.trim(),
             providerType = providerType,
             protocol = protocol,

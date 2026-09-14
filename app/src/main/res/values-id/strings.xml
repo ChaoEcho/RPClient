@@ -1183,4 +1183,13 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="image_export_warning">Ekspor teks ini tidak menyertakan gambar dan tidak dapat memulihkannya. Ekspor teks saja?</string>
     <string name="image_export_text">Ekspor teks saja</string>
     <string name="image_summary_paused">Gagal meringkas gambar. Ringkasan otomatis dijeda; ganti model ringkasan dan lanjutkan di pengaturan.</string>
+    <string name="image_token_estimator">Estimator token gambar</string>
+    <string name="image_estimator_generic">Perkiraan umum</string>
+    <string name="image_estimator_claude_standard">Claude standar</string>
+    <string name="image_estimator_claude_high">Claude resolusi tinggi</string>
+    <string name="image_estimator_tile_4o">GPT-4o / GPT-4.1 (Tile)</string>
+    <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
+    <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
+    <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
+    <string name="image_estimator_gemini">Gemini 3</string>
 </resources>

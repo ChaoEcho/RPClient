@@ -230,7 +230,7 @@ class AppDatabaseMigrationTest {
         }
         migrated.query(
             """
-            SELECT id, useServerReportedUsage, localTokenEstimatorType, imageInputSetting
+            SELECT id, useServerReportedUsage, localTokenEstimatorType, imageInputSetting, imageTokenEstimatorType
             FROM llm_providers
             WHERE id IN (404, 405, 406)
             ORDER BY id
@@ -241,16 +241,19 @@ class AppDatabaseMigrationTest {
             assertEquals(0, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
             assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
             assertEquals(true, cursor.moveToNext())
             assertEquals(405L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
             assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
             assertEquals(true, cursor.moveToNext())
             assertEquals(406L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
             assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
         }
 
         // 验证 message_images 表及其字段在 3→4 迁移中正确生成

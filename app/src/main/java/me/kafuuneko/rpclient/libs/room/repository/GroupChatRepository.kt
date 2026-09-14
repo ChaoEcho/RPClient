@@ -11,7 +11,6 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 import me.kafuuneko.rpclient.libs.room.model.GroupChatSessionOverview
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
-import me.kafuuneko.rpclient.libs.room.model.MessageImagePage
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
@@ -87,7 +86,8 @@ data class GroupChatSpeakerSelectionData(
 data class GroupChatPageData(
     val data: GroupChatData,
     val canLoadOlderMessages: Boolean,
-    val hasCharacterMessage: Boolean
+    val hasCharacterMessage: Boolean,
+    val messageImages: List<MessageWithImages> = emptyList()
 )
 
 /**
@@ -98,7 +98,9 @@ data class GroupChatPageData(
  */
 data class GroupChatMessagePage(
     val messages: List<GroupChatMessage>,
-    val canLoadOlderMessages: Boolean
+    val canLoadOlderMessages: Boolean,
+    /** 与本页正文在同一事务读取的有序附件。 */
+    val messageImages: List<MessageWithImages> = emptyList()
 )
 
 /**
@@ -112,29 +114,6 @@ class GroupChatRepository(
     private val mGson: Gson,
     private val mImages: MessageImageRepository
 ) {
-    /** 在同一读取事务内取得原有游标窗口和附件快照，不按图片数量改变分页单位。 */
-    suspend fun getMessageImagePage(
-        sessionId: Long,
-        pageSize: Int,
-        beforeCreateTime: Long? = null,
-        beforeMessageId: Long? = null
-    ): MessageImagePage {
-        require(pageSize in 1 until Int.MAX_VALUE)
-        require((beforeCreateTime == null) == (beforeMessageId == null))
-        return mAppDatabase.withTransaction {
-            // 沿用原有倒序 SQL 和双字段游标，仅在组装结果时恢复展示顺序。
-            val rows = if (beforeCreateTime == null) {
-                mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
-            } else {
-                mMessageDao.getMessagePageBefore(sessionId, beforeCreateTime,
-                    requireNotNull(beforeMessageId), pageSize + 1)
-            }
-            val messages = rows.take(pageSize).asReversed()
-            MessageImagePage(getMessagesWithImages(messages.map { it.id }), rows.size > pageSize,
-                mMessageDao.getMessageCount(sessionId))
-        }
-    }
-
     /** 原子保存用户正文、原图索引及有序附件；失败保留未提交草稿。 */
     suspend fun createUserMessageWithImages(
         sessionId: Long,
@@ -375,7 +354,8 @@ class GroupChatRepository(
                     summary = mSummaryDao.getLatest(sessionId)
                 ),
                 canLoadOlderMessages = page.canLoadOlderMessages,
-                hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId)
+                hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId),
+                messageImages = page.messageImages
             )
         }
     }
@@ -396,12 +376,14 @@ class GroupChatRepository(
         pageSize: Int
     ): GroupChatMessagePage {
         require(pageSize > 0) { "pageSize must be positive" }
-        return mMessageDao.getMessagePageBefore(
-            sessionId = sessionId,
-            beforeCreateTime = beforeCreateTime,
-            beforeMessageId = beforeMessageId,
-            limit = pageSize + 1
-        ).toGroupChatMessagePage(pageSize)
+        return mAppDatabase.withTransaction {
+            mMessageDao.getMessagePageBefore(
+                sessionId = sessionId,
+                beforeCreateTime = beforeCreateTime,
+                beforeMessageId = beforeMessageId,
+                limit = pageSize + 1
+            ).toGroupChatMessagePage(pageSize)
+        }
     }
 
     /**
@@ -841,12 +823,13 @@ class GroupChatRepository(
     }
 
     /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */
-    private fun List<GroupChatMessage>.toGroupChatMessagePage(
+    private suspend fun List<GroupChatMessage>.toGroupChatMessagePage(
         pageSize: Int
     ): GroupChatMessagePage {
         return GroupChatMessagePage(
             messages = take(pageSize).asReversed(),
-            canLoadOlderMessages = size > pageSize
+            canLoadOlderMessages = size > pageSize,
+            messageImages = getMessagesWithImages(take(pageSize).asReversed().map { it.id })
         )
     }
 

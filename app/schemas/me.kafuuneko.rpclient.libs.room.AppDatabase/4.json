@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "d3b5250768313b4bc6a770a3f03b6743",
+    "identityHash": "600b1adb06f36e144f8aa85e64cc4e93",
     "entities": [
       {
         "tableName": "character",
@@ -717,7 +717,7 @@
       },
       {
         "tableName": "llm_providers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `imageInputSetting` TEXT NOT NULL DEFAULT 'Auto', `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `imageInputSetting` TEXT NOT NULL DEFAULT 'Auto', `imageTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -843,6 +843,13 @@
             "affinity": "TEXT",
             "notNull": true,
             "defaultValue": "'Auto'"
+          },
+          {
+            "fieldPath": "imageTokenEstimatorType",
+            "columnName": "imageTokenEstimatorType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Automatic'"
           },
           {
             "fieldPath": "isEnabled",
@@ -2115,7 +2122,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd3b5250768313b4bc6a770a3f03b6743')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '600b1adb06f36e144f8aa85e64cc4e93')"
     ]
   }
 }

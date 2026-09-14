@@ -27,6 +27,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
@@ -76,7 +77,8 @@ data class GroupChatPromptContext(
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
     val regexScripts: List<ScopedRegexScript> = emptyList(),
-    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
+    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+    val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
 )
 
 /** 群聊回复的生成模式。 */
@@ -154,6 +156,7 @@ class GroupChatPromptBuilder(
      */
     fun buildWithMetadata(context: GroupChatPromptContext): GroupChatPromptBuildResult {
         val exampleBehavior = mExampleDialogueBehaviorProvider.current()
+        val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
         // 扣除回复预留，再由统一预算函数归一化并应用世界书上限
         val worldBudget = resolveWorldInfoBudget(
             promptTokenBudget = context.provider.contextTokens - context.provider.maxTokens,
@@ -190,7 +193,7 @@ class GroupChatPromptBuilder(
             result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
             lorebooks = context.candidateLorebooks,
-            tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+            tokenizer = tokenizer
         )
         val worldInfo = worldSelection.result
         // 构建固定系统消息区段（主提示词、多角色卡合并、用户画像等）
@@ -198,7 +201,7 @@ class GroupChatPromptBuilder(
         // 构建待按深度插入的 In-Chat 注入项
         val inChatPieces = buildInChatPieces(context, worldInfo)
         // 过滤推理块并对群聊历史消息执行 Regex 替换
-        val history = sanitizeHistory(context.messages, context.messageImages.keys).mapIndexed { index, message ->
+        val history = sanitizeHistory(context.messages, (context.messageImages.keys + context.unavailableImages.keys)).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
                 GroupChatMessage.Source.User -> mRegexProcessor.applyPrompt(
@@ -226,12 +229,19 @@ class GroupChatPromptBuilder(
             }
         }
         // 将历史消息转换为带发言者前缀的 Prompt 草稿
+        val latestUserId = history.lastOrNull { it.source == GroupChatMessage.Source.User }?.id
         val historyMessages = history.mapIndexed { index, message ->
+            val hasImages = !context.messageImages[message.id].isNullOrEmpty() ||
+                !context.unavailableImages[message.id].isNullOrEmpty()
+            val protectsUserImages = hasImages && message.id == latestUserId
             message.toPromptDraft(
                 userName = context.session.userName,
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != history.lastIndex && (context.messageImages[message.id].isNullOrEmpty() || message.id != history.lastOrNull { it.source == GroupChatMessage.Source.User }?.id)
-            ).copy(images = context.messageImages[message.id].orEmpty())
+                canDrop = index != history.lastIndex && !protectsUserImages
+            ).copy(
+                images = context.messageImages[message.id].orEmpty(),
+                unavailableImages = context.unavailableImages[message.id].orEmpty()
+            )
         }.toMutableList()
         // 将 In-Chat 片段按深度插入群聊历史
         insertInChatPieces(historyMessages, inChatPieces)
@@ -283,7 +293,8 @@ class GroupChatPromptBuilder(
                 characterName = context.speaker.name,
                 groupNames = context.members.map { it.character.name }
             ),
-            preOmittedItems = worldSelection.omittedItems
+            preOmittedItems = worldSelection.omittedItems,
+            tokenizer = tokenizer
         )
         // 组装调试检查器元数据
         val inspection = finalized.inspection.copy(
