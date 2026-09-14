@@ -1191,4 +1191,7 @@
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Ausgabelimit der Zusammenfassung erreicht</string>
+    <string name="summary_token_limit_message">Die Zusammenfassung hat das Ausgabelimit für Tokens erreicht und wurde nicht gespeichert. Auch das Nachdenken verbraucht dieses Budget. Erhöhen Sie unter Einstellungen → “%1$s” → “%2$s” “%3$s” und versuchen Sie es erneut.</string>
+    <string name="summary_go_to_settings">Zu den Einstellungen</string>
 </resources>

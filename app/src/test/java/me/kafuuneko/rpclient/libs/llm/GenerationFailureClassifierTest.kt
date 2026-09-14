@@ -68,7 +68,7 @@ class GenerationFailureClassifierTest {
         )
         assertEquals(GenerationFailure.Network, classifyGenerationFailure(IOException("secret")))
         assertEquals(
-            GenerationFailure.EmptyResponse,
+            GenerationFailure.EmptyResponse(),
             classifyGenerationFailure(LLMEmptyResponseException())
         )
     }

@@ -1192,4 +1192,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Batas keluaran ringkasan tercapai</string>
+    <string name="summary_token_limit_message">Ringkasan mencapai batas token keluaran dan tidak disimpan. Penalaran juga menggunakan kuota ini. Buka Pengaturan → “%1$s” → “%2$s”, naikkan “%3$s”, lalu coba lagi.</string>
+    <string name="summary_go_to_settings">Buka pengaturan</string>
 </resources>

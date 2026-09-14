@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
@@ -11,7 +12,7 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
-    data object Init : MainUiIntent()
+    data class Init(val route: Route = Route.Main) : MainUiIntent()
 
     data object Resume : MainUiIntent()
 

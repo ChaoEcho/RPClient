@@ -1882,6 +1882,20 @@ private fun DialogSwitch(
             emitIntent = emitIntent
         )
 
+        GroupChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = stringResource(R.string.summary_token_limit_title),
+            message = stringResource(
+                R.string.summary_token_limit_message,
+                stringResource(R.string.summary_memory),
+                stringResource(R.string.general_summary_memory),
+                stringResource(R.string.summary_response_tokens)
+            ),
+            confirmText = stringResource(R.string.summary_go_to_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { emitIntent(GroupChatUiIntent.OpenSummarySettings) }
+        )
+
         is GroupChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             title = dialogState.title,

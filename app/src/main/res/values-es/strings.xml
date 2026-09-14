@@ -1193,4 +1193,7 @@
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Límite de salida del resumen alcanzado</string>
+    <string name="summary_token_limit_message">El resumen alcanzó el límite de tokens de salida y no se guardó. El razonamiento también consume este límite. Ve a Ajustes → “%1$s” → “%2$s”, aumenta “%3$s” e inténtalo de nuevo.</string>
+    <string name="summary_go_to_settings">Ir a ajustes</string>
 </resources>

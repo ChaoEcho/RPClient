@@ -6,6 +6,9 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
+    /** 从摘要额度提示前往全局设置。 */
+    data object OpenSummarySettings : GroupChatUiIntent()
+
     data object RetryImageReply : GroupChatUiIntent()
     data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
     data class Init(val sessionId: String?) : GroupChatUiIntent()

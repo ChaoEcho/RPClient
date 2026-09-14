@@ -1196,4 +1196,7 @@
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Достигнут лимит вывода сводки</string>
+    <string name="summary_token_limit_message">Сводка достигла лимита выходных токенов и не была сохранена. Рассуждения модели тоже расходуют этот лимит. Откройте Настройки → “%1$s” → “%2$s”, увеличьте “%3$s” и повторите попытку.</string>
+    <string name="summary_go_to_settings">Открыть настройки</string>
 </resources>

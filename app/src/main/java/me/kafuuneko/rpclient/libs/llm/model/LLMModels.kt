@@ -290,3 +290,8 @@ enum class LLMReasoningKind {
     Summary,
     Detailed
 }
+
+/** 判断服务端是否因输出 Token 上限截断响应，涵盖当前支持的三种协议。 */
+fun LLMGenerationResponse.isOutputTokenLimitReached(): Boolean {
+    return finishReason?.trim()?.lowercase() in setOf("length", "max_tokens")
+}

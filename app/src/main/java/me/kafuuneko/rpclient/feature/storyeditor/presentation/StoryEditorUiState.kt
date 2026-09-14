@@ -194,6 +194,9 @@ sealed class StoryEditorPageState {
 
 /** 编辑器业务对话框状态。 */
 sealed class StoryEditorDialogState {
+    /** 摘要被输出额度截断，等待用户前往全局设置调整。 */
+    data object SummaryTokenLimit : StoryEditorDialogState()
+
     data object None : StoryEditorDialogState()
 
     data class ModelSettingsGuide(

@@ -5,6 +5,9 @@ import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
+    /** 从摘要额度提示前往全局设置。 */
+    data object OpenSummarySettings : ChatUiIntent()
+
     data object RetryImageReply : ChatUiIntent()
 
     data class ImageAction(val action: MessageImageAction) : ChatUiIntent()

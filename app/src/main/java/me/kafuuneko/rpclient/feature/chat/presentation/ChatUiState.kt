@@ -96,6 +96,9 @@ sealed class ChatLoadState {
 
 /** 单聊页面互斥显示的业务对话框。 */
 sealed class ChatDialogState {
+    /** 摘要被输出额度截断，等待用户前往全局设置调整。 */
+    data object SummaryTokenLimit : ChatDialogState()
+
     data object None : ChatDialogState()
 
     data class SessionLorebook(

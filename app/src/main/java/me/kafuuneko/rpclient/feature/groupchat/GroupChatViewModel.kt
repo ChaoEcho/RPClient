@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchat
 
 import android.content.Context
+import android.os.Bundle
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -14,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
@@ -36,6 +38,7 @@ import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -59,6 +62,7 @@ import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -449,6 +453,18 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
+    }
+
+    /** 关闭摘要额度提示并打开全局设置，返回后可重新发起摘要。 */
+    @UiIntentObserver(GroupChatUiIntent.OpenSummarySettings::class)
+    private fun onOpenSummarySettings() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState != GroupChatDialogState.SummaryTokenLimit) return
+        uiState.copy(dialogState = GroupChatDialogState.None).setup()
+        AppViewEvent.StartActivity(
+            MainActivity::class.java,
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+        ).tryEmit()
     }
 
     /**
@@ -1896,6 +1912,12 @@ class GroupChatViewModel :
                     routingSessionKey = "group-chat:$sessionId"
                 )
             }
+            // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
+            if (response.isOutputTokenLimitReached()) {
+                val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+                uiState.copy(dialogState = GroupChatDialogState.SummaryTokenLimit).setup()
+                return
+            }
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {
                 error(mContext.getString(R.string.summary_failed))
@@ -1913,7 +1935,14 @@ class GroupChatViewModel :
                 AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
             }
         }.onFailure { throwable ->
-            val imageFailure = classifyGenerationFailure(throwable) is GenerationFailure.Image
+            val cause = classifyGenerationFailure(throwable)
+            // Repository 会先拦截空正文，因此额度提示还必须覆盖异常路径。
+            if (cause is GenerationFailure.EmptyResponse && cause.outputTokenLimitReached) {
+                val uiState = getOrNull<GroupChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = GroupChatDialogState.SummaryTokenLimit).setup()
+                return@onFailure
+            }
+            val imageFailure = cause is GenerationFailure.Image
             if (!showToast && imageFailure) {
                 mGroupChatRepository.updateAutoSummaryPaused(sessionId, true)
                 AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()

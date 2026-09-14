@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
@@ -129,13 +130,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 初始化主页与设置页全量状态。 */
     @UiIntentObserver(MainUiIntent.Init::class)
-    private suspend fun onInit() {
+    private suspend fun onInit(intent: MainUiIntent.Init) {
         if (!isStateOf<MainUiState.None>()) return
         val allProviders = mLLMRepository.getAllProviders()
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
+            selectedPage = when (intent.route) {
+                Route.Main -> MainPage.Home
+                Route.Setting -> MainPage.Settings
+            },
             homeState = buildHomeState(),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()

@@ -75,7 +75,7 @@ private fun GenerationFailure.toGenerationFailurePresentation(
         is GenerationFailure.Image,
         is GenerationFailure.PromptBudget,
         GenerationFailure.Network,
-        GenerationFailure.EmptyResponse,
+        is GenerationFailure.EmptyResponse,
         GenerationFailure.Unknown -> null
     }
     return GenerationFailurePresentation(message, guide)
@@ -122,6 +122,6 @@ private fun GenerationFailure.toGenerationFailureMessage(
         context.getString(R.string.generation_error_http_named, it, statusCode)
     } ?: context.getString(R.string.generation_error_http, statusCode)
     GenerationFailure.Network -> context.getString(R.string.generation_error_network)
-    GenerationFailure.EmptyResponse -> context.getString(R.string.generation_error_empty_response)
+    is GenerationFailure.EmptyResponse -> context.getString(R.string.generation_error_empty_response)
     GenerationFailure.Unknown -> context.getString(fallbackMessageResId)
 }

@@ -2229,6 +2229,20 @@ private fun EditorDialogSwitch(
 ) {
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
+        StoryEditorDialogState.SummaryTokenLimit -> AppConfirmDialog(
+            onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.summary_token_limit_title),
+            message = stringResource(
+                R.string.summary_token_limit_message,
+                stringResource(R.string.summary_memory),
+                stringResource(R.string.general_summary_memory),
+                stringResource(R.string.summary_response_tokens)
+            ),
+            confirmText = stringResource(R.string.summary_go_to_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { StoryEditorUiIntent.OpenSummarySettings.emit() }
+        )
+
         is StoryEditorDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
             title = dialogState.title,

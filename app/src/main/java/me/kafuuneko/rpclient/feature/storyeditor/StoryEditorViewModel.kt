@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor
 
 import android.content.Context
+import android.os.Bundle
 import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
@@ -54,6 +56,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFai
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -84,6 +87,7 @@ import me.kafuuneko.rpclient.libs.story.storyTextHash
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -362,6 +366,18 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (uiState.hasAvailableProvider != hasAvailableProvider) {
             uiState.copy(hasAvailableProvider = hasAvailableProvider).setup()
         }
+    }
+
+    /** 关闭摘要额度提示并打开全局设置，返回后可重新发起摘要。 */
+    @UiIntentObserver(StoryEditorUiIntent.OpenSummarySettings::class)
+    private fun onOpenSummarySettings() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.dialogState != StoryEditorDialogState.SummaryTokenLimit) return
+        uiState.copy(dialogState = StoryEditorDialogState.None).setup()
+        AppViewEvent.StartActivity(
+            MainActivity::class.java,
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+        ).tryEmit()
     }
 
     /**
@@ -1595,16 +1611,21 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 )
             }
             // 调用模型生成摘要文本并清洗
-            val summary = withContext(Dispatchers.IO) {
+            val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithProvider(
                     provider = provider,
                     request = request,
                     routingSessionKey = "story:$storyId"
                 )
-                    .content
-                    .summarySafeContent()
-                    .trim()
             }
+            // 先检查服务端截断原因，避免将思考耗尽额度误报为空文本。
+            if (response.isOutputTokenLimitReached()) {
+                val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+                if (uiState.dialogState != StoryEditorDialogState.SummarizingStory) return
+                uiState.copy(dialogState = StoryEditorDialogState.SummaryTokenLimit).setup()
+                return
+            }
+            val summary = response.content.summarySafeContent().trim()
             if (summary.isBlank()) error("Story summary response is empty")
             val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
             if (uiState.dialogState != StoryEditorDialogState.SummarizingStory) return
@@ -1623,6 +1644,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             // 发生异常时关闭加载弹窗，配置类错误改为展示可跳转的引导
             val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
             if (uiState.dialogState != StoryEditorDialogState.SummarizingStory) return
+            val cause = classifyGenerationFailure(error)
+            if (cause is LLMGenerationFailure.EmptyResponse && cause.outputTokenLimitReached) {
+                uiState.copy(dialogState = StoryEditorDialogState.SummaryTokenLimit).setup()
+                return
+            }
             val failure = error.toGenerationFailurePresentation(
                 mContext,
                 R.string.story_summary_failed
@@ -3016,7 +3042,7 @@ private fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {
 /** 将 LLM 异常转换为故事生成专用的失败分类 [StoryGenerationFailure]。 */
 internal fun Throwable.toStoryGenerationFailure(): StoryGenerationFailure {
     return when (classifyGenerationFailure(this)) {
-        LLMGenerationFailure.EmptyResponse -> StoryGenerationFailure.EmptyResult
+        is LLMGenerationFailure.EmptyResponse -> StoryGenerationFailure.EmptyResult
         is LLMGenerationFailure.PromptBudget -> StoryGenerationFailure.ContextBudget
         else -> StoryGenerationFailure.Provider
     }

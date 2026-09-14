@@ -54,7 +54,7 @@ sealed class GenerationFailure {
     data class HttpFailure(val statusCode: Int) : GenerationFailure()
     data object RequestFailure : GenerationFailure()
     data object Network : GenerationFailure()
-    data object EmptyResponse : GenerationFailure()
+    data class EmptyResponse(val outputTokenLimitReached: Boolean = false) : GenerationFailure()
     data object Unknown : GenerationFailure()
 }
 
@@ -83,7 +83,7 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
         }
         is LLMRequestException -> if (throwable.cause is ImageRequestException) classifyGenerationFailure(throwable.cause!!) else GenerationFailure.RequestFailure
         is IOException -> GenerationFailure.Network
-        is LLMEmptyResponseException -> GenerationFailure.EmptyResponse
+        is LLMEmptyResponseException -> GenerationFailure.EmptyResponse(throwable.outputTokenLimitReached)
         else -> GenerationFailure.Unknown
     }
 }

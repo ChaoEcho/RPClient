@@ -1192,4 +1192,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Đã đạt giới hạn đầu ra của bản tóm tắt</string>
+    <string name="summary_token_limit_message">Bản tóm tắt đã đạt giới hạn token đầu ra và chưa được lưu. Suy luận cũng sử dụng hạn mức này. Vào Cài đặt → “%1$s” → “%2$s”, tăng “%3$s” rồi thử lại.</string>
+    <string name="summary_go_to_settings">Mở cài đặt</string>
 </resources>

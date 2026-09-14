@@ -1193,4 +1193,7 @@
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
     <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="summary_token_limit_title">Summary output limit reached</string>
+    <string name="summary_token_limit_message">The summary reached its output token limit and was not saved. Thinking also uses this allowance. Go to Settings → “%1$s” → “%2$s” and increase “%3$s”, then try again.</string>
+    <string name="summary_go_to_settings">Go to settings</string>
 </resources>

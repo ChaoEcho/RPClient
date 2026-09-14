@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
@@ -46,6 +47,7 @@ import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -54,6 +56,7 @@ import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
@@ -1115,6 +1118,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).tryEmit()
     }
 
+    /** 关闭摘要额度提示并打开全局设置，返回后可重新发起摘要。 */
+    @UiIntentObserver(ChatUiIntent.OpenSummarySettings::class)
+    private fun onOpenSummarySettings() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState != ChatDialogState.SummaryTokenLimit) return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
+        AppViewEvent.StartActivity(
+            MainActivity::class.java,
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+        ).tryEmit()
+    }
+
     /**
      * 跳转至全局模型配置管理界面。
      */
@@ -1937,7 +1952,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     routingSessionKey = "chat:$sessionId"
                 )
             }
-            // 清洗摘要文本
+            // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
+            if (response.isOutputTokenLimitReached()) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return
+                uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
+                return
+            }
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {
                 error(mContext.getString(R.string.summary_failed))
@@ -1957,7 +1977,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure { throwable ->
-            val imageFailure = classifyGenerationFailure(throwable) is GenerationFailure.Image
+            val cause = classifyGenerationFailure(throwable)
+            // Repository 会先拦截空正文，因此额度提示还必须覆盖异常路径。
+            if (cause is GenerationFailure.EmptyResponse && cause.outputTokenLimitReached) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
+                return@onFailure
+            }
+            val imageFailure = cause is GenerationFailure.Image
             if (!showToast && imageFailure) {
                 mChatRepository.updateAutoSummaryPaused(sessionId, true)
                 AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()
