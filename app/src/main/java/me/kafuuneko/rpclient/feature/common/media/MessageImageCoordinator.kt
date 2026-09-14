@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.common.media
 
 import androidx.compose.ui.graphics.asImageBitmap
 import java.util.UUID
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.kafuuneko.rpclient.R
@@ -28,6 +29,13 @@ class MessageImageCoordinator(
     private var mPickEditing = false
     private var mSaveUuid: String? = null
     private var mEditingActive = false
+    // 每次退出或切换编辑都使旧选择器结果失效，不能只判断是否仍处于编辑态。
+    private var mEditingVersion = 0L
+    private var mPickEditingVersion = 0L
+    private var mProcessingJob: Job? = null
+    private var mProcessingEditing = false
+    // 取消后允许新任务立即开始，旧任务的 finally 必须失去发布状态的权限。
+    private var mProcessingVersion = 0L
     var state = MessageImageState()
         private set
 
@@ -42,6 +50,16 @@ class MessageImageCoordinator(
     /** 根据用户选择的输入位置记录本次系统选择器目标。 */
     fun choose(editing: Boolean) {
         mPickEditing = editing
+        mPickEditingVersion = mEditingVersion
+    }
+
+    /** 立即撤销任务的状态发布权；底层资源在 IO 线程取消，不阻塞串行 Intent。 */
+    fun cancelProcessing() {
+        mProcessingVersion++
+        mProcessingJob?.cancel()
+        mProcessingJob = null
+        mProcessingEditing = false
+        publish(state.copy(processing = false))
     }
 
     /** 返回草稿凭据；只允许全部图片准备完成后提交。 */
@@ -71,6 +89,7 @@ class MessageImageCoordinator(
     /** 编辑成功后移交新附件所有权。 */
     fun editingCommitted() {
         mEditingActive = false
+        mEditingVersion++
         state.editing.forEach { mPrepared.remove(it) }
         publish(state.copy(editing = emptyList(), errorResId = null))
     }
@@ -78,6 +97,8 @@ class MessageImageCoordinator(
     /** 取消编辑只释放本次编辑新增的暂存。 */
     suspend fun cancelEditing() {
         mEditingActive = false
+        mEditingVersion++
+        if (mProcessingEditing) cancelProcessing()
         state.editing.filter { it !in state.draft }.forEach { uuid ->
             mPrepared.remove(uuid)?.let { mFiles.releasePrepared(it) }
         }
@@ -129,23 +150,39 @@ class MessageImageCoordinator(
     private suspend fun pick(action: MessageImageAction.Picked) {
         if (state.processing) return
         val editing = mPickEditing
+        val editingVersion = mPickEditingVersion
         // 编辑已经结束时，迟到的选择器结果不能误加到新消息草稿。
-        if (editing && !mEditingActive) {
+        if (editing && (!mEditingActive || editingVersion != mEditingVersion)) {
             publish(state.copy(errorResId = R.string.image_edit_ended))
             return
         }
         val initial = if (editing) state.editing else state.draft
         require(initial.size + action.uris.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
+        val processingVersion = ++mProcessingVersion
+        mProcessingJob = currentCoroutineContext()[Job]
+        mProcessingEditing = editing
         publish(state.copy(processing = true, errorResId = null))
         try {
             for (uri in action.uris) {
                 val prepared = mRuntime.prepare(mOwner, uri)
+                // 旧任务即使迟到返回，也只能释放资源，不能把 A 的图片交给 B 或新草稿。
+                if (processingVersion != mProcessingVersion ||
+                    (editing && (!mEditingActive || editingVersion != mEditingVersion))) {
+                    mFiles.releasePrepared(prepared)
+                    return
+                }
                 val uuid = prepared.file.uuid
                 mPrepared[uuid] = prepared
                 publish(if (editing) state.copy(editing = state.editing + uuid) else state.copy(draft = state.draft + uuid))
                 load(uuid)
             }
-        } finally { publish(state.copy(processing = false)) }
+        } finally {
+            if (processingVersion == mProcessingVersion) {
+                mProcessingJob = null
+                mProcessingEditing = false
+                publish(state.copy(processing = false))
+            }
+        }
     }
 
     /** 同一 UUID 的解码去重；null 是已完成的缺图结果，不能自动循环重试。 */

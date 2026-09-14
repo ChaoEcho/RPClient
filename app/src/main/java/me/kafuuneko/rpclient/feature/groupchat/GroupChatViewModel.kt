@@ -168,7 +168,6 @@ class GroupChatViewModel :
     }
 
     private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
-    private var mImageJob: Job? = null
     private val mImageRuntime by inject<MessageImageRuntime>()
     private val mImageCoordinator by lazy { MessageImageCoordinator(mImageRuntime, mFileRepository) { state ->
         getOrNull<GroupChatUiState.Normal>()?.copy(imageState = state)?.setup()
@@ -186,10 +185,10 @@ class GroupChatViewModel :
         // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
         when (action) {
             is MessageImageAction.Picked -> {
-                if (mImageJob?.isCompleted == false) return
-                mImageJob = viewModelScope.launch { mImageCoordinator.handle(action) }
+                if (mImageCoordinator.state.processing) return
+                viewModelScope.launch { mImageCoordinator.handle(action) }
             }
-            MessageImageAction.CancelProcessing -> mImageJob?.cancelAndJoin()
+            MessageImageAction.CancelProcessing -> mImageCoordinator.cancelProcessing()
 
             is MessageImageAction.Choose -> {
                 mImageCoordinator.choose(action.editing)
@@ -1313,7 +1312,7 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.CancelEditingMessage::class)
     private suspend fun onCancelEditingMessage() {
-        mImageJob?.cancelAndJoin()
+        mImageCoordinator.cancelProcessing()
         mImageCoordinator.cancelEditing()
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         uiState.copy(

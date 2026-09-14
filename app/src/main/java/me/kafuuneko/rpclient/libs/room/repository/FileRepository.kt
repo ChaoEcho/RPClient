@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.CancellationSignal
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import androidx.room.withTransaction
@@ -21,6 +22,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
+import me.kafuuneko.rpclient.libs.utils.withBlockingIoCancellation
 import me.kafuuneko.rpclient.model.SquareCropSelection
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -119,15 +121,21 @@ class FileRepository(
         var completed: PreparedFile? = null
         try {
             return withContext(Dispatchers.IO) {
-                val input = mContext.contentResolver.openInputStream(uri)
-                    ?: throw IllegalArgumentException("Could not read the selected image")
-                input.use {
-                    prepareStreamInContext(
-                        ownerId,
-                        it,
-                        mimeType ?: mContext.contentResolver.getType(uri)
-                    )
-                        .also { prepared -> completed = prepared }
+                val signal = CancellationSignal()
+                // 打开云端资源和读取字节分别注册取消动作，避免等 IO 返回才释放资源。
+                withBlockingIoCancellation({ signal.cancel() }) {
+                    val descriptor = mContext.contentResolver.openAssetFileDescriptor(uri, "r", signal)
+                        ?: throw IllegalArgumentException("Could not read the selected image")
+                    descriptor.use {
+                        val input = it.createInputStream()
+                        input.use {
+                            withBlockingIoCancellation({ input.close() }) {
+                                prepareStreamInContext(
+                                    ownerId, input, mimeType ?: mContext.contentResolver.getType(uri)
+                                ).also { prepared -> completed = prepared }
+                            }
+                        }
+                    }
                 }
             }
         } catch (error: Throwable) {
@@ -136,7 +144,7 @@ class FileRepository(
         }
     }
 
-    /** 流式准备原图，并覆盖切回调用协程时发生取消的清理窗口。 */
+    /** 流式准备原图；取消时主动关闭输入流，正常完成由调用方关闭。 */
     suspend fun prepareStream(
         ownerId: String,
         input: InputStream,
@@ -147,7 +155,9 @@ class FileRepository(
         var completed: PreparedFile? = null
         try {
             return withContext(Dispatchers.IO) {
-                prepareStreamInContext(ownerId, input, mimeType, maxBytes).also { completed = it }
+                withBlockingIoCancellation({ input.close() }) {
+                    prepareStreamInContext(ownerId, input, mimeType, maxBytes).also { completed = it }
+                }
             }
         } catch (error: Throwable) {
             completed?.let { releasePrepared(it) }

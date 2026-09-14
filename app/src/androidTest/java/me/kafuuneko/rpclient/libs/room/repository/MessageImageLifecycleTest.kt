@@ -10,6 +10,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,6 +22,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -96,6 +99,38 @@ class MessageImageLifecycleTest {
     private suspend fun rejected(block: suspend () -> Unit) {
         val failure = runCatching { block() }.exceptionOrNull()
         assertNotNull("Expected operation to fail", failure)
+    }
+
+    @Test
+    fun cancellingBlockedInputClosesStreamAndRemovesStaging() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val closed = CountDownLatch(1)
+        val input = object : InputStream() {
+            override fun read(): Int {
+                entered.complete(Unit)
+                check(closed.await(5, TimeUnit.SECONDS))
+                return -1
+            }
+
+            override fun close() {
+                closed.countDown()
+            }
+        }
+        // read 只有收到 close 才返回，验证取消不依赖下一次 ensureActive。
+        val worker = launch(Dispatchers.IO) {
+            files.prepareStream("blocked", input, "image/png")
+        }
+        try {
+            withTimeout(2_000) {
+                entered.await()
+                worker.cancelAndJoin()
+            }
+            assertEquals(0L, closed.count)
+            assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        } finally {
+            input.close()
+            worker.cancelAndJoin()
+        }
     }
 
     @Test

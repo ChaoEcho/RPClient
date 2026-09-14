@@ -13,6 +13,7 @@ import com.google.gson.Gson
 import java.io.File
 import java.util.Base64
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -20,6 +21,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.feature.common.media.MessageImageCoordinator
@@ -85,6 +87,61 @@ class MultimodalImageIntegrationTest {
     private lateinit var logs: LLMRequestLogRepository
     private var sessionId = 0L
     private var previousDebug = false
+
+    @Test
+    fun switchingEditorRejectsPickerResultFromPreviousMessage() = runBlocking {
+        val coordinator = MessageImageCoordinator(media, files) {}
+        coordinator.startEditing(listOf("message-a-image"))
+        coordinator.choose(editing = true)
+        coordinator.startEditing(listOf("message-b-image"))
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
+        assertEquals(listOf("message-b-image"), coordinator.state.editing)
+        assertEquals(R.string.image_edit_ended, coordinator.state.errorResId)
+    }
+
+    @Test
+    fun switchingEditorCancelsOldPickWithoutClearingNewProcessingState() = runBlocking {
+        val coordinator = MessageImageCoordinator(media, files) {}
+        val lockDraft = media.prepare("lock", Uri.fromFile(fixture()))
+        val locked = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        // 用真实文件仓库的锁暂停准备，稳定覆盖 A 未完成时切换到 B 的窗口。
+        val holder = async {
+            files.withPreparedFile(lockDraft) {
+                locked.complete(Unit)
+                release.await()
+            }
+        }
+        try {
+            withTimeout(5_000) {
+                locked.await()
+                coordinator.startEditing(emptyList())
+                coordinator.choose(editing = true)
+                val oldPick = async(start = CoroutineStart.UNDISPATCHED) {
+                    coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
+                }
+                assertTrue(coordinator.state.processing)
+                coordinator.startEditing(listOf("message-b-image"))
+                coordinator.choose(editing = true)
+                val newPick = async(start = CoroutineStart.UNDISPATCHED) {
+                    coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
+                }
+                oldPick.join()
+                assertTrue(oldPick.isCancelled)
+                assertTrue(coordinator.state.processing)
+                assertEquals(listOf("message-b-image"), coordinator.state.editing)
+                release.complete(Unit)
+                newPick.await()
+                assertEquals(2, coordinator.state.editing.size)
+                assertFalse(coordinator.state.processing)
+            }
+        } finally {
+            release.complete(Unit)
+            holder.await()
+            coordinator.releaseDrafts()
+            files.releasePrepared(lockDraft)
+        }
+    }
 
     @Before
     fun setUp() = runBlocking {
