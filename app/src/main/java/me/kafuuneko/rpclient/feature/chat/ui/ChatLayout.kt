@@ -62,8 +62,6 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -130,14 +128,14 @@ import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
+import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
+import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
-import me.kafuuneko.rpclient.ui.message.MessageImageStrip
-import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
@@ -153,6 +151,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.utils.toggle
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -367,8 +366,8 @@ private fun ChatNormal(
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
                     isFirstMessage = !state.conversationState.canLoadOlderMessages &&
-                        !state.conversationState.isLoadingOlderMessages &&
-                        index == 0,
+                            !state.conversationState.isLoadingOlderMessages &&
+                            index == 0,
                     emit = emit
                 )
             }
@@ -376,16 +375,20 @@ private fun ChatNormal(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
-        MessageImageStrip(state.imageState.draft, state.imageState, editable = true,
-            enabled = !state.conversationState.generationState.isGenerating()) { ChatUiIntent.ImageAction(it).emit() }
         if ((state.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply == true) {
-            TextButton(onClick = { ChatUiIntent.RetryImageReply.emit() }) { Text(stringResource(R.string.image_retry)) }
+            TextButton(
+                onClick = { ChatUiIntent.RetryImageReply.emit() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(stringResource(R.string.image_retry))
+            }
         }
         MessageImageViewerDialog(state.imageState) { ChatUiIntent.ImageAction(it).emit() }
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
             hasAssistantMessage = state.conversationState.hasAssistantMessage,
+            imageState = state.imageState,
             emit = emit
         )
     }
@@ -745,7 +748,8 @@ private fun MessageBubble(
 ) {
     val isUser = message.role == MessageRole.User
     val imageIds = if (editing && isUser) imageState.editing else message.imageUuids
-    val hasImageHeader = imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || (editing && isUser)
+    val hasImageHeader =
+        imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || (editing && isUser)
     var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
@@ -819,7 +823,9 @@ private fun MessageBubble(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         // 图片消息为标题预留同样高度，添加按钮出现时不推动下方网格。
-                        modifier = Modifier.fillMaxWidth().heightIn(min = if (hasImageHeader) 32.dp else 0.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = if (hasImageHeader) 32.dp else 0.dp)
                     ) {
                         Text(
                             text = message.speaker,
@@ -836,7 +842,9 @@ private fun MessageBubble(
                         )
                         if (editing && isUser) {
                             Spacer(Modifier.width(4.dp))
-                            MessageImageEditButton(imageState) { ChatUiIntent.ImageAction(it).emit() }
+                            MessageImageEditButton(imageState) {
+                                ChatUiIntent.ImageAction(it).emit()
+                            }
                         }
                     }
                     MessageImageGallery(imageIds, imageState, editing = editing && isUser) {
@@ -1214,9 +1222,9 @@ private fun ChatInputBar(
     draft: String,
     isGenerating: Boolean,
     hasAssistantMessage: Boolean,
+    imageState: MessageImageState,
     emit: ChatUiIntent.() -> Unit
 ) {
-    var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     val sendButtonColor by animateColorAsState(
         targetValue = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -1240,6 +1248,13 @@ private fun ChatInputBar(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
                     .height(0.5.dp)
+            )
+
+            // 待发送图片抽屉托盘（仅在存在草稿图或处理中时展示）
+            DraftAttachmentTray(
+                state = imageState,
+                enabled = !isGenerating,
+                emit = { ChatUiIntent.ImageAction(it).emit() }
             )
 
             // - 快捷操作胶囊条（随页面整体上移平推，常驻方便快速操作）
@@ -1292,67 +1307,23 @@ private fun ChatInputBar(
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
                     leadingIcon = {
-                        Box {
-                            IconButton(
-                                onClick = { quickActionsExpanded = true },
-                                enabled = !isGenerating
-                            ) {
-                                Icon(
-                                    Icons.Rounded.AutoAwesome,
-                                    contentDescription = stringResource(R.string.chat_settings_actions)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = quickActionsExpanded,
-                                onDismissRequest = { quickActionsExpanded = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.regenerate_latest_reply)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.Refresh, contentDescription = null)
-                                    },
-                                    enabled = hasAssistantMessage,
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.RegenerateLast.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.continue_latest_reply)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                    },
-                                    enabled = hasAssistantMessage,
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.ContinueLast.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.impersonate_user)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.Edit, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.ImpersonateUser.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.summarize_now)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.SummarizeNow.emit()
-                                    }
-                                )
-                            }
+                        IconButton(
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false))
+                                    .emit()
+                            },
+                            enabled = !isGenerating && !imageState.processing && imageState.canAddDraft
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ImageIcon,
+                                contentDescription = stringResource(R.string.attach_images),
+                                tint = if (!isGenerating && imageState.canAddDraft) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                }
+                            )
                         }
                     },
                     placeholder = {
@@ -1697,7 +1668,8 @@ private fun DialogSwitch(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() },
             onPreviewImages = { ids, index ->
-                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true)).emit()
+                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true))
+                    .emit()
             }
         )
 
@@ -2035,18 +2007,30 @@ private fun PreviewImageMessages(examples: List<Pair<Int, Boolean>>) {
     val character = ChatCharacterItem(1, "Preview", "", "", "", "", "", "", "P", Color.Blue)
     AppTheme(darkTheme = true, dynamicColor = false) {
         Column(
-            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
-                .verticalScroll(rememberScrollState()).padding(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             examples.forEachIndexed { index, (count, editing) ->
                 val ids = thumbnails.keys.take(count)
                 MessageBubble(
-                    imageState = MessageImageState(editing = ids, thumbnails = thumbnails, canAddEditing = count < 4),
+                    imageState = MessageImageState(
+                        editing = ids,
+                        thumbnails = thumbnails,
+                        canAddEditing = count < 4
+                    ),
                     message = ChatMessageUiModel(
-                        id = index.toString(), role = MessageRole.User, speaker = "You",
-                        content = "还有很多呢", parts = listOf(MessageContentPart.Text("还有很多呢")),
-                        time = "19:28", tokenCount = 0, imageUuids = ids
+                        id = index.toString(),
+                        role = MessageRole.User,
+                        speaker = "You",
+                        content = "还有很多呢",
+                        parts = listOf(MessageContentPart.Text("还有很多呢")),
+                        time = "19:28",
+                        tokenCount = 0,
+                        imageUuids = ids
                     ),
                     character = character,
                     expandedThinkBlockIds = emptySet(),

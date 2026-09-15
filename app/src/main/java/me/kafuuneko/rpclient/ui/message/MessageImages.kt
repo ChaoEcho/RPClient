@@ -1,16 +1,30 @@
 package me.kafuuneko.rpclient.ui.message
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,97 +34,200 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageState
-import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 
 /**
- * 图片条只渲染状态并发出用户行为；缩略图由 ViewModel 按可见项加载。
+ * 输入栏待发送图片抽屉托盘组件。
+ * 仅在存在待发送图片或正在处理图片时渲染；采用裁切圆角、浮动删除标与轻量级追加卡片设计。
  *
- * @param ids 按显示顺序排列的原图 ID。
  * @param state 当前页面的图片状态。
- * @param editable 是否显示附件编辑操作。
- * @param editing 是否属于历史消息编辑区。
  * @param enabled 页面是否允许修改附件。
+ * @param modifier 修饰符。
  * @param emit 图片操作的意图回调。
  */
 @Composable
-fun MessageImageStrip(
-    ids: List<String>, state: MessageImageState, editable: Boolean = false,
-    editing: Boolean = false, enabled: Boolean = true, emit: (MessageImageAction) -> Unit
+fun DraftAttachmentTray(
+    state: MessageImageState,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    emit: (MessageImageAction) -> Unit
 ) {
-    if (ids.isEmpty() && !editable) return
+    if (state.draft.isEmpty() && !state.processing) return
     val currentEmit by rememberUpdatedState(emit)
-    Column {
-        if (editable) Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(
-                onClick = { emit(MessageImageAction.Choose(editing)) },
-                enabled = enabled && !state.processing && (if (editing) state.canAddEditing else state.canAddDraft)
-            ) {
-                Text(stringResource(R.string.attach_images))
-            }
-            if (state.processing) {
-                CircularProgressIndicator(Modifier.size(20.dp))
-                TextButton(onClick = { emit(MessageImageAction.CancelProcessing) }) {
-                    Text(
-                        stringResource(R.string.cancel)
-                    )
-                }
-            }
-        }
-        // 历史图片按实际缩略图宽度占位，不能把纯文字气泡或单张图片气泡撑满整行。
-        val stripModifier = if (editable) Modifier.fillMaxWidth() else Modifier
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+    ) {
         Row(
-            stripModifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            ids.forEachIndexed { index, uuid ->
+            state.draft.forEachIndexed { index, uuid ->
                 DisposableEffect(uuid) {
                     currentEmit(MessageImageAction.RegisterDisplay(uuid))
                     onDispose { currentEmit(MessageImageAction.ReleaseDisplay(uuid)) }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        Modifier
-                            .size(88.dp)
-                            .clickable { emit(MessageImageAction.Preview(ids, index)) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val bitmap = state.thumbnails[uuid]
-                        if (bitmap != null) Image(
-                            bitmap,
-                            stringResource(R.string.message_image),
-                            Modifier.size(88.dp),
-                            contentScale = ContentScale.Fit
+
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(
+                            BorderStroke(
+                                0.8.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            RoundedCornerShape(12.dp)
                         )
-                        else Text(
-                            stringResource(if (state.thumbnails.containsKey(uuid)) R.string.image_missing else R.string.image_loading),
-                            style = MaterialTheme.typography.labelSmall
+                        .clickable(enabled = !state.processing) {
+                            currentEmit(MessageImageAction.Preview(state.draft, index))
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val bitmap = state.thumbnails[uuid]
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = stringResource(R.string.message_image),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(if (state.thumbnails.containsKey(uuid)) R.string.image_missing else R.string.image_loading),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (editable) Row {
-                        TextButton(
-                            onClick = { emit(MessageImageAction.Move(uuid, editing)) },
-                            enabled = enabled && index > 0 && !state.processing
-                        ) { Text("←") }
-                        TextButton(
-                            onClick = { emit(MessageImageAction.Remove(uuid, editing)) },
-                            enabled = enabled && !state.processing
-                        ) { Text("×") }
+
+                    if (state.processing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.38f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                        }
+                    } else if (enabled) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(3.dp)
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.58f))
+                                .clickable {
+                                    currentEmit(MessageImageAction.Remove(uuid, editing = false))
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
                 }
             }
+
+            // 未达到上限且未在处理中时展示追加图片卡片
+            if (enabled && state.canAddDraft && !state.processing) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            ),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            currentEmit(MessageImageAction.Choose(editing = false))
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = stringResource(R.string.attach_images),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
-        if (editable) state.errorResId?.let {
+
+        if (state.processing) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.image_loading),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                TextButton(
+                    onClick = { currentEmit(MessageImageAction.CancelProcessing) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.cancel),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+
+        state.errorResId?.let { errorId ->
             Text(
-                stringResource(it),
+                text = stringResource(errorId),
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp, start = 2.dp)
             )
         }
+    }
+}
+
+/**
+ * 保持向后兼容的图片列表封装。
+ */
+@Composable
+fun MessageImageStrip(
+    ids: List<String>,
+    state: MessageImageState,
+    editable: Boolean = false,
+    editing: Boolean = false,
+    enabled: Boolean = true,
+    emit: (MessageImageAction) -> Unit
+) {
+    if (editing) {
+        MessageImageGallery(ids = ids, state = state, editing = editable, emit = emit)
+    } else {
+        DraftAttachmentTray(state = state, enabled = enabled, emit = emit)
     }
 }

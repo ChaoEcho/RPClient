@@ -51,6 +51,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -132,7 +133,9 @@ import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
-import me.kafuuneko.rpclient.ui.message.MessageImageStrip
+import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
+import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
+import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -225,23 +228,29 @@ private fun GroupChatNormalView(
         },
         bottomBar = {
             Column {
-            MessageImageStrip(state.imageState.draft, state.imageState, editable = true, enabled = !generating) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
-            if ((state.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
-                TextButton(onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) }) { Text(stringResource(R.string.image_retry)) }
-            }
-            MessageImageViewerDialog(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
-            Composer(
-                draft = state.conversationState.inputDraft,
-                generating = generating,
-                onDraftChange = {
-                    emitIntent(GroupChatUiIntent.ChangeInputDraft(it))
-                },
-                onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
-                onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
-                canContinue = canContinue,
-                onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
-                onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) }
-            )
+                if ((state.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
+                    TextButton(
+                        onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(stringResource(R.string.image_retry))
+                    }
+                }
+                MessageImageViewerDialog(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+                Composer(
+                    draft = state.conversationState.inputDraft,
+                    generating = generating,
+                    imageState = state.imageState,
+                    onDraftChange = {
+                        emitIntent(GroupChatUiIntent.ChangeInputDraft(it))
+                    },
+                    onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
+                    onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
+                    onImageAction = { emitIntent(GroupChatUiIntent.ImageAction(it)) },
+                    canContinue = canContinue,
+                    onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
+                    onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) }
+                )
             }
         }
     ) { padding ->
@@ -1377,6 +1386,10 @@ private fun MessageBubble(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                 )
+                if (editing && isUser) {
+                    Spacer(Modifier.width(6.dp))
+                    MessageImageEditButton(imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+                }
             }
             Surface(
                 modifier = Modifier
@@ -1423,8 +1436,17 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    MessageImageStrip(if (editing && isUser) imageState.editing else message.imageUuids,
-                        imageState, editable = editing && isUser, editing = true) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+                    val imageIds = if (editing && isUser) imageState.editing else message.imageUuids
+                    MessageImageGallery(imageIds, imageState, editing = editing && isUser) {
+                        emitIntent(GroupChatUiIntent.ImageAction(it))
+                    }
+                    if (editing && isUser) imageState.errorResId?.let { errorResId ->
+                        Text(
+                            text = stringResource(errorResId),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     if (editing) {
                         GroupMessageEditContent(
                             draft = editingDraft,
@@ -1756,17 +1778,73 @@ private fun GroupMessageActions(
 }
 
 @Composable
+private fun QuickActionPill(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (enabled) {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        },
+        border = BorderStroke(
+            0.5.dp,
+            if (enabled) {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.10f)
+            }
+        ),
+        modifier = Modifier.clickable(
+            enabled = enabled,
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.38f
+                ),
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.38f
+                )
+            )
+        }
+    }
+}
+
+@Composable
 private fun Composer(
     draft: String,
     generating: Boolean,
+    imageState: MessageImageState,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
+    onImageAction: (MessageImageAction) -> Unit,
     canContinue: Boolean,
     onContinue: () -> Unit,
     onSummarize: () -> Unit
 ) {
-    var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     val sendButtonColor by animateColorAsState(
         targetValue = if (generating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -1778,91 +1856,106 @@ private fun Composer(
         shadowElevation = 8.dp,
         color = MaterialTheme.colorScheme.surface
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.Bottom
         ) {
-            RpScrollableOutlinedTextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 52.dp, max = 140.dp),
+            // 待发送图片抽屉托盘
+            DraftAttachmentTray(
+                state = imageState,
                 enabled = !generating,
-                placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
-                shape = RoundedCornerShape(18.dp),
-                maxLines = 5,
-                leadingIcon = {
-                    Box {
+                emit = onImageAction
+            )
+
+            // 快捷操作胶囊条
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                QuickActionPill(
+                    icon = Icons.Rounded.AutoAwesome,
+                    label = stringResource(R.string.continue_latest_reply),
+                    enabled = canContinue && !generating,
+                    onClick = onContinue
+                )
+                QuickActionPill(
+                    icon = Icons.Rounded.AutoAwesome,
+                    label = stringResource(R.string.summarize_now),
+                    enabled = !generating,
+                    onClick = onSummarize
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                RpScrollableOutlinedTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp, max = 140.dp),
+                    enabled = !generating,
+                    placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
+                    shape = RoundedCornerShape(18.dp),
+                    maxLines = 5,
+                    leadingIcon = {
                         IconButton(
-                            onClick = { quickActionsExpanded = true },
-                            enabled = !generating
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onImageAction(MessageImageAction.Choose(editing = false))
+                            },
+                            enabled = !generating && !imageState.processing && imageState.canAddDraft
                         ) {
                             Icon(
-                                Icons.Rounded.AutoAwesome,
-                                contentDescription = stringResource(R.string.chat_settings_actions)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = quickActionsExpanded,
-                            onDismissRequest = { quickActionsExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.continue_latest_reply)) },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                },
-                                enabled = canContinue,
-                                onClick = {
-                                    quickActionsExpanded = false
-                                    onContinue()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.summarize_now)) },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                },
-                                onClick = {
-                                    quickActionsExpanded = false
-                                    onSummarize()
+                                imageVector = Icons.Rounded.ImageIcon,
+                                contentDescription = stringResource(R.string.attach_images),
+                                tint = if (!generating && imageState.canAddDraft) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                 }
                             )
                         }
                     }
-                }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                color = sendButtonColor,
-                tonalElevation = 2.dp,
-                shadowElevation = 2.dp,
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (generating) onStop()
-                    else onSend()
-                }
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (generating) {
-                            Icons.Rounded.Stop
-                        } else {
-                            Icons.AutoMirrored.Rounded.Send
-                        },
-                        contentDescription = stringResource(
-                            if (generating) R.string.stop else R.string.send
-                        ),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = sendButtonColor,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 2.dp,
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (generating) onStop()
+                        else onSend()
+                    }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (generating) {
+                                Icons.Rounded.Stop
+                            } else {
+                                Icons.AutoMirrored.Rounded.Send
+                            },
+                            contentDescription = stringResource(
+                                if (generating) R.string.stop else R.string.send
+                            ),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

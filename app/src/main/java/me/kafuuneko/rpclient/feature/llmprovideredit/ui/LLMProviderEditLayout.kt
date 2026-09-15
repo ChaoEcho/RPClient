@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
@@ -65,6 +66,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -206,12 +208,13 @@ private fun LLMProviderEditNormal(
                     )
                 }
             }
-            item { BasicPanel(state.form, state.modelCatalogState, state.showImageTokenEstimator, emit) }
+            item { BasicPanel(state.form, state.modelCatalogState, emit) }
             item { ParameterPanel(state.form, emit) }
             item {
                 CollapsibleAdvancedPanel(
                     form = state.form,
                     requestExtensionsState = state.requestExtensionsState,
+                    showImageTokenEstimator = state.showImageTokenEstimator,
                     emit = emit
                 )
             }
@@ -285,30 +288,10 @@ private fun ProviderPresetsSection(
 private fun BasicPanel(
     form: LLMProviderEditForm,
     modelCatalogState: LLMProviderEditModelCatalogState,
-    showImageTokenEstimator: Boolean,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
         RpSectionHeader(title = stringResource(R.string.basic_info))
-        Text(stringResource(R.string.image_input_capability))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ImageInputSetting.entries.forEach { setting ->
-                FilterChip(selected = form.imageInputSetting == setting,
-                    onClick = { LLMProviderEditUiIntent.ChangeImageInput(setting).emit() },
-                    label = { Text(stringResource(when (setting) {
-                        ImageInputSetting.Auto -> R.string.image_capability_auto
-                        ImageInputSetting.Supported -> R.string.image_capability_supported
-                        ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
-                    })) })
-            }
-        }
-        Text(stringResource(R.string.image_capability_hint), style = MaterialTheme.typography.bodySmall)
-        if (showImageTokenEstimator) {
-            ImageTokenEstimatorSelector(form.imageTokenEstimatorType) {
-                LLMProviderEditUiIntent.SelectImageTokenEstimator(it).emit()
-            }
-        }
-
         FormTextField(
             stringResource(R.string.name),
             form.name
@@ -331,6 +314,10 @@ private fun BasicPanel(
             catalogState = modelCatalogState,
             emit = emit
         )
+        ImageInputCapabilityField(
+            selected = form.imageInputSetting,
+            onSelect = { LLMProviderEditUiIntent.ChangeImageInput(it).emit() }
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -348,6 +335,50 @@ private fun BasicPanel(
                 onCheckedChange = { LLMProviderEditUiIntent.ToggleEnabled(it).emit() }
             )
         }
+    }
+}
+
+@Composable
+private fun ImageInputCapabilityField(
+    selected: ImageInputSetting,
+    onSelect: (ImageInputSetting) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.image_input_capability),
+            style = MaterialTheme.typography.titleSmall
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ImageInputSetting.entries.forEach { setting ->
+                FilterChip(
+                    selected = selected == setting,
+                    onClick = { onSelect(setting) },
+                    label = {
+                        Text(
+                            stringResource(
+                                when (setting) {
+                                    ImageInputSetting.Auto -> R.string.image_capability_auto
+                                    ImageInputSetting.Supported -> R.string.image_capability_supported
+                                    ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
+                                }
+                            )
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
+                            alpha = 0.7f
+                        ),
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.image_capability_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+        )
     }
 }
 
@@ -657,6 +688,7 @@ private fun ParameterPanel(
 private fun CollapsibleAdvancedPanel(
     form: LLMProviderEditForm,
     requestExtensionsState: LLMProviderEditRequestExtensionsState,
+    showImageTokenEstimator: Boolean,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
@@ -833,6 +865,15 @@ private fun CollapsibleAdvancedPanel(
                         }
                     )
 
+                    if (showImageTokenEstimator) {
+                        ImageTokenEstimatorSelector(
+                            selected = form.imageTokenEstimatorType,
+                            onSelect = {
+                                LLMProviderEditUiIntent.SelectImageTokenEstimator(it).emit()
+                            }
+                        )
+                    }
+
                     TokenEstimateReserveSlider(
                         value = form.tokenEstimateReservePercent,
                         onChange = {
@@ -858,8 +899,7 @@ private fun CollapsibleAdvancedPanel(
     }
 }
 
-/** 渲染模型配置独立的本地 Token 预估器选择项。 */
-/** 图片策略只提供一个类别选择，沿用现有单选控件。 */
+/** 渲染模型配置独立的图片 Token 预估器选择项。 */
 @Composable
 private fun ImageTokenEstimatorSelector(
     selected: ImageTokenEstimatorType,
@@ -876,17 +916,59 @@ private fun ImageTokenEstimatorSelector(
         ImageTokenEstimatorType.ClaudeHighResolution to stringResource(R.string.image_estimator_claude_high),
         ImageTokenEstimatorType.Gemini3 to stringResource(R.string.image_estimator_gemini)
     )
-    // 选择只影响本地估值，不向请求写入新的图片参数。
-    Text(stringResource(R.string.image_token_estimator), style = MaterialTheme.typography.titleSmall)
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { expanded = true }) { Text(labels.getValue(selected)) }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            ImageTokenEstimatorType.entries.forEach { type ->
-                DropdownMenuItem(text = { Text(labels.getValue(type)) }, onClick = {
-                    expanded = false
-                    onSelect(type)
-                })
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.image_token_estimator),
+            style = MaterialTheme.typography.titleSmall
+        )
+        var expanded by remember { mutableStateOf(false) }
+        Box {
+            OutlinedCard(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = labels[selected] ?: selected.name,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.heightIn(max = 280.dp)
+            ) {
+                ImageTokenEstimatorType.entries.forEach { type ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                labels[type] ?: type.name,
+                                fontWeight = if (type == selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        trailingIcon = if (type == selected) {
+                            { Icon(Icons.Rounded.Check, contentDescription = null, Modifier.size(18.dp)) }
+                        } else null,
+                        onClick = {
+                            expanded = false
+                            onSelect(type)
+                        }
+                    )
+                }
             }
         }
     }
