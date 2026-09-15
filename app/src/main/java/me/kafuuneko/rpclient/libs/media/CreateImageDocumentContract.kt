@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.common.media
+package me.kafuuneko.rpclient.libs.media
 
 import android.app.Activity
 import android.content.Context
@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
-import me.kafuuneko.rpclient.libs.media.ImageExportMetadata
 
 /** 按每次原图的真实格式创建文档，避免通配 MIME 导致系统无法补全扩展名。 */
 class CreateImageDocumentContract : ActivityResultContract<ImageExportMetadata, Uri?>() {

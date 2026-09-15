@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.common.media
+package me.kafuuneko.rpclient.libs.media
 
 import android.net.Uri
 import androidx.annotation.StringRes

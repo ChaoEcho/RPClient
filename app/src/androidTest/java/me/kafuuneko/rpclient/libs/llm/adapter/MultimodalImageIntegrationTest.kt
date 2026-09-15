@@ -32,9 +32,9 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.common.media.CreateImageDocumentContract
-import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
-import me.kafuuneko.rpclient.feature.common.media.MessageImageCoordinator
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException

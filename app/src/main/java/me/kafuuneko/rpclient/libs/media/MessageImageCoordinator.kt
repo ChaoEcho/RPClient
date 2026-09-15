@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.common.media
+package me.kafuuneko.rpclient.libs.media
 
 import androidx.compose.ui.graphics.asImageBitmap
 import java.util.UUID
@@ -6,8 +6,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.media.ImageExportMetadata
-import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile

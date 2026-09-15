@@ -108,8 +108,8 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
-import me.kafuuneko.rpclient.feature.common.media.MessageImageState
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
@@ -133,7 +133,7 @@ import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.message.MessageImageStrip
-import me.kafuuneko.rpclient.ui.message.MessageImageViewer
+import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
@@ -229,7 +229,7 @@ private fun GroupChatNormalView(
             if ((state.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
                 TextButton(onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) }) { Text(stringResource(R.string.image_retry)) }
             }
-            MessageImageViewer(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+            MessageImageViewerDialog(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
             Composer(
                 draft = state.conversationState.inputDraft,
                 generating = generating,

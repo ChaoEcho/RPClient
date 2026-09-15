@@ -124,8 +124,8 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
-import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
-import me.kafuuneko.rpclient.feature.common.media.MessageImageState
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -137,7 +137,7 @@ import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.message.MessageImageStrip
-import me.kafuuneko.rpclient.ui.message.MessageImageViewer
+import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
@@ -381,7 +381,7 @@ private fun ChatNormal(
         if ((state.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply == true) {
             TextButton(onClick = { ChatUiIntent.RetryImageReply.emit() }) { Text(stringResource(R.string.image_retry)) }
         }
-        MessageImageViewer(state.imageState) { ChatUiIntent.ImageAction(it).emit() }
+        MessageImageViewerDialog(state.imageState) { ChatUiIntent.ImageAction(it).emit() }
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),

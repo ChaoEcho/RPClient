@@ -19,7 +19,7 @@
 
 ### P2：预览失败会提前解除图片处理状态
 
-位置：[MessageImageCoordinator.kt:142](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/feature/common/media/MessageImageCoordinator.kt:142)。
+位置：[MessageImageCoordinator.kt:142](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/libs/media/MessageImageCoordinator.kt:142)。
 
 `handle()` 对所有图片操作共用异常处理，并在任意异常发生时设置 `processing = false`。但 `Picked` 在 ViewModel 中通过独立协程执行，预览、保存等操作可以在图片读取尚未结束时进入同一个协调器。
 
@@ -64,7 +64,7 @@
 
 ### 需要补齐
 
-- **方法注释**：[MessageImageCoordinator.draftInputs()](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/feature/common/media/MessageImageCoordinator.kt:66)、[MessageImageRuntime.references()](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/libs/media/MessageImageRuntime.kt:103)、`save()` 等新增公共方法仅有简短说明，未完整标明参数、返回值及关键约束。应按 [规范第 103 行](/Users/kafuuneko/Documents/Git/Github/RPClient/doc/coding-guidelines.md:103) 补充适用的 KDoc 标签。
+- **方法注释**：[MessageImageCoordinator.draftInputs()](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/libs/media/MessageImageCoordinator.kt:66)、[MessageImageRuntime.references()](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/libs/media/MessageImageRuntime.kt:103)、`save()` 等新增公共方法仅有简短说明，未完整标明参数、返回值及关键约束。应按 [规范第 103 行](/Users/kafuuneko/Documents/Git/Github/RPClient/doc/coding-guidelines.md:103) 补充适用的 KDoc 标签。
 - **长方法内部说明**：[MessageImageViewer()](/Users/kafuuneko/Documents/Git/Github/RPClient/app/src/main/java/me/kafuuneko/rpclient/ui/message/MessageImages.kt:120) 跨越约 90 行，负责变换状态、图片渲染、导航和操作按钮，内部没有分步注释，不符合 [超过 16 行方法必须添加行内注释](/Users/kafuuneko/Documents/Git/Github/RPClient/doc/coding-guidelines.md:96) 的要求。可按内容显示、图片切换、保存操作拆分私有 Composable，同时补充必要的状态重置说明。
 - **界面文案和分层**：两个会话 DAO 中的 `'[Image]'` 是直接用于界面展示的硬编码英文。修复类型编码后，该文案会进入所有语言的会话列表。应返回结构化信息，由展示层使用字符串资源，符合 [文案规范](/Users/kafuuneko/Documents/Git/Github/RPClient/doc/coding-guidelines.md:127)。
 
