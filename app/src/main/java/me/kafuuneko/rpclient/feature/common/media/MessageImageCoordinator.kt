@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.media.ImageExportMetadata
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
@@ -47,7 +48,11 @@ class MessageImageCoordinator(
         mLoading.clear()
     }
 
-    /** 根据用户选择的输入位置记录本次系统选择器目标。 */
+    /**
+     * 根据用户选择的输入位置记录本次系统选择器目标。
+     *
+     * @param editing 是否将本次选择的图片加入历史消息编辑区。
+     */
     fun choose(editing: Boolean) {
         mPickEditing = editing
         mPickEditingVersion = mEditingVersion
@@ -62,13 +67,23 @@ class MessageImageCoordinator(
         publish(state.copy(processing = false))
     }
 
-    /** 返回草稿凭据；只允许全部图片准备完成后提交。 */
+    /**
+     * 返回草稿凭据；只允许全部图片准备完成后提交。
+     *
+     * @return 按草稿显示顺序排列的暂存附件。
+     * @throws IllegalStateException 图片尚在处理中时抛出。
+     * @throws IllegalArgumentException 草稿的暂存凭据缺失时抛出。
+     */
     fun draftInputs(): List<MessageImageInput.Prepared> {
         check(!state.processing) { "Images are still being processed" }
         return state.draft.map { MessageImageInput.Prepared(requireNotNull(mPrepared[it])) }
     }
 
-    /** 返回编辑后的顺序，保留项交给消息仓库验证所有权。 */
+    /**
+     * 返回编辑后的顺序，保留项交给消息仓库验证所有权。
+     *
+     * @return 按编辑顺序排列的已有附件和新增暂存附件。
+     */
     fun editingInputs(): List<MessageImageInput> = state.editing.map {
         mPrepared[it]?.let(MessageImageInput::Prepared) ?: MessageImageInput.Existing(it)
     }
@@ -79,7 +94,11 @@ class MessageImageCoordinator(
         publish(state.copy(draft = emptyList(), errorResId = null))
     }
 
-    /** 进入历史图文编辑；原附件不能因为取消编辑而被删除。 */
+    /**
+     * 进入历史图文编辑；原附件不能因为取消编辑而被删除。
+     *
+     * @param ids 当前消息已有的附件 ID，顺序与消息一致。
+     */
     suspend fun startEditing(ids: List<String>) {
         cancelEditing()
         mEditingActive = true
@@ -105,14 +124,32 @@ class MessageImageCoordinator(
         publish(state.copy(editing = emptyList()))
     }
 
-    /** 保存选择器启动前冻结当前原图 ID，避免返回时误存另一张。 */
-    fun beginSave(): Boolean {
-        val preview = state.preview ?: return false
-        mSaveUuid = preview.ids.getOrNull(preview.index)
-        return mSaveUuid != null
+    /**
+     * 保存选择器启动前冻结原图 ID，并检查实际格式。
+     *
+     * @return 创建文档所需的元数据；没有可保存图片或准备失败时为 null。
+     */
+    suspend fun beginSave(): ImageExportMetadata? {
+        mSaveUuid = null
+        val preview = state.preview ?: return null
+        val uuid = preview.ids.getOrNull(preview.index) ?: return null
+        return try {
+            // 元数据就绪后才登记保存目标，预览切换不会改变此次选择的原图。
+            val metadata = mRuntime.exportMetadata(uuid, mPrepared[uuid])
+            mSaveUuid = uuid
+            metadata
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            publish(state.copy(errorResId = R.string.image_prepare_failed))
+            null
+        }
     }
 
-    /** 处理图片行为；失败只展示受控提示，取消继续向上传播。 */
+    /**
+     * 处理图片行为；失败只展示受控提示，取消继续向上传播。
+     *
+     * @param action 页面发出的图片操作。
+     */
     suspend fun handle(action: MessageImageAction) {
         try {
             // 暂存、历史加载与原图保存走同一个受控资源入口，页面不直接读取文件。
@@ -141,12 +178,16 @@ class MessageImageCoordinator(
             }
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
-            publish(state.copy(processing = false, preview = state.preview?.copy(loading = false),
-                errorResId = R.string.image_prepare_failed))
+            // 失败只发布提示；选图和预览各自负责结束状态，不能解除其他任务的保护。
+            publish(state.copy(errorResId = R.string.image_prepare_failed))
         }
     }
 
-    /** 逐图复制并立即取得私有暂存；部分选择失败时保留之前成功的草稿。 */
+    /**
+     * 逐图复制并立即取得私有暂存；部分选择失败时保留之前成功的草稿。
+     *
+     * @param action 系统选择器返回的 URI 列表。
+     */
     private suspend fun pick(action: MessageImageAction.Picked) {
         if (state.processing) return
         val editing = mPickEditing
@@ -185,7 +226,11 @@ class MessageImageCoordinator(
         }
     }
 
-    /** 同一 UUID 的解码去重；null 是已完成的缺图结果，不能自动循环重试。 */
+    /**
+     * 同一 UUID 的解码去重；null 是已完成的缺图结果，不能自动循环重试。
+     *
+     * @param uuid 需要显示缩略图的原图 ID。
+     */
     private suspend fun load(uuid: String) {
         if (state.thumbnails.containsKey(uuid) || !mLoading.add(uuid)) return
         try {
@@ -196,7 +241,11 @@ class MessageImageCoordinator(
         }
     }
 
-    /** 调整草稿中的顺序，不改变任何文件所有权。 */
+    /**
+     * 调整草稿中的顺序，不改变任何文件所有权。
+     *
+     * @param action 要前移的图片及其所属编辑区域。
+     */
     private fun move(action: MessageImageAction.Move) {
         val ids = (if (action.editing) state.editing else state.draft).toMutableList()
         val index = ids.indexOf(action.uuid)
@@ -206,19 +255,35 @@ class MessageImageCoordinator(
         publish(if (action.editing) state.copy(editing = ids) else state.copy(draft = ids))
     }
 
-    /** 大图仅在当前查看器仍对应同一次请求时发布，避免迟到结果覆盖新图。 */
+    /**
+     * 大图仅在当前查看器仍对应同一次请求时发布，避免迟到结果覆盖新图。
+     *
+     * @param action 消息内图片列表、目标位置与预览版本。
+     */
     private suspend fun preview(action: MessageImageAction.Preview) {
         val uuid = action.ids.getOrNull(action.index) ?: return
         val preview = ImagePreviewState(action.ids, action.index, sendVersion = action.sendVersion)
         publish(state.copy(preview = preview))
-        val bitmap = if (action.sendVersion) mRuntime.loadSendPreview(uuid, mPrepared[uuid])
-            else mRuntime.load(uuid, mPrepared[uuid], 3072)
-        if (state.preview === preview) {
-            publish(state.copy(preview = preview.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
+        try {
+            // 解码期间允许其他图片操作，返回时只更新本次仍可见的预览。
+            val bitmap = if (action.sendVersion) mRuntime.loadSendPreview(uuid, mPrepared[uuid])
+                else mRuntime.load(uuid, mPrepared[uuid], 3072)
+            if (state.preview === preview) {
+                publish(state.copy(preview = preview.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
+            }
+        } finally {
+            // 异常与取消同样结束本次加载，不能覆盖后来打开的另一张图片。
+            if (state.preview === preview) {
+                publish(state.copy(preview = preview.copy(loading = false)))
+            }
         }
     }
 
-    /** 移除草稿释放暂存；移除历史附件仅更改编辑顺序，保存时才删除。 */
+    /**
+     * 移除草稿释放暂存；移除历史附件仅更改编辑顺序，保存时才删除。
+     *
+     * @param action 要移除的图片及其所属编辑区域。
+     */
     private suspend fun remove(action: MessageImageAction.Remove) {
         mPrepared.remove(action.uuid)?.let { mFiles.releasePrepared(it) }
         publish(if (action.editing) state.copy(editing = state.editing - action.uuid)

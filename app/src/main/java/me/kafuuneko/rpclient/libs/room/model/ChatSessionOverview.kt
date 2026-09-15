@@ -12,6 +12,8 @@ data class ChatSessionOverview(
     val latestTime: Long,
     /** 用于列表预览的最近一条消息内容。 */
     val latestMessageContent: String?,
+    /** 最近一条消息是否包含图片；空会话为 false。 */
+    val latestMessageHasImages: Boolean,
     /** 当前会话或分组包含的消息数量。 */
     val messageCount: Int
 )

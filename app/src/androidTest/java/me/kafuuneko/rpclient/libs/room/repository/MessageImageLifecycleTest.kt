@@ -23,6 +23,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -99,6 +101,68 @@ class MessageImageLifecycleTest {
     private suspend fun rejected(block: suspend () -> Unit) {
         val failure = runCatching { block() }.exceptionOrNull()
         assertNotNull("Expected operation to fail", failure)
+    }
+
+    /** 含图导出必须确认遗漏，群聊同 ID 附件和移除后的附件不能误触发。 */
+    @Test
+    fun archiveImageDetectionUsesStoredTypeAndCurrentAttachments() = runBlocking {
+        val archive = ChatArchiveRepository(context, database, ChatArchiveCodec(Gson()))
+        assertFalse(archive.hasImages(sessionId))
+        val single = chat.createUserMessageWithImages(sessionId, "text", emptyList())
+        val groupImage = group.createUserMessageWithImages(
+            groupId, "", listOf(MessageImageInput.Prepared(prepared())), "user"
+        )
+        // 两套消息自增 ID 重叠时，单聊导出不能匹配群聊附件。
+        assertEquals(single.key.messageId, groupImage.key.messageId)
+        assertFalse(archive.hasImages(sessionId))
+        chat.editUserMessageWithImages(
+            sessionId, single.key.messageId, "", listOf(MessageImageInput.Prepared(prepared()))
+        )
+        assertTrue(archive.hasImages(sessionId))
+        assertFalse(archive.hasImages(Long.MAX_VALUE))
+        // 编辑移除最后一张图片后，导出恢复纯文字行为。
+        chat.editUserMessageWithImages(sessionId, single.key.messageId, "text again", emptyList())
+        assertFalse(archive.hasImages(sessionId))
+    }
+
+    /** 单聊概览只描述最新普通消息的附件，忽略摘要与同 ID 的群聊图片。 */
+    @Test
+    fun singleOverviewTracksImagesOfLatestOrdinaryMessage() = runBlocking {
+        assertFalse(chat.getSessionOverviews().single().latestMessageHasImages)
+        group.createUserMessageWithImages(groupId, "", listOf(MessageImageInput.Prepared(prepared())), "user")
+        chat.createUserMessageWithImages(sessionId, "text", emptyList())
+        assertFalse(chat.getSessionOverviews().single().latestMessageHasImages)
+        // 纯图正文保持原值，由展示层根据结构化标记生成本地化文案。
+        val image = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared())))
+        chat.saveSummary(sessionId, "summary", image.key.messageId)
+        val overview = chat.getSessionOverviews().single()
+        assertEquals("", overview.latestMessageContent)
+        assertTrue(overview.latestMessageHasImages)
+        assertEquals(2, overview.messageCount)
+        // 较旧附件仍存在时，新文字回复必须使用自己的正文和图片标记。
+        chat.createMessage(sessionId, ChatMessage.Source.Char, "reply")
+        val latest = chat.getSessionOverviews().single()
+        assertEquals("reply", latest.latestMessageContent)
+        assertFalse(latest.latestMessageHasImages)
+    }
+
+    /** 群聊概览保持类型隔离，并在图片之后出现新文字消息时更新预览标记。 */
+    @Test
+    fun groupOverviewTracksImagesOfLatestMessage() = runBlocking {
+        assertFalse(group.getSessionOverviews().single().latestMessageHasImages)
+        chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared())))
+        group.createUserMessageWithImages(groupId, "text", emptyList(), "user")
+        assertFalse(group.getSessionOverviews().single().latestMessageHasImages)
+        // 单聊同 ID 图片不影响群聊；本群聊新增纯图消息后才返回含图标记。
+        group.createUserMessageWithImages(groupId, "", listOf(MessageImageInput.Prepared(prepared())), "user")
+        val overview = group.getSessionOverviews().single()
+        assertEquals("", overview.latestMessageContent)
+        assertTrue(overview.latestMessageHasImages)
+        assertEquals(2, overview.messageCount)
+        group.createUserMessageWithImages(groupId, "next text", emptyList(), "user")
+        val latest = group.getSessionOverviews().single()
+        assertEquals("next text", latest.latestMessageContent)
+        assertFalse(latest.latestMessageHasImages)
     }
 
     @Test

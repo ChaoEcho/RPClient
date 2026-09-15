@@ -1,20 +1,29 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import android.content.ContentProvider
+import android.content.ContentResolver
+import android.content.ContentValues
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.content.res.AssetFileDescriptor
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import androidx.exifinterface.media.ExifInterface
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Base64
 import java.util.UUID
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -23,6 +32,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.common.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.feature.common.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.AppModel
@@ -69,6 +79,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -87,6 +98,60 @@ class MultimodalImageIntegrationTest {
     private lateinit var logs: LLMRequestLogRepository
     private var sessionId = 0L
     private var previousDebug = false
+
+    /** 预览失败不能解除另一个仍在读取图片的任务对发送按钮的保护。 */
+    @Test
+    @SdkSuppress(minSdkVersion = 29)
+    fun previewFailureMustNotUnlockAnActiveImagePick() = runBlocking {
+        val pipe = ParcelFileDescriptor.createPipe()
+        val opened = CompletableDeferred<Unit>()
+        val provider = object : ContentProvider() {
+            override fun onCreate() = true
+            override fun getType(uri: Uri) = "image/png"
+            override fun query(
+                uri: Uri, projection: Array<out String>?, selection: String?,
+                selectionArgs: Array<out String>?, sortOrder: String?
+            ): Cursor? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
+            override fun update(
+                uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?
+            ) = 0
+            override fun openAssetFile(uri: Uri, mode: String): AssetFileDescriptor {
+                opened.complete(Unit)
+                return AssetFileDescriptor(pipe[0], 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+            }
+        }
+        val resolver = ContentResolver.wrap(provider)
+        val providerContext = object : ContextWrapper(context) {
+            override fun getContentResolver() = resolver
+        }
+        val files = FileRepository(providerContext, database)
+        val coordinator = MessageImageCoordinator(MessageImageRuntime(providerContext, files), files) {}
+        val pick = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.handle(MessageImageAction.Picked(listOf(Uri.parse("content://audit/blocked-image"))))
+        }
+        try {
+            // 管道保持打开但不提供字节，稳定模拟等待云端资源的选择任务。
+            withTimeout(5_000) { opened.await() }
+            assertTrue(coordinator.state.processing)
+            assertTrue(pick.isActive)
+            coordinator.handle(MessageImageAction.Preview(listOf("missing-history-image"), 0, sendVersion = true))
+            assertTrue("Preview error incorrectly unlocked sending while pick still runs", coordinator.state.processing)
+            assertTrue(pick.isActive)
+            assertFalse(requireNotNull(coordinator.state.preview).loading)
+            assertEquals(R.string.image_prepare_failed, coordinator.state.errorResId)
+            assertTrue(runCatching { coordinator.draftInputs() }.exceptionOrNull() is IllegalStateException)
+            // 保存元数据失败同样不能结束选图；实际选图结束后由自身收尾解锁。
+            assertNull(coordinator.beginSave())
+            assertTrue(coordinator.state.processing)
+        } finally {
+            pipe[1].close()
+            withTimeout(5_000) { pick.await() }
+            coordinator.releaseDrafts()
+        }
+        assertFalse(coordinator.state.processing)
+    }
 
     @Test
     fun switchingEditorRejectsPickerResultFromPreviousMessage() = runBlocking {
@@ -184,6 +249,33 @@ class MultimodalImageIntegrationTest {
         }
     }
 
+    /** 保存文档类型必须来自真实字节，且草稿和历史图片导出均保留原图。 */
+    @Test
+    fun originalExportUsesActualFormatForDraftAndHistory() = runBlocking {
+        for (jpeg in listOf(false, true)) {
+            val original = fixture(jpeg)
+            // 故意声明错误类型，确保导出不信任选择器或文件索引的 MIME。
+            val prepared = files.prepareStream("export", ByteArrayInputStream(original.readBytes()), "image/webp")
+            val metadata = media.exportMetadata(prepared.file.uuid, prepared)
+            val expectedMime = if (jpeg) "image/jpeg" else "image/png"
+            val expectedName = if (jpeg) "image.jpg" else "image.png"
+            assertEquals(expectedMime, metadata.mimeType)
+            assertEquals(expectedName, metadata.fileName)
+            val intent = CreateImageDocumentContract().createIntent(context, metadata)
+            assertEquals(expectedMime, intent.type)
+            assertEquals(expectedName, intent.getStringExtra(Intent.EXTRA_TITLE))
+            val draftDestination = File(directory, "draft-$expectedName")
+            media.save(prepared.file.uuid, Uri.fromFile(draftDestination), prepared)
+            assertTrue(original.readBytes().contentEquals(draftDestination.readBytes()))
+            // 持久化后使用文件租约重新识别并保存，不能误导出 JPEG/PNG 发送缓存。
+            chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
+            assertEquals(metadata, media.exportMetadata(prepared.file.uuid))
+            val historyDestination = File(directory, "history-$expectedName")
+            media.save(prepared.file.uuid, Uri.fromFile(historyDestination))
+            assertTrue(original.readBytes().contentEquals(historyDestination.readBytes()))
+        }
+    }
+
     @Test
     fun inMemoryDraftSavesOriginalAndRejectsResultsAfterEditingEnds() = runBlocking {
         val coordinator = MessageImageCoordinator(media, files) {}
@@ -194,7 +286,11 @@ class MultimodalImageIntegrationTest {
         val fresh = MessageImageCoordinator(media, files) {}
         assertTrue(fresh.state.draft.isEmpty())
         coordinator.handle(MessageImageAction.Preview(listOf(uuid), 0))
-        assertTrue(coordinator.beginSave())
+        val metadata = requireNotNull(coordinator.beginSave())
+        assertEquals("image/png", metadata.mimeType)
+        assertEquals("image.png", metadata.fileName)
+        // 系统保存期间切换预览，返回的 URI 仍必须接收原先选中的原图。
+        coordinator.handle(MessageImageAction.Preview(listOf("another-missing-image"), 0))
         val destination = File(directory, "saved-original.png")
         coordinator.handle(MessageImageAction.SaveResult(Uri.fromFile(destination)))
         assertTrue(original.readBytes().contentEquals(destination.readBytes()))

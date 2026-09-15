@@ -177,7 +177,11 @@ class GroupChatViewModel :
         getOrNull<GroupChatUiState.Normal>()?.copy(imageState = state)?.setup()
     } }
 
-    /** 图片选择、编辑与查看共用一套状态；生成过程中禁止修改待发送附件。 */
+    /**
+     * 图片选择、编辑与查看共用一套状态；生成过程中禁止修改待发送附件。
+     *
+     * @param intent 包含用户图片操作的页面意图。
+     */
     @UiIntentObserver(GroupChatUiIntent.ImageAction::class)
     private suspend fun onImageAction(intent: GroupChatUiIntent.ImageAction) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -198,7 +202,9 @@ class GroupChatViewModel :
                 mImageCoordinator.choose(action.editing)
                 GroupChatViewEvent.PickImages.tryEmit()
             }
-            MessageImageAction.Save -> if (mImageCoordinator.beginSave()) GroupChatViewEvent.SaveImage.tryEmit()
+            MessageImageAction.Save -> mImageCoordinator.beginSave()?.let { metadata ->
+                GroupChatViewEvent.SaveImage(metadata).tryEmit()
+            }
             else -> mImageCoordinator.handle(action)
         }
     }

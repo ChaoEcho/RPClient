@@ -153,7 +153,7 @@ class ChatRepository(
 
     /** 一次读取首页单聊列表需要的轻量会话概览。 */
     suspend fun getSessionOverviews(): List<ChatSessionOverview> {
-        return mChatSessionDao.getSessionOverviews()
+        return mChatSessionDao.getSessionOverviews(MessageType.Single)
     }
 
     /**

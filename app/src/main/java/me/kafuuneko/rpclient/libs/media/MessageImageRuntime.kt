@@ -39,7 +39,11 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
     private val mMutex = Mutex()
     private val mCache = File(mContext.cacheDir, "message-images-v1").apply { mkdirs() }
 
-    /** 请求暂存与可重建图片缓存分开；旧进程中断留下的文件延迟回收。 */
+    /**
+     * 请求暂存与可重建图片缓存分开；旧进程中断留下的文件延迟回收。
+     *
+     * @return 本次请求独占的临时 JSON 文件，调用方使用后删除。
+     */
     fun createRequestFile(): File {
         val directory = File(mContext.cacheDir, "image-requests").apply { mkdirs() }
         directory.listFiles().orEmpty().filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }
@@ -47,8 +51,15 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         return File.createTempFile("request-", ".json", directory)
     }
 
-    /** 复制选择器 URI 并验证实际图像；失败时释放暂存，调用方只保存已就绪凭据。 */
+    /**
+     * 复制选择器 URI 并验证实际图像；失败时释放暂存，调用方只保存已就绪凭据。
+     *
+     * @param owner 当前草稿所有者标识。
+     * @param uri 系统选择器授予读取权限的资源 URI。
+     * @return 已完成格式与发送版本校验的暂存凭据。
+     */
     suspend fun prepare(owner: String, uri: Uri): PreparedFile {
+        // 原图复制完成后仍由草稿持有，只有图像校验成功才交给页面。
         val prepared = mFiles.prepareFile(owner, uri)
         try {
             mFiles.withPreparedFile(prepared) { file ->
@@ -61,7 +72,12 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         }
     }
 
-    /** 为候选历史收集资源与受控失败，错误是否阻断发送由最终选择决定。 */
+    /**
+     * 为候选历史收集资源与受控失败，错误是否阻断发送由最终选择决定。
+     *
+     * @param messages 包含有序附件的候选消息列表。
+     * @return 按消息 ID 组织的就绪资源和不可用原因。
+     */
     suspend fun prepareCandidates(messages: List<MessageWithImages>): PromptImagePreparation =
         withContext(Dispatchers.IO) {
             val ready = mutableMapOf<Long, List<LLMImageReference>>()
@@ -99,7 +115,13 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         }
     }
 
-    /** 严格准备入口供直接发送资源的调用方使用，候选裁剪使用 prepareCandidates。 */
+    /**
+     * 严格准备入口供直接发送资源的调用方使用，候选裁剪使用 prepareCandidates。
+     *
+     * @param messages 本次需要发送的完整消息列表。
+     * @return 按消息 ID 组织、保持附件顺序的发送引用。
+     * @throws ImageRequestException 任一消息存在缺失或无效图片时抛出。
+     */
     suspend fun references(messages: List<MessageWithImages>): Map<Long, List<LLMImageReference>> {
         val prepared = prepareCandidates(messages)
         prepared.unavailable.values.firstOrNull { it.isNotEmpty() }?.first()?.let {
@@ -108,7 +130,13 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         return prepared.references
     }
 
-    /** 持原图租约重新核对发送快照，回调期间缓存不会被其他图片处理回收。 */
+    /**
+     * 持原图租约重新核对发送快照，回调期间缓存不会被其他图片处理回收。
+     *
+     * @param reference 请求准备阶段冻结的图片引用。
+     * @param block 同步消费发送文件的回调，不得在回调结束后继续读取。
+     * @return 回调的执行结果。
+     */
     suspend fun <T> withSendFile(reference: LLMImageReference, block: (File) -> T): T =
         mFiles.withFileLease(reference.uuid) { original ->
             val index = requireNotNull(mFiles.getFileEntity(reference.uuid)) { "Missing history image" }
@@ -119,7 +147,14 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
             }
         }
 
-    /** 按需加载列表缩略图或查看器版本；失败返回 null，由 UI 显示缺图占位。 */
+    /**
+     * 按需加载列表缩略图或查看器版本；失败返回 null，由 UI 显示缺图占位。
+     *
+     * @param uuid 原图文件 ID。
+     * @param prepared 未提交草稿的凭据；历史图片传 null。
+     * @param longEdge 解码结果的最大长边像素数。
+     * @return 有界解码后的图片；文件不可用时返回 null，取消继续传播。
+     */
     suspend fun load(uuid: String, prepared: PreparedFile? = null, longEdge: Int = 384): Bitmap? =
         withContext(Dispatchers.IO) {
             try {
@@ -131,7 +166,41 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
             }
         }
 
-    /** 用户显式保存图片时复制原始字节，不导出缓存或内部路径。 */
+    /**
+     * 校验原始文件并生成保存元数据，不信任选图来源声明的 MIME。
+     *
+     * @param uuid 原图文件 ID。
+     * @param prepared 尚未持久化的草稿凭据；历史图片传 null。
+     * @return 与原始字节格式一致的 MIME 和带扩展名的默认文件名。
+     * @throws ImageRequestException 原图格式无效或文件缺失时抛出。
+     */
+    suspend fun exportMetadata(uuid: String, prepared: PreparedFile? = null): ImageExportMetadata {
+        // 在文件仓库保护范围内检查实际容器，不使用发送缓存的编码格式。
+        val inspect: suspend (File) -> ImageExportMetadata = { original ->
+            validate(original)
+            val mimeType = bounds(original).outMimeType
+            val extension = when (mimeType) {
+                "image/jpeg" -> "jpg"
+                "image/png" -> "png"
+                "image/webp" -> "webp"
+                "image/heic" -> "heic"
+                "image/heif" -> "heif"
+                else -> throw ImageRequestException(ImageRequestFailure.InvalidImage)
+            }
+            ImageExportMetadata(mimeType, "image.$extension")
+        }
+        // 草稿与历史文件沿用各自的所有权保护，IO 由文件仓库调度。
+        return if (prepared != null) mFiles.withPreparedFile(prepared, inspect)
+        else mFiles.withFileLease(uuid, inspect)
+    }
+
+    /**
+     * 用户显式保存图片时复制原始字节，不导出缓存或内部路径。
+     *
+     * @param uuid 选择器启动前冻结的原图文件 ID。
+     * @param destination 用户确认的目标文档 URI。
+     * @param prepared 未提交草稿的凭据；历史图片传 null。
+     */
     suspend fun save(uuid: String, destination: Uri, prepared: PreparedFile? = null) {
         val copy: suspend (File) -> Unit = { original ->
             val output = mContext.contentResolver.openOutputStream(destination)
@@ -142,7 +211,13 @@ class MessageImageRuntime(private val mContext: Context, private val mFiles: Fil
         else mFiles.withFileLease(uuid, copy)
     }
 
-    /** 预览真实编码后的发送缓存，与请求使用相同压缩和尺寸。 */
+    /**
+     * 预览真实编码后的发送缓存，与请求使用相同压缩和尺寸。
+     *
+     * @param uuid 原图文件 ID。
+     * @param prepared 未提交草稿的凭据；历史图片传 null。
+     * @return 发送缓存的有界预览；解码失败时为 null。
+     */
     suspend fun loadSendPreview(uuid: String, prepared: PreparedFile?): Bitmap? = withContext(Dispatchers.IO) {
         val read: suspend (File, String) -> Bitmap? = { original, hash ->
             mMutex.withLock {

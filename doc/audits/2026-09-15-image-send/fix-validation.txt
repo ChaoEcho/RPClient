@@ -1,0 +1,15 @@
+Initial full verification after functional fixes
+
+Unit: {'tests': 268, 'failures': 0, 'errors': 0, 'skipped': 0}
+Android: {'tests': 81, 'failures': 0, 'errors': 0, 'skipped': 0}
+Lint Errors: 0
+
+./gradlew --offline --no-daemon --console=plain :app:testDebugUnitTest :app:assembleDebug
+ANDROID_SERIAL=emulator-5556 ./gradlew --offline --no-daemon --console=plain :app:connectedDebugAndroidTest :app:lintDebug
+
+Final focused verification after the save-target regression assertion
+{'tests': 3, 'failures': 0, 'errors': 0, 'skipped': 0}
+Lint: passed, no Error
+me.kafuuneko.rpclient.libs.llm.adapter.MultimodalImageIntegrationTest#inMemoryDraftSavesOriginalAndRejectsResultsAfterEditingEnds: passed
+me.kafuuneko.rpclient.libs.llm.adapter.MultimodalImageIntegrationTest#originalExportUsesActualFormatForDraftAndHistory: passed
+me.kafuuneko.rpclient.libs.llm.adapter.MultimodalImageIntegrationTest#previewFailureMustNotUnlockAnActiveImagePick: passed

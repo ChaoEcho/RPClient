@@ -1,0 +1,150 @@
+package me.kafuuneko.rpclient.audit
+
+import android.content.ContentProvider
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.AssetFileDescriptor
+import android.database.Cursor
+import android.net.Uri
+import android.os.ParcelFileDescriptor
+import androidx.room.Room
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.google.gson.Gson
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
+import me.kafuuneko.rpclient.feature.common.media.MessageImageCoordinator
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
+import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/** 审计反例使用真实 Room 和受控阻塞资源，验证导出与并发边界。 */
+@RunWith(AndroidJUnit4::class)
+class ImageSendAuditTest {
+    private lateinit var mDirectory: File
+    private lateinit var mContext: Context
+    private lateinit var mDatabase: AppDatabase
+    private lateinit var mFiles: FileRepository
+    private lateinit var mChat: ChatRepository
+    private lateinit var mGroup: GroupChatRepository
+    private var mSessionId = 0L
+
+    /** 所有持久数据与文件隔离在本测试目录中。 */
+    @Before
+    fun setUp() = runBlocking {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        mDirectory = File(base.cacheDir, "audit-${UUID.randomUUID()}").apply { mkdirs() }
+        mContext = object : ContextWrapper(base) {
+            override fun getDir(name: String, mode: Int): File = File(mDirectory, name).apply { mkdirs() }
+            override fun getCacheDir(): File = File(mDirectory, "cache").apply { mkdirs() }
+        }
+        mDatabase = Room.inMemoryDatabaseBuilder(mContext, AppDatabase::class.java).build()
+        mFiles = FileRepository(mContext, mDatabase)
+        val images = MessageImageRepository(mDatabase, mFiles)
+        mChat = ChatRepository(mDatabase, Gson(), images)
+        mGroup = GroupChatRepository(mDatabase, Gson(), images)
+        val characterId = mDatabase.getCharacterDao().insertOrReplace(Character(name = "Audit",
+            avatar = "", characterTags = "[]", description = "", personality = "", scenario = "",
+            firstMessages = "", examplesOfDialogue = "", postHistoryInstructions = ""))
+        mSessionId = mDatabase.getChatSessionDao().insertOrReplace(ChatSession(characterId = characterId,
+            createTime = 1, latestTime = 1, lorebookEntrySet = "[]", title = "Audit", userNote = ""))
+    }
+
+    /** 清理测试拥有的资源。 */
+    @After
+    fun tearDown() {
+        mDatabase.close()
+        mDirectory.deleteRecursively()
+    }
+
+    /** 合成字节仅用于验证文件索引与消息关系，不进入网络或解码器。 */
+    private suspend fun imageInput() = MessageImageInput.Prepared(mFiles.prepareStream(
+        "audit", ByteArrayInputStream("synthetic image index fixture".toByteArray()), "image/png"))
+
+    /** 持久化含图消息后必须触发文字导出前的图片遗漏确认。 */
+    @Test
+    fun imageArchiveMustRequireOmissionWarning() = runBlocking {
+        mChat.createUserMessageWithImages(mSessionId, "", listOf(imageInput()))
+        val archive = ChatArchiveRepository(mContext, mDatabase, ChatArchiveCodec(Gson()))
+        assertTrue("Persisted image was not detected before text export", archive.hasImages(mSessionId))
+    }
+
+    /** 单聊纯图消息不得被列表当作无消息。 */
+    @Test
+    fun singleImageOverviewMustHavePreview() = runBlocking {
+        mChat.createUserMessageWithImages(mSessionId, "", listOf(imageInput()))
+        assertTrue("Single image overview is empty", mChat.getSessionOverviews().single().latestMessageContent.orEmpty().isNotBlank())
+    }
+
+    /** 群聊纯图消息不得被列表当作无消息。 */
+    @Test
+    fun groupImageOverviewMustHavePreview() = runBlocking {
+        val id = mDatabase.getGroupChatSessionDao().insertOrReplace(GroupChatSession(
+            title = "Audit group", createTime = 1, latestTime = 1, userName = "User", userDescription = ""))
+        mGroup.createUserMessageWithImages(id, "", listOf(imageInput()), "User")
+        assertTrue("Group image overview is empty", mGroup.getSessionOverviews().single().latestMessageContent.orEmpty().isNotBlank())
+    }
+
+    /** 预览失败不能解除另一个仍在读取图片的任务对发送按钮的保护。 */
+    @Test
+    fun previewFailureMustNotUnlockAnActiveImagePick() = runBlocking {
+        val pipe = ParcelFileDescriptor.createPipe()
+        val opened = CompletableDeferred<Unit>()
+        val provider = object : ContentProvider() {
+            override fun onCreate() = true
+            override fun getType(uri: Uri) = "image/png"
+            override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0
+            override fun openAssetFile(uri: Uri, mode: String): AssetFileDescriptor {
+                opened.complete(Unit)
+                return AssetFileDescriptor(pipe[0], 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+            }
+        }
+        val resolver = ContentResolver.wrap(provider)
+        val context = object : ContextWrapper(mContext) {
+            override fun getContentResolver() = resolver
+        }
+        val files = FileRepository(context, mDatabase)
+        val coordinator = MessageImageCoordinator(MessageImageRuntime(context, files), files) {}
+        val pick = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.handle(MessageImageAction.Picked(listOf(Uri.parse("content://audit/blocked-image"))))
+        }
+        try {
+            // 管道保持打开但不提供字节，稳定模拟等待云端资源的选择任务。
+            withTimeout(5_000) { opened.await() }
+            assertTrue(coordinator.state.processing)
+            assertTrue(pick.isActive)
+            coordinator.handle(MessageImageAction.Preview(listOf("missing-history-image"), 0, sendVersion = true))
+            assertTrue("Preview error incorrectly unlocked sending while pick still runs", coordinator.state.processing)
+        } finally {
+            pipe[1].close()
+            withTimeout(5_000) { pick.await() }
+            coordinator.releaseDrafts()
+        }
+    }
+}

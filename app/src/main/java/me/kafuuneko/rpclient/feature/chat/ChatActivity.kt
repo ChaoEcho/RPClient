@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
+import me.kafuuneko.rpclient.feature.common.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
@@ -31,7 +32,7 @@ class ChatActivity : CoreActivityWithEvent() {
         mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.Picked(uris)))
     }
     private val mImageSaver = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("image/*")
+        CreateImageDocumentContract()
     ) { uri ->
         uri?.let { mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) }
     }
@@ -74,7 +75,13 @@ class ChatActivity : CoreActivityWithEvent() {
         mViewModel.emit(ChatUiIntent.Resume)
     }
 
+    /**
+     * 分发图片选择、保存及其他页面宿主事件。
+     *
+     * @param viewEvent ViewModel 已准备好参数的一次性系统操作。
+     */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        // 图片保存使用本次原图的格式元数据，其他导出沿用各自的文档合约。
         when (viewEvent) {
             ChatViewEvent.PickImages -> mImagePicker.launch(
                 PickVisualMediaRequest(
@@ -82,7 +89,7 @@ class ChatActivity : CoreActivityWithEvent() {
                 )
             )
 
-            ChatViewEvent.SaveImage -> mImageSaver.launch("image")
+            is ChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
             is ChatViewEvent.CopyText -> copyText(viewEvent.text)
             is ChatViewEvent.OpenSession -> openSession(viewEvent.sessionId)
             is ChatViewEvent.OpenChatExporter -> {

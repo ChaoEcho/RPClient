@@ -175,7 +175,7 @@ class GroupChatRepository(
 
     /** 一次读取首页群聊列表需要的轻量会话概览。 */
     suspend fun getSessionOverviews(): List<GroupChatSessionOverview> {
-        return mSessionDao.getSessionOverviews()
+        return mSessionDao.getSessionOverviews(MessageType.Group)
     }
 
     /** 根据主键读取群聊会话。 */

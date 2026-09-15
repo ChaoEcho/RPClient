@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
+import me.kafuuneko.rpclient.feature.common.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
@@ -28,7 +29,7 @@ class GroupChatActivity : CoreActivityWithEvent() {
         ActivityResultContracts.PickMultipleVisualMedia(4)
     ) { uris -> mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Picked(uris))) }
     private val mImageSaver = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("image/*")
+        CreateImageDocumentContract()
     ) { uri -> uri?.let { mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) } }
 
 
@@ -60,11 +61,16 @@ class GroupChatActivity : CoreActivityWithEvent() {
         mViewModel.emit(GroupChatUiIntent.Resume)
     }
 
+    /**
+     * 分发图片选择、保存及其他页面宿主事件。
+     *
+     * @param viewEvent ViewModel 已准备好参数的一次性系统操作。
+     */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             GroupChatViewEvent.PickImages -> mImagePicker.launch(PickVisualMediaRequest(
                 ActivityResultContracts.PickVisualMedia.ImageOnly))
-            GroupChatViewEvent.SaveImage -> mImageSaver.launch("image")
+            is GroupChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
             is GroupChatViewEvent.CopyText -> copyText(viewEvent.text)
             else -> super.onReceivedViewEvent(viewEvent)
         }

@@ -165,7 +165,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         getOrNull<ChatUiState.Normal>()?.copy(imageState = state)?.setup()
     } }
 
-    /** 图片选择、编辑与查看共用一套状态；生成过程中禁止修改待发送附件。 */
+    /**
+     * 图片选择、编辑与查看共用一套状态；生成过程中禁止修改待发送附件。
+     *
+     * @param intent 包含用户图片操作的页面意图。
+     */
     @UiIntentObserver(ChatUiIntent.ImageAction::class)
     private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -186,7 +190,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mImageCoordinator.choose(action.editing)
                 ChatViewEvent.PickImages.tryEmit()
             }
-            MessageImageAction.Save -> if (mImageCoordinator.beginSave()) ChatViewEvent.SaveImage.tryEmit()
+            MessageImageAction.Save -> mImageCoordinator.beginSave()?.let { metadata ->
+                ChatViewEvent.SaveImage(metadata).tryEmit()
+            }
             else -> mImageCoordinator.handle(action)
         }
     }

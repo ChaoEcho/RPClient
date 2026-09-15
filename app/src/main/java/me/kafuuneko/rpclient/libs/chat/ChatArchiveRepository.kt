@@ -31,8 +31,14 @@ class ChatArchiveRepository(
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
 
-    /** 文字导出前检查是否需要提示用户图片遗漏。 */
-    suspend fun hasImages(sessionId: Long): Boolean = mAppDatabase.getMessageImageDao().hasSingleSessionImages(sessionId)
+    /**
+     * 文字导出前检查是否需要提示用户图片遗漏。
+     *
+     * @param sessionId 单聊会话 ID。
+     * @return 是否存在不会随文字归档导出的图片附件。
+     */
+    suspend fun hasImages(sessionId: Long): Boolean =
+        mAppDatabase.getMessageImageDao().hasSingleSessionImages(sessionId, MessageType.Single)
 
     /** 将指定会话的原始 Room 数据导出到用户选择的文档 URI。 */
     suspend fun exportToUri(sessionId: Long, uri: Uri) = withContext(Dispatchers.IO) {

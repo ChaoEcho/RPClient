@@ -1284,10 +1284,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     id = session.id.toString(),
                     title = session.title,
                     memberNames = session.memberNames,
-                    preview = session.latestMessageContent
-                        ?.stripThinkBlocks()
-                        ?.takeIf { it.isNotBlank() }
-                        ?: mContext.getString(R.string.no_messages_yet),
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
                     messageCount = session.messageCount,
                     updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm"),
                     latestTime = session.latestTime
@@ -1512,6 +1509,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /**
+     * 优先显示可见正文，纯图片消息使用本地化占位。
+     *
+     * @param content 最新消息的原始正文，空会话为 null。
+     * @param hasImages 同一条最新消息是否包含图片。
+     * @return 首页会话预览文案。
+     */
+    private fun messagePreview(content: String?, hasImages: Boolean): String =
+        content?.stripThinkBlocks()?.takeIf { it.isNotBlank() }
+            ?: mContext.getString(if (hasImages) R.string.message_image else R.string.no_messages_yet)
+
     /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */
     private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
         return MainChatSessionItem(
@@ -1519,7 +1527,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             characterId = characterId.toString(),
             characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
-            preview = latestMessageContent?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
+            preview = messagePreview(latestMessageContent, latestMessageHasImages),
             messageCount = messageCount,
             updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
             latestTime = latestTime

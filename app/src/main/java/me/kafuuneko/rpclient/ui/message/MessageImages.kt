@@ -34,10 +34,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.common.media.ImagePreviewState
 import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.feature.common.media.MessageImageState
 
-/** 图片条只渲染状态并发出用户行为；缩略图由 ViewModel 按可见项加载。 */
+/**
+ * 图片条只渲染状态并发出用户行为；缩略图由 ViewModel 按可见项加载。
+ *
+ * @param ids 按显示顺序排列的原图 ID。
+ * @param state 当前页面的图片状态。
+ * @param editable 是否显示附件编辑操作。
+ * @param editing 是否属于历史消息编辑区。
+ * @param enabled 页面是否允许修改附件。
+ * @param emit 图片操作的意图回调。
+ */
 @Composable
 fun MessageImageStrip(
     ids: List<String>, state: MessageImageState, editable: Boolean = false,
@@ -115,97 +125,104 @@ fun MessageImageStrip(
     }
 }
 
-/** 原图查看器支持同消息图片切换以及缩放平移；变换属于局部视图状态。 */
+/**
+ * 原图查看器展示当前图片，并发出切换、关闭和保存行为。
+ *
+ * @param state 当前页面的图片状态；没有预览时不显示对话框。
+ * @param emit 图片操作的意图回调。
+ */
 @Composable
 fun MessageImageViewer(state: MessageImageState, emit: (MessageImageAction) -> Unit) {
     val preview = state.preview ?: return
-    var scale by remember(
-        preview.ids,
-        preview.index,
-        preview.sendVersion
-    ) { mutableFloatStateOf(1f) }
-    var offset by remember(
-        preview.ids,
-        preview.index,
-        preview.sendVersion
-    ) { mutableStateOf(Offset.Zero) }
+    // 画布仅保留局部手势状态，图片加载与保存仍通过页面意图处理。
     AlertDialog(
         onDismissRequest = { emit(MessageImageAction.ClosePreview) },
         title = { Text("${preview.index + 1} / ${preview.ids.size}") },
         text = {
             Column {
-                Box(Modifier
-                    .fillMaxWidth()
-                    .height(340.dp)
-                    .pointerInput(preview.index) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 8f)
-                            offset += pan
-                        }
-                    }, contentAlignment = Alignment.Center) {
-                    preview.bitmap?.let { bitmap ->
-                        Image(
-                            bitmap,
-                            stringResource(R.string.message_image),
-                            Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    scaleX = scale
-                                    scaleY = scale
-                                    translationX = offset.x
-                                    translationY = offset.y
-                                },
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                        ?: Text(stringResource(if (preview.loading) R.string.image_loading else R.string.image_missing))
-                }
-                Row {
-                    TextButton(onClick = {
-                        emit(
-                            MessageImageAction.Preview(
-                                preview.ids,
-                                preview.index - 1,
-                                preview.sendVersion
-                            )
-                        )
-                    }, enabled = preview.index > 0) { Text("←") }
-                    TextButton(onClick = {
-                        emit(
-                            MessageImageAction.Preview(
-                                preview.ids,
-                                preview.index + 1,
-                                preview.sendVersion
-                            )
-                        )
-                    }, enabled = preview.index < preview.ids.lastIndex) { Text("→") }
-                    TextButton(onClick = {
-                        emit(
-                            MessageImageAction.Preview(
-                                preview.ids,
-                                preview.index,
-                                !preview.sendVersion
-                            )
-                        )
-                    }) {
-                        Text(stringResource(if (preview.sendVersion) R.string.image_original else R.string.image_send_preview))
-                    }
-                }
+                MessageImagePreviewCanvas(preview)
+                MessageImagePreviewNavigation(preview, emit)
             }
         },
         confirmButton = {
             TextButton(onClick = { emit(MessageImageAction.ClosePreview) }) {
-                Text(
-                    stringResource(R.string.image_close)
-                )
+                Text(stringResource(R.string.image_close))
             }
         },
         dismissButton = {
             TextButton(onClick = { emit(MessageImageAction.Save) }) {
-                Text(
-                    stringResource(R.string.image_save)
-                )
+                Text(stringResource(R.string.image_save))
             }
         }
     )
+}
+
+/**
+ * 显示有界预览，并将缩放平移限制在当前图片版本的局部状态中。
+ *
+ * @param preview 当前查看器的图片及加载状态。
+ */
+@Composable
+private fun MessageImagePreviewCanvas(preview: ImagePreviewState) {
+    // 切换消息、图片或发送版本时重置变换，异步位图加载不重置用户手势。
+    var scale by remember(preview.ids, preview.index, preview.sendVersion) { mutableFloatStateOf(1f) }
+    var offset by remember(preview.ids, preview.index, preview.sendVersion) { mutableStateOf(Offset.Zero) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(340.dp)
+            .pointerInput(preview.ids, preview.index, preview.sendVersion) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 8f)
+                    offset += pan
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // 保留加载与缺图占位，图片可用后才应用视图变换。
+        val bitmap = preview.bitmap
+        if (bitmap != null) {
+            Image(
+                bitmap,
+                stringResource(R.string.message_image),
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        translationX = offset.x
+                        translationY = offset.y
+                    },
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Text(stringResource(if (preview.loading) R.string.image_loading else R.string.image_missing))
+        }
+    }
+}
+
+/**
+ * 在同一消息内切换图片或原图／发送版本。
+ *
+ * @param preview 当前消息的图片序列、位置和版本。
+ * @param emit 图片操作的意图回调。
+ */
+@Composable
+private fun MessageImagePreviewNavigation(preview: ImagePreviewState, emit: (MessageImageAction) -> Unit) {
+    // 导航保留版本选择；只有版本按钮改变原图与发送版本状态。
+    Row {
+        TextButton(
+            onClick = { emit(MessageImageAction.Preview(preview.ids, preview.index - 1, preview.sendVersion)) },
+            enabled = preview.index > 0
+        ) { Text("←") }
+        TextButton(
+            onClick = { emit(MessageImageAction.Preview(preview.ids, preview.index + 1, preview.sendVersion)) },
+            enabled = preview.index < preview.ids.lastIndex
+        ) { Text("→") }
+        TextButton(onClick = {
+            emit(MessageImageAction.Preview(preview.ids, preview.index, !preview.sendVersion))
+        }) {
+            Text(stringResource(if (preview.sendVersion) R.string.image_original else R.string.image_send_preview))
+        }
+    }
 }
