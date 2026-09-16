@@ -43,6 +43,8 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
+import me.kafuuneko.rpclient.feature.main.presentation.ImageSendField
+import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -73,6 +75,8 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
+import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
@@ -1242,6 +1246,50 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换后续请求的发送模式；保留已保存的自定义参数，当前请求继续使用冻结快照。 */
+    @UiIntentObserver(MainUiIntent.SelectImageSendMode::class)
+    private fun onSelectImageSendMode(intent: MainUiIntent.SelectImageSendMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.settingsState.imageSendState.mode == intent.mode) return
+        val settings = ImageSendSettings.decode(AppModel.imageSendSettings).copy(mode = intent.mode)
+        AppModel.imageSendSettings = settings.encode()
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            imageSendState = MainImageSendState.from(settings)
+        )).setup()
+    }
+
+    /** 保存用户输入草稿；允许暂时清空字段，校验失败不会写入持久偏好。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageSendLimit::class)
+    private fun onChangeImageSendLimit(intent: MainUiIntent.ChangeImageSendLimit) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val state = uiState.settingsState.imageSendState
+        if (state.mode != ImageSendMode.Custom) return
+        val edited = when (intent.field) {
+            ImageSendField.FileKiB -> state.copy(maxFileKiB = intent.value)
+            ImageSendField.Width -> state.copy(maxWidth = intent.value)
+            ImageSendField.Height -> state.copy(maxHeight = intent.value)
+        }
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            imageSendState = edited.copy(hasChanges = true, errorResId = null)
+        )).setup()
+    }
+
+    /** 校验完整参数后一次性保存，避免请求读到编辑中的混合上限。 */
+    @UiIntentObserver(MainUiIntent.SaveImageSendLimits::class)
+    private fun onSaveImageSendLimits() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val state = uiState.settingsState.imageSendState
+        if (state.mode != ImageSendMode.Custom) return
+        // 草稿保留原始输入用于纠错，非法值不自动钳制成意外的发送设置。
+        val settings = ImageSendSettings(state.mode, state.maxFileKiB.trim().toIntOrNull() ?: 0,
+            state.maxWidth.trim().toIntOrNull() ?: 0, state.maxHeight.trim().toIntOrNull() ?: 0)
+        val updated = if (settings.isValid()) {
+            AppModel.imageSendSettings = settings.encode()
+            MainImageSendState.from(settings)
+        } else state.copy(errorResId = R.string.image_send_invalid_limits)
+        uiState.copy(settingsState = uiState.settingsState.copy(imageSendState = updated)).setup()
+    }
+
     /** 切换是否开启全局 Debug 调试模式（影响日志捕获与详细错误输出）。 */
     @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
     private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
@@ -1338,6 +1386,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         allProviders: List<LLMProvider>
     ): MainSettingsState {
         return MainSettingsState(
+            imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
                 themeMode = mAppThemeManager.themeModeFlow.value
             ),

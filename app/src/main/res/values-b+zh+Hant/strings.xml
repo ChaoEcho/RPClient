@@ -1198,4 +1198,18 @@
     <string name="about_build_number">Build 編號</string>
     <string name="about_brand_keywords">角色 · 故事 · 創作 · 更多可能</string>
     <string name="about_rate_action">去評分</string>
+    <string name="image_send_title">圖片傳送（進階）</string>
+    <string name="image_send_description">套用至後續請求，包含歷史圖片。本機原圖始終保留。檔案較小不一定消耗較少的圖片 Token。</string>
+    <string name="image_send_auto">自動</string>
+    <string name="image_send_original">原圖</string>
+    <string name="image_send_custom">自訂</string>
+    <string name="image_send_auto_description">自動壓縮，最長邊不超過 1536 px，單張圖片不超過 2 MiB。</string>
+    <string name="image_send_original_description">原樣傳送 JPEG、PNG 或靜態 WebP，保留中繼資料。單張不超過 2 MiB、每邊不超過 8000 px，仍受請求預算限制。</string>
+    <string name="image_send_custom_description">儲存以下上限後生效。圖片等比縮小，不裁切、不放大；為符合檔案大小限制，可能進一步縮小。</string>
+    <string name="image_send_max_file">最大檔案大小（KiB，64–2048）</string>
+    <string name="image_send_max_width">最大寬度（px，128–4096）</string>
+    <string name="image_send_max_height">最大高度（px，128–4096）</string>
+    <string name="image_send_invalid_limits">請輸入整數：檔案大小為 64–2048 KiB，寬度與高度為 128–4096 px。</string>
+    <string name="image_error_original_format">原圖傳送支援 JPEG、PNG 和靜態 WebP。請切換自動或自訂壓縮以轉換此圖片。</string>
+    <string name="image_error_original_large">原圖超過 2 MiB 或任一邊超過 8000 px。請切換自動或自訂壓縮。</string>
 </resources>

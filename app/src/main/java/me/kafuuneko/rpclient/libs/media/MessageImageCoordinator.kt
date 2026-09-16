@@ -1,10 +1,13 @@
 package me.kafuuneko.rpclient.libs.media
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.asImageBitmap
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import me.kafuuneko.rpclient.libs.llm.ImageRequestException
+import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
@@ -179,8 +182,16 @@ class MessageImageCoordinator(
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
             // 失败只发布提示；选图和预览各自负责结束状态，不能解除其他任务的保护。
-            publish(state.copy(errorResId = R.string.image_prepare_failed))
+            publish(state.copy(errorResId = prepareErrorRes(error)))
         }
+    }
+
+    /** 原图模式失败给出可操作的设置引导，其余资源错误沿用通用受控提示。 */
+    @StringRes
+    private fun prepareErrorRes(error: Exception): Int = when ((error as? ImageRequestException)?.failure) {
+        ImageRequestFailure.OriginalUnsupported -> R.string.image_error_original_format
+        ImageRequestFailure.OriginalTooLarge -> R.string.image_error_original_large
+        else -> R.string.image_prepare_failed
     }
 
     /**

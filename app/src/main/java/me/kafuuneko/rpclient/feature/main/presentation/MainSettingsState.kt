@@ -25,7 +25,9 @@ data class MainSettingsState(
     /** 设置页中会话数据管理区域的状态。 */
     val chatDataManagementState: MainChatDataManagementState = MainChatDataManagementState.Idle,
     /** 设置页中调试功能区域的状态。 */
-    val debugState: MainDebugSettingsState
+    val debugState: MainDebugSettingsState,
+    /** 设置页中图片发送方式和自定义参数草稿。 */
+    val imageSendState: MainImageSendState = MainImageSendState()
 )
 
 /** 应用外观设置面板状态。 */

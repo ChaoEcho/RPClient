@@ -91,6 +91,8 @@ private fun GenerationFailure.toGenerationFailureMessage(
         ImageRequestFailure.Unsupported -> R.string.image_error_unsupported
         ImageRequestFailure.Missing -> R.string.image_error_missing
         ImageRequestFailure.InvalidImage -> R.string.image_error_invalid
+        ImageRequestFailure.OriginalUnsupported -> R.string.image_error_original_format
+        ImageRequestFailure.OriginalTooLarge -> R.string.image_error_original_large
         ImageRequestFailure.TooLarge -> R.string.image_error_large
         ImageRequestFailure.TooMany -> R.string.image_error_count
     })

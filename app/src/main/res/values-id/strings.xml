@@ -1204,4 +1204,18 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="about_build_number">Nomor build</string>
     <string name="about_brand_keywords">Karakter · Cerita · Kreasi · Kemungkinan</string>
     <string name="about_rate_action">Beri rating</string>
+    <string name="image_send_title">Pengiriman gambar (lanjutan)</string>
+    <string name="image_send_description">Berlaku untuk permintaan berikutnya, termasuk riwayat. Gambar asli lokal tetap disimpan. File lebih kecil tidak selalu memakai lebih sedikit token gambar.</string>
+    <string name="image_send_auto">Otomatis</string>
+    <string name="image_send_original">Asli</string>
+    <string name="image_send_custom">Kustom</string>
+    <string name="image_send_auto_description">Kompresi otomatis hingga sisi terpanjang 1536 px dan 2 MiB per gambar.</string>
+    <string name="image_send_original_description">Kirim JPEG, PNG atau WebP statis tanpa perubahan, termasuk metadata. Maksimum 2 MiB dan 8000 px per sisi; batas permintaan tetap berlaku.</string>
+    <string name="image_send_custom_description">Simpan batas di bawah. Gambar diperkecil secara proporsional tanpa pemotongan atau pembesaran, dan dapat diperkecil lagi agar memenuhi ukuran file.</string>
+    <string name="image_send_max_file">Ukuran file maksimum (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Lebar maksimum (px, 128–4096)</string>
+    <string name="image_send_max_height">Tinggi maksimum (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Masukkan bilangan bulat: file 64–2048 KiB; lebar dan tinggi 128–4096 px.</string>
+    <string name="image_error_original_format">Pengiriman asli mendukung JPEG, PNG dan WebP statis. Pilih Otomatis atau Kustom untuk mengonversi gambar ini.</string>
+    <string name="image_error_original_large">Gambar asli melebihi 2 MiB atau 8000 px pada salah satu sisi. Gunakan kompresi otomatis atau kustom.</string>
 </resources>

@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
@@ -17,6 +18,12 @@ sealed class MainUiIntent {
     data object Resume : MainUiIntent()
 
     data object Back : MainUiIntent()
+
+    data class SelectImageSendMode(val mode: ImageSendMode) : MainUiIntent()
+
+    data class ChangeImageSendLimit(val field: ImageSendField, val value: String) : MainUiIntent()
+
+    data object SaveImageSendLimits : MainUiIntent()
 
     data class SelectPage(val page: MainPage) : MainUiIntent()
 

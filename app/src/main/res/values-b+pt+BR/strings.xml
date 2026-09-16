@@ -1207,4 +1207,18 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="about_build_number">Número da compilação</string>
     <string name="about_brand_keywords">Personagens · Histórias · Criação · Possibilidades</string>
     <string name="about_rate_action">Avaliar app</string>
+    <string name="image_send_title">Envio de imagens (avançado)</string>
+    <string name="image_send_description">Aplica-se às próximas solicitações, incluindo o histórico. Os originais locais são mantidos. Arquivos menores nem sempre usam menos tokens de imagem.</string>
+    <string name="image_send_auto">Automático</string>
+    <string name="image_send_original">Original</string>
+    <string name="image_send_custom">Personalizado</string>
+    <string name="image_send_auto_description">Comprime automaticamente para até 1536 px no lado maior e 2 MiB por imagem.</string>
+    <string name="image_send_original_description">Envia JPEG, PNG ou WebP estático sem alterações, incluindo metadados. Máximo de 2 MiB e 8000 px por lado; os limites da solicitação continuam válidos.</string>
+    <string name="image_send_custom_description">Salve os limites abaixo. As imagens são reduzidas proporcionalmente, sem corte ou ampliação, e podem ser reduzidas ainda mais para atender ao tamanho do arquivo.</string>
+    <string name="image_send_max_file">Tamanho máximo do arquivo (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Largura máxima (px, 128–4096)</string>
+    <string name="image_send_max_height">Altura máxima (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Digite números inteiros: arquivo de 64–2048 KiB; largura e altura de 128–4096 px.</string>
+    <string name="image_error_original_format">O envio original aceita JPEG, PNG e WebP estático. Selecione Automático ou Personalizado para converter esta imagem.</string>
+    <string name="image_error_original_large">O original excede 2 MiB ou 8000 px em algum lado. Use a compressão automática ou personalizada.</string>
 </resources>

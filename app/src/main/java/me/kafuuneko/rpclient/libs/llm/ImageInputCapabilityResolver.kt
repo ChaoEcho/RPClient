@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 
 /** 图片请求可安全映射到界面的失败分类，不携带文件路径或服务商原文。 */
-enum class ImageRequestFailure { Unsupported, Missing, InvalidImage, TooLarge, TooMany }
+enum class ImageRequestFailure { Unsupported, Missing, InvalidImage, OriginalUnsupported, OriginalTooLarge, TooLarge, TooMany }
 
 /** 图片准备、能力和预算错误的结构化边界。 */
 class ImageRequestException(val failure: ImageRequestFailure) : IllegalStateException("Image request: $failure")

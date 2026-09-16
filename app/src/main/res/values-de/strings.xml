@@ -1203,4 +1203,18 @@
     <string name="about_build_number">Build-Nummer</string>
     <string name="about_brand_keywords">Charaktere · Geschichten · Kreativität · Möglichkeiten</string>
     <string name="about_rate_action">App bewerten</string>
+    <string name="image_send_title">Bildversand (erweitert)</string>
+    <string name="image_send_description">Gilt für künftige Anfragen einschließlich Verlauf. Lokale Originale bleiben erhalten. Kleinere Dateien benötigen nicht immer weniger Bild-Tokens.</string>
+    <string name="image_send_auto">Automatisch</string>
+    <string name="image_send_original">Original</string>
+    <string name="image_send_custom">Benutzerdefiniert</string>
+    <string name="image_send_auto_description">Automatische Komprimierung auf höchstens 1536 px an der längsten Seite und 2 MiB pro Bild.</string>
+    <string name="image_send_original_description">Sendet JPEG, PNG oder statisches WebP unverändert, einschließlich Metadaten. Höchstens 2 MiB und 8000 px pro Seite; Anfragelimits gelten weiterhin.</string>
+    <string name="image_send_custom_description">Grenzen unten speichern. Bilder werden proportional verkleinert, ohne Zuschnitt oder Vergrößerung. Für die Dateigröße kann eine weitere Verkleinerung nötig sein.</string>
+    <string name="image_send_max_file">Maximale Dateigröße (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Maximale Breite (px, 128–4096)</string>
+    <string name="image_send_max_height">Maximale Höhe (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Ganze Zahlen eingeben: Dateigröße 64–2048 KiB; Breite und Höhe 128–4096 px.</string>
+    <string name="image_error_original_format">Originalversand unterstützt JPEG, PNG und statisches WebP. Zum Konvertieren Automatisch oder Benutzerdefiniert wählen.</string>
+    <string name="image_error_original_large">Das Original überschreitet 2 MiB oder 8000 px an einer Seite. Automatische oder benutzerdefinierte Komprimierung wählen.</string>
 </resources>

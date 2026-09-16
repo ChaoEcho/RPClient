@@ -1200,4 +1200,18 @@
     <string name="about_build_number">Build 编号</string>
     <string name="about_brand_keywords">角色 · 故事 · 创作 · 更多可能</string>
     <string name="about_rate_action">去评分</string>
+    <string name="image_send_title">图片发送（高级）</string>
+    <string name="image_send_description">作用于后续请求，包括历史图片。本地原图始终保留。文件更小不一定消耗更少的图片 Token。</string>
+    <string name="image_send_auto">自动</string>
+    <string name="image_send_original">原图</string>
+    <string name="image_send_custom">自定义</string>
+    <string name="image_send_auto_description">自动压缩，最长边不超过 1536 px，单张图片不超过 2 MiB。</string>
+    <string name="image_send_original_description">原样发送 JPEG、PNG 或静态 WebP，保留元数据。单张不超过 2 MiB、每边不超过 8000 px，仍受请求预算限制。</string>
+    <string name="image_send_custom_description">保存以下上限后生效。图片等比缩小，不裁切、不放大；为满足文件大小限制，可能进一步缩小。</string>
+    <string name="image_send_max_file">最大文件大小（KiB，64–2048）</string>
+    <string name="image_send_max_width">最大宽度（px，128–4096）</string>
+    <string name="image_send_max_height">最大高度（px，128–4096）</string>
+    <string name="image_send_invalid_limits">请输入整数：文件大小为 64–2048 KiB，宽度和高度为 128–4096 px。</string>
+    <string name="image_error_original_format">原图发送支持 JPEG、PNG 和静态 WebP。请切换自动或自定义压缩以转换此图片。</string>
+    <string name="image_error_original_large">原图超过 2 MiB 或任一边超过 8000 px。请切换自动或自定义压缩。</string>
 </resources>

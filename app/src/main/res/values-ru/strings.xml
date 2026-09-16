@@ -1208,4 +1208,18 @@
     <string name="about_build_number">Номер сборки</string>
     <string name="about_brand_keywords">Персонажи · Истории · Творчество · Возможности</string>
     <string name="about_rate_action">Оценить</string>
+    <string name="image_send_title">Отправка изображений (дополнительно)</string>
+    <string name="image_send_description">Применяется к будущим запросам, включая историю. Локальные оригиналы сохраняются. Меньший файл не всегда требует меньше токенов изображения.</string>
+    <string name="image_send_auto">Авто</string>
+    <string name="image_send_original">Оригинал</string>
+    <string name="image_send_custom">Настроить</string>
+    <string name="image_send_auto_description">Автоматическое сжатие до 1536 px по длинной стороне и 2 MiB на изображение.</string>
+    <string name="image_send_original_description">Отправляет JPEG, PNG или статический WebP без изменений, включая метаданные. Максимум 2 MiB и 8000 px на сторону; ограничения запроса сохраняются.</string>
+    <string name="image_send_custom_description">Сохраните ограничения ниже. Изображения уменьшаются пропорционально, без обрезки и увеличения. Для соблюдения размера файла возможно дополнительное уменьшение.</string>
+    <string name="image_send_max_file">Максимальный размер файла (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Максимальная ширина (px, 128–4096)</string>
+    <string name="image_send_max_height">Максимальная высота (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Введите целые числа: файл 64–2048 KiB; ширина и высота 128–4096 px.</string>
+    <string name="image_error_original_format">Отправка оригинала поддерживает JPEG, PNG и статический WebP. Для преобразования включите автоматическое или настраиваемое сжатие.</string>
+    <string name="image_error_original_large">Оригинал превышает 2 MiB или 8000 px по одной из сторон. Включите автоматическое или настраиваемое сжатие.</string>
 </resources>

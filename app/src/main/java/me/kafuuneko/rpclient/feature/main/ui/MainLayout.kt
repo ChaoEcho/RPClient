@@ -1469,6 +1469,7 @@ private fun SettingsPage(
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { SummaryPanel(state.summaryState, emit) }
+        item { ImageSendPanel(state.imageSendState, emit) }
 
         // ================= 4. 数据与系统 =================
         item {

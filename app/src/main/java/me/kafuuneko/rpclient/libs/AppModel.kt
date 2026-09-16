@@ -231,6 +231,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     )
     var storyContinuePrompt by stringPref(default = DEFAULT_STORY_CONTINUE_PROMPT)
 
+    // 全部图片发送参数以一个值保存，避免并发请求读到混合配置。
+    var imageSendSettings by stringPref(default = "auto:2048:1536:1536")
+
     // 是否启用流式响应。
     var streamEnabled by booleanPref(default = true)
 

@@ -183,7 +183,7 @@ internal val appModules = module {
     singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
     singleOf(::MessageImageRepository)
-    singleOf(::MessageImageRuntime)
+    single { MessageImageRuntime(get(), get()) }
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)

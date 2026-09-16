@@ -1205,4 +1205,18 @@
     <string name="about_build_number">Número de compilación</string>
     <string name="about_brand_keywords">Personajes · Historias · Creación · Posibilidades</string>
     <string name="about_rate_action">Valorar app</string>
+    <string name="image_send_title">Envío de imágenes (avanzado)</string>
+    <string name="image_send_description">Se aplica a las próximas solicitudes, incluido el historial. Se conservan los originales locales. Los archivos más pequeños no siempre usan menos tokens de imagen.</string>
+    <string name="image_send_auto">Automático</string>
+    <string name="image_send_original">Original</string>
+    <string name="image_send_custom">Personalizado</string>
+    <string name="image_send_auto_description">Comprime automáticamente a un máximo de 1536 px en el lado mayor y 2 MiB por imagen.</string>
+    <string name="image_send_original_description">Envía JPEG, PNG o WebP estático sin cambios, incluidos los metadatos. Máximo de 2 MiB y 8000 px por lado; se mantienen los límites de la solicitud.</string>
+    <string name="image_send_custom_description">Guarda los límites siguientes. Las imágenes se reducen proporcionalmente sin recortes ni ampliación, y pueden reducirse más para cumplir el tamaño del archivo.</string>
+    <string name="image_send_max_file">Tamaño máximo del archivo (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Anchura máxima (px, 128–4096)</string>
+    <string name="image_send_max_height">Altura máxima (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Introduce enteros: archivo de 64–2048 KiB; anchura y altura de 128–4096 px.</string>
+    <string name="image_error_original_format">El envío original admite JPEG, PNG y WebP estático. Cambia a Automático o Personalizado para convertir esta imagen.</string>
+    <string name="image_error_original_large">El original supera 2 MiB u 8000 px en algún lado. Usa compresión automática o personalizada.</string>
 </resources>

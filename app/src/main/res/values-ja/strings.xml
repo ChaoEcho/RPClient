@@ -1199,4 +1199,18 @@
     <string name="about_build_number">ビルド番号</string>
     <string name="about_brand_keywords">キャラクター · 物語 · 創作 · 広がる可能性</string>
     <string name="about_rate_action">評価する</string>
+    <string name="image_send_title">画像送信（詳細設定）</string>
+    <string name="image_send_description">履歴の画像を含む今後のリクエストに適用します。端末内の元画像は保持されます。ファイルが小さくても画像トークンが減るとは限りません。</string>
+    <string name="image_send_auto">自動</string>
+    <string name="image_send_original">元画像</string>
+    <string name="image_send_custom">カスタム</string>
+    <string name="image_send_auto_description">長辺 1536 px 以下、画像あたり 2 MiB 以下に自動圧縮します。</string>
+    <string name="image_send_original_description">JPEG、PNG、静止 WebP をメタデータも含めてそのまま送信します。最大 2 MiB、各辺 8000 px。リクエストの上限も適用されます。</string>
+    <string name="image_send_custom_description">以下の上限を保存すると適用されます。切り抜きや拡大をせず、縦横比を保って縮小します。ファイルサイズに合わせてさらに縮小する場合があります。</string>
+    <string name="image_send_max_file">最大ファイルサイズ（KiB、64–2048）</string>
+    <string name="image_send_max_width">最大幅（px、128–4096）</string>
+    <string name="image_send_max_height">最大高さ（px、128–4096）</string>
+    <string name="image_send_invalid_limits">整数を入力してください：ファイルサイズ 64–2048 KiB、幅と高さ 128–4096 px。</string>
+    <string name="image_error_original_format">元画像の送信は JPEG、PNG、静止 WebP に対応しています。変換するには自動またはカスタム圧縮に切り替えてください。</string>
+    <string name="image_error_original_large">元画像が 2 MiB または一辺 8000 px を超えています。自動またはカスタム圧縮に切り替えてください。</string>
 </resources>

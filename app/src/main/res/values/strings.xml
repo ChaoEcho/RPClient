@@ -1208,4 +1208,18 @@
     <string name="about_brand_name" translatable="false">RPClient</string>
     <string name="about_dev_badge" translatable="false">DEV</string>
     <string name="about_github" translatable="false">GitHub</string>
+    <string name="image_send_title">Image sending (advanced)</string>
+    <string name="image_send_description">Applies to future requests, including history. Local originals are kept. Smaller files do not always use fewer image tokens.</string>
+    <string name="image_send_auto">Auto</string>
+    <string name="image_send_original">Original</string>
+    <string name="image_send_custom">Custom</string>
+    <string name="image_send_auto_description">Automatically compress to a maximum long edge of 1536 px and 2 MiB per image.</string>
+    <string name="image_send_original_description">Send unchanged JPEG, PNG or static WebP files, including metadata. Maximum 2 MiB and 8000 px per side; request limits still apply.</string>
+    <string name="image_send_custom_description">Save limits below. Images shrink proportionally without cropping or enlargement, and may shrink further to fit the file size.</string>
+    <string name="image_send_max_file">Maximum file size (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Maximum width (px, 128–4096)</string>
+    <string name="image_send_max_height">Maximum height (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Enter whole numbers: file size 64–2048 KiB; width and height 128–4096 px.</string>
+    <string name="image_error_original_format">Original sending supports JPEG, PNG and static WebP. Switch to Auto or Custom to convert this image.</string>
+    <string name="image_error_original_large">The original exceeds 2 MiB or 8000 px per side. Switch to Auto or Custom compression.</string>
 </resources>

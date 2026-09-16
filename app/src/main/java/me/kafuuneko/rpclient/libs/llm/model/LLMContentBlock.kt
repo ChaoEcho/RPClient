@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.libs.llm.model
 
 
+import me.kafuuneko.rpclient.libs.media.ImageSendSettings
+
 /** 请求中的有序内容；图片仅持不可变资源描述，不持有 Bitmap、路径或 Base64。 */
 sealed interface LLMContentBlock {
     data class Text(val text: String) : LLMContentBlock
@@ -14,7 +16,8 @@ data class LLMImageReference(
     val mimeType: String,
     val width: Int,
     val height: Int,
-    val byteCount: Long
+    val byteCount: Long,
+    val sendSettings: ImageSendSettings = ImageSendSettings()
 )
 
 /** 只合并相邻文本块，保留消息间图文顺序。 */

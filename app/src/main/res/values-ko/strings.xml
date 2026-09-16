@@ -1198,4 +1198,18 @@
     <string name="about_build_number">빌드 번호</string>
     <string name="about_brand_keywords">캐릭터 · 이야기 · 창작 · 더 많은 가능성</string>
     <string name="about_rate_action">앱 평가</string>
+    <string name="image_send_title">이미지 전송 (고급)</string>
+    <string name="image_send_description">이후 요청에 적용되며 기록의 이미지도 포함됩니다. 로컬 원본은 유지됩니다. 파일이 작아도 이미지 토큰이 줄어들지는 않을 수 있습니다.</string>
+    <string name="image_send_auto">자동</string>
+    <string name="image_send_original">원본</string>
+    <string name="image_send_custom">사용자 지정</string>
+    <string name="image_send_auto_description">긴 변 최대 1536 px, 이미지당 최대 2 MiB로 자동 압축합니다.</string>
+    <string name="image_send_original_description">JPEG, PNG 또는 정적 WebP를 메타데이터와 함께 그대로 전송합니다. 최대 2 MiB 및 각 변 8000 px이며 요청 한도도 적용됩니다.</string>
+    <string name="image_send_custom_description">아래 한도를 저장하면 적용됩니다. 자르거나 확대하지 않고 비율을 유지하여 축소하며 파일 크기에 맞춰 더 줄일 수 있습니다.</string>
+    <string name="image_send_max_file">최대 파일 크기 (KiB, 64–2048)</string>
+    <string name="image_send_max_width">최대 너비 (px, 128–4096)</string>
+    <string name="image_send_max_height">최대 높이 (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">정수를 입력하세요: 파일 크기 64–2048 KiB, 너비와 높이 128–4096 px.</string>
+    <string name="image_error_original_format">원본 전송은 JPEG, PNG 및 정적 WebP를 지원합니다. 이 이미지를 변환하려면 자동 또는 사용자 지정 압축으로 전환하세요.</string>
+    <string name="image_error_original_large">원본이 2 MiB 또는 한 변 8000 px를 초과합니다. 자동 또는 사용자 지정 압축으로 전환하세요.</string>
 </resources>

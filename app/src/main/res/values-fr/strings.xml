@@ -1204,4 +1204,18 @@
     <string name="about_build_number">Numéro de build</string>
     <string name="about_brand_keywords">Personnages · Histoires · Création · Possibilités</string>
     <string name="about_rate_action">Noter l’application</string>
+    <string name="image_send_title">Envoi des images (avancé)</string>
+    <string name="image_send_description">Concerne les prochaines requêtes, historique compris. Les originaux locaux sont conservés. Un fichier plus petit ne consomme pas toujours moins de tokens visuels.</string>
+    <string name="image_send_auto">Automatique</string>
+    <string name="image_send_original">Original</string>
+    <string name="image_send_custom">Personnalisé</string>
+    <string name="image_send_auto_description">Compression automatique avec un grand côté de 1536 px maximum et 2 MiB par image.</string>
+    <string name="image_send_original_description">Envoie les fichiers JPEG, PNG ou WebP statiques sans modification, métadonnées incluses. Maximum de 2 MiB et 8000 px par côté ; les limites des requêtes restent applicables.</string>
+    <string name="image_send_custom_description">Enregistrez les limites ci-dessous. Les images sont réduites proportionnellement sans recadrage ni agrandissement, et davantage si nécessaire pour respecter la taille du fichier.</string>
+    <string name="image_send_max_file">Taille maximale du fichier (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Largeur maximale (px, 128–4096)</string>
+    <string name="image_send_max_height">Hauteur maximale (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Saisissez des entiers : fichier de 64–2048 KiB ; largeur et hauteur de 128–4096 px.</string>
+    <string name="image_error_original_format">Le mode original accepte JPEG, PNG et WebP statique. Passez en mode automatique ou personnalisé pour convertir cette image.</string>
+    <string name="image_error_original_large">Le fichier original dépasse 2 MiB ou 8000 px sur un côté. Utilisez la compression automatique ou personnalisée.</string>
 </resources>

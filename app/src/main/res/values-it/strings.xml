@@ -1182,4 +1182,18 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="about_build_number">Numero build</string>
     <string name="about_brand_keywords">Personaggi · Storie · Creazione · Possibilità</string>
     <string name="about_rate_action">Valuta app</string>
+    <string name="image_send_title">Invio immagini (avanzato)</string>
+    <string name="image_send_description">Si applica alle richieste future, inclusa la cronologia. Gli originali locali vengono conservati. File più piccoli non usano sempre meno token immagine.</string>
+    <string name="image_send_auto">Automatico</string>
+    <string name="image_send_original">Originale</string>
+    <string name="image_send_custom">Personalizzato</string>
+    <string name="image_send_auto_description">Comprime automaticamente fino a 1536 px sul lato maggiore e 2 MiB per immagine.</string>
+    <string name="image_send_original_description">Invia JPEG, PNG o WebP statici senza modifiche, inclusi i metadati. Massimo 2 MiB e 8000 px per lato; restano validi i limiti delle richieste.</string>
+    <string name="image_send_custom_description">Salva i limiti seguenti. Le immagini vengono ridotte proporzionalmente senza ritagli o ingrandimenti, anche ulteriormente per rispettare la dimensione del file.</string>
+    <string name="image_send_max_file">Dimensione massima del file (KiB, 64–2048)</string>
+    <string name="image_send_max_width">Larghezza massima (px, 128–4096)</string>
+    <string name="image_send_max_height">Altezza massima (px, 128–4096)</string>
+    <string name="image_send_invalid_limits">Inserisci numeri interi: file 64–2048 KiB; larghezza e altezza 128–4096 px.</string>
+    <string name="image_error_original_format">La modalità originale supporta JPEG, PNG e WebP statici. Seleziona Automatico o Personalizzato per convertire questa immagine.</string>
+    <string name="image_error_original_large">Il file originale supera 2 MiB o 8000 px su un lato. Usa la compressione automatica o personalizzata.</string>
 </resources>
