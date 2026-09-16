@@ -456,7 +456,7 @@ private fun InspectionItemCard(
                 )
                 onPreviewImages?.let { preview ->
                     TextButton(onClick = { preview(item.images.map { it.uuid }, index) }) {
-                        Text(stringResource(R.string.image_send_preview))
+                        Text(stringResource(R.string.image_view))
                     }
                 }
             }

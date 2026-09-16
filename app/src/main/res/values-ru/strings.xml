@@ -1172,8 +1172,7 @@
     <string name="message_image">Изображение сообщения</string>
     <string name="image_missing">Изображение отсутствует</string>
     <string name="image_loading">Загрузка изображения…</string>
-    <string name="image_original">Оригинал</string>
-    <string name="image_send_preview">Предпросмотр отправки</string>
+    <string name="image_view">Посмотреть изображение</string>
     <string name="image_close">Закрыть</string>
     <string name="image_save">Сохранить изображение</string>
     <string name="image_error_unsupported">Эта модель не поддерживает изображения. Смените модель и повторите попытку.</string>
@@ -1209,7 +1208,7 @@
     <string name="about_brand_keywords">Персонажи · Истории · Творчество · Возможности</string>
     <string name="about_rate_action">Оценить</string>
     <string name="image_send_title">Отправка изображений (дополнительно)</string>
-    <string name="image_send_description">Применяется к будущим запросам, включая историю. Локальные оригиналы сохраняются. Меньший файл не всегда требует меньше токенов изображения.</string>
+    <string name="image_send_description">Применяется только к изображениям, добавленным при отправке сообщения или сохранении правки. Сохраняется только обработанное изображение; существующие вложения не меняются.</string>
     <string name="image_send_auto">Авто</string>
     <string name="image_send_original">Оригинал</string>
     <string name="image_send_custom">Настроить</string>

@@ -29,7 +29,7 @@ class ImageTokenEstimatorTest {
     private val mProvider = LLMProvider(name = "test", providerType = LLMProviderType.Custom,
         protocol = LLMProviderProtocol.OpenAICompatible, baseUrl = "https://example.invalid", model = "gpt-4o")
 
-    private fun image(width: Int, height: Int) = LLMImageReference("same", "same", "image/png", width, height, 10)
+    private fun image(width: Int, height: Int) = LLMImageReference("same", "image/png", width, height, 10)
     private fun count(type: ImageTokenEstimatorType, width: Int, height: Int): Long =
         mImages.resolve(mProvider.copy(imageTokenEstimatorType = type).toConfig()).count(listOf(image(width, height)))
 

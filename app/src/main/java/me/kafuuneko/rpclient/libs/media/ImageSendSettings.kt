@@ -10,8 +10,8 @@ enum class ImageSendMode(val persistedValue: String) {
 
 /**
  * 图片发送参数的不可变快照。
- * - 自定义参数仅影响发送副本，原图模式不隐式转码或缩放。
- * - 单个偏好值原子保存全部字段，候选准备及缓存重建复用同一份快照。
+ * - 参数只影响新提交的附件，原图模式不隐式转码或缩放。
+ * - 单个偏好值原子保存全部字段，一次提交共用同一份快照。
  */
 data class ImageSendSettings(
     val mode: ImageSendMode = ImageSendMode.Auto,
@@ -22,10 +22,6 @@ data class ImageSendSettings(
     /** 当前模式实际允许的文件字节数，始终不超过客户端硬上限。 */
     val maxBytes: Long
         get() = if (mode == ImageSendMode.Custom) maxFileKiB * 1024L else MessageImagePolicy.MAX_SEND_BYTES
-
-    /** 显式版本号同时隔离旧编码算法、模式和全部压缩参数。 */
-    val cacheSuffix: String
-        get() = "send-v2-${mode.persistedValue}-$maxFileKiB-$maxWidth-$maxHeight"
 
     /**
      * 检查完整参数的安全范围。

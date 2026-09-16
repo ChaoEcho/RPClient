@@ -58,11 +58,13 @@ class MessageImageCoordinator(
      * @param editing 是否将本次选择的图片加入历史消息编辑区。
      */
     fun choose(editing: Boolean) {
+        if (state.processing) return
         mPendingPick = PendingPick(editing, mEditingVersion)
     }
 
     /** 立即撤销任务的状态发布权；底层资源在 IO 线程取消，不阻塞串行 Intent。 */
     fun cancelProcessing() {
+        if (state.submitting) return
         mProcessingVersion++
         mProcessingJob?.cancel()
         mProcessingJob = null
@@ -91,10 +93,39 @@ class MessageImageCoordinator(
         mPrepared[it]?.let(MessageImageInput::Prepared) ?: MessageImageInput.Existing(it)
     }
 
-    /** 消息已原子提交后才清空草稿，不释放已经成为消息附件的文件。 */
-    fun committed() {
-        state.draft.forEach { mPrepared.remove(it) }
-        publish(state.copy(draft = emptyList(), errorResId = null))
+    /**
+     * 冻结附件并提交最终图片；失败保持当前编辑或新消息草稿供重试。
+     *
+     * @param editing 是否提交历史消息编辑。
+     * @param commit 将处理后的附件与正文一起提交的操作。
+     * @return 已提交消息的业务结果。
+     */
+    suspend fun <T> submit(editing: Boolean = false, commit: suspend (List<MessageImageInput>) -> T): T {
+        check(!state.processing) { "Images are still being processed" }
+        val inputs = if (editing) editingInputs() else draftInputs()
+        val ids = inputs.filterIsInstance<MessageImageInput.Prepared>().map { it.value.file.uuid }
+        mPendingPick = null
+        publish(state.copy(processing = true, submitting = true, errorResId = null))
+        try {
+            return mRuntime.submit(inputs) { finalInputs ->
+                val result = commit(finalInputs)
+                // 回调处于不可取消的提交收尾中；清除原草稿缩略图，历史改用最终文件 UUID。
+                ids.forEach { mPrepared.remove(it) }
+                if (editing) {
+                    mEditingActive = false
+                    mEditingVersion++
+                }
+                publish(state.copy(
+                    draft = if (editing) state.draft else emptyList(),
+                    editing = if (editing) emptyList() else state.editing,
+                    thumbnails = state.thumbnails - ids.toSet(),
+                    preview = state.preview?.takeUnless { preview -> preview.ids.any { it in ids } }
+                ))
+                result
+            }
+        } finally {
+            publish(state.copy(processing = false, submitting = false))
+        }
     }
 
     /**
@@ -103,21 +134,15 @@ class MessageImageCoordinator(
      * @param ids 当前消息已有的附件 ID，顺序与消息一致。
      */
     suspend fun startEditing(ids: List<String>) {
+        if (state.submitting) return
         cancelEditing()
         mEditingActive = true
         publish(state.copy(editing = ids))
     }
 
-    /** 编辑成功后移交新附件所有权。 */
-    fun editingCommitted() {
-        mEditingActive = false
-        mEditingVersion++
-        state.editing.forEach { mPrepared.remove(it) }
-        publish(state.copy(editing = emptyList(), errorResId = null))
-    }
-
     /** 取消编辑只释放本次编辑新增的暂存。 */
     suspend fun cancelEditing() {
+        if (state.submitting) return
         mEditingActive = false
         mEditingVersion++
         if (mProcessingEditing) cancelProcessing()
@@ -128,7 +153,7 @@ class MessageImageCoordinator(
     }
 
     /**
-     * 保存选择器启动前冻结原图 ID，并检查实际格式。
+     * 保存选择器启动前冻结图片 ID，并检查实际格式。
      *
      * @return 创建文档所需的元数据；没有可保存图片或准备失败时为 null。
      */
@@ -137,7 +162,7 @@ class MessageImageCoordinator(
         val preview = state.preview ?: return null
         val uuid = preview.ids.getOrNull(preview.index) ?: return null
         return try {
-            // 元数据就绪后才登记保存目标，预览切换不会改变此次选择的原图。
+            // 元数据就绪后才登记保存目标，预览切换不会改变此次选择的图片。
             val metadata = mRuntime.exportMetadata(uuid, mPrepared[uuid])
             mSaveUuid = uuid
             metadata
@@ -154,8 +179,10 @@ class MessageImageCoordinator(
      * @param action 页面发出的图片操作。
      */
     suspend fun handle(action: MessageImageAction) {
+        if (state.submitting && (action is MessageImageAction.Picked ||
+                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
         try {
-            // 暂存、历史加载与原图保存走同一个受控资源入口，页面不直接读取文件。
+            // 暂存、历史加载与图片保存走同一个受控资源入口，页面不直接读取文件。
             when (action) {
                 is MessageImageAction.Picked -> pick(action)
                 is MessageImageAction.Load -> load(action.uuid)
@@ -247,7 +274,7 @@ class MessageImageCoordinator(
     /**
      * 同一 UUID 的解码去重；null 是已完成的缺图结果，不能自动循环重试。
      *
-     * @param uuid 需要显示缩略图的原图 ID。
+     * @param uuid 需要显示缩略图的图片 ID。
      */
     private suspend fun load(uuid: String) {
         if (state.thumbnails.containsKey(uuid) || !mLoading.add(uuid)) return
@@ -276,16 +303,15 @@ class MessageImageCoordinator(
     /**
      * 大图仅在当前查看器仍对应同一次请求时发布，避免迟到结果覆盖新图。
      *
-     * @param action 消息内图片列表、目标位置与预览版本。
+     * @param action 消息内图片列表和目标位置。
      */
     private suspend fun preview(action: MessageImageAction.Preview) {
         val uuid = action.ids.getOrNull(action.index) ?: return
-        val preview = ImagePreviewState(action.ids, action.index, sendVersion = action.sendVersion)
+        val preview = ImagePreviewState(action.ids, action.index)
         publish(state.copy(preview = preview))
         try {
             // 解码期间允许其他图片操作，返回时只更新本次仍可见的预览。
-            val bitmap = if (action.sendVersion) mRuntime.loadSendPreview(uuid, mPrepared[uuid])
-                else mRuntime.load(uuid, mPrepared[uuid], 3072)
+            val bitmap = mRuntime.load(uuid, mPrepared[uuid], 3072)
             if (state.preview === preview) {
                 publish(state.copy(preview = preview.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
             }

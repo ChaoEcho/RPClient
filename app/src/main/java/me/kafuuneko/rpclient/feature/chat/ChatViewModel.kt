@@ -59,6 +59,7 @@ import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
@@ -174,6 +175,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val action = intent.action
+        if (mImageCoordinator.state.processing && (action is MessageImageAction.Choose ||
+                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
         if (mGenerationJob?.isCompleted == false && action !is MessageImageAction.Load &&
             action !is MessageImageAction.RegisterDisplay && action !is MessageImageAction.ReleaseDisplay &&
             action !is MessageImageAction.Preview && action != MessageImageAction.ClosePreview &&
@@ -463,11 +466,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     applyUserRegex(sessionId, rawInput)
                 }
                 // 将用户消息写入数据库
-                withContext(Dispatchers.IO) {
-                    mChatRepository.createUserMessageWithImages(sessionId, input, images).also { mRetryUserMessageId = it.key.messageId }
+                mImageCoordinator.submit { finalInputs ->
+                    mChatRepository.createUserMessageWithImages(
+                        sessionId, input, finalInputs.filterIsInstance<MessageImageInput.Prepared>()
+                    ).also {
+                        mRetryUserMessageId = it.key.messageId
+                        committed = true
+                    }
                 }
-                committed = true
-                mImageCoordinator.committed()
                 // 清空草稿并将 UI 切换至“请求中”状态
                 refreshUiState(
                     sessionId = sessionId,
@@ -1219,6 +1225,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.StartEditMessage::class)
     private suspend fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
@@ -1250,6 +1257,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ChangeEditingMessageDraft::class)
     private fun onChangeEditingMessageDraft(intent: ChatUiIntent.ChangeEditingMessageDraft) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
         uiState.copy(
@@ -1272,31 +1280,26 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
             val sessionId = mSessionId ?: return
             val messageId = uiState.conversationState.editingMessageId?.toLongOrNull() ?: return
-            // 异步处理消息内容更新与对应 Source 正则规则执行
-            withContext(Dispatchers.IO) {
-                val message = mChatRepository.getMessageById(messageId)
-                    ?.takeIf { it.sessionId == sessionId } ?: return@withContext
-                // 依据消息来源分别执行对应的编辑期正则（isEdit = true）
-                val content = when (message.source) {
-                    ChatMessage.Source.User -> applyUserRegex(
-                        sessionId,
-                        uiState.conversationState.editingMessageDraft,
-                        isEdit = true
-                    )
-                    ChatMessage.Source.Char -> applyAiRegex(
-                        sessionId,
-                        uiState.conversationState.editingMessageDraft,
-                        isEdit = true
-                    )
-                    ChatMessage.Source.System,
-                    ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
+            val message = mChatRepository.getMessageById(messageId)
+                ?.takeIf { it.sessionId == sessionId } ?: return
+            mImageCoordinator.submit(editing = true) { finalInputs ->
+                // 只处理新增附件；文字与附件在同一事务保存，已有文件不会重复压缩。
+                val content = withContext(Dispatchers.IO) {
+                    when (message.source) {
+                        ChatMessage.Source.User -> applyUserRegex(
+                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                        )
+                        ChatMessage.Source.Char -> applyAiRegex(
+                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                        )
+                        ChatMessage.Source.System,
+                        ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
+                    }
                 }
-                // 将修改后的消息正文持久化回数据库
                 if (message.source == ChatMessage.Source.User) {
-                    mChatRepository.editUserMessageWithImages(sessionId, messageId, content, mImageCoordinator.editingInputs())
+                    mChatRepository.editUserMessageWithImages(sessionId, messageId, content, finalInputs)
                 } else mChatRepository.updateMessageContent(messageId, content)
             }
-            mImageCoordinator.editingCommitted()
             // 刷新 UI 状态并重置编辑态草稿
             refreshUiState(
                 sessionId = sessionId,
@@ -1318,6 +1321,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.CancelEditingMessage::class)
     private suspend fun onCancelEditingMessage() {
+        if (mImageCoordinator.state.submitting) return
         mImageCoordinator.cancelProcessing()
         mImageCoordinator.cancelEditing()
         val uiState = getOrNull<ChatUiState.Normal>() ?: return

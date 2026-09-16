@@ -1169,8 +1169,7 @@
     <string name="message_image">Imagen del mensaje</string>
     <string name="image_missing">Imagen ausente</string>
     <string name="image_loading">Cargando imagen…</string>
-    <string name="image_original">Original</string>
-    <string name="image_send_preview">Vista previa de envío</string>
+    <string name="image_view">Ver imagen</string>
     <string name="image_close">Cerrar</string>
     <string name="image_save">Guardar imagen</string>
     <string name="image_error_unsupported">Este modelo no admite imágenes. Cambia el modelo y vuelve a intentarlo.</string>
@@ -1206,7 +1205,7 @@
     <string name="about_brand_keywords">Personajes · Historias · Creación · Posibilidades</string>
     <string name="about_rate_action">Valorar app</string>
     <string name="image_send_title">Envío de imágenes (avanzado)</string>
-    <string name="image_send_description">Se aplica a las próximas solicitudes, incluido el historial. Se conservan los originales locales. Los archivos más pequeños no siempre usan menos tokens de imagen.</string>
+    <string name="image_send_description">Solo se aplica a las imágenes añadidas al enviar un mensaje o guardar una edición. Solo se conserva la imagen procesada; los archivos adjuntos existentes no cambian.</string>
     <string name="image_send_auto">Automático</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Personalizado</string>

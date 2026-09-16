@@ -1162,8 +1162,7 @@
     <string name="message_image">訊息圖片</string>
     <string name="image_missing">圖片已遺失</string>
     <string name="image_loading">正在載入圖片…</string>
-    <string name="image_original">原始</string>
-    <string name="image_send_preview">傳送預覽</string>
+    <string name="image_view">檢視圖片</string>
     <string name="image_close">關閉</string>
     <string name="image_save">儲存圖片</string>
     <string name="image_error_unsupported">此模型不支援圖片。請更換模型後重試。</string>
@@ -1199,7 +1198,7 @@
     <string name="about_brand_keywords">角色 · 故事 · 創作 · 更多可能</string>
     <string name="about_rate_action">去評分</string>
     <string name="image_send_title">圖片傳送（進階）</string>
-    <string name="image_send_description">套用至後續請求，包含歷史圖片。本機原圖始終保留。檔案較小不一定消耗較少的圖片 Token。</string>
+    <string name="image_send_description">僅在傳送訊息或儲存編輯時處理新增圖片。只保留處理後的圖片，既有附件保持不變。</string>
     <string name="image_send_auto">自動</string>
     <string name="image_send_original">原圖</string>
     <string name="image_send_custom">自訂</string>

@@ -11,13 +11,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.RandomAccessFile
-import java.util.UUID
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
@@ -25,6 +23,7 @@ import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.prompt.model.PromptImagePreparation
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.MessageImageWithFile
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
@@ -33,19 +32,16 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 
 /**
  * 共享图片处理服务。
- * - 原图保留在文件仓库，解码、方向校正与发送缓存均在 IO 线程串行执行。
- * - 候选准备时冻结发送参数，编码和缓存重建使用相同快照；可重建缓存不参与备份。
+ * - 选图只校验暂存，提交时处理新增图片，最终字节统一交给文件仓库持有。
+ * - 历史、预览与请求读取同一文件，不再生成独立发送缓存或重复压缩。
  */
 class MessageImageRuntime(
     private val mContext: Context,
     private val mFiles: FileRepository,
     private val mSettings: () -> ImageSendSettings = { ImageSendSettings.decode(AppModel.imageSendSettings) }
 ) {
-    private val mMutex = Mutex()
-    private val mCache = File(mContext.cacheDir, "message-images-v1").apply { mkdirs() }
-
     /**
-     * 请求暂存与可重建图片缓存分开；旧进程中断留下的文件延迟回收。
+     * 请求 JSON 只在网络调用期间保留；旧进程中断留下的文件延迟回收。
      *
      * @return 本次请求独占的临时 JSON 文件，调用方使用后删除。
      */
@@ -57,18 +53,18 @@ class MessageImageRuntime(
     }
 
     /**
-     * 复制选择器 URI 并验证实际图像；失败时释放暂存，调用方只保存已就绪凭据。
+     * 复制选择器 URI 并验证实际图像；压缩延迟至发送或编辑保存时执行。
      *
      * @param owner 当前草稿所有者标识。
      * @param uri 系统选择器授予读取权限的资源 URI。
-     * @return 已完成格式与发送版本校验的暂存凭据。
+     * @return 已完成格式校验的源图片暂存凭据。
      */
     suspend fun prepare(owner: String, uri: Uri): PreparedFile {
         // 原图复制完成后仍由草稿持有，只有图像校验成功才交给页面。
         val prepared = mFiles.prepareFile(owner, uri)
         try {
             mFiles.withPreparedFile(prepared) { file ->
-                mMutex.withLock { prepareVersion(prepared.file.uuid, prepared.file.hash, file) }
+                validate(file)
             }
             return prepared
         } catch (error: Throwable) {
@@ -85,7 +81,6 @@ class MessageImageRuntime(
      */
     suspend fun prepareCandidates(messages: List<MessageWithImages>): PromptImagePreparation =
         withContext(Dispatchers.IO) {
-            val settings = mSettings()
             val ready = mutableMapOf<Long, List<LLMImageReference>>()
             val unavailable = mutableMapOf<Long, List<UnavailablePromptImage>>()
             // 按消息和附件原顺序遍历，失败项不能使纯图消息变成空消息。
@@ -94,7 +89,7 @@ class MessageImageRuntime(
                 val failures = mutableListOf<UnavailablePromptImage>()
                 for (attachment in message.images) {
                     try {
-                        images += prepareAttachment(attachment, settings)
+                        images += prepareAttachment(attachment)
                     } catch (error: ImageRequestException) {
                         // 超限或原图格式错误同样延迟至最终保留，旧历史被裁剪后不阻断发送。
                         if (error.failure !in setOf(ImageRequestFailure.Missing, ImageRequestFailure.InvalidImage,
@@ -111,13 +106,12 @@ class MessageImageRuntime(
 
     /** 只归类明确资源 IO 错误；协程取消和未知程序错误继续传播。 */
     private suspend fun prepareAttachment(
-        attachment: MessageImageWithFile,
-        settings: ImageSendSettings
+        attachment: MessageImageWithFile
     ): LLMImageReference {
         val index = attachment.file ?: throw ImageRequestException(ImageRequestFailure.Missing)
         return try {
             mFiles.withFileLease(index.uuid) { original ->
-                mMutex.withLock { prepareVersion(index.uuid, index.hash, original, settings) }
+                describe(index.uuid, original)
             }
         } catch (error: IOException) {
             currentCoroutineContext().ensureActive()
@@ -141,26 +135,71 @@ class MessageImageRuntime(
     }
 
     /**
-     * 持原图租约重新核对发送快照，回调期间缓存不会被其他图片处理回收。
+     * 持仓库读取保护消费已提交图片；不按当前设置重新编码历史附件。
      *
-     * @param reference 请求准备阶段冻结的图片引用。
-     * @param block 同步消费发送文件的回调，不得在回调结束后继续读取。
-     * @return 回调的执行结果。
+     * @param reference 请求准备阶段读取的不可变文件描述。
+     * @param block 在读取保护范围内同步消费图片的操作。
+     * @return 消费操作的结果。
      */
     suspend fun <T> withSendFile(reference: LLMImageReference, block: (File) -> T): T =
-        mFiles.withFileLease(reference.uuid) { original ->
-            val index = requireNotNull(mFiles.getFileEntity(reference.uuid)) { "Missing history image" }
-            mMutex.withLock {
-                val current = prepareVersion(index.uuid, index.hash, original, reference.sendSettings)
-                require(current == reference) { "The image send version changed, retry" }
-                block(File(mCache, current.cacheKey))
+        mFiles.withFileLease(reference.uuid) { file -> block(file) }
+
+    /**
+     * 为发送和编辑保存统一处理新增附件；已有附件保持不变。
+     * - 图片处理可取消且在事务外完成；提交失败只释放处理结果，保留源草稿供重试。
+     * - 提交与成功收尾不可中断，避免数据库已提交却仍把原草稿当作待发送图片。
+     *
+     * @param inputs 本次冻结的有序附件列表。
+     * @param commit 接收最终附件并原子提交消息的操作，不应包含网络请求。
+     * @return 提交结果。
+     */
+    suspend fun <T> submit(
+        inputs: List<MessageImageInput>,
+        commit: suspend (List<MessageImageInput>) -> T
+    ): T {
+        val originals = inputs.filterIsInstance<MessageImageInput.Prepared>().map { it.value }
+        require(originals.map { it.handle }.distinct().size == originals.size) {
+            "The same image draft cannot be committed twice"
+        }
+        val generated = mutableListOf<PreparedFile>()
+        val settings = mSettings()
+        try {
+            // 同一次提交共用设置快照；最终凭据在处理完成后才交给消息事务。
+            val finalInputs = inputs.map { input ->
+                if (input !is MessageImageInput.Prepared) input
+                else MessageImageInput.Prepared(process(input.value, settings).also(generated::add))
+            }
+            currentCoroutineContext().ensureActive()
+            return withContext(NonCancellable) {
+                commit(finalInputs).also { originals.forEach { mFiles.releasePrepared(it) } }
+            }
+        } finally {
+            generated.forEach { mFiles.releasePrepared(it) }
+        }
+    }
+
+    /** 按提交设置生成最终字节和实际 MIME；源草稿保留到整个消息提交成功。 */
+    private suspend fun process(prepared: PreparedFile, settings: ImageSendSettings): PreparedFile {
+        require(settings.isValid()) { "Invalid image send settings" }
+        return mFiles.prepareGenerated(prepared.ownerId) { target ->
+            mFiles.withPreparedFile(prepared) { source ->
+                validate(source)
+                // 原图模式只复制已校验的字节，其他模式只在此次入库前执行一次压缩。
+                if (settings.mode == ImageSendMode.Original) {
+                    validateSendable(source)
+                    source.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+                } else {
+                    encodeCompressed(source, target, settings)
+                }
+                requireNotNull(bounds(target).outMimeType) { "Invalid generated image" }
             }
         }
+    }
 
     /**
      * 按需加载列表缩略图或查看器版本；失败返回 null，由 UI 显示缺图占位。
      *
-     * @param uuid 原图文件 ID。
+     * @param uuid 图片文件 ID。
      * @param prepared 未提交草稿的凭据；历史图片传 null。
      * @param longEdge 解码结果的最大长边像素数。
      * @return 有界解码后的图片；文件不可用时返回 null，取消继续传播。
@@ -179,13 +218,13 @@ class MessageImageRuntime(
     /**
      * 校验原始文件并生成保存元数据，不信任选图来源声明的 MIME。
      *
-     * @param uuid 原图文件 ID。
+     * @param uuid 图片文件 ID。
      * @param prepared 尚未持久化的草稿凭据；历史图片传 null。
      * @return 与原始字节格式一致的 MIME 和带扩展名的默认文件名。
-     * @throws ImageRequestException 原图格式无效或文件缺失时抛出。
+     * @throws ImageRequestException 图片格式无效或文件缺失时抛出。
      */
     suspend fun exportMetadata(uuid: String, prepared: PreparedFile? = null): ImageExportMetadata {
-        // 在文件仓库保护范围内检查实际容器，不使用发送缓存的编码格式。
+        // 在文件仓库保护范围内检查实际容器，草稿和历史图片都以当前字节为准。
         val inspect: suspend (File) -> ImageExportMetadata = { original ->
             validate(original)
             val mimeType = bounds(original).outMimeType
@@ -205,9 +244,9 @@ class MessageImageRuntime(
     }
 
     /**
-     * 用户显式保存图片时复制原始字节，不导出缓存或内部路径。
+     * 用户显式保存图片时复制仓库字节，不导出内部路径。
      *
-     * @param uuid 选择器启动前冻结的原图文件 ID。
+     * @param uuid 选择器启动前冻结的图片文件 ID。
      * @param destination 用户确认的目标文档 URI。
      * @param prepared 未提交草稿的凭据；历史图片传 null。
      */
@@ -221,69 +260,30 @@ class MessageImageRuntime(
         else mFiles.withFileLease(uuid, copy)
     }
 
-    /**
-     * 预览真实编码后的发送缓存，与请求使用相同压缩和尺寸。
-     *
-     * @param uuid 原图文件 ID。
-     * @param prepared 未提交草稿的凭据；历史图片传 null。
-     * @return 发送缓存的有界预览；解码失败时为 null。
-     */
-    suspend fun loadSendPreview(uuid: String, prepared: PreparedFile?): Bitmap? = withContext(Dispatchers.IO) {
-        val read: suspend (File, String) -> Bitmap? = { original, hash ->
-            mMutex.withLock {
-                val reference = prepareVersion(uuid, hash, original)
-                decode(File(mCache, reference.cacheKey), MessageImagePolicy.SEND_LONG_EDGE)
-            }
+    /** 读取已入库图片的实际元数据，历史请求不再依赖发送设置。 */
+    private fun describe(uuid: String, file: File): LLMImageReference {
+        val bounds = bounds(file)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw ImageRequestException(ImageRequestFailure.InvalidImage)
         }
-        if (prepared != null) mFiles.withPreparedFile(prepared) { read(it, prepared.file.hash) }
-        else mFiles.withFileLease(uuid) { read(it, requireNotNull(mFiles.getFileEntity(uuid)).hash) }
-    }
-
-    /** 按冻结策略生成发送版本；缓存发布前核对格式、尺寸与实际字节数。 */
-    private suspend fun prepareVersion(
-        uuid: String,
-        hash: String,
-        original: File,
-        settings: ImageSendSettings = mSettings()
-    ): LLMImageReference {
-        require(settings.isValid()) { "Invalid image send settings" }
-        val key = "$hash-${settings.cacheSuffix}"
-        val target = File(mCache, key)
-        if (!target.isFile) {
-            validate(original)
-            val temporary = File(mCache, UUID.randomUUID().toString())
-            try {
-                // 原图不能静默转码；压缩副本按校正方向后的边界生成。
-                if (settings.mode == ImageSendMode.Original) copyOriginal(original, temporary)
-                else encodeCompressed(original, temporary, settings)
-                currentCoroutineContext().ensureActive()
-                if (!temporary.renameTo(target)) throw IOException("Could not cache the image")
-            } finally {
-                temporary.delete()
-            }
-        }
-        trimCache(target)
-        val bounds = bounds(target)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw ImageRequestException(ImageRequestFailure.InvalidImage)
-        // 原图保留 EXIF，Token 估算使用与预览相同的正向尺寸。
-        val rotation = runCatching { ExifInterface(target).rotationDegrees }.getOrDefault(0)
+        validateSendable(file)
+        val rotation = runCatching { ExifInterface(file).rotationDegrees }.getOrDefault(0)
         val swap = rotation == 90 || rotation == 270
-        return LLMImageReference(uuid, key, bounds.outMimeType,
+        return LLMImageReference(uuid, bounds.outMimeType,
             if (swap) bounds.outHeight else bounds.outWidth,
-            if (swap) bounds.outWidth else bounds.outHeight, target.length(), settings)
+            if (swap) bounds.outWidth else bounds.outHeight, file.length())
     }
 
-    /** 保留原始字节及元数据，只允许各协议共同支持的静态格式和客户端发送上限。 */
-    private fun copyOriginal(original: File, target: File) {
-        val bounds = bounds(original)
+    /** 原图模式与历史读取共用协议支持范围，禁止发送不支持或超过硬上限的文件。 */
+    private fun validateSendable(file: File) {
+        val bounds = bounds(file)
         if (bounds.outMimeType !in setOf("image/jpeg", "image/png", "image/webp")) {
             throw ImageRequestException(ImageRequestFailure.OriginalUnsupported)
         }
-        if (original.length() > MessageImagePolicy.MAX_SEND_BYTES ||
+        if (file.length() > MessageImagePolicy.MAX_SEND_BYTES ||
             maxOf(bounds.outWidth, bounds.outHeight) > 8000) {
             throw ImageRequestException(ImageRequestFailure.OriginalTooLarge)
         }
-        original.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
     }
 
     /** 透明图片保留 Alpha；逐步缩小高噪声图片，直到实际文件满足用户上限。 */
@@ -317,18 +317,6 @@ class MessageImageRuntime(
             }
         } finally {
             bitmap.recycle()
-        }
-    }
-
-    /** 保留最近使用的缓存，正在消费的目标始终排除在回收范围之外。 */
-    private fun trimCache(target: File) {
-        target.setLastModified(System.currentTimeMillis())
-        var cacheBytes = mCache.listFiles().orEmpty().sumOf { it.length() }
-        mCache.listFiles().orEmpty().filter { it != target }.sortedBy { it.lastModified() }.forEach {
-            if (cacheBytes > 64L * 1024 * 1024) {
-                val size = it.length()
-                if (it.delete()) cacheBytes -= size
-            }
         }
     }
 

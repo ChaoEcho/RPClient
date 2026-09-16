@@ -1168,8 +1168,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="message_image">Gambar pesan</string>
     <string name="image_missing">Gambar hilang</string>
     <string name="image_loading">Memuat gambar…</string>
-    <string name="image_original">Asli</string>
-    <string name="image_send_preview">Pratinjau kirim</string>
+    <string name="image_view">Lihat gambar</string>
     <string name="image_close">Tutup</string>
     <string name="image_save">Simpan gambar</string>
     <string name="image_error_unsupported">Model ini tidak mendukung gambar. Ganti model dan coba lagi.</string>
@@ -1205,7 +1204,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="about_brand_keywords">Karakter · Cerita · Kreasi · Kemungkinan</string>
     <string name="about_rate_action">Beri rating</string>
     <string name="image_send_title">Pengiriman gambar (lanjutan)</string>
-    <string name="image_send_description">Berlaku untuk permintaan berikutnya, termasuk riwayat. Gambar asli lokal tetap disimpan. File lebih kecil tidak selalu memakai lebih sedikit token gambar.</string>
+    <string name="image_send_description">Hanya berlaku untuk gambar yang ditambahkan saat mengirim pesan atau menyimpan edit. Hanya gambar yang telah diproses yang disimpan; lampiran yang ada tidak berubah.</string>
     <string name="image_send_auto">Otomatis</string>
     <string name="image_send_original">Asli</string>
     <string name="image_send_custom">Kustom</string>

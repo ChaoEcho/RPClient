@@ -96,7 +96,7 @@ class ChatRepository(
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
 
-    /** 原子保存用户正文、原图索引及有序附件；失败保留未提交草稿。 */
+    /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
         sessionId: Long,
         content: String,
@@ -105,7 +105,7 @@ class ChatRepository(
         require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
         return mImages.mutate(images.map { it.value }) {
-            // 原图已在事务外发布；正文、索引和图片关系共同提交。
+            // 最终图片已在事务外发布；正文、索引和图片关系共同提交。
             val now = System.currentTimeMillis()
             val id = mChatMessageDao.insertOrReplace(
                 ChatMessage(

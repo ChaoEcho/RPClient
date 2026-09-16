@@ -1171,8 +1171,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="message_image">Imagem da mensagem</string>
     <string name="image_missing">Imagem ausente</string>
     <string name="image_loading">Carregando imagem…</string>
-    <string name="image_original">Original</string>
-    <string name="image_send_preview">Prévia de envio</string>
+    <string name="image_view">Ver imagem</string>
     <string name="image_close">Fechar</string>
     <string name="image_save">Salvar imagem</string>
     <string name="image_error_unsupported">Este modelo não aceita imagens. Altere o modelo e tente novamente.</string>
@@ -1208,7 +1207,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="about_brand_keywords">Personagens · Histórias · Criação · Possibilidades</string>
     <string name="about_rate_action">Avaliar app</string>
     <string name="image_send_title">Envio de imagens (avançado)</string>
-    <string name="image_send_description">Aplica-se às próximas solicitações, incluindo o histórico. Os originais locais são mantidos. Arquivos menores nem sempre usam menos tokens de imagem.</string>
+    <string name="image_send_description">Aplica-se apenas às imagens adicionadas ao enviar uma mensagem ou salvar uma edição. Somente a imagem processada é mantida; os anexos existentes não são alterados.</string>
     <string name="image_send_auto">Automático</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Personalizado</string>

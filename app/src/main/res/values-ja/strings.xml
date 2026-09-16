@@ -1163,8 +1163,7 @@
     <string name="message_image">メッセージ画像</string>
     <string name="image_missing">画像が見つかりません</string>
     <string name="image_loading">画像を読み込み中…</string>
-    <string name="image_original">元の画像</string>
-    <string name="image_send_preview">送信プレビュー</string>
+    <string name="image_view">画像を表示</string>
     <string name="image_close">閉じる</string>
     <string name="image_save">画像を保存</string>
     <string name="image_error_unsupported">このモデルは画像に対応していません。モデルを変更して再試行してください。</string>
@@ -1200,7 +1199,7 @@
     <string name="about_brand_keywords">キャラクター · 物語 · 創作 · 広がる可能性</string>
     <string name="about_rate_action">評価する</string>
     <string name="image_send_title">画像送信（詳細設定）</string>
-    <string name="image_send_description">履歴の画像を含む今後のリクエストに適用します。端末内の元画像は保持されます。ファイルが小さくても画像トークンが減るとは限りません。</string>
+    <string name="image_send_description">メッセージ送信時や編集保存時に追加した画像のみを処理します。処理後の画像のみを保存し、既存の添付画像は変更しません。</string>
     <string name="image_send_auto">自動</string>
     <string name="image_send_original">元画像</string>
     <string name="image_send_custom">カスタム</string>

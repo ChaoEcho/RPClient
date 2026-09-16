@@ -218,7 +218,7 @@ fun MessageImageEditButton(state: MessageImageState, emit: (MessageImageAction) 
         onClick = {
             emit(if (state.processing) MessageImageAction.CancelProcessing else MessageImageAction.Choose(editing = true))
         },
-        enabled = state.processing || state.canAddEditing,
+        enabled = !state.submitting && (state.processing || state.canAddEditing),
         modifier = Modifier.size(32.dp)
     ) {
         if (state.processing) {

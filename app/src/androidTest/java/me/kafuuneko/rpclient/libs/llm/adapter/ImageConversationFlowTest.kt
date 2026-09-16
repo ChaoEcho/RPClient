@@ -33,6 +33,9 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.ImageSendSettings
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatViewModel
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
@@ -54,6 +57,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -205,6 +209,64 @@ class ImageConversationFlowTest {
         }
     }
 
+    /** 真实群聊编辑保存只处理新图，取消编辑不删除旧图，查看器读取入库版本。 */
+    @Test
+    fun groupEditingSavesNewImagesAndKeepsExistingAttachments() = runBlocking {
+        withFixture { fixture ->
+            val repository = GlobalContext.get().get<GroupChatRepository>()
+            val files = GlobalContext.get().get<FileRepository>()
+            val runtime = GlobalContext.get().get<MessageImageRuntime>()
+            val id = repository.createSession("Image edit test", "User", "", fixture.characters,
+                activationStrategy = GroupChatSession.ActivationStrategy.List, allowSelfResponses = false)
+            try {
+                ActivityScenario.launch<GroupChatActivity>(Intent(fixture.context, GroupChatActivity::class.java)
+                    .putExtra(GroupChatActivity.EXTRA_SESSION_ID, id.toString())).use { scenario ->
+                    lateinit var vm: GroupChatViewModel
+                    scenario.onActivity { vm = ViewModelProvider(it)[GroupChatViewModel::class.java] }
+                    await { vm.uiStateFlow.value is GroupChatUiState.Normal }
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose()))
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { it.draft.size == 1 && !it.processing } == true }
+                    vm.emit(GroupChatUiIntent.SendMessage)
+                    await { repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character } == 2 }
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    val message = repository.getGroupChatData(id)!!.messages.single { it.source == GroupChatMessage.Source.User }
+                    val original = repository.getMessagesWithImages(listOf(message.id)).single().images.single().image.imageUuid
+                    val originalBytes = requireNotNull(files.getFile(original)).readBytes()
+                    // 已有图片不能因修改设置而重新压缩；新图在编辑保存时才固定尺寸。
+                    AppModel.imageSendSettings = ImageSendSettings(ImageSendMode.Custom, 64, 128, 128).encode()
+                    vm.emit(GroupChatUiIntent.StartEditMessage(message.id))
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == message.id }
+                    vm.emit(GroupChatUiIntent.ChangeEditingMessageDraft("edited"))
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { it.editing.size == 2 && !it.processing } == true }
+                    assertEquals(1, repository.getMessagesWithImages(listOf(message.id)).single().images.size)
+                    vm.emit(GroupChatUiIntent.SaveEditingMessage)
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == null }
+                    val edited = repository.getMessagesWithImages(listOf(message.id)).single()
+                    assertEquals("edited", edited.content)
+                    assertEquals(2, edited.images.size)
+                    assertEquals(original, edited.images.first().image.imageUuid)
+                    assertTrue(originalBytes.contentEquals(requireNotNull(files.getFile(original)).readBytes()))
+                    val refs = runtime.references(listOf(edited)).getValue(message.id)
+                    assertTrue(refs.last().width <= 128 && refs.last().height <= 128)
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Preview(edited.images.map { it.image.imageUuid }, 1)))
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.preview?.bitmap != null }
+                    delay(200)
+                    screenshot("group-image-viewer.png")
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.ClosePreview))
+                    vm.emit(GroupChatUiIntent.StartEditMessage(message.id))
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == message.id }
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Remove(original, editing = true)))
+                    vm.emit(GroupChatUiIntent.CancelEditingMessage)
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == null }
+                    assertEquals(edited, repository.getMessagesWithImages(listOf(message.id)).single())
+                }
+            } finally {
+                repository.deleteSession(id)
+            }
+        }
+    }
+
     @Test
     fun stoppingAnImageStreamClosesTheRequestAndPreservesTheUserImage() = runBlocking {
         withFixture { fixture ->
@@ -274,7 +336,7 @@ class ImageConversationFlowTest {
         }
         instrumentation.addMonitor(pickerMonitor)
         val old = listOf(AppModel.currentLLMProvider, AppModel.summaryLLMProvider, AppModel.streamEnabled,
-            AppModel.autoSummaryEnabled, AppModel.maxPromptHistoryMessages)
+            AppModel.autoSummaryEnabled, AppModel.maxPromptHistoryMessages, AppModel.imageSendSettings)
         try {
             repeat(2) { index ->
                 val id = db.getCharacterDao().insertOrReplace(Character(name = "Fixture $index", avatar = "", characterTags = "[]",
@@ -292,6 +354,7 @@ class ImageConversationFlowTest {
             AppModel.streamEnabled = false
             AppModel.autoSummaryEnabled = false
             AppModel.maxPromptHistoryMessages = 100
+            AppModel.imageSendSettings = ImageSendSettings().encode()
             block(Fixture(context, db, characters, server))
         } finally {
             instrumentation.removeMonitor(pickerMonitor)
@@ -300,6 +363,7 @@ class ImageConversationFlowTest {
             AppModel.streamEnabled = old[2] as Boolean
             AppModel.autoSummaryEnabled = old[3] as Boolean
             AppModel.maxPromptHistoryMessages = old[4] as Int
+            AppModel.imageSendSettings = old[5] as String
             characters.forEach { koin.get<CharacterRepository>().deleteCharacter(it) }
             llm.deleteProvider(providerId)
             image.delete()

@@ -1168,8 +1168,7 @@
     <string name="message_image">Image du message</string>
     <string name="image_missing">Image manquante</string>
     <string name="image_loading">Chargement de l’image…</string>
-    <string name="image_original">Original</string>
-    <string name="image_send_preview">Aperçu de l’envoi</string>
+    <string name="image_view">Voir l’image</string>
     <string name="image_close">Fermer</string>
     <string name="image_save">Enregistrer l’image</string>
     <string name="image_error_unsupported">Ce modèle ne prend pas en charge les images. Changez de modèle et réessayez.</string>
@@ -1205,7 +1204,7 @@
     <string name="about_brand_keywords">Personnages · Histoires · Création · Possibilités</string>
     <string name="about_rate_action">Noter l’application</string>
     <string name="image_send_title">Envoi des images (avancé)</string>
-    <string name="image_send_description">Concerne les prochaines requêtes, historique compris. Les originaux locaux sont conservés. Un fichier plus petit ne consomme pas toujours moins de tokens visuels.</string>
+    <string name="image_send_description">S’applique uniquement aux images ajoutées lors de l’envoi ou de l’enregistrement d’une modification. Seule l’image traitée est conservée ; les pièces jointes existantes restent inchangées.</string>
     <string name="image_send_auto">Automatique</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Personnalisé</string>

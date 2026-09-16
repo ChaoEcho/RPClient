@@ -66,6 +66,7 @@ import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -186,6 +187,8 @@ class GroupChatViewModel :
     private suspend fun onImageAction(intent: GroupChatUiIntent.ImageAction) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val action = intent.action
+        if (mImageCoordinator.state.processing && (action is MessageImageAction.Choose ||
+                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
         if (mGenerationJob?.isCompleted == false && action !is MessageImageAction.Load &&
             action !is MessageImageAction.RegisterDisplay && action !is MessageImageAction.ReleaseDisplay &&
             action !is MessageImageAction.Preview && action != MessageImageAction.ClosePreview &&
@@ -697,16 +700,15 @@ class GroupChatViewModel :
             }
             // 若有用户输入则持久化一条 User 消息；保护只属于本次选出的角色。
             val triggerUserMessageId = if (isUserInput && (input.isNotBlank() || images.isNotEmpty())) {
-                withContext(Dispatchers.IO) {
+                mImageCoordinator.submit { finalInputs ->
                     mGroupChatRepository.createUserMessageWithImages(
                         sessionId = sessionId,
                         content = input,
-                        images = images,
+                        images = finalInputs.filterIsInstance<MessageImageInput.Prepared>(),
                         speakerNameSnapshot = initialData.session.userName
                     ).key.messageId
                 }
             } else null
-            mImageCoordinator.committed()
             // 切换 UI 为生成中状态并启动多角色生成循环
             refreshState(
                 inputDraft = "",
@@ -1204,6 +1206,7 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.StartEditMessage::class)
     private suspend fun onStartEditMessage(intent: GroupChatUiIntent.StartEditMessage) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isCompleted == false) return
         val message = uiState.conversationState.messages
@@ -1273,6 +1276,7 @@ class GroupChatViewModel :
     private fun onChangeEditingMessageDraft(
         intent: GroupChatUiIntent.ChangeEditingMessageDraft
     ) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
         uiState.copy(
@@ -1294,32 +1298,27 @@ class GroupChatViewModel :
             val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
             val messageId = uiState.conversationState.editingMessageId ?: return
             if (mImageCoordinator.state.processing || (uiState.conversationState.editingMessageDraft.isBlank() && mImageCoordinator.state.editing.isEmpty())) return
-            // 异步对编辑后文本应用对应 Source 阶段正则规则（isEdit = true）
-            withContext(Dispatchers.IO) {
-                val data = mMessageDisplayContext ?: return@withContext
-                val message = mGroupChatRepository.getMessageById(messageId)
-                    ?.takeIf { it.sessionId == uiState.sessionId } ?: return@withContext
-                val content = when (message.source) {
-                    GroupChatMessage.Source.User -> applyUserRegex(
-                        data,
-                        uiState.conversationState.editingMessageDraft.trim(),
-                        isEdit = true
-                    )
-                    GroupChatMessage.Source.Character -> applyAiRegex(
-                        data,
-                        uiState.conversationState.editingMessageDraft.trim(),
-                        message.speakerNameSnapshot,
-                        isEdit = true
-                    )
-                    GroupChatMessage.Source.System ->
-                        uiState.conversationState.editingMessageDraft.trim()
+            val data = mMessageDisplayContext ?: return
+            val message = mGroupChatRepository.getMessageById(messageId)
+                ?.takeIf { it.sessionId == uiState.sessionId } ?: return
+            mImageCoordinator.submit(editing = true) { finalInputs ->
+                // 新增附件在提交前处理，保留项直接沿用原来的仓库文件。
+                val content = withContext(Dispatchers.IO) {
+                    when (message.source) {
+                        GroupChatMessage.Source.User -> applyUserRegex(
+                            data, uiState.conversationState.editingMessageDraft.trim(), isEdit = true
+                        )
+                        GroupChatMessage.Source.Character -> applyAiRegex(
+                            data, uiState.conversationState.editingMessageDraft.trim(),
+                            message.speakerNameSnapshot, isEdit = true
+                        )
+                        GroupChatMessage.Source.System -> uiState.conversationState.editingMessageDraft.trim()
+                    }
                 }
-                // 将更新后的内容写回数据库
                 if (message.source == GroupChatMessage.Source.User) {
-                    mGroupChatRepository.editUserMessageWithImages(uiState.sessionId, messageId, content, mImageCoordinator.editingInputs())
+                    mGroupChatRepository.editUserMessageWithImages(uiState.sessionId, messageId, content, finalInputs)
                 } else mGroupChatRepository.updateMessageContent(messageId, content)
             }
-            mImageCoordinator.editingCommitted()
             // 退出编辑状态并刷新 UI
             refreshState(editingMessageId = null, editingMessageDraft = "")
         } catch (error: Exception) {
@@ -1334,6 +1333,7 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.CancelEditingMessage::class)
     private suspend fun onCancelEditingMessage() {
+        if (mImageCoordinator.state.submitting) return
         mImageCoordinator.cancelProcessing()
         mImageCoordinator.cancelEditing()
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return

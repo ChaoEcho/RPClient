@@ -1167,8 +1167,7 @@
     <string name="message_image">Nachrichtenbild</string>
     <string name="image_missing">Bild fehlt</string>
     <string name="image_loading">Bild wird geladen…</string>
-    <string name="image_original">Original</string>
-    <string name="image_send_preview">Sende-Vorschau</string>
+    <string name="image_view">Bild ansehen</string>
     <string name="image_close">Schließen</string>
     <string name="image_save">Bild speichern</string>
     <string name="image_error_unsupported">Dieses Modell unterstützt keine Bilder. Ändere das Modell und versuche es erneut.</string>
@@ -1204,7 +1203,7 @@
     <string name="about_brand_keywords">Charaktere · Geschichten · Kreativität · Möglichkeiten</string>
     <string name="about_rate_action">App bewerten</string>
     <string name="image_send_title">Bildversand (erweitert)</string>
-    <string name="image_send_description">Gilt für künftige Anfragen einschließlich Verlauf. Lokale Originale bleiben erhalten. Kleinere Dateien benötigen nicht immer weniger Bild-Tokens.</string>
+    <string name="image_send_description">Gilt nur für neu hinzugefügte Bilder beim Senden oder Speichern einer Bearbeitung. Nur das verarbeitete Bild wird gespeichert; vorhandene Anhänge bleiben unverändert.</string>
     <string name="image_send_auto">Automatisch</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Benutzerdefiniert</string>

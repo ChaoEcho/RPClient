@@ -1450,6 +1450,7 @@ private fun MessageBubble(
                     if (editing) {
                         GroupMessageEditContent(
                             draft = editingDraft,
+                            imageState = imageState,
                             isUser = isUser,
                             emitIntent = emitIntent
                         )
@@ -1630,11 +1631,13 @@ private fun GroupThinkBlock(
 @Composable
 private fun GroupMessageEditContent(
     draft: String,
+    imageState: MessageImageState,
     isUser: Boolean,
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RpScrollableOutlinedTextField(
+            enabled = !imageState.submitting,
             value = draft,
             onValueChange = {
                 emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(it))
@@ -1677,6 +1680,7 @@ private fun GroupMessageEditContent(
         ) {
             TextButton(
                 onClick = { emitIntent(GroupChatUiIntent.CancelEditingMessage) },
+                enabled = !imageState.submitting,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -1691,10 +1695,11 @@ private fun GroupMessageEditContent(
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = { emitIntent(GroupChatUiIntent.SaveEditingMessage) },
+                enabled = !imageState.processing,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.save),
+                    text = stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) {
                         MaterialTheme.colorScheme.onPrimary
@@ -1866,7 +1871,7 @@ private fun Composer(
             // 待发送图片抽屉托盘
             DraftAttachmentTray(
                 state = imageState,
-                enabled = !generating,
+                enabled = !generating && !imageState.submitting,
                 emit = onImageAction
             )
 
@@ -1888,7 +1893,7 @@ private fun Composer(
                 QuickActionPill(
                     icon = Icons.Rounded.AutoAwesome,
                     label = stringResource(R.string.summarize_now),
-                    enabled = !generating,
+                    enabled = !generating && !imageState.submitting,
                     onClick = onSummarize
                 )
             }
@@ -1905,7 +1910,7 @@ private fun Composer(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 52.dp, max = 140.dp),
-                    enabled = !generating,
+                    enabled = !generating && !imageState.submitting,
                     placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
                     shape = RoundedCornerShape(18.dp),
                     maxLines = 5,
@@ -2003,7 +2008,7 @@ private fun DialogSwitch(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) },
             onPreviewImages = { ids, index ->
-                emitIntent(GroupChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true)))
+                emitIntent(GroupChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index)))
             }
         )
 

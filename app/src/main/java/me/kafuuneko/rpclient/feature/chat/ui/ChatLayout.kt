@@ -860,6 +860,7 @@ private fun MessageBubble(
                     if (editing) {
                         MessageEditContent(
                             draft = editingDraft,
+                            imageState = imageState,
                             isUser = isUser,
                             emit = emit
                         )
@@ -965,12 +966,14 @@ private fun StreamingStatus(
 @Composable
 private fun MessageEditContent(
     draft: String,
+    imageState: MessageImageState,
     isUser: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     // 编辑框沿用正文排版，短消息仅占一行，长消息在高度上限内滚动。
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         RpScrollableOutlinedTextField(
+            enabled = !imageState.submitting,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.bodyMedium,
             value = draft,
@@ -994,6 +997,7 @@ private fun MessageEditContent(
         ) {
             TextButton(
                 onClick = { ChatUiIntent.CancelEditingMessage.emit() },
+                enabled = !imageState.submitting,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -1005,10 +1009,11 @@ private fun MessageEditContent(
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = { ChatUiIntent.SaveEditingMessage.emit() },
+                enabled = !imageState.processing,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
-                    stringResource(R.string.save),
+                    stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                 )
@@ -1253,7 +1258,7 @@ private fun ChatInputBar(
             // 附件为空时仍保留选图失败提示。
             DraftAttachmentTray(
                 state = imageState,
-                enabled = !isGenerating,
+                enabled = !isGenerating && !imageState.submitting,
                 emit = { ChatUiIntent.ImageAction(it).emit() }
             )
 
@@ -1275,7 +1280,7 @@ private fun ChatInputBar(
                 QuickActionPill(
                     icon = Icons.Rounded.Edit,
                     label = stringResource(R.string.impersonate_user),
-                    enabled = !isGenerating,
+                    enabled = !isGenerating && !imageState.submitting,
                     onClick = { ChatUiIntent.ImpersonateUser.emit() }
                 )
                 QuickActionPill(
@@ -1302,7 +1307,7 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
-                    enabled = !isGenerating,
+                    enabled = !isGenerating && !imageState.submitting,
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
@@ -1668,7 +1673,7 @@ private fun DialogSwitch(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() },
             onPreviewImages = { ids, index ->
-                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true))
+                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index))
                     .emit()
             }
         )

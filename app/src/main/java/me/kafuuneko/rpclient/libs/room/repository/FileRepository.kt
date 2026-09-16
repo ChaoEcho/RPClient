@@ -199,24 +199,71 @@ class FileRepository(
             val hash = digest.digest().joinToString("") { "%02x".format(it) }
             val prepared = PreparedFile(ownerId, handle, FileEntity(handle, hash, mimeType), size)
             // 元数据最后落盘；没有完整元数据的文件不会被恢复为可提交草稿。
-            val metadata = Properties().apply {
-                setProperty("owner", ownerId)
-                setProperty("hash", hash)
-                setProperty("size", size.toString())
-                if (mimeType != null) setProperty("mime", mimeType)
-            }
-            withContext(Dispatchers.IO) {
-                FileOutputStream(File(mStagingDir, "$handle.meta")).use {
-                    metadata.store(it, null)
-                    it.fd.sync()
-                }
-            }
+            withContext(Dispatchers.IO) { writePreparedMetadata(prepared) }
             return prepared
         } catch (error: Throwable) {
             withContext(NonCancellable) {
                 mStorageMutex.withLock { discardStaging(handle) }
             }
             throw error
+        }
+    }
+
+    /**
+     * 在通用暂存区生成文件，以最终字节建立待提交凭据。
+     * - 写入者只生成本次独占文件并返回实际 MIME；失败或取消时统一回收。
+     * - 不持文件锁调用写入者，允许其通过仓库保护读取源草稿。
+     *
+     * @param ownerId 草稿所有者。
+     * @param write 将最终内容写入目标文件并返回 MIME 的操作。
+     * @return 尚未入库的最终文件凭据。
+     */
+    suspend fun prepareGenerated(ownerId: String, write: suspend (File) -> String): PreparedFile {
+        require(ownerId.isNotBlank()) { "The file owner cannot be empty" }
+        val handle = UUID.randomUUID().toString()
+        try {
+            return withContext(Dispatchers.IO) {
+                mStorageMutex.withLock { mActiveDrafts.add(handle) }
+                val target = File(mStagingDir, handle)
+                val mime = write(target)
+                currentCoroutineContext().ensureActive()
+                // 最终编码完成后计算哈希，去重和回收均以实际存储字节为准。
+                require(target.isFile && target.length() > 0) { "The generated file is empty" }
+                val digest = MessageDigest.getInstance("SHA-256")
+                target.inputStream().use { input ->
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                    }
+                }
+                FileOutputStream(target, true).use { it.fd.sync() }
+                val hash = digest.digest().joinToString("") { "%02x".format(it) }
+                val prepared = PreparedFile(ownerId, handle, FileEntity(handle, hash, mime), target.length())
+                writePreparedMetadata(prepared)
+                prepared
+            }
+        } catch (error: Throwable) {
+            withContext(NonCancellable + Dispatchers.IO) {
+                mStorageMutex.withLock { discardStaging(handle) }
+            }
+            throw error
+        }
+    }
+
+    /** 暂存字节完整落盘后发布凭据；所有入口共享相同恢复格式。 */
+    private fun writePreparedMetadata(prepared: PreparedFile) {
+        val metadata = Properties().apply {
+            setProperty("owner", prepared.ownerId)
+            setProperty("hash", prepared.file.hash)
+            setProperty("size", prepared.byteCount.toString())
+            prepared.file.mimeType?.let { setProperty("mime", it) }
+        }
+        FileOutputStream(File(mStagingDir, "${prepared.handle}.meta")).use {
+            metadata.store(it, null)
+            it.fd.sync()
         }
     }
 

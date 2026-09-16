@@ -65,7 +65,7 @@ fun DraftAttachmentTray(
     modifier: Modifier = Modifier,
     emit: (MessageImageAction) -> Unit
 ) {
-    if (state.draft.isEmpty() && !state.processing && state.errorResId == null) return
+    if (state.draft.isEmpty() && (state.submitting || !state.processing) && state.errorResId == null) return
     val currentEmit by rememberUpdatedState(emit)
     var moveMenuUuid by remember(state.draft, enabled, state.processing) { mutableStateOf<String?>(null) }
 
@@ -220,6 +220,7 @@ fun DraftAttachmentTray(
                 Spacer(modifier = Modifier.width(6.dp))
                 TextButton(
                     onClick = { currentEmit(MessageImageAction.CancelProcessing) },
+                    enabled = !state.submitting,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -238,24 +239,5 @@ fun DraftAttachmentTray(
                 modifier = Modifier.padding(top = 4.dp, start = 2.dp)
             )
         }
-    }
-}
-
-/**
- * 保持向后兼容的图片列表封装。
- */
-@Composable
-fun MessageImageStrip(
-    ids: List<String>,
-    state: MessageImageState,
-    editable: Boolean = false,
-    editing: Boolean = false,
-    enabled: Boolean = true,
-    emit: (MessageImageAction) -> Unit
-) {
-    if (editing) {
-        MessageImageGallery(ids = ids, state = state, editing = editable, emit = emit)
-    } else {
-        DraftAttachmentTray(state = state, enabled = enabled, emit = emit)
     }
 }

@@ -28,6 +28,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.toList
@@ -141,11 +143,11 @@ class MultimodalImageIntegrationTest {
             withTimeout(5_000) { opened.await() }
             assertTrue(coordinator.state.processing)
             assertTrue(pick.isActive)
-            coordinator.handle(MessageImageAction.Preview(listOf("missing-history-image"), 0, sendVersion = true))
+            coordinator.handle(MessageImageAction.Preview(listOf("missing-history-image"), 0))
             assertTrue("Preview error incorrectly unlocked sending while pick still runs", coordinator.state.processing)
             assertTrue(pick.isActive)
             assertFalse(requireNotNull(coordinator.state.preview).loading)
-            assertEquals(R.string.image_prepare_failed, coordinator.state.errorResId)
+            assertNull(coordinator.state.errorResId)
             assertTrue(runCatching { coordinator.draftInputs() }.exceptionOrNull() is IllegalStateException)
             // 保存元数据失败同样不能结束选图；实际选图结束后由自身收尾解锁。
             assertNull(coordinator.beginSave())
@@ -254,9 +256,9 @@ class MultimodalImageIntegrationTest {
         }
     }
 
-    /** 模式变更和缓存回收不能改变已冻结请求的字节，EXIF 方向参与尺寸预算。 */
+    /** 新图片只在提交时处理；修改设置不能改变历史字节，删除最后引用后没有发送副本残留。 */
     @Test
-    fun sendSettingsFreezeOriginalBytesAcrossCacheRebuilds() = runBlocking {
+    fun committedImagesKeepTheirBytesAcrossSettingsChangesAndDeleteCompletely() = runBlocking {
         val original = fixture(jpeg = true)
         ExifInterface(original).apply {
             setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_ROTATE_90.toString())
@@ -265,31 +267,39 @@ class MultimodalImageIntegrationTest {
         var settings = ImageSendSettings(ImageSendMode.Original)
         val runtime = MessageImageRuntime(context, files) { settings }
         val prepared = runtime.prepare("settings", Uri.fromFile(original))
-        val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
+        val saved = runtime.submit(listOf(MessageImageInput.Prepared(prepared))) {
+            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        }
         val reference = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
         assertEquals(160, reference.width)
         assertEquals(320, reference.height)
         runtime.withSendFile(reference) { assertTrue(original.readBytes().contentEquals(it.readBytes())) }
-        // 更改自定义边界后生成独立版本，宽高约束基于旋转后的可见方向。
+        // 新设置只影响下一次提交，不改变已保存图片的方向、尺寸和字节。
         settings = ImageSendSettings(ImageSendMode.Custom, 64, 128, 256)
-        val custom = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
+        assertEquals(reference, runtime.references(listOf(saved)).getValue(saved.key.messageId).single())
+        val next = runtime.prepare("settings", Uri.fromFile(original))
+        val compressed = runtime.submit(listOf(MessageImageInput.Prepared(next))) {
+            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        }
+        val custom = runtime.references(listOf(compressed)).getValue(compressed.key.messageId).single()
         assertEquals(128, custom.width)
         assertEquals(256, custom.height)
-        assertTrue(custom.cacheKey != reference.cacheKey)
-        val bytes = runtime.withSendFile(custom) { it.readBytes() }
-        settings = ImageSendSettings(ImageSendMode.Custom, 128, 256, 128)
-        val another = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
-        assertTrue(custom.cacheKey != another.cacheKey)
-        // 模拟系统回收可重建缓存，旧引用仍必须用旧配置重新生成。
-        File(context.cacheDir, "message-images-v1").listFiles().orEmpty().forEach { it.delete() }
-        runtime.withSendFile(custom) { assertTrue(bytes.contentEquals(it.readBytes())) }
-        runtime.withSendFile(reference) { assertTrue(original.readBytes().contentEquals(it.readBytes())) }
-        files.withFileLease(reference.uuid) { assertTrue(original.readBytes().contentEquals(it.readBytes())) }
+        val stored = requireNotNull(files.getFile(custom.uuid))
+        assertFalse(original.readBytes().contentEquals(stored.readBytes()))
+        val destination = File(directory, "saved.jpg")
+        runtime.save(custom.uuid, Uri.fromFile(destination))
+        assertTrue(stored.readBytes().contentEquals(destination.readBytes()))
+        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        assertTrue(context.cacheDir.listFiles().orEmpty().isEmpty())
+        chat.deleteMessage(compressed.key.messageId)
+        assertFalse(stored.exists())
+        chat.deleteMessage(saved.key.messageId)
+        assertTrue(File(directory, "repository").listFiles().orEmpty().none { it.isFile })
     }
 
-    /** 实际高噪声 PNG 必须满足文件上限，同时保留透明通道和本地原图。 */
+    /** 原图发送限制在提交时检查；失败保留草稿，切换压缩后可重试且不保留源图。 */
     @Test
-    fun customCompressionFitsActualByteLimitAndDefersOversizedOriginalFailure() = runBlocking {
+    fun compressionFailureKeepsDraftAndSuccessfulRetryStoresOnlyFinalBytes() = runBlocking {
         val bitmap = Bitmap.createBitmap(1024, 1024, Bitmap.Config.ARGB_8888)
         val random = Random(42)
         bitmap.setPixels(IntArray(1024 * 1024) { random.nextInt() }, 0, 1024, 0, 0, 1024, 1024)
@@ -297,23 +307,25 @@ class MultimodalImageIntegrationTest {
         original.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
         assertTrue(original.length() > 2L * 1024 * 1024)
-        // 原图可以存储，但原图发送上限失败只在被选入请求时生效。
-        val prepared = original.inputStream().use { files.prepareStream("noise", it, "image/png") }
-        val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
         var settings = ImageSendSettings(ImageSendMode.Original)
         val runtime = MessageImageRuntime(context, files) { settings }
         val coordinator = MessageImageCoordinator(runtime, files) {}
         coordinator.choose(editing = false)
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
-        assertEquals(R.string.image_error_original_large, coordinator.state.errorResId)
-        assertTrue(coordinator.state.draft.isEmpty())
-        assertFalse(coordinator.state.processing)
-        val candidates = runtime.prepareCandidates(listOf(saved))
-        assertEquals(ImageRequestFailure.OriginalTooLarge, candidates.unavailable.getValue(saved.key.messageId).single().failure)
-        val failure = runCatching { runtime.references(listOf(saved)) }.exceptionOrNull() as ImageRequestException
+        val source = coordinator.draftInputs().single().value
+        assertEquals(1, coordinator.state.draft.size)
+        // 选图不预生成发送文件；失败不能创建空消息或丢失用户草稿。
+        val failure = runCatching {
+            coordinator.submit { chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>()) }
+        }.exceptionOrNull() as ImageRequestException
         assertEquals(ImageRequestFailure.OriginalTooLarge, failure.failure)
-        // 切换自定义后按真实编码大小缩小，原始资源不被覆盖。
+        assertEquals(listOf(source.file.uuid), coordinator.state.draft)
+        assertFalse(coordinator.state.processing)
+        assertTrue(chat.getMessagesBySessionId(sessionId).isEmpty())
         settings = ImageSendSettings(ImageSendMode.Custom, 64, 1024, 1024)
+        val saved = coordinator.submit {
+            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        }
         val reference = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
         assertTrue(reference.byteCount <= 64 * 1024L)
         assertTrue(reference.width < 1024 && reference.height < 1024)
@@ -322,23 +334,115 @@ class MultimodalImageIntegrationTest {
             assertTrue(decoded.hasAlpha())
             decoded.recycle()
         }
-        files.withFileLease(reference.uuid) { assertTrue(original.readBytes().contentEquals(it.readBytes())) }
+        assertTrue(coordinator.state.draft.isEmpty())
+        assertNull(files.getFileEntity(source.file.uuid))
+        assertFalse(File(directory, "repository/${source.file.hash}").exists())
+        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        assertTrue(context.cacheDir.listFiles().orEmpty().isEmpty())
     }
 
-    /** 整批候选只读取一次偏好，不因图片处理耗时跨越用户设置变更而混合模式。 */
+    /** 单次提交冻结设置；历史请求不读取设置，批量处理失败释放已经完成的处理结果。 */
     @Test
-    fun candidateBatchUsesOneSettingsSnapshot() = runBlocking {
-        val prepared = media.prepare("batch", Uri.fromFile(fixture()))
-        val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
+    fun submissionFreezesSettingsAndFailedBatchLeavesOnlySourceDrafts() = runBlocking {
+        val first = media.prepare("batch", Uri.fromFile(fixture(jpeg = true)))
+        val second = media.prepare("batch", Uri.fromFile(fixture()))
         var reads = 0
         val runtime = MessageImageRuntime(context, files) {
             reads++
-            ImageSendSettings(if (reads == 1) ImageSendMode.Original else ImageSendMode.Custom)
+            ImageSendSettings(ImageSendMode.Custom, 64, if (reads == 1) 128 else 256, 128)
         }
-        // 重复处理同一候选资源，验证准备过程中不会重新读取偏好。
-        val references = runtime.references(listOf(saved, saved))
+        val inputs = listOf(first, second).map(MessageImageInput::Prepared)
+        val saved = runtime.submit(inputs) {
+            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        }
+        val refs = runtime.references(listOf(saved)).getValue(saved.key.messageId)
         assertEquals(1, reads)
-        assertEquals(ImageSendMode.Original, references.getValue(saved.key.messageId).single().sendSettings.mode)
+        assertTrue(refs.all { it.width <= 128 && it.height <= 128 })
+        // 第二张在处理时失败，第一张的新结果也必须清理，源草稿仍可重试。
+        val good = media.prepare("failure", Uri.fromFile(fixture()))
+        val bad = files.prepareStream("failure", ByteArrayInputStream("invalid".toByteArray()), "image/png")
+        var committed = false
+        assertTrue(runCatching {
+            runtime.submit(listOf(good, bad).map(MessageImageInput::Prepared)) { committed = true }
+        }.isFailure)
+        assertFalse(committed)
+        val staging = File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet()
+        assertEquals(setOf(good.handle, "${good.handle}.meta", bad.handle, "${bad.handle}.meta"), staging)
+        files.releasePrepared(good)
+        files.releasePrepared(bad)
+    }
+
+    /** 在写入最终文件时取消，半成品和索引不能残留，也不能影响仍可重试的源草稿。 */
+    @Test
+    fun cancelledFileGenerationRemovesPartialOutputAndKeepsSourceDraft() = runBlocking {
+        val source = media.prepare("cancel", Uri.fromFile(fixture()))
+        val started = CompletableDeferred<Unit>()
+        val job = async {
+            files.prepareGenerated("cancel") { target ->
+                target.writeText("partial image")
+                started.complete(Unit)
+                awaitCancellation()
+            }
+        }
+        withTimeout(5_000) { started.await() }
+        job.cancelAndJoin()
+        assertEquals(setOf(source.handle, "${source.handle}.meta"),
+            File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet())
+        assertNull(files.getFileEntity(source.file.uuid))
+        files.releasePrepared(source)
+        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+    }
+
+    /** 编辑只处理新图；事务失败或取消编辑保留原消息，成功才回收移除项。 */
+    @Test
+    fun editingKeepsExistingBytesAndRollsBackBeforeReleasingRemovedImages() = runBlocking {
+        var settings = ImageSendSettings(ImageSendMode.Original)
+        val runtime = MessageImageRuntime(context, files) { settings }
+        val coordinator = MessageImageCoordinator(runtime, files) {}
+        coordinator.choose(editing = false)
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(true)), Uri.fromFile(fixture()))))
+        val saved = coordinator.submit {
+            chat.createUserMessageWithImages(sessionId, "old", it.filterIsInstance<MessageImageInput.Prepared>())
+        }
+        val ids = saved.images.map { it.image.imageUuid }
+        val removed = requireNotNull(files.getFile(ids[0]))
+        val retained = requireNotNull(files.getFile(ids[1])).readBytes()
+        settings = ImageSendSettings(ImageSendMode.Custom, 64, 128, 128)
+        coordinator.startEditing(ids)
+        coordinator.handle(MessageImageAction.Remove(ids[0], editing = true))
+        coordinator.choose(editing = true)
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(true)))))
+        val added = coordinator.editingInputs().filterIsInstance<MessageImageInput.Prepared>().single().value
+        // 让事务在附件替换之后失败，验证正文、关系和旧文件一起回滚。
+        database.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER fail_edit BEFORE UPDATE ON chat_messages BEGIN SELECT RAISE(ABORT, 'test'); END")
+        assertTrue(runCatching {
+            coordinator.submit(editing = true) { chat.editUserMessageWithImages(sessionId, saved.key.messageId, "new", it) }
+        }.isFailure)
+        database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_edit")
+        assertEquals("old", chat.getMessageById(saved.key.messageId)!!.content)
+        assertEquals(ids, chat.getMessagesWithImages(listOf(saved.key.messageId)).single().images.map { it.image.imageUuid })
+        assertTrue(removed.exists())
+        assertEquals(setOf(added.handle, "${added.handle}.meta"),
+            File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet())
+        val edited = coordinator.submit(editing = true) {
+            chat.editUserMessageWithImages(sessionId, saved.key.messageId, "new", it)
+        }
+        assertFalse(removed.exists())
+        assertEquals(ids[1], edited.images.first().image.imageUuid)
+        assertTrue(retained.contentEquals(requireNotNull(files.getFile(ids[1])).readBytes()))
+        assertTrue(runtime.references(listOf(edited)).getValue(saved.key.messageId).last().width <= 128)
+        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        coordinator.startEditing(edited.images.map { it.image.imageUuid })
+        coordinator.handle(MessageImageAction.Remove(ids[1], editing = true))
+        coordinator.choose(editing = true)
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
+        coordinator.cancelEditing()
+        assertTrue(retained.contentEquals(requireNotNull(files.getFile(ids[1])).readBytes()))
+        assertEquals(edited, chat.getMessagesWithImages(listOf(saved.key.messageId)).single())
+        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        chat.deleteSession(sessionId)
+        assertTrue(File(directory, "repository").listFiles().orEmpty().none { it.isFile })
     }
 
     /** 保存文档类型必须来自真实字节，且草稿和历史图片导出均保留原图。 */
@@ -608,7 +712,7 @@ class MultimodalImageIntegrationTest {
         }
         // 透明 PNG 保持 Alpha；解码不是简单把扩展名当 MIME。
         val png = media.prepare("test", Uri.fromFile(fixture()))
-        val preview = media.loadSendPreview(png.file.uuid, png)!!
+        val preview = media.load(png.file.uuid, png)!!
         assertTrue(Color.alpha(preview.getPixel(0, 0)) in 120..135)
         preview.recycle()
         files.releasePrepared(png)

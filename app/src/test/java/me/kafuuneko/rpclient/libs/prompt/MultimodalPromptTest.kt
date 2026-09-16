@@ -35,7 +35,7 @@ class MultimodalPromptTest {
         override val strategy = PromptTokenizerStrategy.Estimated
         override fun countText(text: String) = text.length
     }
-    private fun image(id: String) = LLMImageReference(id, id, "image/png", 640, 480, 1000)
+    private fun image(id: String) = LLMImageReference(id, "image/png", 640, 480, 1000)
     private fun draft(id: Long, text: String, count: Int, drop: Boolean) = PromptMessageDraft(
         LLMMessageRole.User, text, PromptSource(PromptSourceKind.ChatHistory, referenceId = id),
         retentionPriority = id.toInt(), canDrop = drop, images = (0 until count).map { image("$id-$it") })

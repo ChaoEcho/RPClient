@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.libs.room.model
 
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 
-/** 原图暂存凭据；私有路径不进入页面状态，句柄必须由文件仓库签发和校验。 */
+/** 通用文件暂存凭据；私有路径不进入页面状态，句柄必须由文件仓库签发和校验。 */
 @ConsistentCopyVisibility
 data class PreparedFile internal constructor(
     val ownerId: String,

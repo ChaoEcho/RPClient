@@ -10,6 +10,8 @@ data class MessageImageState(
     val editing: List<String> = emptyList(),
     val thumbnails: Map<String, ImageBitmap?> = emptyMap(),
     val processing: Boolean = false,
+    /** 正在提交附件时禁止继续修改及取消，避免改变已冻结的消息。 */
+    val submitting: Boolean = false,
     val canAddDraft: Boolean = true,
     val canAddEditing: Boolean = true,
     /** 图片选择或处理失败时展示的本地化提示资源；null 表示当前没有错误。 */
@@ -22,7 +24,6 @@ data class ImagePreviewState(
     val ids: List<String>,
     val index: Int,
     val bitmap: ImageBitmap? = null,
-    val sendVersion: Boolean = false,
     val loading: Boolean = true
 )
 
@@ -35,7 +36,7 @@ sealed interface MessageImageAction {
     data class Load(val uuid: String) : MessageImageAction
     data class RegisterDisplay(val uuid: String) : MessageImageAction
     data class ReleaseDisplay(val uuid: String) : MessageImageAction
-    data class Preview(val ids: List<String>, val index: Int, val sendVersion: Boolean = false) : MessageImageAction
+    data class Preview(val ids: List<String>, val index: Int) : MessageImageAction
     data object CancelProcessing : MessageImageAction
     data object ClosePreview : MessageImageAction
     data object Save : MessageImageAction

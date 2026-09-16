@@ -662,7 +662,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun onlyExplicitBatchTriggerProtectsOldUserImagesFromBudgetTrimming() {
         val lyra = character(1, "Lyra")
-        val image = LLMImageReference("image", "version", "image/png", 640, 480, 1000)
+        val image = LLMImageReference("image", "image/png", 640, 480, 1000)
         val userMessage = message(GroupChatMessage.Source.User, "Alex", "Compare this image").copy(id = 1)
         val reply = message(GroupChatMessage.Source.Character, "Lyra", "A blue square.").copy(id = 2)
         val tokenizer = object : PromptTokenizer {
