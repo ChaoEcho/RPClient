@@ -1669,7 +1669,7 @@ class GroupChatViewModel :
         val lorebookContext = withContext(Dispatchers.IO) {
             loadLorebookContext(data, speaker)
         }
-        val imageReferences = mImageRuntime.prepareCandidates(mGroupChatRepository.getMessagesWithImages(data.messages.map { it.id }))
+        val imageReferences = mImageRuntime.prepareCandidates(promptData.messageImages)
         // 构建多角色群聊 Prompt 请求
         val buildResult = withContext(Dispatchers.Default) {
             mPromptBuilder.buildWithMetadata(
@@ -1680,6 +1680,7 @@ class GroupChatViewModel :
                     messages = data.messages,
                     messageImages = imageReferences.references,
                     unavailableImages = imageReferences.unavailable,
+                    protectedUserMessageId = triggerUserMessageId,
                     totalMessageCount = promptData.totalMessageCount,
                     summary = data.summary?.content.orEmpty(),
                     candidateLorebookEntries = lorebookContext.entries,

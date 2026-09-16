@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
@@ -655,6 +656,50 @@ class GroupChatPromptBuilderTest {
         val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(context)
 
         assertTrue(request.messages.any { it.content.contains(entry.content) })
+    }
+
+    /** 当前批次保护触发图文，后续无新输入批次必须允许按预算整条裁剪。 */
+    @Test
+    fun onlyExplicitBatchTriggerProtectsOldUserImagesFromBudgetTrimming() {
+        val lyra = character(1, "Lyra")
+        val image = LLMImageReference("image", "version", "image/png", 640, 480, 1000)
+        val userMessage = message(GroupChatMessage.Source.User, "Alex", "Compare this image").copy(id = 1)
+        val reply = message(GroupChatMessage.Source.Character, "Lyra", "A blue square.").copy(id = 2)
+        val tokenizer = object : PromptTokenizer {
+            override val name = "test"
+            override val strategy = PromptTokenizerStrategy.Estimated
+            override fun countText(text: String) = text.length
+        }
+        val builder = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
+            mRequestFinalizer = PromptRequestFinalizer { tokenizer }
+        )
+        val context = GroupChatPromptContext(
+            session = GroupChatSession(title = "Crew", createTime = 1, latestTime = 1,
+                userName = "Alex", userDescription = ""),
+            members = listOf(member(lyra, 0)),
+            speaker = lyra,
+            messages = listOf(userMessage, reply),
+            messageImages = mapOf(userMessage.id to listOf(image)),
+            provider = provider(contextTokens = 100_000)
+        )
+        // 足额预算保留旧图；紧预算仍足够容纳必需文字，唯一需要裁剪的是旧用户图文。
+        assertEquals(listOf(image), builder.build(context).messages.flatMap { it.images })
+        val requiredTextTokens = builder.buildWithMetadata(
+            context.copy(messages = listOf(reply), messageImages = emptyMap())
+        ).inspection.finalTokenCount
+        val limited = context.copy(provider = provider(contextTokens = requiredTextTokens + 512 + 32))
+        val result = builder.buildWithMetadata(limited)
+        assertTrue(result.request.messages.all { it.images.isEmpty() })
+        assertFalse(result.request.messages.any { userMessage.content in it.content })
+        assertTrue(result.inspection.omittedItems.any {
+            it.source.kind == PromptSourceKind.ChatHistory && it.source.referenceId == userMessage.id &&
+                it.reason == PromptOmissionReason.ContextBudget
+        })
+        // 同样的历史仍属于当前触发批次时，宁可报告预算不足，也不能静默删除用户图片。
+        assertThrows(PromptBudgetExceededException::class.java) {
+            builder.build(limited.copy(protectedUserMessageId = userMessage.id))
+        }
     }
 
     private fun character(id: Long, name: String): Character {

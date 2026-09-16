@@ -128,6 +128,7 @@ class MultimodalImageIntegrationTest {
         }
         val files = FileRepository(providerContext, database)
         val coordinator = MessageImageCoordinator(MessageImageRuntime(providerContext, files), files) {}
+        coordinator.choose(editing = false)
         val pick = async(start = CoroutineStart.UNDISPATCHED) {
             coordinator.handle(MessageImageAction.Picked(listOf(Uri.parse("content://audit/blocked-image"))))
         }
@@ -280,11 +281,22 @@ class MultimodalImageIntegrationTest {
     fun inMemoryDraftSavesOriginalAndRejectsResultsAfterEditingEnds() = runBlocking {
         val coordinator = MessageImageCoordinator(media, files) {}
         val original = fixture()
+        coordinator.choose(editing = false)
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         val uuid = coordinator.state.draft.single()
-        // 新 ViewModel 使用独立的内存草稿，不读取旧协调器拥有的暂存。
+        // 新 ViewModel 不接纳原页面尚未交付的选择结果，也不恢复旧暂存。
         val fresh = MessageImageCoordinator(media, files) {}
+        fresh.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         assertTrue(fresh.state.draft.isEmpty())
+        assertEquals(R.string.image_prepare_failed, fresh.state.errorResId)
+        assertFalse(fresh.state.processing)
+        // 成功或取消的回调都会消费归属，重复结果不能继续往草稿追加附件。
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
+        assertEquals(listOf(uuid), coordinator.state.draft)
+        coordinator.choose(editing = false)
+        coordinator.handle(MessageImageAction.Picked(emptyList()))
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
+        assertEquals(listOf(uuid), coordinator.state.draft)
         coordinator.handle(MessageImageAction.Preview(listOf(uuid), 0))
         val metadata = requireNotNull(coordinator.beginSave())
         assertEquals("image/png", metadata.mimeType)
@@ -308,6 +320,7 @@ class MultimodalImageIntegrationTest {
     @Test
     fun visibleDraftAndEditingThumbnailsSurviveHistoryEvictionAndReferenceRelease() = runBlocking {
         val coordinator = MessageImageCoordinator(media, files) {}
+        coordinator.choose(editing = false)
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
         val draft = coordinator.state.draft.single()
         val prepared = media.prepare("editing", Uri.fromFile(fixture()))
@@ -417,12 +430,20 @@ class MultimodalImageIntegrationTest {
                 (failure as ImageRequestException).failure)
             assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
         }
-        // 请求文件完成编码后，非法地址仍必须释放文件。
-        val invalidClient = OpenAICompatibleLLMClient(OkHttpClient(), logs,
-            provider.copy(baseUrl = "invalid-address"), media)
+        // 三协议无论在编码前还是编码后拒绝非法地址，都不能遗留请求文件。
         val request = LLMGenerationRequest(listOf(messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Image(reference)))))
-        assertTrue(runCatching { invalidClient.generate(request) }.isFailure)
-        assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+        for (protocol in LLMProviderProtocol.entries) {
+            val invalidProvider = provider.copy(protocol = protocol, baseUrl = "invalid-address")
+            val invalidClient: LLMClient = when (protocol) {
+                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(OkHttpClient(), logs, invalidProvider, media)
+                LLMProviderProtocol.Gemini -> GeminiLLMClient(OkHttpClient(), logs, invalidProvider, media)
+                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(OkHttpClient(), logs, invalidProvider, media)
+            }
+            assertTrue(runCatching { invalidClient.generate(request) }.exceptionOrNull() is IllegalArgumentException)
+            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+            assertTrue(runCatching { invalidClient.streamGenerate(request).toList() }.exceptionOrNull() is IllegalArgumentException)
+            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+        }
     }
 
     @Test

@@ -63,6 +63,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
  * @property recursiveScanningLorebookIds 开启递归扫描的世界书 ID 集合
  * @property generationMode 群聊生成模式（普通、续写、重生成、扮演用户）
  * @property regexScripts 生效的 Regex 脚本列表
+ * @property protectedUserMessageId 仅本批次不可裁剪的触发用户消息，后续无新输入批次为空
  */
 data class GroupChatPromptContext(
     val session: GroupChatSession,
@@ -78,7 +79,8 @@ data class GroupChatPromptContext(
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
     val regexScripts: List<ScopedRegexScript> = emptyList(),
     val messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
-    val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
+    val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
+    val protectedUserMessageId: Long? = null
 )
 
 /** 群聊回复的生成模式。 */
@@ -229,11 +231,12 @@ class GroupChatPromptBuilder(
             }
         }
         // 将历史消息转换为带发言者前缀的 Prompt 草稿
-        val latestUserId = history.lastOrNull { it.source == GroupChatMessage.Source.User }?.id
         val historyMessages = history.mapIndexed { index, message ->
             val hasImages = !context.messageImages[message.id].isNullOrEmpty() ||
                 !context.unavailableImages[message.id].isNullOrEmpty()
-            val protectsUserImages = hasImages && message.id == latestUserId
+            // 只保护明确触发本批次的用户图文，旧批次图片恢复普通历史裁剪规则。
+            val protectsUserImages = hasImages && message.source == GroupChatMessage.Source.User &&
+                message.id == context.protectedUserMessageId
             message.toPromptDraft(
                 userName = context.session.userName,
                 retentionPriority = PromptRetentionPolicy.HISTORY,

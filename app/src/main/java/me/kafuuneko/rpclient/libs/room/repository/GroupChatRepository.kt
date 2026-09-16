@@ -42,10 +42,12 @@ data class GroupChatData(
  *
  * @property data 会话、成员、最近历史窗口和摘要组成的生成快照。
  * @property totalMessageCount 当前群聊的完整消息总数。
+ * @property messageImages 与历史正文、摘要在同一事务读取的有序附件快照。
  */
 data class GroupChatPromptData(
     val data: GroupChatData,
-    val totalMessageCount: Int
+    val totalMessageCount: Int,
+    val messageImages: List<MessageWithImages>
 )
 
 /**
@@ -273,7 +275,8 @@ class GroupChatRepository(
                     messages = retained,
                     summary = summary
                 ),
-                totalMessageCount = mMessageDao.getMessageCount(sessionId)
+                totalMessageCount = mMessageDao.getMessageCount(sessionId),
+                messageImages = getMessagesWithImages(retained.map { it.id })
             )
         }
     }

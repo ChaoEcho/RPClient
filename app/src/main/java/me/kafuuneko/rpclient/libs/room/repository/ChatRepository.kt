@@ -46,12 +46,12 @@ data class ChatSummaryGenerationContext(
  * 普通生成请求使用的摘要与最近历史窗口。
  *
  * @property summary 当前请求实际使用的摘要内容。
- * @property messages 按创建时间正序排列的最近历史消息。
+ * @property messages 按创建时间正序排列、包含正文及有序附件的最近历史消息快照。
  * @property totalMessageCount 排除待替换消息后的完整普通消息总数。
  */
 data class ChatPromptHistoryContext(
     val summary: String,
-    val messages: List<ChatMessage>,
+    val messages: List<MessageWithImages>,
     val totalMessageCount: Int
 )
 
@@ -677,9 +677,10 @@ class ChatRepository(
                     totalMessageCount = totalMessageCount
                 )
             }
+            // 同一事务直接返回图文聚合，不保留需要相互对齐的两份消息列表。
             ChatPromptHistoryContext(
                 summary = latestSummary?.content.orEmpty(),
-                messages = messagesAfterSummary,
+                messages = getMessagesWithImages(messagesAfterSummary.map { it.id }),
                 totalMessageCount = totalMessageCount
             )
         }
@@ -1258,7 +1259,7 @@ class ChatRepository(
         )
         return ChatPromptHistoryContext(
             summary = previousSummary?.content.orEmpty(),
-            messages = messages,
+            messages = getMessagesWithImages(messages.map { it.id }),
             totalMessageCount = totalMessageCount
         )
     }

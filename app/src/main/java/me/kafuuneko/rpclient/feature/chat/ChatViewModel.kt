@@ -2113,7 +2113,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 组装 PromptBuildContext 并调用 Prompt 构建器
         val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val regexScripts = mRegexRepository.activeScripts(listOf(character))
-        val imageReferences = mImageRuntime.prepareCandidates(mChatRepository.getMessagesWithImages(generationHistory.messages.map { it.id }))
+        val imageReferences = mImageRuntime.prepareCandidates(generationHistory.messages)
         val buildResult = withContext(Dispatchers.Default) {
             mChatPromptBuilder.buildWithMetadata(
                 PromptBuildContext(
@@ -2122,7 +2122,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     character = character,
                     session = session.copy(creatorNotes = creatorNotes),
                     summary = generationHistory.summary,
-                    messages = generationHistory.messages,
+                    // Builder 的正文输入也由同一图文快照投影，不再持有另一份数据库消息列表。
+                    messages = generationHistory.messages.map { message ->
+                        ChatMessage(
+                            id = message.key.messageId,
+                            sessionId = sessionId,
+                            createTime = message.createTime,
+                            source = ChatMessage.Source.valueOf(message.source),
+                            content = message.content,
+                            coveredMessageId = message.coveredMessageId
+                        )
+                    },
                     messageImages = imageReferences.references,
                     unavailableImages = imageReferences.unavailable,
                     currentUserMessage = null,

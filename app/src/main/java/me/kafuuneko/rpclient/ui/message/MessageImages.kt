@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,7 +34,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +51,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 
 /**
  * 输入栏待发送图片抽屉托盘组件。
- * 仅在存在待发送图片或正在处理图片时渲染；采用裁切圆角、浮动删除标与轻量级追加卡片设计。
+ * 在有附件、处理任务或错误提示时渲染；草稿通过长按菜单调整顺序。
  *
  * @param state 当前页面的图片状态。
  * @param enabled 页面是否允许修改附件。
@@ -59,8 +65,9 @@ fun DraftAttachmentTray(
     modifier: Modifier = Modifier,
     emit: (MessageImageAction) -> Unit
 ) {
-    if (state.draft.isEmpty() && !state.processing) return
+    if (state.draft.isEmpty() && !state.processing && state.errorResId == null) return
     val currentEmit by rememberUpdatedState(emit)
+    var moveMenuUuid by remember(state.draft, enabled, state.processing) { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -92,9 +99,16 @@ fun DraftAttachmentTray(
                             ),
                             RoundedCornerShape(12.dp)
                         )
-                        .clickable(enabled = !state.processing) {
-                            currentEmit(MessageImageAction.Preview(state.draft, index))
-                        },
+                        .combinedClickable(
+                            enabled = !state.processing,
+                            onClick = {
+                                currentEmit(MessageImageAction.Preview(state.draft, index))
+                            },
+                            onLongClickLabel = stringResource(R.string.image_move_earlier),
+                            onLongClick = if (enabled && index > 0) {
+                                { moveMenuUuid = uuid }
+                            } else null
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     val bitmap = state.thumbnails[uuid]
@@ -146,6 +160,20 @@ fun DraftAttachmentTray(
                                 modifier = Modifier.size(12.dp)
                             )
                         }
+                    }
+                    // 菜单绑定图片 UUID，重排后仍操作同一附件，沿用历史编辑的前移交互。
+                    DropdownMenu(
+                        expanded = moveMenuUuid == uuid && enabled && !state.processing && index > 0,
+                        onDismissRequest = { moveMenuUuid = null }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.image_move_earlier)) },
+                            enabled = enabled && !state.processing && index > 0,
+                            onClick = {
+                                moveMenuUuid = null
+                                currentEmit(MessageImageAction.Move(uuid, editing = false))
+                            }
+                        )
                     }
                 }
             }

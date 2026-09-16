@@ -1250,7 +1250,7 @@ private fun ChatInputBar(
                     .height(0.5.dp)
             )
 
-            // 待发送图片抽屉托盘（仅在存在草稿图或处理中时展示）
+            // 附件为空时仍保留选图失败提示。
             DraftAttachmentTray(
                 state = imageState,
                 enabled = !isGenerating,

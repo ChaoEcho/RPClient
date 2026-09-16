@@ -167,8 +167,7 @@ class GeminiLLMClient(
             )
         }
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
-        val prepared = codec.prepare(finalPayload, request, mImageRuntime)
-
+        // 地址解析可能失败，必须在生成含图临时文件之前完成。
         val action = if (stream) "streamGenerateContent" else "generateContent"
         val url = "${mProvider.normalizedBaseUrl()}/v1beta/models/$model:$action"
             .toHttpUrl()
@@ -176,6 +175,7 @@ class GeminiLLMClient(
             .apply { if (mProvider.apiKey.isNotBlank()) addQueryParameter("key", mProvider.apiKey) }
             .apply { if (stream) addQueryParameter("alt", "sse") }
             .build()
+        val prepared = codec.prepare(finalPayload, request, mImageRuntime)
         return prepared.toHttpRequest {
             Request.Builder()
                 .url(url)

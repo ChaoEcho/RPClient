@@ -21,16 +21,18 @@ class MessageImageCoordinator(
     private val mFiles: FileRepository,
     private val mChanged: (MessageImageState) -> Unit
 ) {
+    /** 系统选择器的单次内存归属；新 ViewModel 不接纳旧页面的在途结果。 */
+    private data class PendingPick(val editing: Boolean, val editingVersion: Long)
+
     private val mOwner = UUID.randomUUID().toString()
     private val mPrepared = mutableMapOf<String, PreparedFile>()
     private val mDisplayReferences = mutableMapOf<String, Int>()
     private val mLoading = mutableSetOf<String>()
-    private var mPickEditing = false
+    private var mPendingPick: PendingPick? = null
     private var mSaveUuid: String? = null
     private var mEditingActive = false
     // 每次退出或切换编辑都使旧选择器结果失效，不能只判断是否仍处于编辑态。
     private var mEditingVersion = 0L
-    private var mPickEditingVersion = 0L
     private var mProcessingJob: Job? = null
     private var mProcessingEditing = false
     // 取消后允许新任务立即开始，旧任务的 finally 必须失去发布状态的权限。
@@ -40,6 +42,7 @@ class MessageImageCoordinator(
 
     /** 页面销毁时释放仍未提交的暂存；已提交的 UUID 已从所有权集合移除。 */
     suspend fun releaseDrafts() {
+        mPendingPick = null
         mPrepared.values.toList().forEach { mFiles.releasePrepared(it) }
         mPrepared.clear()
         mDisplayReferences.clear()
@@ -52,8 +55,7 @@ class MessageImageCoordinator(
      * @param editing 是否将本次选择的图片加入历史消息编辑区。
      */
     fun choose(editing: Boolean) {
-        mPickEditing = editing
-        mPickEditingVersion = mEditingVersion
+        mPendingPick = PendingPick(editing, mEditingVersion)
     }
 
     /** 立即撤销任务的状态发布权；底层资源在 IO 线程取消，不阻塞串行 Intent。 */
@@ -187,9 +189,16 @@ class MessageImageCoordinator(
      * @param action 系统选择器返回的 URI 列表。
      */
     private suspend fun pick(action: MessageImageAction.Picked) {
-        if (state.processing) return
-        val editing = mPickEditing
-        val editingVersion = mPickEditingVersion
+        // 包括取消在内，每次回调都消费选择记录；进程重建或重复结果不能默认归入新草稿。
+        val pendingPick = mPendingPick
+        mPendingPick = null
+        if (action.uris.isEmpty() || state.processing) return
+        if (pendingPick == null) {
+            publish(state.copy(errorResId = R.string.image_prepare_failed))
+            return
+        }
+        val editing = pendingPick.editing
+        val editingVersion = pendingPick.editingVersion
         // 编辑已经结束时，迟到的选择器结果不能误加到新消息草稿。
         if (editing && (!mEditingActive || editingVersion != mEditingVersion)) {
             publish(state.copy(errorResId = R.string.image_edit_ended))

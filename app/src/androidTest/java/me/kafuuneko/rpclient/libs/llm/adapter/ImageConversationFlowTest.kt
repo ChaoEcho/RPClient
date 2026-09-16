@@ -1,10 +1,14 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import android.app.Activity
+import android.app.Instrumentation
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -74,7 +78,7 @@ class ImageConversationFlowTest {
                 lateinit var vm: ChatViewModel
                 scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first() }
-                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Picked(listOf(Uri.fromFile(fixture.image)))))
+                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first { it.imageState.draft.size == 1 && !it.imageState.processing } }
                 // Activity 配置重建复用 ViewModel，内存中的文字和图片草稿仍然保留。
                 vm.emit(ChatUiIntent.ChangeInputDraft("unsent draft"))
@@ -142,7 +146,7 @@ class ImageConversationFlowTest {
                 lateinit var vm: GroupChatViewModel
                 scenario.onActivity { vm = ViewModelProvider(it)[GroupChatViewModel::class.java] }
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<GroupChatUiState.Normal>().first() }
-                vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Picked(listOf(Uri.fromFile(fixture.image)))))
+                vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<GroupChatUiState.Normal>().first { it.imageState.draft.size == 1 && !it.imageState.processing } }
                 // Activity 配置重建复用 ViewModel，内存中的文字和图片草稿仍然保留。
                 vm.emit(GroupChatUiIntent.ChangeInputDraft("unsent draft"))
@@ -214,7 +218,7 @@ class ImageConversationFlowTest {
                 lateinit var vm: ChatViewModel
                 scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first() }
-                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Picked(listOf(Uri.fromFile(fixture.image)))))
+                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first { it.imageState.draft.size == 1 && !it.imageState.processing } }
                 // 服务端保持 SSE 开启却不返回下一行，停止必须主动关闭 socket。
                 vm.emit(ChatUiIntent.SendMessage)
@@ -250,13 +254,25 @@ class ImageConversationFlowTest {
     private suspend fun withFixture(block: suspend (Fixture) -> Unit) {
         val koin = GlobalContext.get()
         val db = koin.get<AppDatabase>()
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
         val server = LocalModelServer()
         val llm = koin.get<LLMRepository>()
         val providerId = llm.saveProvider(LLMProvider(name = "Image flow fixture", providerType = LLMProviderType.Custom,
             protocol = LLMProviderProtocol.OpenAICompatible, baseUrl = "http://127.0.0.1:${server.port}", model = "fixture", contextTokens = 100_000))
         val characters = mutableListOf<Long>()
         val image = File(context.cacheDir, "image-flow-fixture.png")
+        // 经由真实 Choose → Activity 回调登记选择归属，仅替换外部系统选择器的结果。
+        val pickerIntent = ActivityResultContracts.PickMultipleVisualMedia(4).createIntent(
+            context, PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+        val pickerMonitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != pickerIntent.action) return null
+                return Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(Uri.fromFile(image)))
+            }
+        }
+        instrumentation.addMonitor(pickerMonitor)
         val old = listOf(AppModel.currentLLMProvider, AppModel.summaryLLMProvider, AppModel.streamEnabled,
             AppModel.autoSummaryEnabled, AppModel.maxPromptHistoryMessages)
         try {
@@ -276,8 +292,9 @@ class ImageConversationFlowTest {
             AppModel.streamEnabled = false
             AppModel.autoSummaryEnabled = false
             AppModel.maxPromptHistoryMessages = 100
-            block(Fixture(context, db, characters, server, image))
+            block(Fixture(context, db, characters, server))
         } finally {
+            instrumentation.removeMonitor(pickerMonitor)
             AppModel.currentLLMProvider = old[0] as Long
             AppModel.summaryLLMProvider = old[1] as Long
             AppModel.streamEnabled = old[2] as Boolean
@@ -291,7 +308,7 @@ class ImageConversationFlowTest {
     }
 
     private data class Fixture(val context: Context, val db: AppDatabase,
-        val characters: List<Long>, val server: LocalModelServer, val image: File)
+        val characters: List<Long>, val server: LocalModelServer)
 
     /** 只监听设备回环地址，返回固定文本并记录合成测试请求。 */
     private class LocalModelServer : AutoCloseable {
