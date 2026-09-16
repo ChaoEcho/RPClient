@@ -19,7 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.main.presentation.ImageSendField
+import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
@@ -35,19 +35,29 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 internal fun ImageSendPanel(state: MainImageSendState, emit: MainUiIntent.() -> Unit) {
     RpSettingsGroup {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.image_send_title), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.image_send_description), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stringResource(R.string.image_send_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(R.string.image_send_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             // 窄屏与较长译文允许换行，避免模式按钮挤压参数输入。
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ImageSendMode.entries.forEach { mode ->
-                    FilterChip(selected = state.mode == mode,
+                    FilterChip(
+                        selected = state.mode == mode,
                         onClick = { MainUiIntent.SelectImageSendMode(mode).emit() },
                         label = { Text(stringResource(mode.titleRes())) })
                 }
             }
-            Text(stringResource(state.mode.descriptionRes()), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stringResource(state.mode.descriptionRes()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (state.mode == ImageSendMode.Custom) ImageSendLimits(state, emit)
         }
     }
@@ -75,9 +85,11 @@ private fun ImageSendLimits(state: MainImageSendState, emit: MainUiIntent.() -> 
 /** 数字键盘仅提供输入便利，合法性由 ViewModel 校验。 */
 @Composable
 private fun ImageLimitField(value: String, @StringRes label: Int, onChange: (String) -> Unit) {
-    OutlinedTextField(value = value, onValueChange = onChange, label = { Text(stringResource(label)) },
+    OutlinedTextField(
+        value = value, onValueChange = onChange, label = { Text(stringResource(label)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true, modifier = Modifier.fillMaxWidth())
+        singleLine = true, modifier = Modifier.fillMaxWidth()
+    )
 }
 
 /** @return 发送模式对应的本地化名称。 */

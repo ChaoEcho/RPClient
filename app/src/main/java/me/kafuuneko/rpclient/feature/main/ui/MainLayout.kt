@@ -97,26 +97,26 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
+import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
@@ -166,17 +166,17 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 
@@ -219,7 +219,7 @@ private fun MainNormal(
             }
 
             val selectionState = uiState.homeState.selectionState
-                as? MainHomeSelectionState.Selecting
+                    as? MainHomeSelectionState.Selecting
             if (selectionState != null && uiState.selectedPage == MainPage.Home) {
                 MultiSelectBottomBar(
                     modifier = Modifier
@@ -420,12 +420,14 @@ private fun MainGenerationParameter.sliderConfig(): SliderConfig? = when (this) 
         minLabel = stringResource(R.string.parameter_temp_min_label),
         maxLabel = stringResource(R.string.parameter_temp_max_label)
     )
+
     MainGenerationParameter.TopP -> SliderConfig(
         range = 0.00f..1.00f,
         step = 0.05f,
         minLabel = stringResource(R.string.parameter_topp_min_label),
         maxLabel = stringResource(R.string.parameter_topp_max_label)
     )
+
     MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> null
 }
 
@@ -436,12 +438,14 @@ private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption>
         NumericEditQuickOption(stringResource(R.string.parameter_preset_balanced), "0.70"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20")
     )
+
     MainGenerationParameter.TopP -> listOf(
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_focused), "0.50"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_balanced), "0.80"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_rich), "0.95"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00")
     )
+
     MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> {
         TokenPreset.entries.map { preset ->
             NumericEditQuickOption(
@@ -474,8 +478,14 @@ private fun MainBottomBarItem(
         Color.Transparent
     }
 
-    val contentColor by animateColorAsState(targetValue = targetContentColor, label = "bottomBarContentColor")
-    val containerColor by animateColorAsState(targetValue = targetContainerColor, label = "bottomBarContainerColor")
+    val contentColor by animateColorAsState(
+        targetValue = targetContentColor,
+        label = "bottomBarContentColor"
+    )
+    val containerColor by animateColorAsState(
+        targetValue = targetContainerColor,
+        label = "bottomBarContainerColor"
+    )
 
     Box(
         modifier = modifier
@@ -1296,7 +1306,10 @@ private fun HomeContentCard(
                         modifier = Modifier.size(38.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -1742,7 +1755,10 @@ private fun UserAvatarPicker(
             modifier = Modifier.size(70.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            ),
             shadowElevation = 2.dp
         ) {
             if (avatarImage == null) {
@@ -1805,7 +1821,8 @@ private fun PromptBehaviorPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
             )
             val postProcessingState = state.providerPostProcessingState
-            val selectedMode = (postProcessingState as? MainProviderPostProcessingState.Available)?.mode
+            val selectedMode =
+                (postProcessingState as? MainProviderPostProcessingState.Available)?.mode
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -2117,7 +2134,9 @@ private fun ParameterPanel(
             iconContainerColor = AccentBlueColor.copy(alpha = 0.14f),
             title = stringResource(R.string.top_p),
             value = state.topP.toString(),
-            onClick = { MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit() }
+            onClick = {
+                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit()
+            }
         )
         RpSettingsDivider()
         RpSettingsValueTile(

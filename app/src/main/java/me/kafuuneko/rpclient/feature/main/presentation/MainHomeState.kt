@@ -1,19 +1,12 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
+import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
+import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
-
-/** 首页内容流的筛选分类。 */
-enum class MainHomeContentTab {
-    All,
-    Single,
-    Group,
-    Story
-}
 
 /** 首页状态树，组合资源统计、会话、故事、内容筛选 Tab 和多选交互状态。 */
 data class MainHomeState(
@@ -113,8 +106,10 @@ internal fun MainHomeState.preserveCollapsedGroupsFrom(
     previous: MainHomeState
 ): MainHomeState {
     val tabPreserved = copy(selectedContentTab = previous.selectedContentTab)
-    val refreshed = tabPreserved.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
-    val previousContent = previous.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
+    val refreshed =
+        tabPreserved.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
+    val previousContent =
+        previous.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
     val availableCharacterIds = refreshed.sessionGroups.mapTo(mutableSetOf()) { it.characterId }
     return tabPreserved.copy(
         recentChatsState = refreshed.copy(

@@ -1,7 +1,10 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
+import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
@@ -160,6 +163,27 @@ sealed class MainSummaryInjectionState(
         /** 摘要注入聊天历史内部时采用的消息角色。 */
         val role: SummaryInjectionRole
     ) : MainSummaryInjectionState(SummaryInjectionPosition.InChat)
+}
+
+/** 图片发送面板；输入草稿与已保存配置分离，非法输入不会影响正在准备的请求。 */
+data class MainImageSendState(
+    val mode: ImageSendMode = ImageSendMode.Auto,
+    val maxFileKiB: String = "2048",
+    val maxWidth: String = "1536",
+    val maxHeight: String = "1536",
+    val hasChanges: Boolean = false,
+    @param:StringRes val errorResId: Int? = null
+) {
+    companion object {
+        /**
+         * 从已校验偏好创建面板草稿。
+         * @param settings 当前已保存参数。
+         * @return 未修改的可编辑面板状态。
+         */
+        fun from(settings: ImageSendSettings): MainImageSendState = MainImageSendState(
+            settings.mode, settings.maxFileKiB.toString(), settings.maxWidth.toString(), settings.maxHeight.toString()
+        )
+    }
 }
 
 internal fun SummaryInjectionPosition.toMainSummaryInjectionState(
