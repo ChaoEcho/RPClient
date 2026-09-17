@@ -29,7 +29,8 @@ enum class ProviderPreset(
         baseUrl = "https://api.deepseek.com/v1",
         defaultModel = "deepseek-chat",
         defaultRequestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
-        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
+        defaultUseServerReportedUsage = true
     ),
     Gemini(
         displayName = "Google Gemini",

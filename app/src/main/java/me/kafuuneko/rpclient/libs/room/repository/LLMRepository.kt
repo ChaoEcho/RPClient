@@ -392,6 +392,7 @@ internal fun createDefaultLLMProviders(
             model = DEFAULT_DEEPSEEK_MODEL,
             requestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
             localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
