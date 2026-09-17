@@ -110,7 +110,6 @@ sealed class ChatDialogState {
         val enabledEntryIds: Set<Long>
     ) : ChatDialogState()
 
-    data object ImageExportWarning : ChatDialogState()
 
     data object Exporting : ChatDialogState()
 

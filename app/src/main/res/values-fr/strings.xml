@@ -884,7 +884,7 @@
     <string name="no_matching_characters">Aucun personnage correspondant</string>
     <string name="importing_chat">Importation…</string>
     <string name="export_chat">Exporter la discussion actuelle</string>
-    <string name="export_chat_desc">Enregistrer au format JSONL compatible avec SillyTavern</string>
+    <string name="export_chat_desc">Exporter en JSONL ; RPClient peut restaurer les images intégrées</string>
     <string name="exporting_chat">Exportation de la discussion…</string>
     <string name="export_chat_success">Discussion exportée</string>
     <string name="export_chat_failed">Échec de l\'exportation de la discussion</string>
@@ -1179,8 +1179,6 @@
     <string name="image_prepare_failed">L’image n’a pas pu être traitée, est manquante ou dépasse la limite. Choisissez à nouveau une image statique (au maximum quatre ; 32 Mio / 48 mégapixels chacune).</string>
     <string name="image_edit_ended">La modification est déjà terminée. Rouvrez l’éditeur de messages avant de sélectionner des images.</string>
     <string name="image_retry">Réessayer la réponse</string>
-    <string name="image_export_warning">Cette exportation texte n’inclut pas les images et ne peut pas les restaurer. Exporter le texte uniquement ?</string>
-    <string name="image_export_text">Exporter le texte uniquement</string>
     <string name="image_summary_paused">Le résumé de l’image a échoué. Les résumés automatiques sont en pause ; changez le modèle de résumé et reprenez dans les paramètres.</string>
     <string name="image_token_estimator">Estimation des tokens d’image</string>
     <string name="image_estimator_generic">Approximation générique</string>
@@ -1217,4 +1215,9 @@
     <string name="image_send_invalid_limits">Saisissez des entiers : fichier de 64–2048 KiB ; largeur et hauteur de 128–4096 px.</string>
     <string name="image_error_original_format">Le mode original accepte JPEG, PNG et WebP statique. Passez en mode automatique ou personnalisé pour convertir cette image.</string>
     <string name="image_error_original_large">Le fichier original dépasse 2 MiB ou 8000 px sur un côté. Utilisez la compression automatique ou personnalisée.</string>
+    <string name="chat_import_choose_image_directory">Choisir le dossier des images</string>
+    <string name="chat_import_external_images">Images externes : %1$d ; trouvées : %2$d. Choisissez le dossier original pour les restaurer. Les images indisponibles seront ignorées.</string>
+    <string name="chat_import_reading_images">Lecture des images…</string>
+    <string name="chat_import_image_directory_failed">Impossible de lire le dossier des images</string>
+    <string name="chat_archive_images_skipped">Terminé. %1$d images indisponibles ont été ignorées.</string>
 </resources>

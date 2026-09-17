@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -151,7 +152,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.utils.toggle
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -1646,15 +1646,6 @@ private fun DialogSwitch(
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { ChatUiIntent.OpenProviderSettings.emit() }
-        )
-
-        ChatDialogState.ImageExportWarning -> AppConfirmDialog(
-            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-            title = stringResource(R.string.image_export_text),
-            message = stringResource(R.string.image_export_warning),
-            confirmText = stringResource(R.string.image_export_text),
-            dismissText = stringResource(R.string.cancel),
-            onConfirm = { ChatUiIntent.ConfirmTextExport.emit() }
         )
 
         ChatDialogState.Exporting -> LoadingDialog(

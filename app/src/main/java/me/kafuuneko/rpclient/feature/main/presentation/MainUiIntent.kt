@@ -81,6 +81,10 @@ sealed class MainUiIntent {
 
     data class SelectImportCharacter(val characterId: Long) : MainUiIntent()
 
+    data object ChooseChatImageDirectory : MainUiIntent()
+
+    data class ChatImageDirectoryResult(val uri: Uri?) : MainUiIntent()
+
     data object ConfirmImportChat : MainUiIntent()
 
     data class ChangeUserName(val value: String) : MainUiIntent()

@@ -64,7 +64,6 @@ sealed class ChatUiIntent {
 
     data object CloseChatSettings : ChatUiIntent()
 
-    data object ConfirmTextExport : ChatUiIntent()
 
     data object ExportChatClick : ChatUiIntent()
 

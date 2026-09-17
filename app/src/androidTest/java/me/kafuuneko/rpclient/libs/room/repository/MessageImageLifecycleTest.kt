@@ -24,7 +24,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -103,10 +105,11 @@ class MessageImageLifecycleTest {
         assertNotNull("Expected operation to fail", failure)
     }
 
-    /** 含图导出必须确认遗漏，群聊同 ID 附件和移除后的附件不能误触发。 */
+    /** 附件检测必须区分群聊同 ID 消息，并反映移除后的实际关联。 */
     @Test
     fun archiveImageDetectionUsesStoredTypeAndCurrentAttachments() = runBlocking {
-        val archive = ChatArchiveRepository(context, database, ChatArchiveCodec(Gson()))
+        val archive = ChatArchiveRepository(context, database, ChatArchiveCodec(Gson()), files,
+            MessageImageRuntime(context, files), ChatArchiveImageStore(context))
         assertFalse(archive.hasImages(sessionId))
         val single = chat.createUserMessageWithImages(sessionId, "text", emptyList())
         val groupImage = group.createUserMessageWithImages(

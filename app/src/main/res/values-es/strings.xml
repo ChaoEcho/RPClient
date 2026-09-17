@@ -973,7 +973,7 @@
     <string name="no_matching_characters">No hay personajes coincidentes</string>
     <string name="importing_chat">Importando…</string>
     <string name="export_chat">Exportar chat actual</string>
-    <string name="export_chat_desc">Guardar como JSONL compatible con SillyTavern</string>
+    <string name="export_chat_desc">Exportar JSONL; RPClient puede restaurar las imágenes incrustadas</string>
     <string name="exporting_chat">Exportando chat…</string>
     <string name="export_chat_success">Chat exportado</string>
     <string name="export_chat_failed">Error al exportar chat</string>
@@ -1180,8 +1180,6 @@
     <string name="image_prepare_failed">No se pudo procesar la imagen, falta o supera el límite. Vuelve a elegir una imagen estática (como máximo cuatro; 32 MiB / 48 megapíxeles cada una).</string>
     <string name="image_edit_ended">La edición ya ha finalizado. Vuelve a abrir el editor de mensajes antes de seleccionar imágenes.</string>
     <string name="image_retry">Reintentar respuesta</string>
-    <string name="image_export_warning">Esta exportación de texto no incluye imágenes y no puede restaurarlas. ¿Exportar solo el texto?</string>
-    <string name="image_export_text">Exportar solo el texto</string>
     <string name="image_summary_paused">No se pudo resumir la imagen. Los resúmenes automáticos están en pausa; cambia el modelo de resumen y reactívalos en los ajustes.</string>
     <string name="image_token_estimator">Estimador de tokens de imagen</string>
     <string name="image_estimator_generic">Aproximación genérica</string>
@@ -1218,4 +1216,9 @@
     <string name="image_send_invalid_limits">Introduce enteros: archivo de 64–2048 KiB; anchura y altura de 128–4096 px.</string>
     <string name="image_error_original_format">El envío original admite JPEG, PNG y WebP estático. Cambia a Automático o Personalizado para convertir esta imagen.</string>
     <string name="image_error_original_large">El original supera 2 MiB u 8000 px en algún lado. Usa compresión automática o personalizada.</string>
+    <string name="chat_import_choose_image_directory">Seleccionar carpeta de imágenes</string>
+    <string name="chat_import_external_images">Imágenes externas: %1$d; encontradas: %2$d. Selecciona la carpeta original para restaurarlas. Se omitirán las imágenes no disponibles.</string>
+    <string name="chat_import_reading_images">Leyendo imágenes…</string>
+    <string name="chat_import_image_directory_failed">No se pudo leer la carpeta de imágenes</string>
+    <string name="chat_archive_images_skipped">Completado. Se omitieron %1$d imágenes no disponibles.</string>
 </resources>

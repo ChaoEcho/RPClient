@@ -883,7 +883,7 @@
     <string name="no_matching_characters">Keine passenden Charaktere</string>
     <string name="importing_chat">Wird importiert…</string>
     <string name="export_chat">Aktuellen Chat exportieren</string>
-    <string name="export_chat_desc">Als SillyTavern-kompatible JSONL-Datei speichern</string>
+    <string name="export_chat_desc">JSONL exportieren; eingebettete Bilder lassen sich mit RPClient wiederherstellen</string>
     <string name="exporting_chat">Chat wird exportiert…</string>
     <string name="export_chat_success">Chat exportiert</string>
     <string name="export_chat_failed">Chat konnte nicht exportiert werden</string>
@@ -1178,8 +1178,6 @@
     <string name="image_prepare_failed">Das Bild konnte nicht verarbeitet werden, fehlt oder überschreitet das Limit. Wähle erneut ein statisches Bild (höchstens vier; je 32 MiB / 48 Megapixel).</string>
     <string name="image_edit_ended">Die Bearbeitung wurde bereits beendet. Öffne den Nachrichteneditor erneut, bevor du Bilder auswählst.</string>
     <string name="image_retry">Antwort erneut versuchen</string>
-    <string name="image_export_warning">Dieser Textexport enthält keine Bilder und kann sie nicht wiederherstellen. Nur Text exportieren?</string>
-    <string name="image_export_text">Nur Text exportieren</string>
     <string name="image_summary_paused">Die Bildzusammenfassung ist fehlgeschlagen. Automatische Zusammenfassungen sind pausiert; ändere das Zusammenfassungsmodell und setze sie in den Einstellungen fort.</string>
     <string name="image_token_estimator">Bild-Token-Schätzung</string>
     <string name="image_estimator_generic">Allgemeine Näherung</string>
@@ -1216,4 +1214,9 @@
     <string name="image_send_invalid_limits">Ganze Zahlen eingeben: Dateigröße 64–2048 KiB; Breite und Höhe 128–4096 px.</string>
     <string name="image_error_original_format">Originalversand unterstützt JPEG, PNG und statisches WebP. Zum Konvertieren Automatisch oder Benutzerdefiniert wählen.</string>
     <string name="image_error_original_large">Das Original überschreitet 2 MiB oder 8000 px an einer Seite. Automatische oder benutzerdefinierte Komprimierung wählen.</string>
+    <string name="chat_import_choose_image_directory">Bilderordner auswählen</string>
+    <string name="chat_import_external_images">Externe Bilder: %1$d; gefunden: %2$d. Wähle den ursprünglichen Bilderordner zur Wiederherstellung. Nicht verfügbare Bilder werden übersprungen.</string>
+    <string name="chat_import_reading_images">Bilder werden gelesen…</string>
+    <string name="chat_import_image_directory_failed">Der Bilderordner konnte nicht gelesen werden</string>
+    <string name="chat_archive_images_skipped">Abgeschlossen. %1$d nicht verfügbare Bilder übersprungen.</string>
 </resources>

@@ -957,7 +957,7 @@
     <string name="no_matching_characters">没有匹配的角色</string>
     <string name="importing_chat">正在导入…</string>
     <string name="export_chat">导出当前对话</string>
-    <string name="export_chat_desc">保存为酒馆兼容的 JSONL 文件</string>
+    <string name="export_chat_desc">导出 JSONL，内嵌图片可由 RPClient 恢复</string>
     <string name="exporting_chat">正在导出对话…</string>
     <string name="export_chat_success">对话已导出</string>
     <string name="export_chat_failed">导出对话失败</string>
@@ -1175,8 +1175,6 @@
     <string name="image_prepare_failed">图片无法处理、已丢失或超过限制，请重新选择静态图片（最多四张，单张 32 MiB / 4800 万像素）。</string>
     <string name="image_edit_ended">编辑状态已结束，请重新打开消息编辑后选择图片。</string>
     <string name="image_retry">重试回复</string>
-    <string name="image_export_warning">文字导出不包含图片，也无法恢复图片。是否仅导出文字？</string>
-    <string name="image_export_text">仅导出文字</string>
     <string name="image_summary_paused">图片摘要失败，已暂停自动摘要。请更换摘要模型后在设置中恢复。</string>
     <string name="image_token_estimator">图片预估器</string>
     <string name="image_estimator_generic">通用近似</string>
@@ -1213,4 +1211,9 @@
     <string name="image_send_invalid_limits">请输入整数：文件大小为 64–2048 KiB，宽度和高度为 128–4096 px。</string>
     <string name="image_error_original_format">原图发送支持 JPEG、PNG 和静态 WebP。请切换自动或自定义压缩以转换此图片。</string>
     <string name="image_error_original_large">原图超过 2 MiB 或任一边超过 8000 px。请切换自动或自定义压缩。</string>
+    <string name="chat_import_choose_image_directory">选择图片目录</string>
+    <string name="chat_import_external_images">外部图片 %1$d 张，已匹配 %2$d 张。选择原图片目录可恢复图片；无法读取的图片将跳过。</string>
+    <string name="chat_import_reading_images">正在读取图片…</string>
+    <string name="chat_import_image_directory_failed">无法读取图片目录</string>
+    <string name="chat_archive_images_skipped">已完成，跳过了 %1$d 张无法读取的图片。</string>
 </resources>

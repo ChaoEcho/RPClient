@@ -886,7 +886,7 @@
     <string name="no_matching_characters">Подходящие персонажи не найдены</string>
     <string name="importing_chat">Импорт…</string>
     <string name="export_chat">Экспортировать текущий чат</string>
-    <string name="export_chat_desc">Сохранить как JSONL, совместимый с SillyTavern</string>
+    <string name="export_chat_desc">Экспорт JSONL; встроенные изображения можно восстановить в RPClient</string>
     <string name="exporting_chat">Экспорт чата…</string>
     <string name="export_chat_success">Чат экспортирован</string>
     <string name="export_chat_failed">Не удалось экспортировать чат</string>
@@ -1183,8 +1183,6 @@
     <string name="image_prepare_failed">Не удалось обработать изображение: оно отсутствует или превышает ограничение. Выберите статическое изображение ещё раз (не более четырёх; по 32 МиБ / 48 мегапикселей каждое).</string>
     <string name="image_edit_ended">Редактирование уже завершено. Откройте редактор сообщения заново, прежде чем выбирать изображения.</string>
     <string name="image_retry">Повторить ответ</string>
-    <string name="image_export_warning">Этот экспорт текста не включает изображения и не может их восстановить. Экспортировать только текст?</string>
-    <string name="image_export_text">Экспортировать только текст</string>
     <string name="image_summary_paused">Не удалось создать сводку по изображению. Автоматические сводки приостановлены; смените модель сводок и возобновите в настройках.</string>
     <string name="image_token_estimator">Оценка токенов изображения</string>
     <string name="image_estimator_generic">Общая приблизительная оценка</string>
@@ -1221,4 +1219,9 @@
     <string name="image_send_invalid_limits">Введите целые числа: файл 64–2048 KiB; ширина и высота 128–4096 px.</string>
     <string name="image_error_original_format">Отправка оригинала поддерживает JPEG, PNG и статический WebP. Для преобразования включите автоматическое или настраиваемое сжатие.</string>
     <string name="image_error_original_large">Оригинал превышает 2 MiB или 8000 px по одной из сторон. Включите автоматическое или настраиваемое сжатие.</string>
+    <string name="chat_import_choose_image_directory">Выбрать папку изображений</string>
+    <string name="chat_import_external_images">Внешних изображений: %1$d; найдено: %2$d. Выберите исходную папку для восстановления. Недоступные изображения будут пропущены.</string>
+    <string name="chat_import_reading_images">Чтение изображений…</string>
+    <string name="chat_import_image_directory_failed">Не удалось прочитать папку изображений</string>
+    <string name="chat_archive_images_skipped">Готово. Пропущено недоступных изображений: %1$d.</string>
 </resources>

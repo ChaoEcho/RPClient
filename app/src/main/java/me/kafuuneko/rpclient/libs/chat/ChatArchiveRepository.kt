@@ -3,18 +3,29 @@ package me.kafuuneko.rpclient.libs.chat
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.room.withTransaction
+import java.io.File
+import java.io.FilterInputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.Writer
+import java.util.UUID
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
+import me.kafuuneko.rpclient.libs.llm.ImageRequestException
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageType
-import java.io.FilterInputStream
-import java.io.InputStream
-import java.io.Writer
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 
 /**
  * 单聊归档文件的应用层协调器。
@@ -25,17 +36,20 @@ import java.io.Writer
 class ChatArchiveRepository(
     private val mContext: Context,
     private val mAppDatabase: AppDatabase,
-    private val mCodec: ChatArchiveCodec
+    private val mCodec: ChatArchiveCodec,
+    private val mFiles: FileRepository,
+    private val mImages: MessageImageRuntime,
+    private val mImageStore: ChatArchiveImageStore
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
 
     /**
-     * 文字导出前检查是否需要提示用户图片遗漏。
+     * 检查单聊是否包含图片附件。
      *
      * @param sessionId 单聊会话 ID。
-     * @return 是否存在不会随文字归档导出的图片附件。
+     * @return 是否存在已保存的图片附件。
      */
     suspend fun hasImages(sessionId: Long): Boolean =
         mAppDatabase.getMessageImageDao().hasSingleSessionImages(sessionId, MessageType.Single)
@@ -45,10 +59,9 @@ class ChatArchiveRepository(
         mContext.contentResolver.openOutputStream(uri)
             ?.bufferedWriter(Charsets.UTF_8)
             ?.use { writer ->
-                mAppDatabase.withTransaction {
-                    writeArchive(sessionId, writer)
-                }
-                writer.flush()
+                mFiles.withReadSnapshot {
+                    writeArchive(sessionId, writer, this)
+                }.also { writer.flush() }
             }
             ?: error("Cannot open chat export destination")
     }
@@ -59,7 +72,10 @@ class ChatArchiveRepository(
      * 事务保证分页之间不会混入并发更新；每次只保留一页消息，writer 则直接接收每一行 JSON，
      * 因此内存峰值不再随整份导出文件额外复制。
      */
-    private suspend fun writeArchive(sessionId: Long, writer: Writer) {
+    private suspend fun writeArchive(
+        sessionId: Long, writer: Writer, snapshot: FileRepository.ReadSnapshot
+    ): Int {
+        var skipped = 0
         val archive = loadArchiveMetadata(sessionId)
         mCodec.encodeHeader(archive, writer)
         var afterCreateTime = Long.MIN_VALUE
@@ -71,18 +87,60 @@ class ChatArchiveRepository(
                 afterMessageId = afterMessageId,
                 limit = EXPORT_PAGE_SIZE
             )
-            if (messages.isEmpty()) return
+            if (messages.isEmpty()) return skipped
             val images = mAppDatabase.getMessageImageDao().getByMessages(
                 MessageType.Single, messages.map { it.id }).groupBy { it.messageId }
-            messages.forEach { message ->
-                val count = images[message.id].orEmpty().size
-                val text = if (count == 0) message.content else message.content + "\n[Images omitted: $count]"
-                mCodec.encodeMessage(archive, message.copy(content = text).toArchiveMessage(), writer)
+            // 每条消息直接写出图片字节，既不改正文，也不把整批 Base64 留在内存。
+            for (message in messages) {
+                val attachments = images[message.id].orEmpty()
+                if (attachments.isEmpty()) mCodec.encodeMessage(archive, message.toArchiveMessage(), writer)
+                else mCodec.encodeMessageWithImages(archive, message.toArchiveMessage(), writer) {
+                    skipped += writeAttachments(attachments, snapshot, writer)
+                }
             }
             val lastMessage = messages.last()
             afterCreateTime = lastMessage.createTime
             afterMessageId = lastMessage.id
-            if (messages.size < EXPORT_PAGE_SIZE) return
+            if (messages.size < EXPORT_PAGE_SIZE) return skipped
+        }
+    }
+
+    /** 缺失文件只计数，成功写出的附件保持原顺序和实际 MIME。 */
+    private suspend fun writeAttachments(
+        attachments: List<MessageImageEntity>,
+        snapshot: FileRepository.ReadSnapshot,
+        writer: Writer
+    ): Int {
+        val context = currentCoroutineContext()
+        var written = false
+        var skipped = 0
+        for (attachment in attachments) {
+            // 快照持有文件锁，检查与复制之间不会被并发回收。
+            snapshot.withFile(attachment.imageUuid) { file, _ ->
+                if (file == null) skipped++
+                else {
+                    if (written) writer.write(",")
+                    writeImageFile(file, writer, context)
+                    written = true
+                }
+            }
+        }
+        return skipped
+    }
+
+    /** 以固定缓冲区编码一张图片；协程取消立即停止读取。 */
+    private fun writeImageFile(file: File, writer: Writer, context: CoroutineContext) {
+        val image = ChatArchiveImage(mimeType = mImages.archiveMimeType(file))
+        ChatArchiveImageCodec.writeImage(image, writer) { output ->
+            file.inputStream().use { input ->
+                val buffer = ByteArray(8192)
+                while (true) {
+                    context.ensureActive()
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                }
+            }
         }
     }
 
@@ -90,79 +148,145 @@ class ChatArchiveRepository(
     suspend fun readImportFromUri(
         uri: Uri,
         fallbackUserName: String = DefaultNames.USER
-    ): ChatArchive = withContext(Dispatchers.IO) {
-        val fallbackTitle = resolveDisplayTitle(uri)
-        mContext.contentResolver.openInputStream(uri)?.use { input ->
-            SizeLimitedInputStream(input, MAX_IMPORT_BYTES.toLong()).reader(Charsets.UTF_8).use {
-                mCodec.decode(
-                    reader = it,
-                    fallbackTitle = fallbackTitle,
-                    fallbackUserName = fallbackUserName
-                )
+    ): ChatArchive {
+        var owner: String? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                val activeOwner = mImageStore.createOwner().also { owner = it }
+                val context = currentCoroutineContext()
+                val fallbackTitle = resolveDisplayTitle(uri)
+                mContext.contentResolver.openInputStream(uri)?.use { input ->
+                    SizeLimitedInputStream(input, MAX_IMPORT_BYTES).reader(Charsets.UTF_8).use { reader ->
+                        mCodec.decode(reader, fallbackTitle, fallbackUserName = fallbackUserName,
+                            transformImage = { image ->
+                                mImageStore.stage(activeOwner, image) { context.ensureActive() }
+                            }).copy(importOwner = activeOwner)
+                    }
+                } ?: error("Cannot read chat archive")
             }
-        } ?: error("Cannot read chat archive")
+        } catch (error: Throwable) {
+            // 包含切回调用者时取消的窗口，已落盘的解析暂存也必须释放。
+            withContext(NonCancellable + Dispatchers.IO) { owner?.let(mImageStore::release) }
+            throw error
+        }
+    }
+
+    /** 解析授权目录中的图片位置，不在选择目录时提前写入消息或文件索引。 */
+    suspend fun resolveImageDirectory(archive: ChatArchive, tree: Uri): Map<String, Uri> =
+        mImageStore.resolveDirectory(archive, tree)
+
+    /** 释放不再使用的导入快照资源，取消也必须完成清理。 */
+    suspend fun releaseImport(archive: ChatArchive) = withContext(NonCancellable + Dispatchers.IO) {
+        archive.importOwner?.let(mImageStore::release)
     }
 
     /**
-     * 将已解析归档绑定到用户选定的角色，并在一个 Room 事务中保存。
-     *
-     * 来源文件中的世界书条目和 timed-effect 状态使用本地自增 ID，无法跨安装验证，
-     * 因此不会自动恢复，避免碰巧同号的资源被误绑定。
+     * 恢复图片字节后原子提交会话、消息和附件；失败不留下半个会话或孤立文件。
+     * @param archive 已解析归档，Base64 暂存只属于本次导入。
+     * @param characterId 用户选定的本地角色。
+     * @param imageSources 用户授权目录中解析出的资源，无法读取的外部图片跳过。
+     * @return 新会话 ID 及跳过图片数。
      */
-    suspend fun saveImport(archive: ChatArchive, characterId: Long): Long =
-        withContext(Dispatchers.IO) {
-            mAppDatabase.withTransaction {
-                requireNotNull(mCharacterDao.getCharacterById(characterId)) {
-                    "Selected character no longer exists"
+    suspend fun saveImport(
+        archive: ChatArchive,
+        characterId: Long,
+        imageSources: Map<String, Uri> = emptyMap()
+    ): ChatArchiveImportResult = withContext(Dispatchers.IO) {
+        val owner = UUID.randomUUID().toString()
+        val prepared = mutableListOf<PreparedFile>()
+        var skipped = 0
+        try {
+            // 图片恢复在事务外完成；内嵌数据损坏应失败，外部资源缺失只跳过该图片。
+            val attachments = archive.messages.map { message ->
+                message.images.mapNotNull { image ->
+                    prepareImage(archive, owner, image, imageSources)?.also(prepared::add)
+                        ?: run { skipped++; null }
                 }
-                val sessionId = mChatSessionDao.insertOrReplace(
-                    ChatSession(
-                        characterId = characterId,
-                        createTime = archive.createTime,
-                        latestTime = maxOf(
-                            archive.latestTime,
-                            archive.messages.lastOrNull()?.createTime ?: archive.createTime
-                        ),
-                        lorebookEntrySet = "[]",
-                        title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
-                        userNote = archive.userNote,
-                        userName = archive.userName.normalizedUserName(),
-                        userDescription = archive.userDescription,
-                        creatorNotes = archive.creatorNotes,
-                        worldInfoStateJson = "{}",
-                        autoSummaryPaused = archive.autoSummaryPaused
-                    ).withNormalizedCreatorNotes()
-                )
-                val insertedMessageIds = if (archive.messages.isEmpty()) {
-                    emptyList()
-                } else {
-                    mChatMessageDao.insertOrReplaceAll(
-                        archive.messages.map { message ->
-                            ChatMessage(
-                                sessionId = sessionId,
-                                createTime = message.createTime,
-                                source = message.role.toEntitySource(),
-                                content = message.content
-                            )
-                        }
-                    )
-                }
-                archive.summary?.let { summary ->
-                    mChatMessageDao.insertOrReplace(
-                        ChatMessage(
-                            sessionId = sessionId,
-                            createTime = summary.createTime,
-                            source = ChatMessage.Source.Summary,
-                            content = summary.content,
-                            coveredMessageId = insertedMessageIds
-                                .getOrNull(summary.coveredMessageIndex)
-                                ?: 0L
-                        )
-                    )
-                }
-                sessionId
             }
+            mFiles.mutate(prepared) {
+                val sessionId = insertSession(archive, characterId)
+                insertMessages(archive, sessionId, attachments)
+                ChatArchiveImportResult(sessionId, skipped)
+            }
+        } finally {
+            prepared.forEach { mFiles.releasePrepared(it) }
         }
+    }
+
+    /** 内嵌图片优先，外部路径只能使用已经解析出的 DocumentsProvider URI。 */
+    private suspend fun prepareImage(
+        archive: ChatArchive,
+        owner: String,
+        image: ChatArchiveImage,
+        sources: Map<String, Uri>
+    ): PreparedFile? {
+        image.resourceKey?.let { key ->
+            return mImages.prepareArchive(owner, mImageStore.open(requireNotNull(archive.importOwner), key))
+        }
+        // 小型程序化导入也支持直接提供 Base64，不经过页面暂存。
+        image.data?.let { data ->
+            return mImages.prepareArchive(owner, ChatArchiveImageCodec.openData(data))
+        }
+        val uri = sources[image.sourceUrl] ?: return null
+        return try {
+            mContext.contentResolver.openInputStream(uri)?.let { mImages.prepareArchive(owner, it) }
+        } catch (error: IOException) {
+            currentCoroutineContext().ensureActive()
+            null
+        } catch (error: SecurityException) {
+            currentCoroutineContext().ensureActive()
+            null
+        } catch (error: ImageRequestException) {
+            currentCoroutineContext().ensureActive()
+            null
+        }
+    }
+
+    /** 创建会话时不复用来源安装的世界书及状态主键，避免同号误关联。 */
+    private suspend fun insertSession(archive: ChatArchive, characterId: Long): Long {
+        requireNotNull(mCharacterDao.getCharacterById(characterId)) { "Selected character no longer exists" }
+        // 只恢复可移植设置；外部数据库的世界书主键及运行状态必须重新建立。
+        return mChatSessionDao.insertOrReplace(ChatSession(
+            characterId = characterId,
+            createTime = archive.createTime,
+            latestTime = maxOf(archive.latestTime, archive.messages.lastOrNull()?.createTime ?: archive.createTime),
+            lorebookEntrySet = "[]",
+            title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
+            userNote = archive.userNote,
+            userName = archive.userName.normalizedUserName(),
+            userDescription = archive.userDescription,
+            creatorNotes = archive.creatorNotes,
+            worldInfoStateJson = "{}",
+            autoSummaryPaused = archive.autoSummaryPaused
+        ).withNormalizedCreatorNotes())
+    }
+
+    /** 在文件事务内恢复普通消息及有序附件；导入允许酒馆角色消息携带图片。 */
+    private suspend fun insertMessages(
+        archive: ChatArchive,
+        sessionId: Long,
+        images: List<List<PreparedFile>>
+    ) {
+        val ids = mutableListOf<Long>()
+        for ((index, message) in archive.messages.withIndex()) {
+            val id = mChatMessageDao.insertOrReplace(ChatMessage(
+                sessionId = sessionId, createTime = message.createTime,
+                source = message.role.toEntitySource(), content = message.content
+            ))
+            ids += id
+            // 所有 UUID 均来自同一文件事务已提交的凭据，不信任归档提供的本地主键。
+            mAppDatabase.getMessageImageDao().insertAll(images[index].mapIndexed { position, image ->
+                MessageImageEntity(MessageType.Single, id, position, image.file.uuid)
+            })
+        }
+        archive.summary?.let { summary ->
+            mChatMessageDao.insertOrReplace(ChatMessage(
+                sessionId = sessionId, createTime = summary.createTime,
+                source = ChatMessage.Source.Summary, content = summary.content,
+                coveredMessageId = ids.getOrNull(summary.coveredMessageIndex) ?: 0L
+            ))
+        }
+    }
 
     private suspend fun loadArchiveMetadata(sessionId: Long): ChatArchive {
         val session = requireNotNull(mChatSessionDao.getSessionById(sessionId)) {
@@ -273,6 +397,6 @@ class ChatArchiveRepository(
 
     private companion object {
         const val EXPORT_PAGE_SIZE = 256
-        const val MAX_IMPORT_BYTES = 32 * 1024 * 1024
+        const val MAX_IMPORT_BYTES = 512L * 1024 * 1024
     }
 }

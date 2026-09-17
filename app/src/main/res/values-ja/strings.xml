@@ -881,7 +881,7 @@
     <string name="no_matching_characters">一致するキャラクターがありません</string>
     <string name="importing_chat">インポート中…</string>
     <string name="export_chat">現在のチャットをエクスポート</string>
-    <string name="export_chat_desc">SillyTavern 互換の JSONL として保存</string>
+    <string name="export_chat_desc">JSONL をエクスポート。埋め込み画像は RPClient で復元できます</string>
     <string name="exporting_chat">チャットをエクスポート中…</string>
     <string name="export_chat_success">チャットをエクスポートしました</string>
     <string name="export_chat_failed">チャットのエクスポートに失敗しました</string>
@@ -1174,8 +1174,6 @@
     <string name="image_prepare_failed">画像を処理できなかったか、見つからないか、上限を超えています。静止画像を選び直してください（最大 4 枚、各 32 MiB / 4800 万画素）。</string>
     <string name="image_edit_ended">編集はすでに終了しています。画像を選択する前にメッセージ編集を開き直してください。</string>
     <string name="image_retry">返信を再試行</string>
-    <string name="image_export_warning">このテキスト書き出しには画像が含まれず、復元もできません。テキストのみを書き出しますか？</string>
-    <string name="image_export_text">テキストのみを書き出す</string>
     <string name="image_summary_paused">画像の要約に失敗しました。自動要約は一時停止中です。設定で要約モデルを変更して再開してください。</string>
     <string name="image_token_estimator">画像トークン推定器</string>
     <string name="image_estimator_generic">汎用の概算</string>
@@ -1212,4 +1210,9 @@
     <string name="image_send_invalid_limits">整数を入力してください：ファイルサイズ 64–2048 KiB、幅と高さ 128–4096 px。</string>
     <string name="image_error_original_format">元画像の送信は JPEG、PNG、静止 WebP に対応しています。変換するには自動またはカスタム圧縮に切り替えてください。</string>
     <string name="image_error_original_large">元画像が 2 MiB または一辺 8000 px を超えています。自動またはカスタム圧縮に切り替えてください。</string>
+    <string name="chat_import_choose_image_directory">画像フォルダーを選択</string>
+    <string name="chat_import_external_images">外部画像：%1$d 枚、一致：%2$d 枚。元の画像フォルダーを選択すると復元できます。読み込めない画像はスキップされます。</string>
+    <string name="chat_import_reading_images">画像を読み込み中…</string>
+    <string name="chat_import_image_directory_failed">画像フォルダーを読み込めませんでした</string>
+    <string name="chat_archive_images_skipped">完了しました。読み込めない画像 %1$d 枚をスキップしました。</string>
 </resources>

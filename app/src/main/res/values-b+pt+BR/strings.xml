@@ -976,7 +976,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="no_matching_characters">Nenhum personagem correspondente</string>
     <string name="importing_chat">Importando…</string>
     <string name="export_chat">Exportar chat atual</string>
-    <string name="export_chat_desc">Salvar como JSONL compatível com o SillyTavern</string>
+    <string name="export_chat_desc">Exportar JSONL; imagens incorporadas podem ser restauradas pelo RPClient</string>
     <string name="exporting_chat">Exportando chat…</string>
     <string name="export_chat_success">Chat exportado</string>
     <string name="export_chat_failed">Falha ao exportar chat</string>
@@ -1182,8 +1182,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="image_prepare_failed">Não foi possível processar a imagem, ela está ausente ou excede o limite. Escolha novamente uma imagem estática (no máximo quatro; 32 MiB / 48 megapixels cada).</string>
     <string name="image_edit_ended">A edição já foi encerrada. Reabra o editor de mensagens antes de selecionar imagens.</string>
     <string name="image_retry">Tentar resposta novamente</string>
-    <string name="image_export_warning">Esta exportação de texto não inclui imagens e não pode restaurá-las. Exportar somente o texto?</string>
-    <string name="image_export_text">Exportar somente o texto</string>
     <string name="image_summary_paused">Falha ao resumir a imagem. Os resumos automáticos estão pausados; altere o modelo de resumo e retome nas configurações.</string>
     <string name="image_token_estimator">Estimador de tokens de imagem</string>
     <string name="image_estimator_generic">Estimativa genérica</string>
@@ -1220,4 +1218,9 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="image_send_invalid_limits">Digite números inteiros: arquivo de 64–2048 KiB; largura e altura de 128–4096 px.</string>
     <string name="image_error_original_format">O envio original aceita JPEG, PNG e WebP estático. Selecione Automático ou Personalizado para converter esta imagem.</string>
     <string name="image_error_original_large">O original excede 2 MiB ou 8000 px em algum lado. Use a compressão automática ou personalizada.</string>
+    <string name="chat_import_choose_image_directory">Selecionar pasta de imagens</string>
+    <string name="chat_import_external_images">Imagens externas: %1$d; encontradas: %2$d. Selecione a pasta original para restaurar as imagens. Imagens indisponíveis serão ignoradas.</string>
+    <string name="chat_import_reading_images">Lendo imagens…</string>
+    <string name="chat_import_image_directory_failed">Não foi possível ler a pasta de imagens</string>
+    <string name="chat_archive_images_skipped">Concluído. %1$d imagens indisponíveis foram ignoradas.</string>
 </resources>

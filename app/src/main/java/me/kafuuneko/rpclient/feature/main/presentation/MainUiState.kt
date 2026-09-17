@@ -97,7 +97,11 @@ sealed class MainDialogState {
         /** 当前选中角色的 ID。 */
         val selectedCharacterId: Long?,
         /** 当前页面是否正在执行导入操作。 */
-        val isImporting: Boolean = false
+        val isImporting: Boolean = false,
+        /** 外部图片只在用户授权目录后尝试恢复；统计不包含 Base64 内容。 */
+        val externalImageCount: Int = 0,
+        val resolvedImageCount: Int = 0,
+        val isResolvingImages: Boolean = false
     ) : MainDialogState()
 }
 

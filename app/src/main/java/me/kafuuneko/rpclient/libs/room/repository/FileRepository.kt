@@ -9,6 +9,16 @@ import android.os.CancellationSignal
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import androidx.room.withTransaction
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.MessageDigest
+import java.util.Properties
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -24,16 +34,6 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.utils.withBlockingIoCancellation
 import me.kafuuneko.rpclient.model.SquareCropSelection
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.security.MessageDigest
-import java.util.Properties
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 文件存储库，提供文件的保存、获取和删除功能。
@@ -326,6 +326,27 @@ class FileRepository(
             } finally {
                 withContext(NonCancellable) { mutation.garbage.forEach { collectHash(it) } }
             }
+        }
+    }
+
+    /**
+     * 在固定锁顺序下读取归档快照，保护分页之间的图文及文件不被并发删除。
+     * @param block 只读导出操作，文件读取须使用快照入口，不能重新获取文件锁。
+     */
+    internal suspend fun <T> withReadSnapshot(block: suspend ReadSnapshot.() -> T): T =
+        withContext(Dispatchers.IO) {
+            mStorageMutex.withLock {
+                mAppDatabase.withTransaction { ReadSnapshot().block() }
+            }
+        }
+
+    /** 文件锁及数据库读取事务已由外层持有；仅供仓库导出消费文件。 */
+    internal inner class ReadSnapshot {
+        /** 在快照保护中消费文件与 MIME；物理缺失以 null 表达，不移除附件位置。 */
+        suspend fun <T> withFile(uuid: String, block: (File?, String?) -> T): T {
+            val entity = mFileDao.getByUuid(uuid)
+            val file = entity?.let { File(mRepositoryDir, it.hash).takeIf(File::isFile) }
+            return block(file, entity?.mimeType)
         }
     }
 

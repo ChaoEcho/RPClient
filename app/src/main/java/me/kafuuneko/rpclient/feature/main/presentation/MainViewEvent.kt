@@ -7,4 +7,5 @@ sealed class MainViewEvent : IViewEvent {
     data object OpenUserAvatarPicker : MainViewEvent()
 
     data object OpenChatImporter : MainViewEvent()
+    data object OpenChatImageDirectory : MainViewEvent()
 }

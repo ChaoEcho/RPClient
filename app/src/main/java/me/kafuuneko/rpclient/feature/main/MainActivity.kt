@@ -8,12 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import me.kafuuneko.rpclient.feature.imagecrop.ImageCropActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.ui.MainLayout
-import me.kafuuneko.rpclient.feature.imagecrop.ImageCropActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
@@ -47,6 +47,11 @@ class MainActivity : CoreActivityWithEvent() {
         mViewModel.emit(MainUiIntent.ImportChatResult(uri))
     }
 
+    /** 只将本次授权目录回传 ViewModel，不自动保存长期 URI 授权。 */
+    private val mChatImageDirectoryLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> mViewModel.emit(MainUiIntent.ChatImageDirectoryResult(uri)) }
+
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
     @Composable
@@ -79,6 +84,7 @@ class MainActivity : CoreActivityWithEvent() {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
             MainViewEvent.OpenUserAvatarPicker -> mUserAvatarPickerLauncher.launch("image/*")
+            MainViewEvent.OpenChatImageDirectory -> mChatImageDirectoryLauncher.launch(null)
             MainViewEvent.OpenChatImporter -> mChatImportLauncher.launch(
                 arrayOf(
                     "application/x-ndjson",

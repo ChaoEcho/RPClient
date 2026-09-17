@@ -34,7 +34,9 @@ data class ChatArchive(
     /** 当前状态或请求包含的消息列表。 */
     val messages: List<ChatArchiveMessage>,
     /** 当前会话或故事使用的摘要内容。 */
-    val summary: ChatArchiveSummary?
+    val summary: ChatArchiveSummary?,
+    /** 本次导入暂存的所有者，只在当前进程使用，不写入归档。 */
+    val importOwner: String? = null
 )
 
 /** 归档中的普通消息；列表顺序是唯一权威的对话顺序。 */
@@ -44,8 +46,22 @@ data class ChatArchiveMessage(
     /** 当前对象在业务流程中承担的角色。 */
     val role: ChatArchiveMessageRole,
     /** 当前对象承载的正文内容。 */
-    val content: String
+    val content: String,
+    /** 按消息显示顺序保存的图片，正文为空也不能丢弃。 */
+    val images: List<ChatArchiveImage> = emptyList()
 )
+
+/** 归档解析中的图片；外部引用仅用于导入阶段匹配资源，不写入数据库。 */
+data class ChatArchiveImage(
+    val mimeType: String? = null,
+    val data: String? = null,
+    val sourceUrl: String? = null,
+    /** 导入时将 Base64 移到私有暂存后的随机资源键，不含路径且不导出。 */
+    val resourceKey: String? = null
+)
+
+/** 原子导入完成后的会话及未能恢复的图片数量。 */
+data class ChatArchiveImportResult(val sessionId: Long, val skippedImages: Int)
 
 /** RPClient 单聊消息与 SillyTavern 消息标记之间的稳定角色集合。 */
 enum class ChatArchiveMessageRole {

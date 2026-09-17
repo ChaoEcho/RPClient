@@ -976,7 +976,7 @@
     <string name="no_matching_characters">No matching characters</string>
     <string name="importing_chat">Importing…</string>
     <string name="export_chat">Export current chat</string>
-    <string name="export_chat_desc">Save as SillyTavern-compatible JSONL</string>
+    <string name="export_chat_desc">Export JSONL; embedded images can be restored by RPClient</string>
     <string name="exporting_chat">Exporting chat…</string>
     <string name="export_chat_success">Chat exported</string>
     <string name="export_chat_failed">Failed to export chat</string>
@@ -1180,8 +1180,6 @@
     <string name="image_prepare_failed">The image could not be processed, is missing, or exceeds the limit. Pick a static image again (at most four; 32 MiB / 48 megapixels each).</string>
     <string name="image_edit_ended">Editing has already ended. Reopen the message editor before selecting images.</string>
     <string name="image_retry">Retry reply</string>
-    <string name="image_export_warning">This text export does not include images and cannot restore them. Export text only?</string>
-    <string name="image_export_text">Export text only</string>
     <string name="image_summary_paused">Image summarization failed. Automatic summaries are paused; change the summary model and resume in settings.</string>
     <string name="image_token_estimator">Image token estimator</string>
     <string name="image_estimator_generic">Generic approximation</string>
@@ -1221,4 +1219,9 @@
     <string name="image_send_invalid_limits">Enter whole numbers: file size 64–2048 KiB; width and height 128–4096 px.</string>
     <string name="image_error_original_format">Original sending supports JPEG, PNG and static WebP. Switch to Auto or Custom to convert this image.</string>
     <string name="image_error_original_large">The original exceeds 2 MiB or 8000 px per side. Switch to Auto or Custom compression.</string>
+    <string name="chat_import_choose_image_directory">Select image folder</string>
+    <string name="chat_import_external_images">External images: %1$d; matched: %2$d. Select the original image folder to restore them. Unavailable images will be skipped.</string>
+    <string name="chat_import_reading_images">Reading images…</string>
+    <string name="chat_import_image_directory_failed">Could not read the image folder</string>
+    <string name="chat_archive_images_skipped">Completed. Skipped %1$d unavailable images.</string>
 </resources>

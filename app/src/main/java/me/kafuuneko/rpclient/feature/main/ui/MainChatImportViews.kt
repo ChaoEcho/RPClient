@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,7 +88,7 @@ internal fun ImportChatCharacterDialog(
     state: MainDialogState.ImportChatCharacterSelection,
     emit: MainUiIntent.() -> Unit
 ) {
-    val canDismiss = !state.isImporting
+    val canDismiss = !state.isImporting && !state.isResolvingImages
     AppDialogScaffold(
         onDismissRequest = {
             if (canDismiss) MainUiIntent.DismissDialog.emit()
@@ -99,7 +100,7 @@ internal fun ImportChatCharacterDialog(
             if (state.isImporting) R.string.importing_chat else R.string.import_chat
         ),
         dismissText = stringResource(R.string.cancel),
-        confirmEnabled = state.selectedCharacterId != null && !state.isImporting,
+        confirmEnabled = state.selectedCharacterId != null && !state.isImporting && !state.isResolvingImages,
         isConfirmLoading = state.isImporting,
         onConfirm = { MainUiIntent.ConfirmImportChat.emit() },
         onDismiss = {
@@ -117,6 +118,19 @@ private fun ImportCharacterSelectionContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ImportPreview(state)
+        // 仅外部引用需要用户选择目录；自有 Base64 归档不增加额外操作。
+        if (state.externalImageCount > 0) {
+            Text(
+                stringResource(R.string.chat_import_external_images, state.externalImageCount, state.resolvedImageCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(
+                enabled = !state.isImporting && !state.isResolvingImages,
+                onClick = { MainUiIntent.ChooseChatImageDirectory.emit() }
+            ) { Text(stringResource(if (state.isResolvingImages) R.string.chat_import_reading_images
+                else R.string.chat_import_choose_image_directory)) }
+        }
         if (state.characters.isEmpty()) {
             Text(
                 text = stringResource(R.string.no_characters_for_chat_import),

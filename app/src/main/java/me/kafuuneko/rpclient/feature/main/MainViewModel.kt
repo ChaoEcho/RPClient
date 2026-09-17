@@ -1,15 +1,16 @@
 package me.kafuuneko.rpclient.feature.main
 
 import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
@@ -21,13 +22,14 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.feature.main.model.Route
+import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
@@ -37,6 +39,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersS
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
+import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
@@ -44,7 +47,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
-import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -58,11 +60,11 @@ import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
 import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
-import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
+import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
-import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
+import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
@@ -79,14 +81,14 @@ import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
-import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -129,6 +131,24 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
     private var mPendingChatImport: ChatArchive? = null
+    private var mDirectoryPickArchive: ChatArchive? = null
+    private var mChatImageSources: Map<String, Uri> = emptyMap()
+
+    /** 页面销毁时清理只属于本次导入的文件，不保存跨进程草稿。 */
+    override fun onCleared() {
+        super.onCleared()
+        val archive = mPendingChatImport ?: return
+        CoroutineScope(Dispatchers.IO).launch { mChatArchiveRepository.releaseImport(archive) }
+    }
+
+    /** 清除导入所有权和目录选择归属，资源清理独立于页面生命周期完成。 */
+    private fun releasePendingChatImport() {
+        val archive = mPendingChatImport
+        mPendingChatImport = null
+        mDirectoryPickArchive = null
+        mChatImageSources = emptyMap()
+        if (archive != null) CoroutineScope(Dispatchers.IO).launch { mChatArchiveRepository.releaseImport(archive) }
+    }
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
     private var mChatImportJob: Job? = null
 
@@ -373,13 +393,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
-        if (importDialog?.isImporting == true) return
+        if (importDialog?.isImporting == true || importDialog?.isResolvingImages == true) return
         val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
         if (deleteDialog?.isDeleting == true) return
         val renameDialog = uiState.dialogState as? MainDialogState.RenameItem
         if (renameDialog?.isSaving == true) return
         if (importDialog != null) {
-            mPendingChatImport = null
+            releasePendingChatImport()
         }
         uiState.copy(dialogState = MainDialogState.None).setup()
     }
@@ -409,9 +429,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     uri = intent.uri,
                     fallbackUserName = AppModel.resolvedUserName
                 )
-                val characters = mCharacterRepository.getAllCharacters()
+                releasePendingChatImport()
                 mPendingChatImport = archive
-                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                // 先接管暂存所有权，再执行可取消的角色查询，避免页面销毁时遗留图片。
+                val characters = mCharacterRepository.getAllCharacters()
+                val current = getOrNull<MainUiState.Normal>() ?: run {
+                    releasePendingChatImport()
+                    return@launch
+                }
                 val items = characters.map { it.toImportCharacterItem() }
                 // 推荐最佳匹配角色并展示角色绑定选择弹窗
                 current.copy(
@@ -422,6 +447,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
                         messageCount = archive.messages.size,
+                        externalImageCount = archive.messages.sumOf { message ->
+                            message.images.count { it.sourceUrl != null && it.resourceKey == null }
+                        },
                         query = "",
                         characters = items,
                         visibleCharacters = items,
@@ -432,9 +460,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     )
                 ).setup()
             } catch (cancellation: CancellationException) {
+                releasePendingChatImport()
                 throw cancellation
             } catch (_: Exception) {
-                mPendingChatImport = null
+                releasePendingChatImport()
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
                 getOrNull<MainUiState.Normal>()?.let { current ->
                     current.copy(
@@ -445,6 +474,54 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             } finally {
                 mChatImportJob = null
+            }
+        }
+    }
+
+    /** 为当前导入草稿打开系统目录选择器，并记录单次归属。 */
+    @UiIntentObserver(MainUiIntent.ChooseChatImageDirectory::class)
+    private fun onChooseChatImageDirectory() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
+        mDirectoryPickArchive = mPendingChatImport ?: return
+        MainViewEvent.OpenChatImageDirectory.tryEmit()
+    }
+
+    /** 在后台解析用户授权目录；迟到回调不能用于另一份导入草稿。 */
+    @UiIntentObserver(MainUiIntent.ChatImageDirectoryResult::class)
+    private fun onChatImageDirectoryResult(intent: MainUiIntent.ChatImageDirectoryResult) {
+        // 先消费本次选择器归属，取消及迟到结果不能污染其他归档。
+        val archive = mDirectoryPickArchive
+        mDirectoryPickArchive = null
+        val uri = intent.uri ?: return
+        if (archive == null || archive !== mPendingChatImport) return
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || mChatImportJob?.isActive == true) return
+        state.copy(dialogState = dialog.copy(isResolvingImages = true)).setup()
+        mChatImportJob = viewModelScope.launch {
+            try {
+                val sources = mChatArchiveRepository.resolveImageDirectory(archive, uri)
+                // 扫描期间页面状态可能变化，回写前再次确认同一份草稿。
+                if (archive !== mPendingChatImport) return@launch
+                mChatImageSources = sources
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val currentDialog = current.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return@launch
+                current.copy(dialogState = currentDialog.copy(resolvedImageCount = archive.messages.sumOf { message ->
+                    message.images.count { it.sourceUrl in sources }
+                })).setup()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.chat_import_image_directory_failed).tryEmit()
+            } finally {
+                mChatImportJob = null
+                val current = getOrNull<MainUiState.Normal>()
+                val currentDialog = current?.dialogState as? MainDialogState.ImportChatCharacterSelection
+                if (archive === mPendingChatImport && current != null && currentDialog != null) {
+                    current.copy(dialogState = currentDialog.copy(isResolvingImages = false)).setup()
+                }
             }
         }
     }
@@ -492,13 +569,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
         val characterId = dialog.selectedCharacterId ?: return
         val archive = mPendingChatImport ?: return
-        if (dialog.isImporting || mChatImportJob?.isActive == true) return
+        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
         uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
         mChatImportJob = viewModelScope.launch {
             try {
                 // 在 IO 线程事务保存会话与全量导入消息
-                val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
-                mPendingChatImport = null
+                val result = mChatArchiveRepository.saveImport(archive, characterId, mChatImageSources)
+                val sessionId = result.sessionId
+                releasePendingChatImport()
                 val homeState = buildHomeState()
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 // 更新首页会话列表并关闭导入弹窗
@@ -512,7 +590,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         current.dialogState
                     }
                 ).setup()
-                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
+                if (result.skippedImages > 0) AppViewEvent.PopupToastMessage(
+                    mContext.getString(R.string.chat_archive_images_skipped, result.skippedImages)
+                ).tryEmit()
+                else AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
                 // 导航进入新导入的会话页
                 AppViewEvent.StartActivity(
                     activity = ChatActivity::class.java,

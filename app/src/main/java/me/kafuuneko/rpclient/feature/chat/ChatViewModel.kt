@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
@@ -39,15 +38,14 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
-import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.MainActivity
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
-import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -56,10 +54,11 @@ import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
-import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
@@ -81,6 +80,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -812,16 +812,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * 校验前置条件（非生成中、非总结中），生成默认文件名并触发系统的 SAF 文件保存选择器。
      */
-    @UiIntentObserver(ChatUiIntent.ConfirmTextExport::class)
-    private fun onConfirmTextExport() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (uiState.dialogState != ChatDialogState.ImageExportWarning) return
-        uiState.copy(dialogState = ChatDialogState.None).setup()
-        val timestamp = System.currentTimeMillis().formatTimestamp("yyyyMMdd_HHmmss")
-        ChatViewEvent.OpenChatExporter(fileName = "chat_$timestamp.jsonl").tryEmit()
-    }
-
-    /** 检测图片遗漏并在用户明确选择文字导出后打开系统选择器。 */
     @UiIntentObserver(ChatUiIntent.ExportChatClick::class)
     private suspend fun onExportChatClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -837,10 +827,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(
                 R.string.wait_for_summary_before_exporting
             ).tryEmit()
-            return
-        }
-        if (mChatArchiveRepository.hasImages(mSessionId ?: return)) {
-            uiState.copy(dialogState = ChatDialogState.ImageExportWarning).setup()
             return
         }
         // 格式化默认文件名并调起系统导出器
@@ -876,8 +862,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mChatExportJob = viewModelScope.launch {
             try {
                 // 异步向目标 URI 写入导出的 JSONL 聊天归档
-                mChatArchiveRepository.exportToUri(sessionId, intent.uri)
-                AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
+                val skipped = mChatArchiveRepository.exportToUri(sessionId, intent.uri)
+                if (skipped > 0) AppViewEvent.PopupToastMessage(
+                    mContext.getString(R.string.chat_archive_images_skipped, skipped)
+                ).tryEmit()
+                else AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {

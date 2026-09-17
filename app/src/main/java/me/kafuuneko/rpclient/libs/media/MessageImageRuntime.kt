@@ -10,6 +10,7 @@ import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.io.RandomAccessFile
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,38 @@ class MessageImageRuntime(
         } catch (error: Throwable) {
             mFiles.releasePrepared(prepared)
             throw error
+        }
+    }
+
+    /** 在文件仓库保护范围内检查归档资源，导出 MIME 必须与实际字节一致。 */
+    internal fun archiveMimeType(file: File): String {
+        validate(file)
+        return requireNotNull(bounds(file).outMimeType)
+    }
+
+    /**
+     * 恢复归档中的原有字节，只校验实际格式，不应用当前发送压缩设置。
+     * @param owner 本次导入所有者。
+     * @param input 调用方提供的资源流，由本方法关闭。
+     * @return 可在消息导入事务中提交的最终图片凭据。
+     */
+    suspend fun prepareArchive(owner: String, input: InputStream): PreparedFile = input.use { source ->
+        mFiles.prepareGenerated(owner) { target ->
+            // 边复制边检查资源上限，避免先写完超大文件再校验。
+            target.outputStream().use { output ->
+                val buffer = ByteArray(8192)
+                var total = 0L
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val count = source.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    requireValidImage(total <= MessageImagePolicy.MAX_ORIGINAL_BYTES)
+                    output.write(buffer, 0, count)
+                }
+            }
+            validate(target)
+            requireNotNull(bounds(target).outMimeType)
         }
     }
 

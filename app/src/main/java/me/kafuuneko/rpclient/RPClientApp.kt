@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
@@ -134,6 +135,7 @@ internal val appModules = module {
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::ChatArchiveCodec)
+    singleOf(::ChatArchiveImageStore)
     singleOf(::ChatArchiveRepository)
     singleOf(::GroupChatPromptBuilder)
     singleOf(::GroupChatGreetingPlanner)

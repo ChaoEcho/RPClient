@@ -1,38 +1,61 @@
 package me.kafuuneko.rpclient.libs.chat
 
+import android.content.Context
+import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.Base64
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.model.MessageType
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class ChatArchiveRepositoryTest {
     private lateinit var database: AppDatabase
     private lateinit var repository: ChatArchiveRepository
     private var characterId: Long = 0L
+    private lateinit var context: Context
+    private lateinit var directory: File
+    private lateinit var files: FileRepository
 
     @Before
     fun setUp() = runBlocking {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        directory = File(base.cacheDir, "archive-test-${System.nanoTime()}").apply { mkdirs() }
+        context = object : ContextWrapper(base) {
+            override fun getDir(name: String, mode: Int) = File(directory, name).apply { mkdirs() }
+            override fun getCacheDir() = File(directory, "cache").apply { mkdirs() }
+        }
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
+        files = FileRepository(context, database)
         repository = ChatArchiveRepository(
             mContext = context,
             mAppDatabase = database,
-            mCodec = ChatArchiveCodec(Gson())
+            mCodec = ChatArchiveCodec(Gson()),
+            mFiles = files,
+            mImages = MessageImageRuntime(context, files),
+            mImageStore = ChatArchiveImageStore(context)
         )
         characterId = database.getCharacterDao().insertOrReplace(
             Character(
@@ -52,11 +75,12 @@ class ChatArchiveRepositoryTest {
     @After
     fun tearDown() {
         database.close()
+        directory.deleteRecursively()
     }
 
     @Test
     fun confirmedCharacterIsUsedAndSummaryBoundaryUsesNewMessageId() = runBlocking {
-        val sessionId = repository.saveImport(archive(), characterId)
+        val sessionId = repository.saveImport(archive(), characterId).sessionId
         val session = database.getChatSessionDao().getSessionById(sessionId)
         val messages = database.getChatMessageDao().getMessagesBySessionId(sessionId)
         val summary = database.getChatMessageDao().getLatestSummaryBySessionId(sessionId)
@@ -87,7 +111,7 @@ class ChatArchiveRepositoryTest {
     @Test
     fun exportStreamsMultiplePagesInStableOrderAndPreservesSummaryBoundary() = runBlocking {
         val archive = largeArchive()
-        val sessionId = repository.saveImport(archive, characterId)
+        val sessionId = repository.saveImport(archive, characterId).sessionId
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val exportFile = File.createTempFile("chat-export-", ".jsonl", context.cacheDir)
 
@@ -102,6 +126,124 @@ class ChatArchiveRepositoryTest {
             assertEquals(archive.summary?.coveredMessageIndex, decoded.summary?.coveredMessageIndex)
         } finally {
             exportFile.delete()
+        }
+    }
+
+    /** 真正写入文件仓库并导出、重新导入，验证图片字节、顺序与纯图正文。 */
+    @Test
+    fun privateImagesRoundTripWithoutRecompressionOrDatabasePayloads() = runBlocking {
+        val first = imageBytes(Bitmap.CompressFormat.PNG)
+        val second = imageBytes(Bitmap.CompressFormat.JPEG)
+        val input = archive().copy(messages = listOf(
+            ChatArchiveMessage(1_000, ChatArchiveMessageRole.User, "", listOf(
+                ChatArchiveImage("image/png", Base64.getEncoder().encodeToString(first)),
+                ChatArchiveImage("image/jpeg", Base64.getEncoder().encodeToString(second))
+            )),
+            ChatArchiveMessage(2_000, ChatArchiveMessageRole.Character, "picture", listOf(
+                ChatArchiveImage("image/png", Base64.getEncoder().encodeToString(first))
+            ))
+        ), summary = null)
+        val original = repository.saveImport(input, characterId)
+        val target = File(context.cacheDir, "roundtrip.jsonl")
+        assertEquals(0, repository.exportToUri(original.sessionId, Uri.fromFile(target)))
+        val parsed = repository.readImportFromUri(Uri.fromFile(target))
+        try {
+            assertEquals("", parsed.messages.first().content)
+            assertTrue(parsed.messages.flatMap { it.images }.all { it.data == null && it.resourceKey != null })
+            val restored = repository.saveImport(parsed, characterId)
+            assertEquals(0, restored.skippedImages)
+            val messages = database.getChatMessageDao().getMessagesBySessionId(restored.sessionId)
+            val images = database.getMessageImageDao().getByMessage(MessageType.Single, messages.first().id)
+            assertEquals(listOf(0, 1), images.map { it.position })
+            assertArrayEquals(first, files.withFileLease(images[0].imageUuid) { it.readBytes() })
+            assertArrayEquals(second, files.withFileLease(images[1].imageUuid) { it.readBytes() })
+            assertEquals(1, database.getMessageImageDao().getByMessage(MessageType.Single, messages[1].id).size)
+        } finally {
+            repository.releaseImport(parsed)
+        }
+        assertTrue(File(context.cacheDir, "chat-archive-images").listFiles().orEmpty().isEmpty())
+    }
+
+    /** 前一张已解码而后一张损坏时，解析失败必须删除本次全部暂存。 */
+    @Test
+    fun malformedArchiveAfterStagingImageReleasesImportDirectory() = runBlocking {
+        val data = Base64.getEncoder().encodeToString(imageBytes(Bitmap.CompressFormat.PNG))
+        val target = File(context.cacheDir, "broken.jsonl").apply {
+            writeText("""{"chat_metadata":{}}
+                {"mes":"","extra":{"rpclient":{"schema_version":1,"images":[{"mime_type":"image/png","data":"$data"},{"mime_type":"image/png","data":"!!!"}]}}}
+            """.trimIndent())
+        }
+        // 通过真实解析入口验证所有者清理，不能仅断言解码异常。
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.readImportFromUri(Uri.fromFile(target)) }
+        }
+        assertTrue(File(context.cacheDir, "chat-archive-images").listFiles().orEmpty().isEmpty())
+        assertTrue(database.getChatSessionDao().getAllSessions().isEmpty())
+    }
+
+    /** 外部缺图不生成占位文件或引用，成功匹配的图片才建立附件。 */
+    @Test
+    fun externalImageImportSkipsMissingReferencesAndKeepsText() = runBlocking {
+        val source = File(context.cacheDir, "source.png").apply { writeBytes(imageBytes(Bitmap.CompressFormat.PNG)) }
+        val input = archive().copy(messages = listOf(ChatArchiveMessage(
+            1_000, ChatArchiveMessageRole.User, "Keep this text", listOf(
+                ChatArchiveImage(sourceUrl = "user/images/A/missing.png"),
+                ChatArchiveImage(sourceUrl = "user/images/A/source.png")
+            )
+        )), summary = null)
+        val result = repository.saveImport(input, characterId,
+            mapOf("user/images/A/source.png" to Uri.fromFile(source)))
+        assertEquals(1, result.skippedImages)
+        val message = database.getChatMessageDao().getMessagesBySessionId(result.sessionId).single()
+        assertEquals("Keep this text", message.content)
+        val images = database.getMessageImageDao().getByMessage(MessageType.Single, message.id)
+        assertEquals(1, images.size)
+        assertEquals(0, images.single().position)
+        assertArrayEquals(source.readBytes(), files.withFileLease(images.single().imageUuid) { it.readBytes() })
+    }
+
+    /** 准备成功一张后另一张损坏、或最终角色不存在时，文件与会话均不能部分提交。 */
+    @Test
+    fun invalidEmbeddedDataAndFailedCommitLeaveNoPartialImport() = runBlocking {
+        val valid = ChatArchiveImage("image/png", Base64.getEncoder().encodeToString(imageBytes(Bitmap.CompressFormat.PNG)))
+        val input = archive().copy(messages = listOf(ChatArchiveMessage(1_000,
+            ChatArchiveMessageRole.User, "", listOf(valid))), summary = null)
+        for ((candidate, id) in listOf(
+            input.copy(messages = listOf(input.messages.single().copy(images = listOf(valid,
+                ChatArchiveImage("image/png", "bm90IGFuIGltYWdl"))))) to characterId,
+            input to Long.MAX_VALUE
+        )) {
+            assertTrue(runCatching { repository.saveImport(candidate, id) }.isFailure)
+            assertTrue(database.getChatSessionDao().getAllSessions().isEmpty())
+            assertTrue(File(directory, "repository").listFiles().orEmpty().filter { it.isFile }.isEmpty())
+            assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        }
+    }
+
+    /** 已丢失的物理图片导出时跳过，不向正文追加不可逆的遗漏标记。 */
+    @Test
+    fun missingStoredImageIsSkippedDuringExport() = runBlocking {
+        val input = archive().copy(messages = listOf(ChatArchiveMessage(1_000,
+            ChatArchiveMessageRole.User, "original", listOf(ChatArchiveImage("image/png",
+                Base64.getEncoder().encodeToString(imageBytes(Bitmap.CompressFormat.PNG)))))), summary = null)
+        val imported = repository.saveImport(input, characterId)
+        val message = database.getChatMessageDao().getMessagesBySessionId(imported.sessionId).single()
+        val image = database.getMessageImageDao().getByMessage(MessageType.Single, message.id).single()
+        files.withFileLease(image.imageUuid) { it.delete() }
+        val target = File(context.cacheDir, "missing.jsonl")
+        assertEquals(1, repository.exportToUri(imported.sessionId, Uri.fromFile(target)))
+        val decoded = ChatArchiveCodec(Gson()).decode(target.readText(), "Missing")
+        assertEquals("original", decoded.messages.single().content)
+        assertTrue(decoded.messages.single().images.isEmpty())
+    }
+
+    private fun imageBytes(format: Bitmap.CompressFormat): ByteArray {
+        val bitmap = Bitmap.createBitmap(8, 6, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.RED)
+        return try {
+            ByteArrayOutputStream().use { output -> bitmap.compress(format, 90, output); output.toByteArray() }
+        } finally {
+            bitmap.recycle()
         }
     }
 
