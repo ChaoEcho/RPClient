@@ -57,7 +57,11 @@ data class ChatArchiveImage(
     val data: String? = null,
     val sourceUrl: String? = null,
     /** 导入时将 Base64 移到私有暂存后的随机资源键，不含路径且不导出。 */
-    val resourceKey: String? = null
+    val resourceKey: String? = null,
+    /** 归档压缩前文件字节的 SHA-256，小写十六进制；不是 Base64 或 GZIP 的摘要。 */
+    val hash: String? = null,
+    /** data 解码后的传输封装；恢复到暂存后重置为 none。 */
+    val compression: String = "none"
 )
 
 /** 原子导入完成后的会话及未能恢复的图片数量。 */

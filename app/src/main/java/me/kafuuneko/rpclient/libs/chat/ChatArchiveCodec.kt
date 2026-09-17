@@ -31,10 +31,11 @@ class ChatArchiveCodec(
 ) {
     /** 将小型单聊归档编码为可被 SillyTavern 导入的 JSONL 字符串。 */
     fun encode(archive: ChatArchive): String {
+        val writtenHashes = mutableSetOf<String>()
         return StringWriter().also { writer ->
             encodeHeader(archive, writer)
             archive.messages.forEach { message ->
-                encodeMessage(archive, message, writer)
+                encodeMessage(archive, message, writer, writtenHashes)
             }
         }.toString()
     }
@@ -53,9 +54,10 @@ class ChatArchiveCodec(
     internal fun encodeMessage(
         archive: ChatArchive,
         message: ChatArchiveMessage,
-        writer: Writer
+        writer: Writer,
+        writtenHashes: MutableSet<String> = mutableSetOf()
     ) {
-        writeJsonLine(buildMessage(archive, message), writer)
+        writeJsonLine(buildMessage(archive, message, writtenHashes), writer)
     }
 
     /** 分段写出含图消息；图片字节由仓库在文件读取保护范围内编码。 */
@@ -217,7 +219,8 @@ class ChatArchiveCodec(
 
     private fun buildMessage(
         archive: ChatArchive,
-        message: ChatArchiveMessage
+        message: ChatArchiveMessage,
+        writtenHashes: MutableSet<String> = mutableSetOf()
     ): JsonObject {
         val isUser = message.role == ChatArchiveMessageRole.User
         val isNarrator = message.role == ChatArchiveMessageRole.Narrator
@@ -239,7 +242,7 @@ class ChatArchiveCodec(
                 KEY_EXTRA,
                 JsonObject().apply {
                     if (isNarrator) addProperty(KEY_TYPE, NARRATOR_TYPE)
-                    if (message.images.isNotEmpty()) add(KEY_RPCLIENT, ChatArchiveImageCodec.encode(message.images))
+                    if (message.images.isNotEmpty()) add(KEY_RPCLIENT, ChatArchiveImageCodec.encode(message.images, writtenHashes))
                 }
             )
         }
@@ -253,6 +256,7 @@ class ChatArchiveCodec(
         var header: JsonObject? = null
         val messages = mutableListOf<DecodedMessage>()
         var messageObjectCount = 0
+        val resolver = ChatArchiveImageCodec.Resolver(transformImage)
         // Gson 按对象消费字符流，避免 readLine 先复制整条含图消息。
         val input = JsonReader(reader.buffered()).apply { strictness = Strictness.LENIENT }
         while (input.peek() != JsonToken.END_DOCUMENT) {
@@ -261,10 +265,10 @@ class ChatArchiveCodec(
                 continue
             }
             require(messageObjectCount < MAX_MESSAGE_COUNT) { "Chat archive has too many messages" }
-            val (json, images) = readMessage(input, transformImage)
+            val (json, images) = readMessage(input, resolver::resolve)
             decodeMessage(json, fallbackTime + messageObjectCount)?.let { decoded ->
                 messages.add(decoded.copy(message = decoded.message.copy(
-                    images = images ?: decoded.message.images.map(transformImage)
+                    images = images ?: decoded.message.images.map(resolver::resolve)
                 )))
             }
             messageObjectCount += 1

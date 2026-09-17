@@ -3,13 +3,11 @@ package me.kafuuneko.rpclient.libs.chat
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import java.io.File
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.Writer
 import java.util.UUID
-import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -56,14 +54,20 @@ class ChatArchiveRepository(
 
     /** 将指定会话的原始 Room 数据导出到用户选择的文档 URI。 */
     suspend fun exportToUri(sessionId: Long, uri: Uri) = withContext(Dispatchers.IO) {
-        mContext.contentResolver.openOutputStream(uri)
-            ?.bufferedWriter(Charsets.UTF_8)
-            ?.use { writer ->
-                mFiles.withReadSnapshot {
-                    writeArchive(sessionId, writer, this)
-                }.also { writer.flush() }
-            }
-            ?: error("Cannot open chat export destination")
+        val owner = mImageStore.createOwner()
+        try {
+            mContext.contentResolver.openOutputStream(uri)
+                ?.bufferedWriter(Charsets.UTF_8)
+                ?.use { writer ->
+                    mFiles.withReadSnapshot {
+                        writeArchive(sessionId, writer, this, owner)
+                    }.also { writer.flush() }
+                }
+                ?: error("Cannot open chat export destination")
+        } finally {
+            // 包含压缩、写出失败和协程取消，不遗留试压缩的图片文件。
+            mImageStore.release(owner)
+        }
     }
 
     /**
@@ -73,9 +77,10 @@ class ChatArchiveRepository(
      * 因此内存峰值不再随整份导出文件额外复制。
      */
     private suspend fun writeArchive(
-        sessionId: Long, writer: Writer, snapshot: FileRepository.ReadSnapshot
+        sessionId: Long, writer: Writer, snapshot: FileRepository.ReadSnapshot, owner: String
     ): Int {
         var skipped = 0
+        val writtenHashes = mutableSetOf<String>()
         val archive = loadArchiveMetadata(sessionId)
         mCodec.encodeHeader(archive, writer)
         var afterCreateTime = Long.MIN_VALUE
@@ -95,7 +100,7 @@ class ChatArchiveRepository(
                 val attachments = images[message.id].orEmpty()
                 if (attachments.isEmpty()) mCodec.encodeMessage(archive, message.toArchiveMessage(), writer)
                 else mCodec.encodeMessageWithImages(archive, message.toArchiveMessage(), writer) {
-                    skipped += writeAttachments(attachments, snapshot, writer)
+                    skipped += writeAttachments(attachments, snapshot, writer, owner, writtenHashes)
                 }
             }
             val lastMessage = messages.last()
@@ -109,39 +114,33 @@ class ChatArchiveRepository(
     private suspend fun writeAttachments(
         attachments: List<MessageImageEntity>,
         snapshot: FileRepository.ReadSnapshot,
-        writer: Writer
+        writer: Writer,
+        owner: String,
+        writtenHashes: MutableSet<String>
     ): Int {
         val context = currentCoroutineContext()
         var written = false
         var skipped = 0
         for (attachment in attachments) {
             // 快照持有文件锁，检查与复制之间不会被并发回收。
-            snapshot.withFile(attachment.imageUuid) { file, _ ->
+            snapshot.withFile(attachment.imageUuid) { file, entity ->
                 if (file == null) skipped++
                 else {
                     if (written) writer.write(",")
-                    writeImageFile(file, writer, context)
+                    val hash = requireNotNull(entity).hash
+                    if (hash in writtenHashes) {
+                        ChatArchiveImageCodec.writeImage(ChatArchiveImage(hash = hash), writer)
+                    } else {
+                        mImageStore.writeExportImage(owner, file, hash, mImages.archiveMimeType(file), writer) {
+                            context.ensureActive()
+                        }
+                        writtenHashes.add(hash)
+                    }
                     written = true
                 }
             }
         }
         return skipped
-    }
-
-    /** 以固定缓冲区编码一张图片；协程取消立即停止读取。 */
-    private fun writeImageFile(file: File, writer: Writer, context: CoroutineContext) {
-        val image = ChatArchiveImage(mimeType = mImages.archiveMimeType(file))
-        ChatArchiveImageCodec.writeImage(image, writer) { output ->
-            file.inputStream().use { input ->
-                val buffer = ByteArray(8192)
-                while (true) {
-                    context.ensureActive()
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    output.write(buffer, 0, count)
-                }
-            }
-        }
     }
 
     /** 从 URI 读取并解析对话，但不创建会话或消息；来源缺少用户名时使用调用方身份。 */
@@ -193,24 +192,49 @@ class ChatArchiveRepository(
         imageSources: Map<String, Uri> = emptyMap()
     ): ChatArchiveImportResult = withContext(Dispatchers.IO) {
         val owner = UUID.randomUUID().toString()
-        val prepared = mutableListOf<PreparedFile>()
+        val preparation = ImportImagePreparation()
         var skipped = 0
         try {
             // 图片恢复在事务外完成；内嵌数据损坏应失败，外部资源缺失只跳过该图片。
             val attachments = archive.messages.map { message ->
                 message.images.mapNotNull { image ->
-                    prepareImage(archive, owner, image, imageSources)?.also(prepared::add)
+                    prepareUniqueImage(archive, owner, image, imageSources, preparation)
                         ?: run { skipped++; null }
                 }
             }
-            mFiles.mutate(prepared) {
+            mFiles.mutate(preparation.byHash.values.toList()) {
                 val sessionId = insertSession(archive, characterId)
                 insertMessages(archive, sessionId, attachments)
                 ChatArchiveImportResult(sessionId, skipped)
             }
         } finally {
-            prepared.forEach { mFiles.releasePrepared(it) }
+            preparation.all.forEach { mFiles.releasePrepared(it) }
         }
+    }
+
+    /** 一次导入的唯一文件凭据和清理账本；引用解析不能读取其他归档的缓存。 */
+    private class ImportImagePreparation {
+        val all = mutableListOf<PreparedFile>()
+        val byHash = mutableMapOf<String, PreparedFile>()
+        val byResource = mutableMapOf<String, PreparedFile>()
+    }
+
+    /** 按消息和附件顺序准备唯一文件；未命中的纯 hash 引用不会被后续数据回填。 */
+    private suspend fun prepareUniqueImage(
+        archive: ChatArchive, owner: String, image: ChatArchiveImage,
+        sources: Map<String, Uri>, preparation: ImportImagePreparation
+    ): PreparedFile? {
+        image.resourceKey?.let { key -> preparation.byResource[key]?.let { return it } }
+        if (image.data == null && image.resourceKey == null && image.sourceUrl == null) {
+            return preparation.byHash[image.hash]
+        }
+        val candidate = prepareImage(archive, owner, image, sources) ?: return null
+        // 先登记清理责任再校验；伪造摘要不能泄漏已准备的文件或复用错误内容。
+        preparation.all += candidate
+        require(image.hash == null || candidate.file.hash == image.hash) { "Archive image hash mismatch" }
+        val unique = preparation.byHash.getOrPut(candidate.file.hash) { candidate }
+        image.resourceKey?.let { preparation.byResource[it] = unique }
+        return unique
     }
 
     /** 内嵌图片优先，外部路径只能使用已经解析出的 DocumentsProvider URI。 */
@@ -224,8 +248,8 @@ class ChatArchiveRepository(
             return mImages.prepareArchive(owner, mImageStore.open(requireNotNull(archive.importOwner), key))
         }
         // 小型程序化导入也支持直接提供 Base64，不经过页面暂存。
-        image.data?.let { data ->
-            return mImages.prepareArchive(owner, ChatArchiveImageCodec.openData(data))
+        if (image.data != null) {
+            return mImages.prepareArchive(owner, ChatArchiveImagePayload.open(image))
         }
         val uri = sources[image.sourceUrl] ?: return null
         return try {
@@ -262,12 +286,13 @@ class ChatArchiveRepository(
     }
 
     /** 在文件事务内恢复普通消息及有序附件；导入允许酒馆角色消息携带图片。 */
-    private suspend fun insertMessages(
+    private suspend fun FileRepository.Mutation.insertMessages(
         archive: ChatArchive,
         sessionId: Long,
         images: List<List<PreparedFile>>
     ) {
         val ids = mutableListOf<Long>()
+        val usedUuids = mutableSetOf<String>()
         for ((index, message) in archive.messages.withIndex()) {
             val id = mChatMessageDao.insertOrReplace(ChatMessage(
                 sessionId = sessionId, createTime = message.createTime,
@@ -276,7 +301,10 @@ class ChatArchiveRepository(
             ids += id
             // 所有 UUID 均来自同一文件事务已提交的凭据，不信任归档提供的本地主键。
             mAppDatabase.getMessageImageDao().insertAll(images[index].mapIndexed { position, image ->
-                MessageImageEntity(MessageType.Single, id, position, image.file.uuid)
+                // 每个附件持独立 UUID，重复图片只共享 hash 对应的物理文件。
+                val uuid = if (usedUuids.add(image.file.uuid)) image.file.uuid
+                    else copyReference(image.file.uuid).uuid
+                MessageImageEntity(MessageType.Single, id, position, uuid)
             })
         }
         archive.summary?.let { summary ->

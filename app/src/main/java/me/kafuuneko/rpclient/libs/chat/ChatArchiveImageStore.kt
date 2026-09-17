@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
 import java.io.IOException
+import java.io.Writer
 import java.net.URI
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -12,10 +13,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 
 /**
- * 归档解析阶段的私有图片暂存及用户授权目录解析。
+ * 归档读写阶段的私有图片暂存及用户授权目录解析。
  * - 页面只持随机资源键，不持 Base64 或文件路径。
  * - 外部 URL 仅作为匹配线索，不发起网络下载，不访问授权目录以外的文件。
  */
@@ -31,37 +31,54 @@ class ChatArchiveImageStore(private val mContext: Context) {
         }
             .forEach { it.deleteRecursively() }
         return UUID.randomUUID().toString().also {
-            mActiveOwners.add(it)
             check(File(mRoot, it).mkdirs()) { "Cannot create archive image directory" }
+            mActiveOwners.add(it)
         }
     }
 
     /** 将内嵌数据解码到暂存，返回移除 Base64 后的描述；损坏数据使整个导入失败。 */
     fun stage(owner: String, image: ChatArchiveImage, checkActive: () -> Unit = {}): ChatArchiveImage {
-        val data = image.data ?: return image
+        if (image.data == null) return image
         val key = UUID.randomUUID().toString()
         val target = file(owner, key)
         try {
             // 严格解码，不把损坏的内嵌图片降级为静默丢失。
-            ChatArchiveImageCodec.openData(data).use { input ->
+            val hash = ChatArchiveImagePayload.open(image).use { input ->
                 target.outputStream().use { output ->
+                    ChatArchiveImagePayload.copyOriginal(input, output, image.hash, checkActive)
+                }
+            }
+            return image.copy(data = null, resourceKey = key, hash = hash, compression = "none")
+        } catch (error: Throwable) {
+            target.delete()
+            throw error
+        }
+    }
+
+    /** 尝试无损压缩后分块写出图片，只有原始字节参与 hash 校验。 */
+    fun writeExportImage(
+        owner: String, source: File, hash: String, mimeType: String, writer: Writer,
+        checkActive: () -> Unit
+    ) {
+        val temporary = file(owner, UUID.randomUUID().toString())
+        try {
+            val useGzip = ChatArchiveImagePayload.compress(source, temporary, hash, checkActive)
+            val image = ChatArchiveImage(mimeType = mimeType, hash = hash,
+                compression = if (useGzip) "gzip" else "none")
+            // 试压缩使用磁盘暂存；不把原图或压缩结果整体放入内存。
+            ChatArchiveImageCodec.writeImage(image, writer) { output ->
+                (if (useGzip) temporary else source).inputStream().use { input ->
                     val buffer = ByteArray(8192)
-                    var total = 0L
                     while (true) {
                         checkActive()
                         val count = input.read(buffer)
                         if (count < 0) break
-                        total += count
-                        require(total <= MessageImagePolicy.MAX_ORIGINAL_BYTES) { "Archive image is too large" }
                         output.write(buffer, 0, count)
                     }
-                    require(total > 0) { "Empty archive image" }
                 }
             }
-            return image.copy(data = null, resourceKey = key)
-        } catch (error: Throwable) {
-            target.delete()
-            throw error
+        } finally {
+            temporary.delete()
         }
     }
 

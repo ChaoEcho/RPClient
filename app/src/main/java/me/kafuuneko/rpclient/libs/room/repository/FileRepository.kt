@@ -342,11 +342,11 @@ class FileRepository(
 
     /** 文件锁及数据库读取事务已由外层持有；仅供仓库导出消费文件。 */
     internal inner class ReadSnapshot {
-        /** 在快照保护中消费文件与 MIME；物理缺失以 null 表达，不移除附件位置。 */
-        suspend fun <T> withFile(uuid: String, block: (File?, String?) -> T): T {
+        /** 在快照保护中消费文件与索引；hash 用于归档去重，物理缺失以 null 表达。 */
+        suspend fun <T> withFile(uuid: String, block: (File?, FileEntity?) -> T): T {
             val entity = mFileDao.getByUuid(uuid)
             val file = entity?.let { File(mRepositoryDir, it.hash).takeIf(File::isFile) }
-            return block(file, entity?.mimeType)
+            return block(file, entity)
         }
     }
 

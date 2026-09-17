@@ -27,7 +27,10 @@ class ChatArchiveCodecTest {
         assertFalse(extra.has("image"))
         assertFalse(extra.has("media"))
         assertEquals(2, extra.getAsJsonObject("rpclient").getAsJsonArray("images").size())
-        assertEquals(source, codec.decode(encoded, "Images"))
+        val restored = codec.decode(encoded, "Images")
+        assertEquals(source.messages.single().images.map { it.data }, restored.messages.single().images.map { it.data })
+        assertTrue(restored.messages.single().images.all { it.hash?.length == 64 })
+        assertEquals(encoded, codec.encode(restored))
     }
 
     /** 新版数组、旧版单图及滑动列表分别解析，非图片附件不混入。 */

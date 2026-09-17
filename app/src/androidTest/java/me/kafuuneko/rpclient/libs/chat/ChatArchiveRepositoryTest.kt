@@ -9,6 +9,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Base64
@@ -22,6 +23,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -162,6 +164,110 @@ class ChatArchiveRepositoryTest {
             repository.releaseImport(parsed)
         }
         assertTrue(File(context.cacheDir, "chat-archive-images").listFiles().orEmpty().isEmpty())
+    }
+
+    /** 同消息内重复和跨分页重复只输出一次载荷，恢复后每个位置仍有独立 UUID。 */
+    @Test
+    fun compressedHashReferencesRoundTripAcrossPagesWithIndependentAttachmentOwnership() = runBlocking {
+        // JPEG 尾部填充保持原始字节，可验证归档封装没有重编码或截断文件。
+        val bytes = imageBytes(Bitmap.CompressFormat.JPEG) + ByteArray(64 * 1024)
+        val encoded = ChatArchiveImagePayload.encode(ChatArchiveImage("image/jpeg",
+            Base64.getEncoder().encodeToString(bytes)))
+        assertEquals("gzip", encoded.compression)
+        val reference = ChatArchiveImage(hash = encoded.hash)
+        val input = archive().copy(messages = List(300) { index ->
+            ChatArchiveMessage(index + 1L, ChatArchiveMessageRole.User, "message-$index",
+                if (index == 0) listOf(encoded, reference) else listOf(reference))
+        }, summary = null)
+        val original = repository.saveImport(input, characterId)
+        val target = File(context.cacheDir, "deduplicated.jsonl")
+        assertEquals(0, repository.exportToUri(original.sessionId, Uri.fromFile(target)))
+        val entries = target.readLines().drop(1).flatMap { line ->
+            val extension = JsonParser.parseString(line).asJsonObject.getAsJsonObject("extra")
+                .getAsJsonObject("rpclient")
+            assertEquals(1, extension["schema_version"].asInt)
+            extension.getAsJsonArray("images").map { it.asJsonObject }
+        }
+        assertEquals(301, entries.size)
+        assertEquals(1, entries.count { it.has("data") })
+        assertEquals("gzip", entries.first()["compression"].asString)
+        assertTrue(entries.drop(1).all { it.keySet() == setOf("hash") })
+
+        // 暂存和 PreparedFile 均按唯一资源复用，只有数据库引用按附件位置增加。
+        val parsed = repository.readImportFromUri(Uri.fromFile(target))
+        try {
+            assertEquals(1, parsed.messages.flatMap { it.images }.map { it.resourceKey }.distinct().size)
+            val ownerDirectory = File(context.cacheDir, "chat-archive-images/${parsed.importOwner}")
+            assertEquals(1, ownerDirectory.listFiles().orEmpty().size)
+            val restored = repository.saveImport(parsed, characterId)
+            assertEquals(0, restored.skippedImages)
+            val messages = database.getChatMessageDao().getMessagesBySessionId(restored.sessionId)
+            val attachments = database.getMessageImageDao().getByMessages(MessageType.Single, messages.map { it.id })
+            assertEquals(301, attachments.map { it.imageUuid }.distinct().size)
+            assertEquals(listOf(0, 1), attachments.take(2).map { it.position })
+            assertArrayEquals(bytes, files.withFileLease(attachments.last().imageUuid) { it.readBytes() })
+            assertTrue(attachments.all { files.getFileEntity(it.imageUuid)?.hash == encoded.hash })
+            assertEquals(1, File(directory, "repository").listFiles().orEmpty().count { it.isFile })
+            // 删除首条消息的所有权后，后续引用仍然可读。
+            files.mutate {
+                database.getMessageImageDao().deleteByMessage(MessageType.Single, messages.first().id)
+                removeFiles(attachments.take(2).map { it.imageUuid })
+            }
+            assertArrayEquals(bytes, files.withFileLease(attachments.last().imageUuid) { it.readBytes() })
+        } finally {
+            repository.releaseImport(parsed)
+        }
+        assertTrue(File(context.cacheDir, "chat-archive-images").listFiles().orEmpty().isEmpty())
+    }
+
+    /** 本地恰好已有同 hash 也不能补全归档的前向引用；只绑定本次此前出现的数据。 */
+    @Test
+    fun forwardAndCrossArchiveHashReferencesAreSkippedEvenWhenLocalFileExists() = runBlocking {
+        val payload = ChatArchiveImagePayload.encode(ChatArchiveImage("image/png",
+            Base64.getEncoder().encodeToString(imageBytes(Bitmap.CompressFormat.PNG))))
+        val message = ChatArchiveMessage(1, ChatArchiveMessageRole.User, "original", listOf(payload))
+        repository.saveImport(archive().copy(messages = listOf(message), summary = null), characterId)
+        val hash = requireNotNull(payload.hash)
+        val definition = Gson().toJson(mapOf("hash" to hash, "mime_type" to payload.mimeType,
+            "compression" to payload.compression, "data" to payload.data))
+        val target = File(context.cacheDir, "forward.jsonl").apply {
+            writeText("""{"chat_metadata":{}}
+                {"mes":"original","extra":{"rpclient":{"schema_version":1,"images":[{"hash":"$hash"},$definition,{"hash":"$hash"}]}}}
+            """.trimIndent())
+        }
+        // 解析后的未命中项不能在保存时被后面的定义回填。
+        val parsed = repository.readImportFromUri(Uri.fromFile(target))
+        try {
+            val result = repository.saveImport(parsed, characterId)
+            assertEquals(1, result.skippedImages)
+            val restored = database.getChatMessageDao().getMessagesBySessionId(result.sessionId).single()
+            assertEquals("original", restored.content)
+            val images = database.getMessageImageDao().getByMessage(MessageType.Single, restored.id)
+            assertEquals(listOf(0, 1), images.map { it.position })
+            assertFalse(images[0].imageUuid == images[1].imageUuid)
+        } finally {
+            repository.releaseImport(parsed)
+        }
+    }
+
+    /** 解压后 hash 错配和事务失败都不能留下唯一文件或重复引用的部分提交。 */
+    @Test
+    fun invalidCompressedHashAndFailedReferenceCommitLeaveNoResources() = runBlocking {
+        val payload = ChatArchiveImagePayload.encode(ChatArchiveImage("image/jpeg",
+            Base64.getEncoder().encodeToString(imageBytes(Bitmap.CompressFormat.JPEG) + ByteArray(8192))))
+        val message = ChatArchiveMessage(1, ChatArchiveMessageRole.User, "", listOf(payload,
+            ChatArchiveImage(hash = payload.hash)))
+        val input = archive().copy(messages = listOf(message), summary = null)
+        for ((candidate, character) in listOf(
+            input.copy(messages = listOf(message.copy(images = listOf(payload.copy(hash = "0".repeat(64)))))) to characterId,
+            input to Long.MAX_VALUE
+        )) {
+            // 失败发生在文件准备之后，必须检查数据库和物理目录两个存储边界。
+            assertTrue(runCatching { repository.saveImport(candidate, character) }.isFailure)
+            assertTrue(database.getChatSessionDao().getAllSessions().isEmpty())
+            assertTrue(File(directory, "repository").listFiles().orEmpty().none { it.isFile })
+            assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        }
     }
 
     /** 前一张已解码而后一张损坏时，解析失败必须删除本次全部暂存。 */

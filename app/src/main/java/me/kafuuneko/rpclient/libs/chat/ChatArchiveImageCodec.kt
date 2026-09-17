@@ -38,9 +38,7 @@ internal object ChatArchiveImageCodec {
             while (reader.hasNext()) {
                 require(restored.size < MAX_IMAGES) { "Too many archive images" }
                 val image = JsonParser.parseReader(reader).asJsonObject
-                val descriptor = ChatArchiveImage(string(image, "mime_type"), string(image, "data"))
-                require(descriptor.data != null && descriptor.mimeType != null) { "Incomplete embedded image" }
-                restored += transform(descriptor)
+                restored += transform(descriptor(image))
             }
             reader.endArray()
             metadata.add("images", JsonArray())
@@ -58,12 +56,7 @@ internal object ChatArchiveImageCodec {
             require(custom.get("schema_version")?.asInt == 1) { "Unsupported image archive version" }
             val images = custom.getAsJsonArray("images")
             require(images.size() <= MAX_IMAGES) { "Too many archive images" }
-            return images.map { element ->
-                val image = element.asJsonObject
-                ChatArchiveImage(string(image, "mime_type"), string(image, "data")).also {
-                    require(it.data != null && it.mimeType != null) { "Incomplete embedded image" }
-                }
-            }
+            return images.map { descriptor(it.asJsonObject) }
         }
         // 新版数组是权威输入；旧版滑动图片列表保持顺序并去除同一引用的重复项。
         val media = extra.get("media")?.takeIf { it.isJsonArray }?.asJsonArray
@@ -98,14 +91,57 @@ internal object ChatArchiveImageCodec {
     })
 
     /** 为小型协议调用编码图片；真实文件导出使用流式入口避免整份 Base64 常驻内存。 */
-    fun encode(images: List<ChatArchiveImage>): JsonObject = JsonObject().apply {
+    fun encode(images: List<ChatArchiveImage>, writtenHashes: MutableSet<String>): JsonObject = JsonObject().apply {
         addProperty("schema_version", 1)
         add("images", JsonArray().apply {
-            images.filter { it.data != null }.forEach { image ->
-                require(image.mimeType != null) { "Missing embedded image MIME type" }
-                add(metadata(image).apply { addProperty("data", image.data) })
+            // 顺序在单条消息内部也有效，已写出的图片只保留 hash。
+            images.forEach { image ->
+                if (image.data == null) {
+                    if (image.hash in writtenHashes) add(metadata(ChatArchiveImage(hash = image.hash)))
+                    return@forEach
+                }
+                val encoded = ChatArchiveImagePayload.encode(image)
+                if (writtenHashes.add(requireNotNull(encoded.hash))) {
+                    add(metadata(encoded).apply { addProperty("data", encoded.data) })
+                } else add(metadata(ChatArchiveImage(hash = encoded.hash)))
             }
         })
+    }
+
+    /** 一次归档共享的向前引用表；同消息内前一个数组元素也能成为引用来源。 */
+    class Resolver(private val mTransform: (ChatArchiveImage) -> ChatArchiveImage) {
+        private val mPrevious = mutableMapOf<String, ChatArchiveImage>()
+
+        /** 只绑定已经遇到的资源；未命中时保留缺失描述，让导入统计并跳过。 */
+        fun resolve(image: ChatArchiveImage): ChatArchiveImage {
+            if (image.data == null && image.hash != null) return mPrevious[image.hash] ?: image
+            val restored = mTransform(image)
+            if (image.data != null) restored.hash?.let { mPrevious[it] = restored }
+            return restored
+        }
+    }
+
+    /** 校验数据项与 hash 引用的边界，同时接受此前未携带 hash 的内嵌图片。 */
+    private fun descriptor(json: JsonObject): ChatArchiveImage {
+        val image = ChatArchiveImage(
+            mimeType = string(json, "mime_type"),
+            data = string(json, "data"),
+            hash = string(json, "hash"),
+            compression = string(json, "compression") ?: "none"
+        )
+        require(!json.has("hash") || image.hash?.matches(Regex("[0-9a-f]{64}")) == true) {
+            "Invalid archive image hash"
+        }
+        require(image.compression in setOf("none", "gzip")) { "Unsupported archive image compression" }
+        // 无 data 只能表达纯引用，防止格式错误被静默解释成缺图。
+        if (json.has("data")) {
+            require(image.data != null && image.mimeType != null) { "Incomplete embedded image" }
+        } else {
+            require(image.hash != null && !json.has("mime_type") && !json.has("compression")) {
+                "Invalid archive image reference"
+            }
+        }
+        return image
     }
 
     /** 写出单张图片元数据和可选字节；Base64 包装流关闭时不关闭归档 writer。 */
@@ -130,7 +166,9 @@ internal object ChatArchiveImageCodec {
     }
 
     private fun metadata(image: ChatArchiveImage): JsonObject = JsonObject().apply {
+        image.hash?.let { addProperty("hash", it) }
         image.mimeType?.let { addProperty("mime_type", it) }
+        if (image.mimeType != null) addProperty("compression", image.compression)
     }
 
     private fun string(json: JsonObject, key: String): String? = json.get(key)
