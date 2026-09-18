@@ -32,6 +32,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
@@ -118,13 +119,13 @@ class MessageImageLifecycleTest {
         // 两套消息自增 ID 重叠时，单聊导出不能匹配群聊附件。
         assertEquals(single.key.messageId, groupImage.key.messageId)
         assertFalse(archive.hasImages(sessionId))
-        chat.editUserMessageWithImages(
+        chat.editMessageWithImages(
             sessionId, single.key.messageId, "", listOf(MessageImageInput.Prepared(prepared()))
         )
         assertTrue(archive.hasImages(sessionId))
         assertFalse(archive.hasImages(Long.MAX_VALUE))
         // 编辑移除最后一张图片后，导出恢复纯文字行为。
-        chat.editUserMessageWithImages(sessionId, single.key.messageId, "text again", emptyList())
+        chat.editMessageWithImages(sessionId, single.key.messageId, "text again", emptyList())
         assertFalse(archive.hasImages(sessionId))
     }
 
@@ -231,17 +232,17 @@ class MessageImageLifecycleTest {
             MessageImageInput.Prepared(a), MessageImageInput.Prepared(b)))
         // 编辑覆盖范围内的图片，旧摘要必须与正文一同失效。
         chat.saveSummary(sessionId, "summary", message.key.messageId)
-        val edited = chat.editUserMessageWithImages(sessionId, message.key.messageId, "after", listOf(
+        val edited = chat.editMessageWithImages(sessionId, message.key.messageId, "after", listOf(
             MessageImageInput.Existing(b.file.uuid), MessageImageInput.Existing(a.file.uuid)))
         assertEquals(listOf(b.file.uuid, a.file.uuid), edited.images.map { it.image.imageUuid })
         assertNull(database.getChatMessageDao().getLatestSummaryBySessionId(sessionId))
         val replacement = prepared("replacement")
-        chat.editUserMessageWithImages(sessionId, message.key.messageId, "", listOf(
+        chat.editMessageWithImages(sessionId, message.key.messageId, "", listOf(
             MessageImageInput.Prepared(replacement)))
         assertNull(files.getFileEntity(a.file.uuid))
-        rejected { chat.editUserMessageWithImages(sessionId, message.key.messageId, "", emptyList()) }
+        rejected { chat.editMessageWithImages(sessionId, message.key.messageId, "", emptyList()) }
         assertEquals("", chat.getMessageById(message.key.messageId)?.content)
-        chat.editUserMessageWithImages(sessionId, message.key.messageId, "text", emptyList())
+        chat.editMessageWithImages(sessionId, message.key.messageId, "text", emptyList())
         assertNull(files.getFileEntity(replacement.file.uuid))
     }
 
@@ -268,21 +269,72 @@ class MessageImageLifecycleTest {
     }
 
     @Test
-    /** 验证父消息、来源、会话及既有图片所有权检查。 */
+    /** 验证父消息、摘要边界、会话及既有图片所有权检查。 */
     fun invalidParentAndForeignAttachmentCannotCommit() = runBlocking {
         val a = prepared()
         val message = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(a)))
         val foreign = group.createUserMessageWithImages(groupId, "group", emptyList(), "user")
-        rejected { group.editUserMessageWithImages(groupId, foreign.key.messageId, "", listOf(MessageImageInput.Existing(a.file.uuid))) }
+        rejected { group.editMessageWithImages(groupId, foreign.key.messageId, "", listOf(MessageImageInput.Existing(a.file.uuid))) }
         // 提交失败不得提前持久化新草稿的文件索引。
         val b = prepared("b")
-        rejected { chat.editUserMessageWithImages(sessionId, Long.MAX_VALUE, "", listOf(MessageImageInput.Prepared(b))) }
-        rejected { chat.editUserMessageWithImages(Long.MAX_VALUE, message.key.messageId, "", listOf(MessageImageInput.Existing(a.file.uuid))) }
-        val characterMessage = chat.createMessage(sessionId, ChatMessage.Source.Char, "character")
-        rejected { chat.editUserMessageWithImages(sessionId, characterMessage, "", listOf(MessageImageInput.Prepared(b))) }
+        rejected { chat.editMessageWithImages(sessionId, Long.MAX_VALUE, "", listOf(MessageImageInput.Prepared(b))) }
+        rejected { chat.editMessageWithImages(Long.MAX_VALUE, message.key.messageId, "", listOf(MessageImageInput.Existing(a.file.uuid))) }
+        val summaryMessage = chat.createMessage(sessionId, ChatMessage.Source.Summary, "summary", coveredMessageId = message.key.messageId)
+        rejected { chat.editMessageWithImages(sessionId, summaryMessage, "", listOf(MessageImageInput.Prepared(b))) }
         assertNull(files.getFileEntity(b.file.uuid))
         assertNotNull(files.restorePrepared("draft", b.handle))
         assertEquals(1, chat.getMessagesWithImages(listOf(message.key.messageId)).single().images.size)
+    }
+
+    /** 旁白附件使用普通图文事务，编辑保留来源与引用，移除时正确回收文件。 */
+    @Test
+    fun narratorImagesUseSharedEditingAndCleanup() = runBlocking {
+        val singleId = chat.createMessage(sessionId, ChatMessage.Source.System, "narrator")
+        val groupMessageId = group.createMessage(groupId, GroupChatMessage.Source.System, "narrator", null, "Narrator")
+        val singleFile = prepared("single narrator")
+        val groupFile = prepared("group narrator")
+        // 底层不按角色限制附件；单聊与群聊仍拥有各自的消息及文件引用。
+        chat.editMessageWithImages(sessionId, singleId, "", listOf(MessageImageInput.Prepared(singleFile)))
+        group.editMessageWithImages(groupId, groupMessageId, "", listOf(MessageImageInput.Prepared(groupFile)))
+        val single = chat.editMessageWithImages(sessionId, singleId, "edited", listOf(MessageImageInput.Existing(singleFile.file.uuid)))
+        val multi = group.editMessageWithImages(groupId, groupMessageId, "edited", listOf(MessageImageInput.Existing(groupFile.file.uuid)))
+        assertEquals(ChatMessage.Source.System.name, single.source)
+        assertEquals(GroupChatMessage.Source.System.name, multi.source)
+        assertEquals(singleFile.file.uuid, single.images.single().image.imageUuid)
+        assertEquals(groupFile.file.uuid, multi.images.single().image.imageUuid)
+        // 普通消息移除附件时同步清理文件索引和物理文件，不留下孤立引用。
+        chat.editMessageWithImages(sessionId, singleId, "text only", emptyList())
+        group.editMessageWithImages(groupId, groupMessageId, "text only", emptyList())
+        assertNull(files.getFileEntity(singleFile.file.uuid))
+        assertNull(files.getFileEntity(groupFile.file.uuid))
+        assertFalse(File(directory, "repository/${singleFile.file.hash}").exists())
+        assertFalse(File(directory, "repository/${groupFile.file.hash}").exists())
+    }
+
+    /** 角色图文编辑保留来源，支持纯图、排序和删除，同时失效覆盖的旧摘要。 */
+    @Test
+    fun characterImageEditsPreserveRoleAndInvalidateSummary() = runBlocking {
+        val id = chat.createMessage(sessionId, ChatMessage.Source.Char, "reply")
+        val a = prepared("a")
+        val b = prepared("b")
+        chat.editMessageWithImages(sessionId, id, "", listOf(
+            MessageImageInput.Prepared(a), MessageImageInput.Prepared(b)))
+        chat.saveSummary(sessionId, "stale summary", id)
+        // 保留附件沿用 UUID，正文为空时仍然是角色的纯图消息。
+        val edited = chat.editMessageWithImages(sessionId, id, "", listOf(
+            MessageImageInput.Existing(b.file.uuid), MessageImageInput.Existing(a.file.uuid)))
+        assertEquals(ChatMessage.Source.Char.name, edited.source)
+        assertEquals(listOf(b.file.uuid, a.file.uuid), edited.images.map { it.image.imageUuid })
+        assertNull(chat.getLatestSummary(sessionId))
+        rejected { chat.editMessageWithImages(sessionId, id, "", emptyList()) }
+        assertEquals(edited, chat.getMessagesWithImages(listOf(id)).single())
+        // 真正保存移除才释放引用；其他消息的附件仍不能挪用。
+        val other = chat.createMessage(sessionId, ChatMessage.Source.Char, "other")
+        rejected { chat.editMessageWithImages(sessionId, other, "", listOf(MessageImageInput.Existing(a.file.uuid))) }
+        chat.editMessageWithImages(sessionId, id, "text only", emptyList())
+        assertNull(files.getFileEntity(a.file.uuid))
+        assertNull(files.getFileEntity(b.file.uuid))
+        assertEquals(ChatMessage.Source.Char, chat.getMessageById(id)!!.source)
     }
 
     @Test
@@ -394,7 +446,7 @@ class MessageImageLifecycleTest {
             ChatMessage(sessionId = sessionId, createTime = 10, source = ChatMessage.Source.User, content = "$it")
         })
         val a = prepared()
-        chat.editUserMessageWithImages(sessionId, ids.last(), "", listOf(MessageImageInput.Prepared(a)))
+        chat.editMessageWithImages(sessionId, ids.last(), "", listOf(MessageImageInput.Prepared(a)))
         // 超过单批参数上限后，结果仍按调用方顺序且保留完整附件。
         val snapshot = chat.getMessagesWithImages(ids.reversed())
         assertEquals(ids.reversed(), snapshot.map { it.key.messageId })
@@ -458,7 +510,7 @@ class MessageImageLifecycleTest {
             MessageImageInput.Prepared(a), MessageImageInput.Prepared(b)), "user")
         // 图片顺序变化也必须失效覆盖摘要，不能只比较正文。
         group.saveSummary(groupId, "summary", message.key.messageId)
-        val edited = group.editUserMessageWithImages(groupId, message.key.messageId, "", listOf(
+        val edited = group.editMessageWithImages(groupId, message.key.messageId, "", listOf(
             MessageImageInput.Existing(b.file.uuid), MessageImageInput.Existing(a.file.uuid)))
         assertEquals(listOf(b.file.uuid, a.file.uuid), edited.images.map { it.image.imageUuid })
         assertNull(database.getGroupChatSummaryDao().getLatest(groupId))

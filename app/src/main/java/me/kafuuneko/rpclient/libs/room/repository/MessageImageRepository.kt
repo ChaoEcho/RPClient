@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.libs.room.repository
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
-import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
@@ -16,7 +15,7 @@ import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 /**
  * 消息附件的共享数据协调能力，由会话及角色仓库编排调用。
  * - 将文件提交、关系变更、消息变更纳入同一短事务。
- * - 类型、父消息、用户来源及会话归属在关系写入前验证。
+ * - 附件能力不区分普通消息角色，父消息及会话归属在关系写入前验证。
  * - 聚合读取使用批次查询及一致快照，不改变消息分页和摘要边界。
  */
 class MessageImageRepository(
@@ -79,6 +78,7 @@ class MessageImageRepository(
         idMap: Map<Long, Long>,
         targetSessionId: Long
     ) {
+        // 分支复制已有关系，保留导入消息的来源；每个附件仍创建独立引用。
         idMap.keys.toList().chunked(BATCH_SIZE).forEach { batch ->
             val images = mImages.getByMessages(MessageType.Single, batch)
             images.groupBy { it.messageId }.forEach { (sourceId, attachments) ->
@@ -91,25 +91,24 @@ class MessageImageRepository(
         }
     }
 
-    /** 校验多态父消息，不通过无法表达二选一归属的双外键实现。 */
+    /** 校验多态父消息与真实会话；摘要是独立维护的派生数据，不承载消息附件。 */
     private suspend fun validateOwner(key: MessageKey, sessionId: Long) {
-        // 单聊与群聊同号消息也分别校验来源和真实会话。
+        // 单聊与群聊使用独立 ID 空间，不能跨类型匹配父消息。
         when (key.messageType) {
             MessageType.Single -> {
                 val message = requireNotNull(mDatabase.getChatMessageDao().getMessageById(key.messageId)) {
                     "The message owning the image does not exist"
                 }
-                require(message.sessionId == sessionId && message.source == ChatMessage.Source.User) {
-                    "An image can only belong to a user message of the same session"
+                require(message.sessionId == sessionId) { "The image owner belongs to a different session" }
+                require(message.source != ChatMessage.Source.Summary) {
+                    "Summary records cannot own message images"
                 }
             }
             MessageType.Group -> {
                 val message = requireNotNull(mDatabase.getGroupChatMessageDao().getMessageById(key.messageId)) {
                     "The message owning the image does not exist"
                 }
-                require(message.sessionId == sessionId && message.source == GroupChatMessage.Source.User) {
-                    "An image can only belong to a user message of the same session"
-                }
+                require(message.sessionId == sessionId) { "The image owner belongs to a different session" }
             }
         }
     }

@@ -417,7 +417,7 @@ class MultimodalImageIntegrationTest {
         database.openHelper.writableDatabase.execSQL(
             "CREATE TRIGGER fail_edit BEFORE UPDATE ON chat_messages BEGIN SELECT RAISE(ABORT, 'test'); END")
         assertTrue(runCatching {
-            coordinator.submit(editing = true) { chat.editUserMessageWithImages(sessionId, saved.key.messageId, "new", it) }
+            coordinator.submit(editing = true) { chat.editMessageWithImages(sessionId, saved.key.messageId, "new", it) }
         }.isFailure)
         database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_edit")
         assertEquals("old", chat.getMessageById(saved.key.messageId)!!.content)
@@ -426,7 +426,7 @@ class MultimodalImageIntegrationTest {
         assertEquals(setOf(added.handle, "${added.handle}.meta"),
             File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet())
         val edited = coordinator.submit(editing = true) {
-            chat.editUserMessageWithImages(sessionId, saved.key.messageId, "new", it)
+            chat.editMessageWithImages(sessionId, saved.key.messageId, "new", it)
         }
         assertFalse(removed.exists())
         assertEquals(ids[1], edited.images.first().image.imageUuid)
@@ -656,8 +656,9 @@ class MultimodalImageIntegrationTest {
         val prepared = media.prepare("test", Uri.fromFile(fixture()))
         val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
         val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
-        // 穷举三协议、两种传输和三类内容，检查实际 RequestBody 而非仅检查映射对象。
-        for (protocol in LLMProviderProtocol.entries) for (stream in listOf(false, true)) for (count in 0..2) {
+        // 穷举用户与角色、三协议、两种传输和三类内容，检查实际请求字节及角色。
+        for (protocol in LLMProviderProtocol.entries) for (stream in listOf(false, true))
+        for (role in listOf(LLMMessageRole.User, LLMMessageRole.Assistant)) for (count in 0..2) {
             var payload = ""
             val http = OkHttpClient.Builder().addInterceptor { chain ->
                 payload = Buffer().also { chain.request().body!!.writeTo(it) }.readUtf8()
@@ -673,11 +674,14 @@ class MultimodalImageIntegrationTest {
             val blocks = (0 until count).flatMap { index ->
                 listOf(LLMContentBlock.Image(reference)) + if (count == 2) listOf(LLMContentBlock.Text("after-$index")) else emptyList()
             }
-            val message = if (count == 0) LLMMessage(LLMMessageRole.User, "text") else messageWithBlocks(LLMMessageRole.User, blocks)
+            val message = if (count == 0) LLMMessage(role, "text") else messageWithBlocks(role, blocks)
             val request = LLMGenerationRequest(listOf(message), isPromptFinalized = true)
             if (stream) client.streamGenerate(request).toList() else assertEquals("ok", client.generate(request).content)
             val json = JSONObject(payload)
             val messageJson = json.getJSONArray(if (protocol == LLMProviderProtocol.Gemini) "contents" else "messages").getJSONObject(0)
+            val expectedRole = if (role == LLMMessageRole.User) "user"
+                else if (protocol == LLMProviderProtocol.Gemini) "model" else "assistant"
+            assertEquals(expectedRole, messageJson.getString("role"))
             val contentKey = if (protocol == LLMProviderProtocol.Gemini) "parts" else "content"
             if (count > 0) {
                 val content = messageJson.getJSONArray(contentKey)
@@ -724,7 +728,7 @@ class MultimodalImageIntegrationTest {
         val saved = chat.createUserMessageWithImages(sessionId, "old", listOf(MessageImageInput.Prepared(prepared)))
         val snapshot = chat.getSummaryInputSnapshot(sessionId, listOf(saved.key.messageId))
         val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
-        chat.editUserMessageWithImages(sessionId, saved.key.messageId, "edited", emptyList())
+        chat.editMessageWithImages(sessionId, saved.key.messageId, "edited", emptyList())
         assertNotNull(runCatching { chat.saveSummary(sessionId, "stale", saved.key.messageId, expectedSnapshot = snapshot) }.exceptionOrNull())
         assertNotNull(runCatching { media.withSendFile(reference) { it.length() } }.exceptionOrNull())
         assertEquals(null, chat.getLatestSummary(sessionId))

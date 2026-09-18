@@ -1315,9 +1315,7 @@ class GroupChatViewModel :
                         GroupChatMessage.Source.System -> uiState.conversationState.editingMessageDraft.trim()
                     }
                 }
-                if (message.source == GroupChatMessage.Source.User) {
-                    mGroupChatRepository.editUserMessageWithImages(uiState.sessionId, messageId, content, finalInputs)
-                } else mGroupChatRepository.updateMessageContent(messageId, content)
+                mGroupChatRepository.editMessageWithImages(uiState.sessionId, messageId, content, finalInputs)
             }
             // 退出编辑状态并刷新 UI
             refreshState(editingMessageId = null, editingMessageDraft = "")

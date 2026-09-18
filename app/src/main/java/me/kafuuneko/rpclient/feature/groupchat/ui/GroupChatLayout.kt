@@ -1340,6 +1340,8 @@ private fun MessageBubble(
 ) {
     val isUser = message.source == GroupChatMessageSource.User
     val isSystem = message.source == GroupChatMessageSource.System
+    // 供应商对助手图片的支持不一致，暂只向用户消息开放新增入口，保留所有消息既有附件的编辑能力。
+    val canAddImages = editing && isUser
     val accent = getMacaronColor(message.speakerName)
     var showActions by remember(message.id) { mutableStateOf(false) }
     Row(
@@ -1386,7 +1388,7 @@ private fun MessageBubble(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                 )
-                if (editing && isUser) {
+                if (canAddImages) {
                     Spacer(Modifier.width(6.dp))
                     MessageImageEditButton(imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
                 }
@@ -1436,14 +1438,14 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val imageIds = if (editing && isUser) imageState.editing else message.imageUuids
-                    MessageImageGallery(imageIds, imageState, editing = editing && isUser) {
+                    val imageIds = if (editing) imageState.editing else message.imageUuids
+                    MessageImageGallery(imageIds, imageState, editing = editing) {
                         emitIntent(GroupChatUiIntent.ImageAction(it))
                     }
-                    if (editing && isUser) imageState.errorResId?.let { errorResId ->
+                    if (editing) imageState.errorResId?.let { errorResId ->
                         Text(
                             text = stringResource(errorResId),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

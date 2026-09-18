@@ -20,6 +20,8 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -78,6 +80,39 @@ class ChatArchiveRepositoryTest {
     fun tearDown() {
         database.close()
         directory.deleteRecursively()
+    }
+
+    /** 导入图片后分支保留角色及附件顺序，任一侧删除都不能破坏另一侧的共享文件。 */
+    @Test
+    fun importedImagesBranchWithIndependentReferencesForEveryRole() = runBlocking {
+        val bytes = imageBytes(Bitmap.CompressFormat.PNG)
+        val chats = ChatRepository(database, Gson(), MessageImageRepository(database, files))
+        for (role in ChatArchiveMessageRole.entries) for (deleteSourceFirst in listOf(true, false)) {
+            // 走真实导入入口，包括角色与旁白，避免只验证用户图片的既有路径。
+            val image = ChatArchiveImage("image/png", Base64.getEncoder().encodeToString(bytes))
+            val original = repository.saveImport(archive().copy(messages = listOf(
+                ChatArchiveMessage(1_000, role, "", listOf(image, image))
+            ), summary = null), characterId)
+            val source = chats.getAllChatMessagesBySessionId(original.sessionId).single()
+            val sourceImages = chats.getMessagesWithImages(listOf(source.id)).single().images
+            val branch = chats.createBranchSession(original.sessionId, source.id, "branch")
+            val copied = chats.getAllChatMessagesBySessionId(branch).single()
+            val copiedImages = chats.getMessagesWithImages(listOf(copied.id)).single().images
+            assertEquals(source.source, copied.source)
+            assertEquals(listOf(0, 1), copiedImages.map { it.image.position })
+            val allUuids = (sourceImages + copiedImages).map { it.image.imageUuid }
+            assertEquals(4, allUuids.toSet().size)
+            assertEquals(1, (sourceImages + copiedImages).map { it.file!!.hash }.toSet().size)
+
+            // 分别删除原会话和分支，验证独立引用及最后一个引用的文件回收。
+            chats.deleteSession(if (deleteSourceFirst) original.sessionId else branch)
+            val surviving = if (deleteSourceFirst) copiedImages else sourceImages
+            surviving.forEach { attachment ->
+                files.withFileLease(attachment.image.imageUuid) { assertArrayEquals(bytes, it.readBytes()) }
+            }
+            chats.deleteSession(if (deleteSourceFirst) branch else original.sessionId)
+            assertFalse(File(context.getDir("repository", 0), surviving.first().file!!.hash).exists())
+        }
     }
 
     @Test

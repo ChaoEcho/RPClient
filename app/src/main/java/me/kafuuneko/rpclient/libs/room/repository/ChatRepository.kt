@@ -120,8 +120,8 @@ class ChatRepository(
         }
     }
 
-    /** 原子编辑用户图文；附件移除和顺序变化与正文使用同一摘要失效边界。 */
-    suspend fun editUserMessageWithImages(
+    /** 原子编辑普通消息的图文；附件移除和顺序变化与正文使用同一摘要失效边界。 */
+    suspend fun editMessageWithImages(
         sessionId: Long,
         messageId: Long,
         content: String,
@@ -129,6 +129,7 @@ class ChatRepository(
     ): MessageWithImages {
         require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
+        // 新图片和保留引用共同进入文件事务，正文变更沿用原有摘要失效规则。
         val prepared = images.filterIsInstance<MessageImageInput.Prepared>().map { it.value }
         return mImages.mutate(prepared) {
             val key = MessageKey(MessageType.Single, messageId)

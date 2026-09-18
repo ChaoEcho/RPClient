@@ -21,6 +21,7 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -267,6 +268,101 @@ class ImageConversationFlowTest {
         }
     }
 
+    /** 直接触发 MVI 验证预留的角色图片能力；界面不开放新增入口，模拟服务端接收 assistant 图片。 */
+    @Test
+    fun chatCharacterImageEditingFlowsIntoPromptAndCancelPreservesAttachment() = runBlocking {
+        withFixture { fixture ->
+            val repository = GlobalContext.get().get<ChatRepository>()
+            val id = fixture.db.getChatSessionDao().insertOrReplace(ChatSession(characterId = fixture.characters.first(),
+                createTime = 1, latestTime = 1, lorebookEntrySet = "[]", title = "Character image", userNote = "", userName = "User", userDescription = ""))
+            val messageId = repository.createMessage(id, ChatMessage.Source.Char, "reply")
+            ActivityScenario.launch<ChatActivity>(Intent(fixture.context, ChatActivity::class.java)
+                .putExtra(ChatActivity.EXTRA_SESSION_ID, id.toString())).use { scenario ->
+                lateinit var vm: ChatViewModel
+                scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
+                await { vm.uiStateFlow.value is ChatUiState.Normal }
+                // 角色消息从无图变为纯图，写回时不得改成 User 或丢弃新附件。
+                vm.emit(ChatUiIntent.StartEditMessage(messageId.toString()))
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == messageId.toString() }
+                vm.emit(ChatUiIntent.ChangeEditingMessageDraft(""))
+                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { it.editing.size == 1 && !it.processing } == true }
+                screenshot("chat-character-image-edit.png")
+                vm.emit(ChatUiIntent.SaveEditingMessage)
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == null }
+                val saved = repository.getMessagesWithImages(listOf(messageId)).single()
+                assertEquals(ChatMessage.Source.Char.name, saved.source)
+                assertEquals("", saved.content)
+                val uuid = saved.images.single().image.imageUuid
+                // 放弃删除草稿不影响持久化图片，下一轮请求仍读取角色的图片。
+                vm.emit(ChatUiIntent.StartEditMessage(messageId.toString()))
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId != null }
+                vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Remove(uuid, editing = true)))
+                vm.emit(ChatUiIntent.CancelEditingMessage)
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == null }
+                assertEquals(saved, repository.getMessagesWithImages(listOf(messageId)).single())
+                vm.emit(ChatUiIntent.ChangeInputDraft("Continue"))
+                vm.emit(ChatUiIntent.SendMessage)
+                await { repository.getAllChatMessagesBySessionId(id).count { it.source == ChatMessage.Source.Char } == 2 }
+                assertAssistantImage(fixture.server.requests.last())
+            }
+        }
+    }
+
+    /** 绕过界面入口验证群聊预留能力，保留发言者快照并向模拟服务端发送角色图片。 */
+    @Test
+    fun groupCharacterImageEditingPreservesSpeakerAndFlowsIntoPrompt() = runBlocking {
+        withFixture { fixture ->
+            val repository = GlobalContext.get().get<GroupChatRepository>()
+            val id = repository.createSession("Character image", "User", "", fixture.characters,
+                activationStrategy = GroupChatSession.ActivationStrategy.List, allowSelfResponses = false)
+            try {
+                val original = GroupChatMessage(sessionId = id, createTime = 1, source = GroupChatMessage.Source.Character,
+                    content = "reply", speakerCharacterId = fixture.characters.first(), speakerNameSnapshot = "Fixture 0", generationBatchId = "original-batch")
+                val messageId = fixture.db.getGroupChatMessageDao().insertOrReplace(original)
+                ActivityScenario.launch<GroupChatActivity>(Intent(fixture.context, GroupChatActivity::class.java)
+                    .putExtra(GroupChatActivity.EXTRA_SESSION_ID, id.toString())).use { scenario ->
+                    lateinit var vm: GroupChatViewModel
+                    scenario.onActivity { vm = ViewModelProvider(it)[GroupChatViewModel::class.java] }
+                    await("group ready") { vm.uiStateFlow.value is GroupChatUiState.Normal }
+                    // 从已有角色回复添加图片，附件与空正文必须共同提交。
+                    vm.emit(GroupChatUiIntent.StartEditMessage(messageId))
+                    await("group editing target") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == messageId }
+                    vm.emit(GroupChatUiIntent.ChangeEditingMessageDraft(""))
+                    vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
+                    await("group image picked") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { it.editing.size == 1 && !it.processing } == true }
+                    screenshot("group-character-image-edit.png")
+                    vm.emit(GroupChatUiIntent.SaveEditingMessage)
+                    await("group edit saved") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == null }
+                    assertEquals(original.copy(id = messageId, content = ""), repository.getMessageById(messageId))
+                    assertEquals(1, repository.getMessagesWithImages(listOf(messageId)).single().images.size)
+                    // 正常发言读取同一份角色附件，不用 User 来源伪装历史。
+                    vm.emit(GroupChatUiIntent.ChangeInputDraft("Continue"))
+                    vm.emit(GroupChatUiIntent.SendMessage)
+                    await("group generated reply") { repository.getGroupChatData(id)!!.messages.count { it.source == GroupChatMessage.Source.Character } >= 2 }
+                    await("group idle") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    assertAssistantImage(fixture.server.requests.first())
+                }
+            } finally {
+                repository.deleteSession(id)
+            }
+        }
+    }
+
+    /** 核对最终 HTTP 请求中的角色与图片块，避免只验证数据库中有附件。 */
+    private fun assertAssistantImage(payload: String) {
+        val messages = JSONObject(payload).getJSONArray("messages")
+        assertTrue((0 until messages.length()).any { index ->
+            val message = messages.getJSONObject(index)
+            val blocks = message.optJSONArray("content")
+            message.optString("role") == "assistant" && blocks != null &&
+                (0 until blocks.length()).any { blockIndex ->
+                    blocks.getJSONObject(blockIndex).optJSONObject("image_url")
+                        ?.optString("url")?.startsWith("data:image/") == true
+                }
+        })
+    }
+
     @Test
     fun stoppingAnImageStreamClosesTheRequestAndPreservesTheUserImage() = runBlocking {
         withFixture { fixture ->
@@ -297,8 +393,15 @@ class ImageConversationFlowTest {
         }
     }
 
-    private suspend fun await(condition: suspend () -> Boolean) = withTimeout(30_000) {
-        while (!condition()) delay(100)
+    /** 等待异步状态并保留失败阶段，避免超时只能定位到协程调度器。 */
+    private suspend fun await(description: String = "state update", condition: suspend () -> Boolean) {
+        try {
+            withTimeout(30_000) {
+                while (!condition()) delay(50)
+            }
+        } catch (error: TimeoutCancellationException) {
+            throw AssertionError("Timed out waiting for $description", error)
+        }
     }
 
     /** 只截取本测试创建的合成对话，供布局验收。 */

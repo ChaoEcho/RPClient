@@ -747,9 +747,11 @@ private fun MessageBubble(
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
-    val imageIds = if (editing && isUser) imageState.editing else message.imageUuids
+    // 供应商对助手图片的支持不一致，暂只向用户消息开放新增入口，保留所有消息既有附件的编辑能力。
+    val canAddImages = editing && isUser
+    val imageIds = if (editing) imageState.editing else message.imageUuids
     val hasImageHeader =
-        imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || (editing && isUser)
+        imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || canAddImages
     var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
@@ -840,20 +842,20 @@ private fun MessageBubble(
                             color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                         )
-                        if (editing && isUser) {
+                        if (canAddImages) {
                             Spacer(Modifier.width(4.dp))
                             MessageImageEditButton(imageState) {
                                 ChatUiIntent.ImageAction(it).emit()
                             }
                         }
                     }
-                    MessageImageGallery(imageIds, imageState, editing = editing && isUser) {
+                    MessageImageGallery(imageIds, imageState, editing = editing) {
                         ChatUiIntent.ImageAction(it).emit()
                     }
-                    if (editing && isUser) imageState.errorResId?.let { errorResId ->
+                    if (editing) imageState.errorResId?.let { errorResId ->
                         Text(
                             text = stringResource(errorResId),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

@@ -623,13 +623,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(loadState = ChatLoadState.Saving).setup()
         val branchCreateTime = System.currentTimeMillis()
         // 异步在数据库中创建分支会话
-        val branchId = withContext(Dispatchers.IO) {
-            mChatRepository.createBranchSession(
-                sourceSessionId = sessionId,
-                throughMessageId = messageId,
-                title = branchCreateTime.toDefaultChatTitle(),
-                createTime = branchCreateTime
-            )
+        val branchId = try {
+            withContext(Dispatchers.IO) {
+                mChatRepository.createBranchSession(
+                    sourceSessionId = sessionId,
+                    throughMessageId = messageId,
+                    title = branchCreateTime.toDefaultChatTitle(),
+                    createTime = branchCreateTime
+                )
+            }
+        } catch (error: Exception) {
+            // 文件或数据库失败统一回到可操作状态，协程取消仍向上传播。
+            currentCoroutineContext().ensureActive()
+            0L
         }
         // 处理分叉创建失败
         if (branchId == 0L) {
@@ -1285,8 +1291,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
                     }
                 }
-                if (message.source == ChatMessage.Source.User) {
-                    mChatRepository.editUserMessageWithImages(sessionId, messageId, content, finalInputs)
+                if (message.source != ChatMessage.Source.Summary) {
+                    mChatRepository.editMessageWithImages(sessionId, messageId, content, finalInputs)
                 } else mChatRepository.updateMessageContent(messageId, content)
             }
             // 刷新 UI 状态并重置编辑态草稿
