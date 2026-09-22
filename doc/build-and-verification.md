@@ -27,6 +27,13 @@ git diff --check
 - 设备测试使用隔离的测试数据库和文件目录，不使用真实聊天或角色数据。
 - Release 必须单独验证反射 Intent 分发、JSON 兼容和分词资源，不能仅根据 APK 体积判断打包成功。
 
+## ARM64 源码机的本次辅助环境
+
+- 已在源码机用户缓存目录准备 JDK 21 与官方 Android SDK；使用发行版已有 QEMU 执行官方 Linux AAPT2，没有替换为来源不明的 ARM64 工具，也没有修改生产服务。
+- 缓存入口为 `$HOME/.cache/rpclient-integration/jvm-core/run-gradle`，封装仓库 Wrapper、SDK 路径及两个并发 worker。它只用于这台机器的复验，不随源码提交，也不是其他构建机的前置依赖。
+- 可用该入口传入与上文相同的 Gradle task；验证 R8 测试 APK 时继续显式传入 `-PtestBuildType=verification`。完整恢复与运行器行为仍需 Android 设备，不能用 QEMU 下的 AAPT2 构建冒充模拟器测试。
+- 本轮实际结果与剩余设备验收见 [上游集成记录](upstream-integration.md)。
+
 ## 发布与回滚
 
 - 正式发布仅允许 `main` 历史中的提交，必须提供与既有安装兼容的签名。
