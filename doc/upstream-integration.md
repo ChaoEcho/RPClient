@@ -99,22 +99,22 @@
 
 ## 本轮本机验证：2026-09-22
 
-以下结果对应修复提交 `d19f6e7` 的代码，不是沿用旧 CI 的成绩；修复后本机追加构建对应当前未提交设备修复，设备报告另列。使用 JDK 21、仓库 Gradle Wrapper 与官方 Android 工具；ARM64 上仅 AAPT2 通过主机已有 QEMU 运行。没有部署 Android 应用，也没有触发远程 CI。
+本节结果覆盖合并候选 `d19f6e7` 的完整本机验收，以及设备失败后在 `98b4e1c` 中补上的修复；不是沿用旧 CI 的成绩。使用 JDK 21、仓库 Gradle Wrapper 与官方 Android 工具；ARM64 上仅 AAPT2 通过主机已有 QEMU 运行。没有部署 Android 应用，也没有触发远程 CI。
 
 | 验证项目 | 实际结果 |
 | --- | --- |
-| `:app:testDebugUnitTest` | 62 个测试类、402 项，失败 / 错误 / 跳过均为 0 |
+| `:app:testDebugUnitTest` / `:app:testVerificationUnitTest` | 各 62 个测试类、402 项，失败 / 错误 / 跳过均为 0 |
 | Debug 应用与 Debug 测试 APK | 构建通过 |
 | `:app:lintDebug` | 通过；仍有 274 条警告及被既有基线过滤的 272 项翻译错误 |
 | `:app:assembleRelease` | 构建通过，产物为 unsigned；R8 仍执行实际混淆 |
 | `:app:assembleVerification` | R8 与资源压缩构建通过，独立 `.verification` 包名 |
 | `:app:assembleVerificationAndroidTest` | 测试 APK 的 R8 构建通过 |
-| R8 产物检查 | 应用 DEX 中存在 `androidx.tracing.Trace`；测试 DEX 中存在运行器及四个指定测试类 |
+| R8 产物检查 | 应用 DEX 中存在 `androidx.tracing.Trace` 与三个 `kotlin.LazyKt*` 类；测试 DEX 中存在运行器及四个指定测试类 |
 | 历史 schema / 迁移 SQL | v1–v9 原文件未变、生成的 v10 无差异；v9 数据转换夹具通过 |
 
 - 先用独立编译的 26 项归档/备份规则测试定位额外的旧断言问题，再执行完整 Gradle 测试；这 26 项已包含在上述 402 项中，不重复计数。
 - 额外在本机 SQLite 执行本轮 Room 生成的各历史版本结构迁移 SQL，v1–v9 到 v10 的表、列、完整索引与外键均匹配；显式 `DEFAULT NULL` 与缺省 NULL 做同义归一化。该检查使用空历史数据库，不覆盖 Android 执行及数据回调，不能替代设备迁移测试。
-- 检查实际 R8 配置与映射：只有 verification 应用保留 tracing，正式 Release 未加载测试专用规则；两种应用均没有全包 keep，业务 ViewModel 名称确实经过混淆。DEX 中存在入口只证明打包结果，不代表测试运行器已经在设备启动成功。
+- 检查实际 R8 配置与映射：只有 verification 应用保留 tracing 与测试运行器所需的 Kotlin Lazy 类，正式 Release 未加载测试专用规则；两种应用均没有全包 keep，业务 ViewModel 名称确实经过混淆。DEX 中存在入口只证明打包结果，不代表测试运行器已经在设备启动成功。
 - Kotlin 语法、仓库约束、SQLite 数据夹具、生成 schema 差异与 `git diff --check` 均通过。本机缓存环境不进入 Git，不放宽原有 Lint 或 R8 校验。
 
 ## 尚待验收与下一步
