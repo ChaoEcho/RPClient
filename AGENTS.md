@@ -1,30 +1,25 @@
-# RPClient — AI 指南
+# RPClient — AI 入口
 
-## Purpose
+## 项目边界
 
-RPClient 客户端。**只在本机保留源码，不在本机运行。**
+RPClient 是 Android 客户端。本机只维护源码，不部署应用、不监听端口，不在仓库保存用户数据、备份、签名密钥或凭据。
 
-## Start Here
+## 开始前
 
-这个项目有自己的开发规范和决策记录，先读它们再动代码：
+- 阅读 `README_ZH.md`、`doc/coding-guidelines.md`，按任务读取其中的专题规范。
+- 构建与验证见 `doc/build-and-verification.md`；上游集成约束与进度见 `doc/upstream-integration.md`。
+- 检查 Git 工作区，保留不属于当前任务的修改。
 
-- `DOCS/RPClient/BUILD_GUIDELINES.md`
-- `DOCS/RPClient/DEVELOPMENT.md`
-- `DOCS/RPClient/decisions/`（AI 任务归属、开发日志隐私、fork 分支模型）
+## 分支与兼容
 
-## Change Boundaries
+- `master` 保留上游历史，`main` 承载 fork 功能；集成工作从 `main` 建立独立分支。
+- 上游同步保留双方历史，不重写已发布的 fork 提交。
+- 已发布的 Room schema 不得覆盖。数据库迁移、完整备份和聊天归档分别维护兼容边界。
+- 生成配图默认仅用于展示，不自动作为视觉输入回传模型。
+- 不使用破坏性数据库回退，不把正式发布静默切换为另一把签名密钥。
 
-它是 `source-only`：本机不部署、无端口、无数据。
-不要为它添加本机部署配置——要部署先改 catalog 的 `lifecycle` 与 `runtime`。
+## 验证
 
-`decisions/0003-fork-branch-model.md` 定义了分支模型，改分支策略前先读它。
-
-## Verification
-
-```bash
-projectctl check RPClient
-```
-
-## Relevant Skills
-
-`minimal-engineering`。
+- 执行 `python3 scripts/verify_repository.py` 和 `git diff --check`。
+- Android 构建、单元测试和设备测试按构建文档执行；没有相应环境时明确记录未执行项。
+- 发布前必须验证旧数据升级、备份恢复和 R8 构建，不用 Debug 成功替代 Release 验收。
