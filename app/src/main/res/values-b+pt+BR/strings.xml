@@ -1223,4 +1223,8 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="chat_import_reading_images">Lendo imagens…</string>
     <string name="chat_import_image_directory_failed">Não foi possível ler a pasta de imagens</string>
     <string name="chat_archive_images_skipped">Concluído. %1$d imagens indisponíveis foram ignoradas.</string>
+    <string name="recovery_title">Concluir a recuperação de dados</string>
+    <string name="recovery_description">A restauração anterior foi interrompida. A cópia local para recuperação foi preservada. Tente recuperar os dados antes de abrir o aplicativo.</string>
+    <string name="recovery_failed">A recuperação ainda não foi concluída. Não apague os dados do aplicativo. Verifique o espaço disponível e tente novamente.</string>
+    <string name="recovery_retry">Tentar recuperar novamente</string>
 </resources>

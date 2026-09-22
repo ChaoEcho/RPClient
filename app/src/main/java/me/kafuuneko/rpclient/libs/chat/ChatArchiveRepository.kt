@@ -281,7 +281,8 @@ class ChatArchiveRepository(
             userDescription = archive.userDescription,
             creatorNotes = archive.creatorNotes,
             worldInfoStateJson = "{}",
-            autoSummaryPaused = archive.autoSummaryPaused
+            autoSummaryPaused = archive.autoSummaryPaused,
+            mimoTtsVoiceOverride = archive.mimoTtsVoiceOverride
         ).withNormalizedCreatorNotes())
     }
 
@@ -341,6 +342,7 @@ class ChatArchiveRepository(
             lorebookEntrySet = session.lorebookEntrySet,
             worldInfoStateJson = session.worldInfoStateJson,
             autoSummaryPaused = session.autoSummaryPaused,
+            mimoTtsVoiceOverride = session.mimoTtsVoiceOverride,
             characterNameHint = character.name,
             characterFingerprint = ChatCharacterMatcher.fingerprintOf(character),
             messages = emptyList(),

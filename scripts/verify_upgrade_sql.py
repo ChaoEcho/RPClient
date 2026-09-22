@@ -49,6 +49,19 @@ def main():
         assert db.execute('SELECT COUNT(DISTINCT imageUuid) FROM message_images').fetchone() == (2,)
         assert db.execute("SELECT hash FROM files WHERE uuid='image-old'").fetchone() == ('a' * 64,)
         assert not db.execute('PRAGMA foreign_key_check').fetchall()
+
+        current = json.loads((ROOT / 'app/schemas/me.kafuuneko.rpclient.libs.room.AppDatabase/10.json').read_text())['database']
+        for entity in current['entities']:
+            table = entity['tableName']
+            actual = {row[1]: (row[2].upper(), bool(row[3]), row[4])
+                      for row in db.execute(f'PRAGMA table_info(`{table}`)')}
+            expected = {field['columnName']: (field['affinity'], field.get('notNull', False), field.get('defaultValue'))
+                        for field in entity['fields']}
+            assert actual == expected, f'Migration columns differ from Room v10: {table}'
+            for index in entity.get('indices', []):
+                name = index['name']
+                columns = [row[2] for row in db.execute(f'PRAGMA index_info(`{name}`)')]
+                assert columns == index['columnNames'], f'Migration index differs from Room v10: {name}'
         for statement in statements(source.split('internal fun migrateLegacyGeneratedImages', 1)[1]):
             db.execute(statement)
         assert db.execute('SELECT COUNT(*) FROM message_images').fetchone() == (2,)

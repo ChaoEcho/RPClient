@@ -395,8 +395,8 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate3To4_addsTokenUsageStorageWithoutSensitivePayloadColumns() {
-        migrationHelper.createDatabase(TokenUsageDatabaseName, 3).apply {
+    fun migrate9To10_addsTokenUsageStorageWithoutSensitivePayloadColumns() {
+        migrationHelper.createDatabase(TokenUsageDatabaseName, 9).apply {
             execSQL(
                 """
                 INSERT INTO llm_providers (
@@ -425,8 +425,9 @@ class AppDatabaseMigrationTest {
 
         val migrated = migrationHelper.runMigrationsAndValidate(
             TokenUsageDatabaseName,
-            4,
-            true
+            AppDatabase.VERSION,
+            true,
+            me.kafuuneko.rpclient.libs.room.migration.Migration9To10
         )
 
         // 表结构由 Room 校验，额外约束统计表不得保存敏感载荷。
@@ -592,6 +593,7 @@ class AppDatabaseMigrationTest {
     }
 
     private companion object {
+        const val TokenUsageDatabaseName = "app-token-usage-migration-test"
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"
         const val ImageDatabaseName = "app-image-migration-test"

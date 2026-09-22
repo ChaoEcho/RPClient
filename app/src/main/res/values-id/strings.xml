@@ -1220,4 +1220,8 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="chat_import_reading_images">Membaca gambar…</string>
     <string name="chat_import_image_directory_failed">Tidak dapat membaca folder gambar</string>
     <string name="chat_archive_images_skipped">Selesai. %1$d gambar yang tidak tersedia dilewati.</string>
+    <string name="recovery_title">Selesaikan pemulihan data</string>
+    <string name="recovery_description">Pemulihan sebelumnya terhenti. Salinan lokal untuk pemulihan tetap disimpan. Coba pulihkan data sebelum membuka aplikasi.</string>
+    <string name="recovery_failed">Pemulihan belum selesai. Jangan hapus data aplikasi. Periksa ruang penyimpanan yang tersedia, lalu coba lagi.</string>
+    <string name="recovery_retry">Coba pulihkan lagi</string>
 </resources>

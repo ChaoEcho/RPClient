@@ -1220,4 +1220,8 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="chat_import_reading_images">Đang đọc ảnh…</string>
     <string name="chat_import_image_directory_failed">Không thể đọc thư mục ảnh</string>
     <string name="chat_archive_images_skipped">Đã hoàn tất. Đã bỏ qua %1$d ảnh không đọc được.</string>
+    <string name="recovery_title">Hoàn tất khôi phục dữ liệu</string>
+    <string name="recovery_description">Lần khôi phục trước đã bị gián đoạn. Bản sao khôi phục cục bộ vẫn được giữ lại. Hãy thử khôi phục dữ liệu trước khi mở ứng dụng.</string>
+    <string name="recovery_failed">Quá trình khôi phục chưa hoàn tất. Đừng xóa dữ liệu ứng dụng. Hãy kiểm tra dung lượng trống rồi thử lại.</string>
+    <string name="recovery_retry">Thử khôi phục lại</string>
 </resources>
