@@ -138,8 +138,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
-import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.tts.TtsProviderType
 import me.kafuuneko.rpclient.feature.promptbehavior.ui.titleRes
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
@@ -1359,7 +1357,7 @@ private fun SettingsPage(
             ) { MainUiIntent.OpenProviderManager.emit() }
         }
         item {
-            ModelConfigPanel(state.providerState, state.imageProviderSummary, emit)
+            ModelConfigPanel(state.providerState, state.imageProviderSummary, state.voiceProviderSummary, emit)
         }
 
         item { ImageSendPanel(state.imageSendState, emit) }
@@ -1614,6 +1612,7 @@ private fun UserAvatarPicker(
 private fun ModelConfigPanel(
     providerState: MainProviderSettingsState,
     imageProviderSummary: String,
+    voiceProviderSummary: String,
     emit: MainUiIntent.() -> Unit
 ) {
     val chatModelSubtitle = when (providerState) {
@@ -1641,24 +1640,7 @@ private fun ModelConfigPanel(
         stringResource(R.string.no_model_configured)
     }
 
-    val voiceModelSubtitle = when (TtsProviderType.fromPersistedValue(AppModel.ttsProvider)) {
-        TtsProviderType.System -> {
-            val lang = AppModel.ttsSystemLanguageTag.ifBlank { "" }
-            if (lang.isNotBlank()) {
-                "${stringResource(R.string.tts_provider_system)} · $lang"
-            } else {
-                stringResource(R.string.tts_provider_system)
-            }
-        }
-        TtsProviderType.Mimo -> {
-            val voice = AppModel.ttsMimoVoice.ifBlank { "default" }
-            "Mimo · $voice"
-        }
-        TtsProviderType.Azure -> {
-            val voice = AppModel.ttsAzureVoice.ifBlank { "default" }
-            "Azure · $voice"
-        }
-    }
+    val voiceModelSubtitle = voiceProviderSummary.ifBlank { stringResource(R.string.tts_provider_system) }
 
     RpSettingsGroup {
         RpSettingsTile(

@@ -31,8 +31,18 @@ class PromptBehaviorSettingsViewModel : CoreViewModelWithEvent<
             streamEnabled = AppModel.streamEnabled,
             worldInfoBudgetPercent = AppModel.worldInfoBudgetPercent,
             worldInfoBudgetCap = AppModel.worldInfoBudgetCap,
+            maxHistoryMessagesDraft = AppModel.maxPromptHistoryMessages.coerceAtLeast(0).toString(),
             worldInfoOverflowAlert = AppModel.worldInfoOverflowAlert
         ).setup()
+    }
+
+    /** 原始输入作为草稿保留，非法输入不能静默把历史限制改成无限制。 */
+    @UiIntentObserver(PromptBehaviorSettingsUiIntent.ChangeMaxHistoryMessages::class)
+    private fun onChangeMaxHistoryMessages(intent: PromptBehaviorSettingsUiIntent.ChangeMaxHistoryMessages) {
+        val state = getOrNull<PromptBehaviorSettingsUiState.Normal>() ?: return
+        val limit = intent.value.trim().toIntOrNull()?.takeIf { it >= 0 }
+        if (limit != null) AppModel.maxPromptHistoryMessages = limit
+        state.copy(maxHistoryMessagesDraft = intent.value, maxHistoryMessagesError = limit == null).setup()
     }
 
     @UiIntentObserver(PromptBehaviorSettingsUiIntent.Back::class)

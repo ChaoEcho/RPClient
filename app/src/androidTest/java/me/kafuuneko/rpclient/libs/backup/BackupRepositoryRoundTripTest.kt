@@ -242,6 +242,89 @@ class BackupRepositoryRoundTripTest {
         assertTrue(journal.isPending)
     }
 
+    @Test
+    fun legacyV1RestoreMigratesIllustrationAndDefaultsMissingProviderFields() = runBlocking<Unit> {
+        val asset = File(isolatedRoot, "legacy-image").apply { writeText("legacy image bytes") }
+        val uuid = fileRepository.saveFile(asset, "image/png")
+        val characterId = insertRecoveryCharacter("Legacy", uuid)
+        val sessionId = database.getChatSessionDao().insertOrReplace(
+            me.kafuuneko.rpclient.libs.room.entity.ChatSession(
+                characterId = characterId, createTime = 1L, latestTime = 1L,
+                lorebookEntrySet = "[]", title = "Legacy", userNote = ""
+            )
+        )
+        // 仅测试夹具模拟旧行；正式 v10 的 Repository 不再向旧列写入。
+        val messageId = database.getChatMessageDao().insertOrReplace(
+            me.kafuuneko.rpclient.libs.room.entity.ChatMessage(
+                sessionId = sessionId, createTime = 1L,
+                source = me.kafuuneko.rpclient.libs.room.entity.ChatMessage.Source.Char,
+                content = "Old reply", imageFileUuid = uuid
+            )
+        )
+        val providerId = database.getLLMProviderDao().insertOrReplace(
+            me.kafuuneko.rpclient.libs.room.entity.LLMProvider(
+                name = "Legacy provider",
+                providerType = me.kafuuneko.rpclient.libs.llm.model.LLMProviderType.Custom,
+                protocol = me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol.OpenAICompatible,
+                baseUrl = "https://example.invalid", model = "fixture"
+            )
+        )
+        val password = "legacy fixture password".toCharArray()
+        val modern = repository.createEncryptedBackupFile(password)
+        val plain = File(isolatedRoot, "legacy-plain.zip")
+        val legacyZip = File(isolatedRoot, "legacy-v1.zip")
+        val legacy = File(isolatedRoot, "legacy.rpbackup")
+        try {
+            modern.inputStream().use { input -> plain.outputStream().use { BackupCrypto().decrypt(input, it, password) } }
+            val entries = linkedMapOf<String, ByteArray>()
+            java.util.zip.ZipInputStream(plain.inputStream()).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (!entry.isDirectory) entries[entry.name] = zip.readBytes()
+                }
+            }
+            val manifest = com.google.gson.JsonParser.parseString(entries.getValue("manifest.json").toString(Charsets.UTF_8)).asJsonObject
+            manifest.addProperty("backupVersion", 1)
+            // 历史版本曾错误地固定该值，恢复不能用它判断行结构。
+            manifest.addProperty("databaseVersion", 5)
+            (BackupContract.v2TableEntries + "tables/image_providers.jsonl").forEach {
+                manifest.getAsJsonObject("tableCounts").remove(it)
+                entries.remove(it)
+            }
+            entries["manifest.json"] = manifest.toString().toByteArray()
+            val providers = entries.getValue("tables/llm_providers.jsonl").toString(Charsets.UTF_8)
+                .lineSequence().filter { it.isNotBlank() }.map { line ->
+                    com.google.gson.JsonParser.parseString(line).asJsonObject.apply {
+                        listOf("maxConcurrentRequests", "localTokenEstimatorType", "useServerReportedUsage",
+                            "imageInputSetting", "imageTokenEstimatorType").forEach { remove(it) }
+                    }.toString()
+                }.joinToString("\n", postfix = "\n")
+            entries["tables/llm_providers.jsonl"] = providers.toByteArray()
+            java.util.zip.ZipOutputStream(legacyZip.outputStream()).use { zip ->
+                entries.forEach { (name, bytes) ->
+                    zip.putNextEntry(java.util.zip.ZipEntry(name))
+                    zip.write(bytes)
+                    zip.closeEntry()
+                }
+            }
+            legacyZip.inputStream().use { input -> legacy.outputStream().use { BackupCrypto().encrypt(input, it, password) } }
+            database.clearAllTables()
+            repository.restore(repository.validateEncryptedBackup(legacy, password))
+            val restored = requireNotNull(database.getLLMProviderDao().getProviderById(providerId))
+            assertEquals(1, restored.maxConcurrentRequests)
+            assertEquals(me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType.Automatic, restored.localTokenEstimatorType)
+            val attachment = database.getMessageImageDao().getByMessage(
+                me.kafuuneko.rpclient.libs.room.model.MessageType.Single, messageId).single()
+            assertFalse(attachment.sendToModel)
+            assertTrue(attachment.imageUuid != uuid)
+            assertEquals(null, database.getChatMessageDao().getMessageById(messageId)?.imageFileUuid)
+            assertArrayEquals(asset.readBytes(), fileRepository.getFile(attachment.imageUuid)?.readBytes())
+        } finally {
+            listOf(modern, plain, legacyZip, legacy).forEach { it.delete() }
+            password.fill('\u0000')
+        }
+    }
+
     private suspend fun insertRecoveryCharacter(name: String, avatar: String = ""): Long =
         database.getCharacterDao().insertOrReplace(Character(
             name = name, avatar = avatar, characterTags = "[]", description = "",

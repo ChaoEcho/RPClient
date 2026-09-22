@@ -81,7 +81,8 @@ data class BackupPreferencesSnapshot(
     // 旧备份没有这个键，缺省沿用新默认值（续写保留主提示词）。
     val keepSystemPromptInSpecialModes: Boolean? = null,
     val themeMode: String? = null,
-    val imageSendSettings: String? = null
+    val imageSendSettings: String? = null,
+    val maxPromptHistoryMessages: Int? = null
 ) {
     /** 将快照应用到当前安装，同时保留安装身份与升级记账。 */
     fun apply() {
@@ -172,6 +173,7 @@ data class BackupPreferencesSnapshot(
         AppModel.includeThinkInContext = includeThinkInContext
         AppModel.keepSystemPromptInSpecialModes = keepSystemPromptInSpecialModes ?: true
         AppModel.themeMode = me.kafuuneko.rpclient.libs.theme.AppThemeMode.fromPersistedValue(themeMode ?: "system").persistedValue
+        AppModel.maxPromptHistoryMessages = maxPromptHistoryMessages?.coerceAtLeast(0) ?: AppModel.DEFAULT_MAX_PROMPT_HISTORY_MESSAGES
         AppModel.imageSendSettings = me.kafuuneko.rpclient.libs.media.ImageSendSettings.decode(imageSendSettings.orEmpty()).encode()
         AppModel.debugModeEnabled = debugModeEnabled
         AppModel.autoGenerateImageAfterReply = autoGenerateImageAfterReply
@@ -305,6 +307,7 @@ data class BackupPreferencesSnapshot(
                 keepSystemPromptInSpecialModes = AppModel.keepSystemPromptInSpecialModes,
                 themeMode = AppModel.themeMode,
                 imageSendSettings = AppModel.imageSendSettings,
+                maxPromptHistoryMessages = AppModel.maxPromptHistoryMessages,
                 debugModeEnabled = AppModel.debugModeEnabled,
                 autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply,
                 developerLoggingEnabled = AppModel.developerLoggingEnabled

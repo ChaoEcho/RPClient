@@ -853,6 +853,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
             imageProviderSummary = buildImageProviderSummary(),
+            voiceProviderSummary = buildVoiceProviderSummary(),
             promptBehaviorState = MainPromptBehaviorState(
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
@@ -877,6 +878,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 injectionState = buildSummaryInjectionState(readSummaryInjectionPosition())
             )
         )
+    }
+
+    /** 偏好读取与展示摘要集中在状态装配层，Compose 不再直接访问语音配置。 */
+    private fun buildVoiceProviderSummary(): String = when (
+        me.kafuuneko.rpclient.libs.tts.TtsProviderType.fromPersistedValue(AppModel.ttsProvider)
+    ) {
+        me.kafuuneko.rpclient.libs.tts.TtsProviderType.System -> listOf(
+            mContext.getString(R.string.tts_provider_system), AppModel.ttsSystemLanguageTag
+        ).filter { it.isNotBlank() }.joinToString(" · ")
+        me.kafuuneko.rpclient.libs.tts.TtsProviderType.Mimo -> "Mimo · ${AppModel.ttsMimoVoice.ifBlank { "default" }}"
+        me.kafuuneko.rpclient.libs.tts.TtsProviderType.Azure -> "Azure · ${AppModel.ttsAzureVoice.ifBlank { "default" }}"
     }
 
     /** 拼出当前图片服务的一行摘要，没有配置时返回空串由 UI 兜底文案。 */

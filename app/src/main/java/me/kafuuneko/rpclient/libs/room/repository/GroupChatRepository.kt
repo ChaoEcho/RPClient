@@ -665,7 +665,7 @@ class GroupChatRepository(
     /** 一致读取摘要基线和消息附件，供网络请求完成后进行乐观校验。 */
     suspend fun getSummaryInputSnapshot(sessionId: Long, messageIds: List<Long>): SummaryInputSnapshot =
         mAppDatabase.withTransaction {
-            SummaryInputSnapshot(getMessagesWithImages(messageIds),
+            SummaryInputSnapshot(getMessagesWithImages(messageIds).map { it.copy(images = it.images.filter { image -> image.image.sendToModel }) },
                 mGson.toJson(mSummaryDao.getLatest(sessionId)))
         }
 

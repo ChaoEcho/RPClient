@@ -136,8 +136,10 @@ class ChatRepositoryImageLifecycleTest {
     @Test
     fun generatedImagesNeverReachPromptPreparationEvenWhenMissingOrInvalid() = runBlocking {
         val id = repository.createMessage(sessionId, ChatMessage.Source.Char, "Visible reply")
+        val before = repository.getSummaryInputSnapshot(sessionId, listOf(id))
         val uuid = fileRepository.saveBytes(byteArrayOf(1, 2, 3), "image/png")
         assertTrue(repository.replaceMessageImage(id, "Visible reply", uuid))
+        assertEquals(before, repository.getSummaryInputSnapshot(sessionId, listOf(id)))
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val runtime = me.kafuuneko.rpclient.libs.media.MessageImageRuntime(context, fileRepository)
         val prepared = runtime.prepareCandidates(repository.getMessagesWithImages(listOf(id)))

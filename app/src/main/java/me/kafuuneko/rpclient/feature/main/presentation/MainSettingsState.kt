@@ -19,6 +19,7 @@ data class MainSettingsState(
     val providerState: MainProviderSettingsState,
     // 当前图片服务的一行摘要；图片配置在数据库里，Composable 读不到，必须由 VM 预先算好。
     val imageProviderSummary: String,
+    val voiceProviderSummary: String = "",
     val promptBehaviorState: MainPromptBehaviorState,
     val worldInfoBudgetState: MainWorldInfoBudgetState,
     val summaryState: MainSummarySettingsState

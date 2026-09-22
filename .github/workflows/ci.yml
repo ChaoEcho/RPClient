@@ -30,10 +30,22 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6.3.0
+      - name: Compile application and device tests first
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon clean :app:assembleDebug :app:assembleDebugAndroidTest 2>&1 | tee "$RUNNER_TEMP/compile-build.log"
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: compilation-reports
+          path: |
+            ${{ runner.temp }}/compile-build.log
+            app/schemas
+          if-no-files-found: ignore
       - name: Build and test both variants
         run: |
           set -o pipefail
-          ./gradlew --no-daemon clean :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest 2>&1 | tee "$RUNNER_TEMP/build.log"
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Lint
         if: ${{ !cancelled() }}
         run: ./gradlew --no-daemon :app:lintDebug
@@ -92,7 +104,7 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: x86_64
           disable-animations: true
-          script: ./gradlew --no-daemon -PtestBuildType=${{ matrix.variant }} :app:${{ matrix.task }} ${{ matrix.filter }}
+          script: bash -o pipefail -c './gradlew --no-daemon -PtestBuildType=${{ matrix.variant }} :app:${{ matrix.task }} ${{ matrix.filter }} 2>&1 | tee "$RUNNER_TEMP/device-build.log"'
       - uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
@@ -100,4 +112,5 @@ jobs:
           path: |
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
+            ${{ runner.temp }}/device-build.log
           if-no-files-found: ignore

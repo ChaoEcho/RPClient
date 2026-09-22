@@ -1005,7 +1005,7 @@ class ChatRepository(
     ): SummaryInputSnapshot =
         mAppDatabase.withTransaction {
             SummaryInputSnapshot(
-                getMessagesWithImages(messageIds),
+                getMessagesWithImages(messageIds).map { it.copy(images = it.images.filter { image -> image.image.sendToModel }) },
                 mGson.toJson(mChatMessageDao.getLatestSummaryBySessionId(sessionId))
             )
         }

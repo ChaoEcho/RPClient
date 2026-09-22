@@ -13,6 +13,8 @@ sealed class PromptBehaviorSettingsUiState {
         val streamEnabled: Boolean,
         val worldInfoBudgetPercent: Int,
         val worldInfoBudgetCap: Int,
+        val maxHistoryMessagesDraft: String = "500",
+        val maxHistoryMessagesError: Boolean = false,
         val worldInfoOverflowAlert: Boolean
     ) : PromptBehaviorSettingsUiState()
 }

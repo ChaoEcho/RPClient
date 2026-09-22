@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -198,6 +199,21 @@ private fun PromptBehaviorSettingsNormal(
                         contentPadding = RpGroupedTilePadding
                     )
                 }
+            }
+
+            item {
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = state.maxHistoryMessagesDraft,
+                    onValueChange = { PromptBehaviorSettingsUiIntent.ChangeMaxHistoryMessages(it).emit() },
+                    label = { Text(stringResource(R.string.prompt_max_history_messages)) },
+                    supportingText = { Text(stringResource(R.string.prompt_max_history_messages_helper)) },
+                    isError = state.maxHistoryMessagesError,
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    )
+                )
             }
 
             // 4. 世界书预算（原独立二级页，只有三个偏好项，不值得单独一个 Activity）

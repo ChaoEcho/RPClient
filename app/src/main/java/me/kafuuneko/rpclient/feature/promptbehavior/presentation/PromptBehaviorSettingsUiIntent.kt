@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.promptbehavior.presentation
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 
 sealed class PromptBehaviorSettingsUiIntent {
+    data class ChangeMaxHistoryMessages(val value: String) : PromptBehaviorSettingsUiIntent()
     data object Init : PromptBehaviorSettingsUiIntent()
     data object Back : PromptBehaviorSettingsUiIntent()
     data class SelectExampleDialogueBehavior(val behavior: ExampleDialogueBehavior) : PromptBehaviorSettingsUiIntent()
