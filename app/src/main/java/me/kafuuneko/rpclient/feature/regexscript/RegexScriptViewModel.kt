@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.regexscript
 
+
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -332,7 +333,7 @@ class RegexScriptViewModel :
         val token = Any()
         mTransferToken = token
         state.copy(transferInProgress = true).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 在 IO 线程解析 URI 对应的 JSON
                 val imported = withContext(Dispatchers.IO) {
@@ -384,7 +385,7 @@ class RegexScriptViewModel :
         val token = Any()
         mTransferToken = token
         state.copy(transferInProgress = true).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 在 IO 线程序列化为 JSON 并写入目标 URI
                 withContext(Dispatchers.IO) {

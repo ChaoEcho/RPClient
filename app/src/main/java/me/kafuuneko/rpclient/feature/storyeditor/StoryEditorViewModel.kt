@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor
 
+
 import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
@@ -1547,7 +1548,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         // 取消前序未完成任务
         mSummaryJob?.cancel()
         // 启动异步总结生成协程
-        mSummaryJob = viewModelScope.launch {
+        mSummaryJob = viewModelScope.launchDataTask {
             runStorySummary(
                 storyId = storyId,
                 chapterId = chapterId,
@@ -1770,7 +1771,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             dialogState = StoryEditorDialogState.None
         ).setup()
         // 6. 启动生成协程
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = viewModelScope.launchDataTask {
             runGeneration(active, promptBuildResult.request)
         }
     }
@@ -2372,10 +2373,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun scheduleAutoSave(delayMillis: Long = AUTO_SAVE_DELAY_MILLIS) {
         mDebounceJob?.cancel()
-        mDebounceJob = viewModelScope.launch {
+        mDebounceJob = viewModelScope.launchDataTask {
             delay(delayMillis)
             // 独立子任务脱离 debounce Job，后续输入只取消等待，不中断已经开始的 Room 写入。
-            viewModelScope.launch { saveDraft() }
+            viewModelScope.launchDataTask { saveDraft() }
         }
     }
 

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
+
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -249,7 +250,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 totalCount = uris.size
             )
         ).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 解析阶段只创建内存草稿，避免确认前产生半成品数据
                 val batch = readImportBatch(uris)
@@ -290,7 +291,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 totalCount = batch.drafts.size
             )
         ).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 processPreparedImportBatchInternal(batch)
             } catch (cancellation: CancellationException) {
@@ -346,7 +347,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             ),
             dialogState = CharacterListDialogState.None
         ).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 预算策略只改变命中低预算规则的卡片，其余草稿保持原样
                 saveImportBatch(
@@ -538,7 +539,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             loadState = CharacterListLoadState.Loading,
             dialogState = CharacterListDialogState.None
         ).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 val json = withContext(Dispatchers.IO) {
                     mCharacterCardRepository.exportJson(intent.characterId)
@@ -582,7 +583,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         mTransferToken = token
         // 进入加载中状态
         uiState.copy(loadState = CharacterListLoadState.Loading).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 在 IO 线程序列化角色卡为 JSON 并写入目标 URI
                 withContext(Dispatchers.IO) {
@@ -721,7 +722,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             val token = Any()
             mAvatarLoadTokens[characterId] = token
             mAvatarLoadKeys[characterId] = key
-            mAvatarLoadJobs[characterId] = viewModelScope.launch {
+            mAvatarLoadJobs[characterId] = viewModelScope.launchDataTask {
                 try {
                     // 在 IO 线程按目标尺寸下采样解码头像位图
                     val bitmap = withContext(Dispatchers.IO) {
@@ -730,14 +731,14 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                             targetSizePx,
                             targetSizePx
                         )
-                    } ?: return@launch
+                    } ?: return@launchDataTask
                     // 校验响应时效性与视口状态
                     val isCurrentRequest = mAvatarLoadTokens[characterId] === token &&
                         characterId in mVisibleCharacterIds &&
                         mAvatarUuids[characterId] == avatarUuid &&
                         mThumbnailTargetSizePx == targetSizePx &&
                         isStateOf<CharacterListUiState.Normal>()
-                    if (!isCurrentRequest) return@launch
+                    if (!isCurrentRequest) return@launchDataTask
                     // 写入缓存并更新视口位图
                     mAvatarCache.put(key, bitmap)
                     mVisibleAvatars[characterId] = LoadedAvatar(key, bitmap.asImageBitmap())

@@ -7,6 +7,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -149,6 +151,7 @@ class ChatGenerationCoordinatorTest {
         // stopSummary 由唯一的意图收集器调用，必须立即返回，不能等待 join。
         assertTrue(coordinator.stopSummary(chatSummaryKey(66L)))
         cancelled.await()
+        withTimeout(5_000) { while (coordinator.isSummaryActive(chatSummaryKey(66L))) yield() }
         assertFalse(coordinator.isSummaryActive(chatSummaryKey(66L)))
         // 取消完成后同一个键可以重新启动。
         assertTrue(coordinator.launchSummary(chatSummaryKey(66L)) {})

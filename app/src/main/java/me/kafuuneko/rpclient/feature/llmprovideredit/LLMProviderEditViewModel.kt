@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit
 
+
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
@@ -223,7 +224,7 @@ class LLMProviderEditViewModel :
         uiState.copy(
             modelCatalogState = ModelCatalogState.Loading
         ).setup()
-        mModelCatalogJob = viewModelScope.launch {
+        mModelCatalogJob = viewModelScope.launchDataTask {
             val runningJob = currentCoroutineContext()[Job]
             try {
                 // 在 IO 线程请求接口获取模型列表
@@ -231,7 +232,7 @@ class LLMProviderEditViewModel :
                     mModelCatalogRepository.listModels(provider)
                 }
                 val latestState =
-                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launchDataTask
                 // 更新加载成功的模型列表
                 latestState.copy(
                     modelCatalogState = ModelCatalogState.Loaded(
@@ -243,9 +244,9 @@ class LLMProviderEditViewModel :
             } catch (throwable: Throwable) {
                 // 分类错误类型并展示对应的失败状态
                 val failure = classifyModelCatalogFailure(throwable)
-                    ?: return@launch
+                    ?: return@launchDataTask
                 val latestState =
-                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launchDataTask
                 latestState.copy(
                     modelCatalogState = ModelCatalogState.Failed(
                         failure = failure
@@ -487,7 +488,7 @@ class LLMProviderEditViewModel :
         // 校验表单基本连接参数
         val provider = uiState.form.toProviderOrNullWithToast() ?: return
         uiState.copy(testState = LLMProviderEditTestState.Testing).setup()
-        mTestJob = viewModelScope.launch {
+        mTestJob = viewModelScope.launchDataTask {
             val runningJob = currentCoroutineContext()[Job]
             try {
                 // 在 IO 线程创建 Client 发送测试探针
@@ -496,7 +497,7 @@ class LLMProviderEditViewModel :
                         "Please reply with a short English sentence: Model test successful."
                     )
                 }
-                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launchDataTask
                 // 测试成功，展示模型响应内容
                 latestState.copy(
                     testState = LLMProviderEditTestState.Success(
@@ -506,7 +507,7 @@ class LLMProviderEditViewModel :
             } catch (_: CancellationException) {
                 // 用户主动取消测试属于正常操作，不展示失败
             } catch (_: Throwable) {
-                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launchDataTask
                 // 测试失败，展示错误状态
                 latestState.copy(
                     testState = LLMProviderEditTestState.Failed

@@ -4,6 +4,12 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
+import me.kafuuneko.rpclient.libs.generation.DataMaintenance
+import me.kafuuneko.rpclient.libs.AppModel
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.BuildConfig
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -51,6 +57,7 @@ class BackupRepository(
     private val mCrypto: BackupCrypto
 ) {
     private val mBackupDao = mDatabase.getBackupDao()
+    private val mRestoreJournal = RestoreJournal(File(mContext.noBackupFilesDir, "restore"))
 
     /** 创建完整加密备份并在成功后复制到用户选择的文档。 */
     suspend fun createLocalBackup(
@@ -73,7 +80,7 @@ class BackupRepository(
     suspend fun createEncryptedBackupFile(
         password: CharArray,
         onPhase: (BackupOperationPhase) -> Unit = {}
-    ): File = withContext(Dispatchers.IO) {
+    ): File = prepareIoResource(release = { it.delete() }) {
         onPhase(BackupOperationPhase.Preparing)
         val plainZip = File.createTempFile("backup_export_", ".zip", mContext.cacheDir)
         val encryptedFile = File.createTempFile("backup_upload_", BackupContract.FILE_EXTENSION, mContext.cacheDir)
@@ -103,7 +110,7 @@ class BackupRepository(
         source: Uri,
         password: CharArray,
         onPhase: (BackupOperationPhase) -> Unit = {}
-    ): ValidatedBackup = withContext(Dispatchers.IO) {
+    ): ValidatedBackup = prepareIoResource(release = { mCodec.cleanup(it) }) {
         val encryptedFile = File.createTempFile("backup_import_", BackupContract.FILE_EXTENSION, mContext.cacheDir)
         try {
             val input = mContext.contentResolver.openInputStream(source)
@@ -124,7 +131,7 @@ class BackupRepository(
         encryptedFile: File,
         password: CharArray,
         onPhase: (BackupOperationPhase) -> Unit = {}
-    ): ValidatedBackup = withContext(Dispatchers.IO) {
+    ): ValidatedBackup = prepareIoResource(release = { mCodec.cleanup(it) }) {
         onPhase(BackupOperationPhase.Validating)
         mCodec.validate(encryptedFile, password)
     }
@@ -139,39 +146,35 @@ class BackupRepository(
         onPhase: (BackupOperationPhase) -> Unit = {}
     ) = withContext(Dispatchers.IO) {
         try {
-            // 偏好在 destructive transaction 前完成解析，避免清库后才发现格式错误
-            val preferences = mCodec.readPreferences(backup)
-            val oldPreferences = BackupPreferencesSnapshot.capture()
-            val oldDefaultProvidersInitialized = me.kafuuneko.rpclient.libs.AppModel
-                .llmDefaultProvidersInitialized
-            // 新 hash 文件先通过临时文件校验和原子发布，失败不影响当前数据库
-            backup.assetFiles.forEach { (hash, source) ->
-                mFileRepository.prepareRestoredFile(hash, source)
-            }
-            var preferenceApplyStarted = false
-            try {
-                mDatabase.withTransaction {
-                    onPhase(BackupOperationPhase.RestoringDatabase)
-                    deleteBusinessTables()
-                    insertBusinessTables(backup)
-                    onPhase(BackupOperationPhase.RestoringSettings)
-                    preferenceApplyStarted = true
-                    preferences.apply()
+            DataMaintenance.barrier.exclusive {
+                // 所有旧任务已经完成取消和 partial 收尾，先验证输入，再创建持久回滚源。
+                mCodec.readPreferences(backup)
+                recoverInterruptedRestore()
+                onPhase(BackupOperationPhase.Preparing)
+                val caller = currentCoroutineContext().job
+                mRestoreJournal.prepare(AppModel.llmDefaultProvidersInitialized) { target ->
+                    writePlainArchive(target, {})
                 }
-            } catch (error: Exception) {
-                if (preferenceApplyStarted) {
-                    runCatching {
-                        oldPreferences.apply()
-                        me.kafuuneko.rpclient.libs.AppModel.llmDefaultProvidersInitialized =
-                            oldDefaultProvidersInitialized
+                withContext(NonCancellable) {
+                    try {
+                        // 在进入破坏性阶段前仍尊重取消；已有 pending 时取消也必须完成回滚。
+                        caller.ensureActive()
+                        applyValidatedBackup(backup, onPhase)
+                        mRestoreJournal.markCommitted()
+                    } catch (error: Throwable) {
+                        // 失败回滚若再次失败，保留 pending，下一次启动必须先继续恢复，不能打开混合状态。
+                        try {
+                            rollbackPendingRestore()
+                        } catch (recoveryError: Throwable) {
+                            DataMaintenance.barrier.requireRecovery()
+                            error.addSuppressed(recoveryError)
+                        }
+                        throw error
                     }
+                    onPhase(BackupOperationPhase.Finishing)
+                    runCatching { mRestoreJournal.clear() }
+                    runCatching { mFileRepository.deleteUnreferencedPhysicalFiles(backup.assetFiles.keys) }
                 }
-                throw error
-            }
-            // 正确数据已经提交，孤儿文件清理失败不反向破坏恢复结果
-            onPhase(BackupOperationPhase.Finishing)
-            runCatching {
-                mFileRepository.deleteUnreferencedPhysicalFiles(backup.assetFiles.keys)
             }
         } catch (error: BackupException) {
             throw error
@@ -179,6 +182,51 @@ class BackupRepository(
             throw BackupException.GenericFailure(error)
         } finally {
             mCodec.cleanup(backup)
+        }
+    }
+
+    /** Application 在业务升级和任何页面创建之前调用；未完成的替换优先回滚。 */
+    suspend fun recoverInterruptedRestore() = withContext(Dispatchers.IO) {
+        try {
+            when {
+                mRestoreJournal.isCommitted -> runCatching { mRestoreJournal.clear() }
+                mRestoreJournal.isPending -> rollbackPendingRestore()
+            }
+            DataMaintenance.barrier.recovered()
+        } catch (error: Exception) {
+            DataMaintenance.barrier.requireRecovery()
+            throw RestoreRecoveryRequiredException(error)
+        }
+    }
+
+    private suspend fun rollbackPendingRestore() {
+        val previousInitialized = mRestoreJournal.previousProvidersInitialized()
+        val rollback = mCodec.validateRollbackArchive(mRestoreJournal.snapshot)
+        try {
+            applyValidatedBackup(rollback, {})
+            AppModel.llmDefaultProvidersInitialized = previousInitialized
+            check(AppModel.preferences.edit().commit()) { "Unable to persist recovered preferences" }
+            mRestoreJournal.markCommitted()
+            runCatching { mFileRepository.deleteUnreferencedPhysicalFiles(rollback.assetFiles.keys) }
+            runCatching { mRestoreJournal.clear() }
+        } finally {
+            mCodec.cleanup(rollback)
+        }
+    }
+
+    private suspend fun applyValidatedBackup(
+        backup: ValidatedBackup,
+        onPhase: (BackupOperationPhase) -> Unit
+    ) {
+        val preferences = mCodec.readPreferences(backup)
+        // 发布新文件不删除旧文件，故数据库回滚或进程中断不会丢失旧记录的资产。
+        backup.assetFiles.forEach { (hash, source) -> mFileRepository.prepareRestoredFile(hash, source) }
+        mDatabase.withTransaction {
+            onPhase(BackupOperationPhase.RestoringDatabase)
+            deleteBusinessTables()
+            insertBusinessTables(backup)
+            onPhase(BackupOperationPhase.RestoringSettings)
+            preferences.apply()
         }
     }
 
@@ -421,3 +469,6 @@ class BackupRepository(
         const val PREFERENCES_ENTRY = "preferences.json"
     }
 }
+
+/** 启动时不能绕过未完成的恢复，交给专用恢复页面重试。 */
+class RestoreRecoveryRequiredException(cause: Throwable) : Exception("Local restore recovery is required", cause)

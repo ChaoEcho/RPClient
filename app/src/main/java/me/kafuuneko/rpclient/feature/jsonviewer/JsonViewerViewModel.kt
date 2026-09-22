@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.jsonviewer
 
+
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,18 +52,18 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
 
         mTitle = payload.title
         JsonViewerUiState.Loading(title = mTitle).setup()
-        viewModelScope.launch {
+        viewModelScope.launchDataTask {
             val parsed = withContext(Dispatchers.Default) {
                 parseJson(payload.json)
             }
-            if (!isStateOf<JsonViewerUiState.Loading>()) return@launch
+            if (!isStateOf<JsonViewerUiState.Loading>()) return@launchDataTask
             if (parsed.isFailure) {
                 JsonViewerUiState.Error(
                     title = mTitle,
                     reason = JsonViewerErrorReason.InvalidJson,
                     rawPreview = payload.json.toPreview(RAW_PREVIEW_LENGTH)
                 ).setup()
-                return@launch
+                return@launchDataTask
             }
 
             mRoot = parsed.getOrNull()

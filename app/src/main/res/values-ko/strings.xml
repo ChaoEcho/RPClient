@@ -1072,4 +1072,9 @@
     <string name="image_generation_in_progress">이미지를 이미 생성하고 있습니다.</string>
     <string name="image_generation_failed">이미지 생성에 실패했습니다.</string>
     <string name="generated_image_content_description">생성된 롤플레이 장면</string>
+
+    <string name="recovery_title">데이터 복원 완료</string>
+    <string name="recovery_description">이전 복원이 중단되었습니다. 복구 데이터는 보관되어 있습니다. 앱을 열기 전에 복원을 다시 시도하세요.</string>
+    <string name="recovery_failed">복원을 완료하지 못했습니다. 앱 데이터를 유지하고 저장 공간을 확인한 후 다시 시도하세요.</string>
+    <string name="recovery_retry">복원 재시도</string>
 </resources>

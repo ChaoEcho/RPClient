@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.developer.logviewer
 
+
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +46,7 @@ class AppLogViewerViewModel : CoreViewModelWithEvent<
         state.setup()
 
         // 只订阅版本号，页面可见时才按需快照；写入路径不再为每条日志拷贝整个缓冲区。
-        viewModelScope.launch {
+        viewModelScope.launchDataTask {
             AppLogStore.revision
                 .sample(LOG_REFRESH_INTERVAL_MS)
                 .collectLatest {

@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.libs.chat.generation
 
+import me.kafuuneko.rpclient.libs.generation.launchDataTask
+import me.kafuuneko.rpclient.libs.generation.DataMaintenance
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -34,20 +37,23 @@ class ChatGenerationCoordinator(
     private val summaryByKey = mutableMapOf<String, ActiveGeneration>()
     private val mutableSnapshotBySession =
         MutableStateFlow<Map<Long, ChatGenerationState>>(emptyMap())
-    val snapshotBySession: StateFlow<Map<Long, ChatGenerationState>> =
-        mutableSnapshotBySession.asStateFlow()
+    private val readonlySnapshots = mutableSnapshotBySession.asStateFlow()
+    private var dataEpoch = DataMaintenance.epoch
+    val snapshotBySession: StateFlow<Map<Long, ChatGenerationState>>
+        get() = synchronized(this) { refreshDataEpoch(); readonlySnapshots }
     private val promptInspections = mutableMapOf<Long, PromptInspection>()
 
     /** Starts one task per session; other sessions remain independent. */
     @Synchronized
     fun launch(sessionId: Long, block: suspend () -> Unit): ChatGenerationStartResult {
+        refreshDataEpoch()
         activeBySession[sessionId]
             ?.takeIf { !it.job.isCompleted }
             ?.let { return ChatGenerationStartResult.Busy(sessionId) }
 
         val token = Any()
         AppLogger.i("Chat", "Generation task scheduled for session: $sessionId")
-        val job = scope.launch(start = CoroutineStart.LAZY) {
+        val job = scope.launchDataTask(start = CoroutineStart.LAZY) {
             // acquire() must stay inside try: a foreground-service start rejection would otherwise
             // skip the whole finally and leave the session permanently marked as generating.
             var foregroundHandle: AutoCloseable? = null
@@ -72,7 +78,13 @@ class ChatGenerationCoordinator(
                 }
             }
         }
+        if (job.isCancelled) return ChatGenerationStartResult.Busy(sessionId)
         activeBySession[sessionId] = ActiveGeneration(job, token)
+        job.invokeOnCompletion {
+            synchronized(this) {
+                if (activeBySession[sessionId]?.token === token) activeBySession.remove(sessionId)
+            }
+        }
         job.start()
         return ChatGenerationStartResult.Started(job)
     }
@@ -91,7 +103,7 @@ class ChatGenerationCoordinator(
 
         val token = Any()
         AppLogger.i("Summary", "Summary task scheduled for $key")
-        val job = scope.launch(start = CoroutineStart.LAZY) {
+        val job = scope.launchDataTask(start = CoroutineStart.LAZY) {
             var foregroundHandle: AutoCloseable? = null
             try {
                 foregroundHandle = acquireForegroundOrNull()
@@ -110,7 +122,13 @@ class ChatGenerationCoordinator(
                 }
             }
         }
+        if (job.isCancelled) return false
         summaryByKey[key] = ActiveGeneration(job, token)
+        job.invokeOnCompletion {
+            synchronized(this) {
+                if (summaryByKey[key]?.token === token) summaryByKey.remove(key)
+            }
+        }
         job.start()
         return true
     }
@@ -188,7 +206,17 @@ class ChatGenerationCoordinator(
     }
 
     @Synchronized
-    fun getPromptInspection(sessionId: Long): PromptInspection? = promptInspections[sessionId]
+    fun getPromptInspection(sessionId: Long): PromptInspection? {
+        refreshDataEpoch()
+        return promptInspections[sessionId]
+    }
+
+    private fun refreshDataEpoch() {
+        if (dataEpoch == DataMaintenance.epoch) return
+        dataEpoch = DataMaintenance.epoch
+        promptInspections.clear()
+        mutableSnapshotBySession.value = emptyMap()
+    }
 
     private data class ActiveGeneration(
         val job: Job,

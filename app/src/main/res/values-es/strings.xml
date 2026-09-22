@@ -1079,4 +1079,9 @@
     <string name="image_generation_in_progress">Ya se está generando una imagen.</string>
     <string name="image_generation_failed">No se pudo generar la imagen.</string>
     <string name="generated_image_content_description">Escena de rol generada</string>
+
+    <string name="recovery_title">Completar la restauración</string>
+    <string name="recovery_description">Se interrumpió una restauración. Los datos de recuperación se han conservado. Reintente antes de abrir la aplicación.</string>
+    <string name="recovery_failed">La recuperación no pudo finalizar. Conserve los datos de la aplicación, compruebe el espacio libre y reintente.</string>
+    <string name="recovery_retry">Reintentar recuperación</string>
 </resources>

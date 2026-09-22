@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.tts
 
+
 import android.os.Bundle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -79,7 +80,7 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
         stopPreviewInternal()
         mPreviewGeneration += 1L
         val generation = mPreviewGeneration
-        val job = viewModelScope.launch {
+        val job = viewModelScope.launchDataTask {
             state.copy(previewState = TtsPreviewState.Loading).setup()
             try {
                 mTtsService.speak(intent.text) {
@@ -89,7 +90,7 @@ class TtsSettingsViewModel : CoreViewModelWithEvent<TtsSettingsUiIntent, TtsSett
                     }
                 }
             } catch (_: CancellationException) {
-                return@launch
+                return@launchDataTask
             } catch (error: Throwable) {
                 if (mPreviewGeneration == generation) {
                     val message = error.message?.takeIf { it.isNotBlank() }

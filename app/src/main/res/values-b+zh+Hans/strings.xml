@@ -1341,4 +1341,9 @@
     <string name="group_chat_auto_mode_rounds">自动续聊轮数</string>
     <string name="group_chat_auto_mode_rounds_continuous">持续</string>
     <string name="group_chat_auto_mode_rounds_count">%1$d轮</string>
+
+    <string name="recovery_title">完成数据恢复</string>
+    <string name="recovery_description">上一次恢复意外中断，回滚数据仍被保留。请先重试恢复，再进入应用。</string>
+    <string name="recovery_failed">恢复仍未完成。请保留应用数据、检查可用存储空间后重试。</string>
+    <string name="recovery_retry">重试恢复</string>
 </resources>

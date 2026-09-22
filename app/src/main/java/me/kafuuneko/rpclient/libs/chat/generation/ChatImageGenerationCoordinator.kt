@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.libs.chat.generation
 
+import me.kafuuneko.rpclient.libs.generation.launchDataTask
+import me.kafuuneko.rpclient.libs.generation.DataMaintenance
+
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -58,15 +61,25 @@ class ChatImageGenerationCoordinator(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val activeByMessage = mutableMapOf<Long, ActiveTask>()
     private val mutableStates = MutableStateFlow<Map<Long, ChatImageGenerationTaskState>>(emptyMap())
-    val states: StateFlow<Map<Long, ChatImageGenerationTaskState>> = mutableStates.asStateFlow()
+    private val readonlyStates = mutableStates.asStateFlow()
+    private var dataEpoch = DataMaintenance.epoch
+    val states: StateFlow<Map<Long, ChatImageGenerationTaskState>>
+        get() = synchronized(this) { refreshDataEpoch(); readonlyStates }
+
+    private fun refreshDataEpoch() {
+        if (dataEpoch == DataMaintenance.epoch) return
+        dataEpoch = DataMaintenance.epoch
+        mutableStates.value = emptyMap()
+    }
 
     /** Starts at most one task for a message; different messages may queue or run independently. */
     @Synchronized
     fun generate(sessionId: Long, messageId: Long): Boolean {
+        refreshDataEpoch()
         if (activeByMessage[messageId]?.job?.isCompleted == false) return false
 
         val token = Any()
-        val job = scope.launch(start = CoroutineStart.LAZY) {
+        val job = scope.launchDataTask(start = CoroutineStart.LAZY) {
             var foregroundHandle: AutoCloseable? = null
             try {
                 foregroundHandle = runCatching { foregroundController.acquire() }
@@ -82,8 +95,17 @@ class ChatImageGenerationCoordinator(
                 }
             }
         }
+        if (job.isCancelled) return false
         activeByMessage[messageId] = ActiveTask(job, token)
         publish(messageId, ChatImageGenerationTaskState.Generating)
+        job.invokeOnCompletion {
+            synchronized(this) {
+                if (activeByMessage[messageId]?.token === token) {
+                    activeByMessage.remove(messageId)
+                    clearState(messageId)
+                }
+            }
+        }
         job.start()
         return true
     }

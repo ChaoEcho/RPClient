@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat
 
+
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
@@ -1263,7 +1264,7 @@ class GroupChatViewModel :
         } ?: return
         val batchId = UUID.randomUUID().toString()
         // 启动续写任务
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = viewModelScope.launchDataTask {
             try {
                 runCatching {
                     generateSpeakerReply(
@@ -1361,7 +1362,7 @@ class GroupChatViewModel :
         regenerationInstruction: String = ""
     ) {
         val batchId = UUID.randomUUID().toString()
-        mGenerationJob = viewModelScope.launch {
+        mGenerationJob = viewModelScope.launchDataTask {
             try {
                 runCatching {
                     var pendingSpeakers = speakers

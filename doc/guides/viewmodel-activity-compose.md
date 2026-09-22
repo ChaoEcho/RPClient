@@ -132,3 +132,10 @@ fun ChatLayout(
 6. 每个主要 Layout 写 Preview，并使用 `AppTheme(dynamicColor = false)`。
 7. UI 文案不要解释框架、快捷键或开发细节。
 8. 小屏下文本不能溢出或遮挡。
+
+## 数据恢复期间的任务归属
+
+- 页面后台任务使用基类的 `viewModelScope.launchDataTask`，保持原有作用域，同时携带页面数据代次。
+- 普通 Intent 和串行任务队列已经由基类纳入恢复边界，不要在业务页面创建脱离页面的临时 CoroutineScope。
+- 应用级生成任务使用 `libs/generation` 的同名扩展；必须在取消后完成 partial 和文件清理。
+- 仅专用数据恢复页面允许绕过普通业务准入。恢复完成或回滚失败后，由 Activity 基类重建首页或进入恢复页面。

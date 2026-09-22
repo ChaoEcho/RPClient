@@ -1073,4 +1073,9 @@
     <string name="image_generation_in_progress">すでに画像を生成しています。</string>
     <string name="image_generation_failed">画像の生成に失敗しました。</string>
     <string name="generated_image_content_description">生成されたロールプレイシーン</string>
+
+    <string name="recovery_title">データ復元を完了する</string>
+    <string name="recovery_description">前回の復元が中断されました。元に戻すためのデータは保持されています。アプリを開く前に復元を再試行してください。</string>
+    <string name="recovery_failed">復元を完了できませんでした。アプリのデータを削除せず、空き容量を確認して再試行してください。</string>
+    <string name="recovery_retry">復元を再試行</string>
 </resources>

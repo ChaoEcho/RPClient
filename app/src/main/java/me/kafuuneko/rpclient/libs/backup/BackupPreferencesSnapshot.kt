@@ -83,6 +83,18 @@ data class BackupPreferencesSnapshot(
 ) {
     /** 将快照应用到当前安装，同时保留安装身份与升级记账。 */
     fun apply() {
+        AppModel.beginBulkEdit()
+        try {
+            applyValues()
+            AppModel.blockingCommitBulkEdit()
+            check(AppModel.preferences.edit().commit()) { "Unable to persist restored preferences" }
+        } catch (error: Exception) {
+            runCatching { AppModel.cancelBulkEdit() }
+            throw error
+        }
+    }
+
+    private fun applyValues() {
         // 模型、语音和图片服务配置包含恢复后继续使用所需的凭据
         AppModel.currentLLMProvider = currentLLMProvider
         AppModel.summaryLLMProvider = summaryLLMProvider

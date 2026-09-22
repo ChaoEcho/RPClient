@@ -123,6 +123,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.kafuuneko.rpclient.libs.generation.DataMaintenance
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
@@ -212,6 +213,7 @@ private fun ChatNormal(
     var isSavingImage by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val imageOperationEpoch = remember { DataMaintenance.epoch }
 
     fun showImageSaveResult(saved: Boolean) {
         Toast.makeText(
@@ -229,7 +231,7 @@ private fun ChatNormal(
             return
         }
         isSavingImage = true
-        coroutineScope.launch {
+        DataMaintenance.barrier.launch(coroutineScope, expectedEpoch = imageOperationEpoch) {
             val saved = runCatching {
                 repository.saveImageToPictures(uuid)
             }.getOrDefault(false)

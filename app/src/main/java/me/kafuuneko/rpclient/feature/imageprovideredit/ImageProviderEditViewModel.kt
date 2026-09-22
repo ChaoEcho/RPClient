@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.imageprovideredit
 
+
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -123,7 +124,7 @@ class ImageProviderEditViewModel :
         }
         val config = uiState.form.toCatalogConfig()
         uiState.copy(modelCatalogState = ModelCatalogState.Loading).setup()
-        mModelCatalogJob = viewModelScope.launch {
+        mModelCatalogJob = viewModelScope.launchDataTask {
             val runningJob = currentCoroutineContext()[Job]
             try {
                 val models = withContext(Dispatchers.IO) {
@@ -135,7 +136,7 @@ class ImageProviderEditViewModel :
             } catch (_: CancellationException) {
                 // 用户主动取消或修改连接配置，不提示失败
             } catch (throwable: Throwable) {
-                val failure = classifyModelCatalogFailure(throwable) ?: return@launch
+                val failure = classifyModelCatalogFailure(throwable) ?: return@launchDataTask
                 getOrNull<ImageProviderEditUiState.Normal>()
                     ?.copy(modelCatalogState = ModelCatalogState.Failed(failure))
                     ?.setup()

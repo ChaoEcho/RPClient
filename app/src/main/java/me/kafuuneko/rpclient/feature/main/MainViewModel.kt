@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.main
 
+
 import android.content.Context
 import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
@@ -912,7 +913,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** Observes all active single-chat generations and updates their home cards. */
     private fun observeGeneration() {
         if (mGenerationObserverJob?.isActive == true) return
-        mGenerationObserverJob = viewModelScope.launch {
+        mGenerationObserverJob = viewModelScope.launchDataTask {
             mGenerationCoordinator.snapshotBySession.collect { snapshots ->
                 val uiState = getOrNull<MainUiState.Normal>() ?: return@collect
                 uiState.copy(

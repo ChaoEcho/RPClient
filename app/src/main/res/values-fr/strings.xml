@@ -1078,4 +1078,9 @@
     <string name="image_generation_in_progress">Une image est déjà en cours de génération.</string>
     <string name="image_generation_failed">Échec de la génération de l’image.</string>
     <string name="generated_image_content_description">Scène de jeu de rôle générée</string>
+
+    <string name="recovery_title">Terminer la restauration</string>
+    <string name="recovery_description">Une restauration a été interrompue. Les données de récupération sont conservées. Réessayez avant de lancer l’application.</string>
+    <string name="recovery_failed">La récupération a échoué. Conservez les données de l’application, vérifiez l’espace libre et réessayez.</string>
+    <string name="recovery_retry">Réessayer</string>
 </resources>

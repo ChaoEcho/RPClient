@@ -1,5 +1,11 @@
 package me.kafuuneko.rpclient.libs.core
 
+import java.lang.reflect.InvocationTargetException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import me.kafuuneko.rpclient.libs.generation.DataMaintenance
+import me.kafuuneko.rpclient.libs.generation.launchDataTask
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
@@ -23,6 +29,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -47,7 +54,8 @@ typealias CoroutineBlock = suspend CoroutineScope.() -> Unit
 data class AsyncTask<S>(
     val context: CoroutineContext,
     val restoreState: S,
-    val block: CoroutineBlock
+    val block: CoroutineBlock,
+    val dataEpoch: Long = DataMaintenance.epoch
 )
 
 /**
@@ -57,6 +65,10 @@ data class AsyncTask<S>(
  * 同时提供串行异步任务队列和自动清理的 LiveData 永久观察能力。
  */
 abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
+    /** 仅数据恢复专用页面可绕过普通业务任务准入。 */
+    protected open val managesDataRecovery: Boolean = false
+    private val mDataEpoch = DataMaintenance.epoch
+
     /** Model 向 View 发布的唯一状态源。 */
     private val mUiStateFlow = MutableStateFlow(initStatus)
     val uiStateFlow = mUiStateFlow.asStateFlow()
@@ -119,8 +131,9 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
     /** 启动单消费者任务循环，保证加入队列的任务不会并发修改 UI 状态。 */
     private fun startLoopAsyncTask() = viewModelScope.launch {
         while (isActive) {
-            val (context, restoreState, block) = mAsyncTaskChannel.receive()
-            val job = launch(context = context, start = CoroutineStart.DEFAULT, block = block)
+            val (context, restoreState, block, dataEpoch) = mAsyncTaskChannel.receive()
+            if (dataEpoch != DataMaintenance.epoch || DataMaintenance.state.value.running) continue
+            val job = launchDataTask(context = context, start = CoroutineStart.DEFAULT, block = block)
             mAsyncQueueMutex.withLock {
                 mCurrentAsyncTask = restoreState to job
             }
@@ -152,8 +165,16 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
         restoreState: S = uiStateFlow.value,
         block: CoroutineBlock
     ) {
-        mAsyncTaskChannel.send(AsyncTask(context, restoreState, block))
+        if (mDataEpoch != DataMaintenance.epoch || DataMaintenance.state.value.running) return
+        mAsyncTaskChannel.send(AsyncTask(context, restoreState, block, mDataEpoch))
     }
+
+    /** 旧 ViewModel 的延迟回调即使发生在恢复之后，也不能启动写入新数据的任务。 */
+    protected fun CoroutineScope.launchDataTask(
+        context: CoroutineContext = EmptyCoroutineContext,
+        start: CoroutineStart = CoroutineStart.DEFAULT,
+        block: CoroutineBlock
+    ): Job = DataMaintenance.barrier.launch(this, context, start, mDataEpoch, block)
 
     /** 非阻塞发送 UI 意图；缓冲区已满时返回前会丢弃本次发送结果。 */
     fun emit(uiIntent: I) {
@@ -162,16 +183,28 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
 
     /** 按运行时类型调用所有匹配的 Intent 观察函数。 */
     private suspend fun onReceivedUiIntent(uiIntent: I) {
+        if (!managesDataRecovery && mDataEpoch != DataMaintenance.epoch) return
         val clazz = (uiIntent ?: return)::class
         val observers = mUiIntentObserverMap[clazz] ?: return
-        for (func in observers) {
-            // @formatter:off
-            when (val size = func.parameters.size) {
-                1 -> if (func.isSuspend) func.callSuspend(this) else func.call(this)
-                2 -> if (func.isSuspend) func.callSuspend(this, uiIntent) else func.call(this, uiIntent)
-                else -> throw IllegalArgumentException("Unsupported number of parameters: $size")
+        try {
+            val dispatch: suspend () -> Unit = {
+                for (func in observers) {
+                    try {
+                        when (val size = func.parameters.size) {
+                            1 -> if (func.isSuspend) func.callSuspend(this@CoreViewModel) else func.call(this@CoreViewModel)
+                            2 -> if (func.isSuspend) func.callSuspend(this@CoreViewModel, uiIntent) else func.call(this@CoreViewModel, uiIntent)
+                            else -> throw IllegalArgumentException("Unsupported number of parameters: $size")
+                        }
+                    } catch (error: InvocationTargetException) {
+                        throw error.targetException
+                    }
+                }
             }
-            // @formatter:on
+            if (managesDataRecovery) dispatch() else DataMaintenance.barrier.operation(expectedEpoch = mDataEpoch) { dispatch() }
+        } catch (cancelled: CancellationException) {
+            // 仅吞掉数据替换主动中断的单次意图，页面销毁仍按原作用域正常取消。
+            if (!DataMaintenance.isInterruption(cancelled)) throw cancelled
+            currentCoroutineContext().ensureActive()
         }
     }
 

@@ -1145,4 +1145,9 @@
     <string name="tts_loading">正在準備語音</string>
     <string name="tts_no_speakable_text">這則訊息沒有可朗讀的正文。</string>
     <string name="tts_speech_failed">無法朗讀這則訊息。</string>
+
+    <string name="recovery_title">完成資料復原</string>
+    <string name="recovery_description">上一次復原意外中斷，回復資料仍被保留。請先重試復原，再進入應用程式。</string>
+    <string name="recovery_failed">復原仍未完成。請保留應用程式資料、檢查可用儲存空間後重試。</string>
+    <string name="recovery_retry">重試復原</string>
 </resources>

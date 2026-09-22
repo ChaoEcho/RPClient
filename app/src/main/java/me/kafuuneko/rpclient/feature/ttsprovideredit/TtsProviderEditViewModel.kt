@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.ttsprovideredit
 
+
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.feature.ttsprovideredit.presentation.AzureTtsSettingsState
@@ -59,9 +60,9 @@ class TtsProviderEditViewModel : CoreViewModelWithEvent<
 
         if (intent.provider != TtsProviderType.System) return
         // 系统发音人列表来自 TextToSpeech 引擎，只有系统服务详情页需要，异步补齐。
-        viewModelScope.launch {
+        viewModelScope.launchDataTask {
             val voices = runCatching { mTtsService.getSystemVoices() }.getOrElse { emptyList() }
-            val state = getOrNull<TtsProviderEditUiState.Normal>() ?: return@launch
+            val state = getOrNull<TtsProviderEditUiState.Normal>() ?: return@launchDataTask
             val system = normalizeSystemVoiceSelection(state.system.copy(voices = voices))
             persistSystemSelectionIfChanged(state.system, system)
             state.copy(system = system).setup()

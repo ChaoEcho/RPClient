@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.worldbooklist
 
+
 import android.os.Bundle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -144,7 +145,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         mTransferToken = token
         // 进入加载中状态
         uiState.copy(loadState = WorldBookListLoadState.Loading).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 在 IO 线程解析 URI 对应的世界书文件
                 val parsed = withContext(Dispatchers.IO) {
@@ -205,7 +206,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
             loadState = WorldBookListLoadState.Loading,
             dialogState = WorldBookListDialogState.None
         ).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 根据用户选择应用预算策略并保存入库
                 saveImport(LorebookImportPolicy.resolveBudget(parsed, followGlobal))
@@ -252,7 +253,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         mTransferToken = token
         // 进入加载中状态
         uiState.copy(loadState = WorldBookListLoadState.Loading).setup()
-        mTransferJob = viewModelScope.launch {
+        mTransferJob = viewModelScope.launchDataTask {
             try {
                 // 在 IO 线程将世界书及其条目序列化写入文件
                 withContext(Dispatchers.IO) {

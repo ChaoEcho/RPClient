@@ -96,6 +96,12 @@ class RPClientApp : Application() {
         }
         runBlocking(Dispatchers.IO) {
             contentResolver.releaseObsoletePersistedUriPermissions()
+            try {
+                koinApplication.koin.get<BackupRepository>().recoverInterruptedRestore()
+            } catch (error: me.kafuuneko.rpclient.libs.backup.RestoreRecoveryRequiredException) {
+                AppLogger.e("Restore", "Pending restore could not be recovered", error)
+                return@runBlocking
+            }
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
         }
     }

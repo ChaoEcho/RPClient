@@ -32,6 +32,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <activity android:name=".feature.recovery.RecoveryActivity" android:exported="false">
+            <intent-filter>
+                <action android:name="me.kafuuneko.rpclient.action.RECOVER_DATA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".feature.backup.BackupActivity"
             android:exported="false"

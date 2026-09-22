@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.backup
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.JsonParseException
+import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -81,6 +82,21 @@ class BackupCodec internal constructor(
         }
     }
 
+    /** 仅供本机恢复日志使用；不向系统文件选择器暴露未加密备份入口。 */
+    internal fun validateRollbackArchive(archive: File): ValidatedBackup {
+        val staging = File(mCacheDirectory, "rollback_restore_${UUID.randomUUID()}")
+        if (!staging.mkdirs()) throw BackupException.StorageInsufficient()
+        try {
+            val content = File(staging, CONTENT_DIRECTORY_NAME)
+            if (!content.mkdirs()) throw BackupException.StorageInsufficient()
+            extractZip(archive, content)
+            return validateExtracted(staging, content)
+        } catch (error: Throwable) {
+            staging.deleteRecursively()
+            throw error
+        }
+    }
+
     /** 读取已验证快照中的偏好对象。 */
     fun readPreferences(backup: ValidatedBackup): BackupPreferencesSnapshot {
         return try {
@@ -107,7 +123,22 @@ class BackupCodec internal constructor(
     fun encodeJson(value: Any): ByteArray = mGson.toJson(value).toByteArray(Charsets.UTF_8)
 
     /** 将已通过完整校验的 JSONL 单行解码为指定实体。 */
-    fun <T> decodeLine(line: String, type: Class<T>): T = mGson.fromJson(line, type)
+    fun <T> decodeLine(line: String, type: Class<T>): T {
+        val json = JsonParser.parseString(line).asJsonObject
+        // 历史 v1 备份未记录这些后增字段；Gson 不执行 Kotlin 默认参数，必须显式迁移。
+        fun defaultInt(name: String, value: Int) {
+            if (!json.has(name)) json.addProperty(name, value)
+        }
+        when (type) {
+            Character::class.java -> if (!json.has("visualIdentity")) json.addProperty("visualIdentity", "")
+            LLMProvider::class.java -> defaultInt("maxConcurrentRequests", 1)
+            GroupChatSession::class.java -> {
+                defaultInt("naturalMaxSpeakers", 2)
+                defaultInt("autoModeMaxRounds", 2)
+            }
+        }
+        return mGson.fromJson(json, type)
+    }
 
     private fun extractZip(payloadFile: File, contentDirectory: File) {
         val seenEntries = mutableSetOf<String>()
@@ -237,7 +268,7 @@ class BackupCodec internal constructor(
                 val line = reader.readLine() ?: break
                 if (line.isBlank()) throw BackupException.RestoreValidationFailed()
                 try {
-                    mGson.fromJson(line, type) ?: throw BackupException.RestoreValidationFailed()
+                    decodeLine(line, type) ?: throw BackupException.RestoreValidationFailed()
                 } catch (error: BackupException) {
                     throw error
                 } catch (error: JsonParseException) {

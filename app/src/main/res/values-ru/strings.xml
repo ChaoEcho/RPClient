@@ -1082,4 +1082,9 @@
     <string name="image_generation_in_progress">Изображение уже создаётся.</string>
     <string name="image_generation_failed">Не удалось создать изображение.</string>
     <string name="generated_image_content_description">Созданная ролевая сцена</string>
+
+    <string name="recovery_title">Завершить восстановление</string>
+    <string name="recovery_description">Восстановление было прервано. Данные для отката сохранены. Повторите восстановление перед запуском приложения.</string>
+    <string name="recovery_failed">Не удалось завершить восстановление. Сохраните данные приложения, проверьте свободное место и повторите попытку.</string>
+    <string name="recovery_retry">Повторить восстановление</string>
 </resources>

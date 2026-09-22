@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat
 
+
 import android.content.Context
 import android.os.Bundle
 import androidx.lifecycle.viewModelScope
@@ -464,7 +465,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private fun observeGeneration(sessionId: Long) {
         mGenerationObserverJob?.cancel()
-        mGenerationObserverJob = viewModelScope.launch {
+        mGenerationObserverJob = viewModelScope.launchDataTask {
             mGenerationCoordinator.snapshotBySession.collect { snapshots ->
                 if (mGenerationJob?.isActive == true) return@collect
                 applyGenerationSnapshot(sessionId, snapshots[sessionId] ?: ChatGenerationState.Idle)
@@ -474,7 +475,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private fun observeImageGeneration() {
         mImageGenerationObserverJob?.cancel()
-        mImageGenerationObserverJob = viewModelScope.launch {
+        mImageGenerationObserverJob = viewModelScope.launchDataTask {
             var previousMessageIds = mImageGenerationCoordinator.states.value.keys
             mImageGenerationCoordinator.states.collect { states ->
                 val completedMessageIds = previousMessageIds - states.keys
@@ -669,7 +670,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 speechState = ChatSpeechState.Loading(message.id)
             )
         ).setup()
-        mSpeechJob = viewModelScope.launch {
+        mSpeechJob = viewModelScope.launchDataTask {
             try {
                 mTtsService.speak(
                     text = text,
@@ -679,7 +680,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     }
                 )
             } catch (_: CancellationException) {
-                return@launch
+                return@launchDataTask
             } catch (error: Throwable) {
                 if (requestId == mSpeechRequestId) {
                     val detail = error.message?.takeIf { it.isNotBlank() }
@@ -885,7 +886,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         // 切换为导出中弹窗状态
         uiState.copy(dialogState = ChatDialogState.Exporting).setup()
-        mChatExportJob = viewModelScope.launch {
+        mChatExportJob = viewModelScope.launchDataTask {
             try {
                 // 异步向目标 URI 写入导出的 JSONL 聊天归档
                 mChatArchiveRepository.exportToUri(sessionId, intent.uri)

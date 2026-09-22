@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.backup
 
+
 import android.content.Context
 import android.os.Bundle
 import android.net.Uri
@@ -88,7 +89,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             return
         }
         mPendingValidatedBackup = null
-        mOperationJob = viewModelScope.launch(Dispatchers.IO) {
+        mOperationJob = viewModelScope.launchDataTask(Dispatchers.IO) {
             mRepository.discard(pending)
             BackupUiState.Finished(state).setup()
         }
@@ -106,7 +107,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         state.copy(dialogState = BackupDialogState.None).setup()
         if (pending != null) {
             mPendingValidatedBackup = null
-            viewModelScope.launch(Dispatchers.IO) { mRepository.discard(pending) }
+            viewModelScope.launchDataTask(Dispatchers.IO) { mRepository.discard(pending) }
         }
     }
 
@@ -384,7 +385,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val state = normalOrNull() ?: return false
         if (state.operation != null || mOperationJob?.isActive == true) return false
         state.copy(operation = BackupOperationState(kind)).setup()
-        mOperationJob = viewModelScope.launch(Dispatchers.IO) {
+        mOperationJob = viewModelScope.launchDataTask(Dispatchers.IO) {
             try {
                 AppLogger.i("Backup", "Operation started: ${kind.name}")
                 block()
@@ -413,7 +414,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
 
     private fun showRestoreConfirmation(backup: ValidatedBackup) {
         val state = normalOrNull() ?: run {
-            viewModelScope.launch(Dispatchers.IO) { mRepository.discard(backup) }
+            viewModelScope.launchDataTask(Dispatchers.IO) { mRepository.discard(backup) }
             return
         }
         mPendingValidatedBackup = backup
@@ -515,7 +516,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val state = normalOrNull() ?: return
         if (state.operation != null || mChatImportJob?.isActive == true) return
         state.copy(isReadingChatArchive = true).setup()
-        mChatImportJob = viewModelScope.launch {
+        mChatImportJob = viewModelScope.launchDataTask {
             try {
                 val archive = mChatArchiveRepository.readImportFromUri(
                     uri = uri,
@@ -523,7 +524,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
                 )
                 val characters = mCharacterRepository.getAllCharacters()
                 mPendingChatImport = archive
-                val current = normalOrNull() ?: return@launch
+                val current = normalOrNull() ?: return@launchDataTask
                 val items = characters.map { it.toImportCharacterItem() }
                 current.copy(
                     isReadingChatArchive = false,
@@ -591,7 +592,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         val archive = mPendingChatImport ?: return
         if (dialog.isImporting || mChatImportJob?.isActive == true) return
         state.copy(dialogState = dialog.copy(isImporting = true)).setup()
-        mChatImportJob = viewModelScope.launch {
+        mChatImportJob = viewModelScope.launchDataTask {
             try {
                 val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
                 mPendingChatImport = null
@@ -617,10 +618,10 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             } catch (error: Exception) {
                 AppLogger.e("Backup", "Chat archive save failed: ${error.message}", error)
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
-                val current = normalOrNull() ?: return@launch
+                val current = normalOrNull() ?: return@launchDataTask
                 val currentDialog = current.dialogState
                     as? BackupDialogState.ImportChatCharacterSelection
-                    ?: return@launch
+                    ?: return@launchDataTask
                 current.copy(dialogState = currentDialog.copy(isImporting = false)).setup()
             } finally {
                 mChatImportJob = null

@@ -40,6 +40,23 @@ class BackupCodecTest {
         assertEquals("anime avatar portrait", snapshot.imageGenerationAvatarStylePrompt)
     }
 
+    @Test
+    fun legacyRowsGetMigrationDefaultsInsteadOfGsonZeroValues() {
+        val provider = codec.decodeLine("{}", me.kafuuneko.rpclient.libs.room.entity.LLMProvider::class.java)
+        val group = codec.decodeLine("{}", me.kafuuneko.rpclient.libs.room.entity.GroupChatSession::class.java)
+        val character = codec.decodeLine("{}", me.kafuuneko.rpclient.libs.room.entity.Character::class.java)
+        assertEquals(1, provider.maxConcurrentRequests)
+        assertEquals(2, group.naturalMaxSpeakers)
+        assertEquals(2, group.autoModeMaxRounds)
+        assertEquals("", character.visualIdentity)
+        val explicit = codec.decodeLine(
+            "{\"naturalMaxSpeakers\":-1,\"autoModeMaxRounds\":0}",
+            me.kafuuneko.rpclient.libs.room.entity.GroupChatSession::class.java
+        )
+        assertEquals(-1, explicit.naturalMaxSpeakers)
+        assertEquals(0, explicit.autoModeMaxRounds)
+    }
+
     @After
     fun tearDown() {
         password.fill('\u0000')

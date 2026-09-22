@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.characteredit
 
+
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -242,7 +243,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             dialogState = CharacterEditDialogState.None,
             isAvatarGenerating = true
         ).setup()
-        viewModelScope.launch {
+        viewModelScope.launchDataTask {
             val provider = withContext(Dispatchers.IO) {
                 mImageProviderRepository.getSelectedProvider()
             }
@@ -255,7 +256,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                     ?.setup()
                 AppViewEvent.PopupToastMessageByResId(R.string.image_generation_not_configured)
                     .tryEmit()
-                return@launch
+                return@launchDataTask
             }
             var generatedUuid: String? = null
             try {

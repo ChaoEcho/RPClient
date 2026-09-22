@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.summarymemory
 
+
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,7 +52,7 @@ class SummaryMemorySettingsViewModel : CoreViewModelWithEvent<
         )
         initialState.setup()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launchDataTask(Dispatchers.IO) {
             val allProviders = mLLMRepository.getAllProviders()
             val providerItems = allProviders.map {
                 SummaryProviderItem(

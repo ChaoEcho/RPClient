@@ -1346,4 +1346,9 @@
     <string name="group_chat_auto_mode_rounds">Auto continue rounds</string>
     <string name="group_chat_auto_mode_rounds_continuous">Continuous</string>
     <string name="group_chat_auto_mode_rounds_count">%1$d</string>
+
+    <string name="recovery_title">Finish restoring your data</string>
+    <string name="recovery_description">A previous restore was interrupted. Your rollback data has been kept. Retry recovery before opening the app.</string>
+    <string name="recovery_failed">Recovery could not finish. Keep the app data, check available storage, then retry.</string>
+    <string name="recovery_retry">Retry recovery</string>
 </resources>

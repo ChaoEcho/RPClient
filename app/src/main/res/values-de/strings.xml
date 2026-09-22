@@ -1077,4 +1077,9 @@
     <string name="image_generation_in_progress">Es wird bereits ein Bild generiert.</string>
     <string name="image_generation_failed">Bildgenerierung fehlgeschlagen.</string>
     <string name="generated_image_content_description">Generierte Rollenspielszene</string>
+
+    <string name="recovery_title">Datenwiederherstellung abschließen</string>
+    <string name="recovery_description">Eine Wiederherstellung wurde unterbrochen. Die Rücksetzungsdaten sind erhalten. Wiederholen Sie die Wiederherstellung.</string>
+    <string name="recovery_failed">Die Wiederherstellung ist fehlgeschlagen. Behalten Sie die App-Daten, prüfen Sie den freien Speicher und versuchen Sie es erneut.</string>
+    <string name="recovery_retry">Erneut versuchen</string>
 </resources>
