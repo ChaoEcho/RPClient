@@ -480,8 +480,7 @@ class GroupChatViewModel :
         if (uiState.dialogState != GroupChatDialogState.SummaryTokenLimit) return
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
         AppViewEvent.StartActivity(
-            MainActivity::class.java,
-            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+            me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity::class.java
         ).tryEmit()
     }
 

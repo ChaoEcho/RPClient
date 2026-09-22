@@ -130,4 +130,3 @@ data class MainImageSendState(
         )
     }
 }
-

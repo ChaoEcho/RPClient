@@ -1458,8 +1458,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (uiState.dialogState != ChatDialogState.SummaryTokenLimit) return
         uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(
-            MainActivity::class.java,
-            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+            me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity::class.java
         ).tryEmit()
     }
 

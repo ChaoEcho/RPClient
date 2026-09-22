@@ -56,6 +56,8 @@ android {
         }
     }
 
+    testBuildType = providers.gradleProperty("testBuildType").getOrElse("debug")
+
     buildTypes {
         debug {
             applicationIdSuffix = ".dev"
@@ -72,6 +74,14 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+    buildTypes.create("verification") {
+        initWith(buildTypes.getByName("release"))
+        // 显式的独立验收包，不冒充正式升级包，也不依赖生产签名。
+        applicationIdSuffix = ".verification"
+        versionNameSuffix = "-verification"
+        signingConfig = signingConfigs.getByName("debug")
+        matchingFallbacks += "release"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

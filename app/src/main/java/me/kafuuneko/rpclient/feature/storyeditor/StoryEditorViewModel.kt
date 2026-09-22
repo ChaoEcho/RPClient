@@ -376,8 +376,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (uiState.dialogState != StoryEditorDialogState.SummaryTokenLimit) return
         uiState.copy(dialogState = StoryEditorDialogState.None).setup()
         AppViewEvent.StartActivity(
-            MainActivity::class.java,
-            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+            me.kafuuneko.rpclient.feature.summarymemory.SummaryMemorySettingsActivity::class.java
         ).tryEmit()
     }
 

@@ -47,3 +47,13 @@ git diff --check
 - 数据库和偏好都持久化后才写完成标记；已完成但清理中断的恢复不会被错误撤销。
 - 回滚失败时阻止普通业务入口，专用恢复页仅允许重试或退出，不自动清库、不丢弃回滚源。
 - 准备完成但因协程取消未能交付的加密临时文件和明文校验 staging 也必须清理。
+
+## 混淆后设备验收
+
+`verification` 构建类型继承 Release 的 R8 和资源压缩配置，使用独立的 `.verification` 包名、明确的测试签名和版本后缀；正式 Release 没有签名时仍保持 unsigned。
+
+```bash
+./gradlew --no-daemon -PtestBuildType=verification :app:connectedVerificationAndroidTest
+```
+
+CI 在 API 26 / 35 上对该包运行真实 MainViewModel 的反射 Intent 分发、备份恢复、图片归档和历史迁移测试。配置进入仓库不代表已通过；以对应提交的设备报告为准。

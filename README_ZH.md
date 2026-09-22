@@ -93,7 +93,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 
 - 加密的完整 `.rpbackup` 导出与 Replace Restore，覆盖本地业务数据、文件资产和应用设置
 - 可选 WebDAV 存储，支持列出、上传、下载和删除加密备份
-- V1 格式契约见 [RPClient 完整备份格式](doc/RPClient完整备份格式.md)
+- V1 / V2 格式契约见 [RPClient 完整备份格式](doc/RPClient完整备份格式.md)
 
 ### 其他
 
