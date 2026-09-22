@@ -129,7 +129,8 @@ fun MarkdownMessageText(
                             narrationColor = narrationColor,
                             linkColor = linkColor,
                             strongColor = strongColor,
-                            backgroundColor = blockColor
+                            backgroundColor = blockColor,
+                            style = readingTextStyle
                         )
 
                         is MarkdownBlock.ListBlock -> MarkdownListBlock(
@@ -138,7 +139,8 @@ fun MarkdownMessageText(
                             narrationColor = narrationColor,
                             linkColor = linkColor,
                             strongColor = strongColor,
-                            markerColor = subtleColor
+                            markerColor = subtleColor,
+                            style = readingTextStyle
                         )
 
                         MarkdownBlock.Divider -> Box(

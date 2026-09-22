@@ -64,7 +64,10 @@ sealed class BackupDialogState {
         val characters: List<ImportCharacterItem>,
         val visibleCharacters: List<ImportCharacterItem>,
         val selectedCharacterId: Long?,
-        val isImporting: Boolean = false
+        val isImporting: Boolean = false,
+        val externalImageCount: Int = 0,
+        val resolvedImageCount: Int = 0,
+        val isResolvingImages: Boolean = false
     ) : BackupDialogState()
 }
 

@@ -40,6 +40,10 @@ class BackupActivity : CoreActivityWithEvent() {
         mViewModel.emit(BackupUiIntent.ImportChatResult(uri))
     }
 
+    private val mImageDirectoryLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) {
+        mViewModel.emit(BackupUiIntent.ImportImageDirectoryResult(it))
+    }
+
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
     @Composable
@@ -63,6 +67,7 @@ class BackupActivity : CoreActivityWithEvent() {
 
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            BackupViewEvent.OpenImportImageDirectory -> mImageDirectoryLauncher.launch(null)
             is BackupViewEvent.CreateLocalBackupDocument -> {
                 mCreateBackupLauncher.launch(viewEvent.fileName)
             }

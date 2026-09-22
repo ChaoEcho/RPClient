@@ -227,6 +227,8 @@ class BackupRepository(
             onPhase(BackupOperationPhase.RestoringDatabase)
             deleteBusinessTables()
             insertBusinessTables(backup)
+            check(mBackupDao.countInvalidMessageImages() == 0L) { "Invalid restored attachment owner" }
+            check(mBackupDao.countLegacyGeneratedImages() == 0L) { "Unmigrated legacy image reference" }
             onPhase(BackupOperationPhase.RestoringSettings)
             preferences.apply()
         }

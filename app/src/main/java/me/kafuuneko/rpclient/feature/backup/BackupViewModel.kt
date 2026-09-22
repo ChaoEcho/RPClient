@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.backup
 
 
+import kotlinx.coroutines.CoroutineScope
 import android.content.Context
 import android.os.Bundle
 import android.net.Uri
@@ -65,6 +66,61 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private val mCharacterRepository by inject<CharacterRepository>()
     private var mChatImportJob: Job? = null
     private var mPendingChatImport: ChatArchive? = null
+    private var mDirectoryPickArchive: ChatArchive? = null
+    private var mChatImageSources: Map<String, Uri> = emptyMap()
+
+    /** 只释放当前导入暂存，不能让关闭页面丢弃新会话持有的文件。 */
+    private fun releasePendingChatImport() {
+        val archive = mPendingChatImport
+        mPendingChatImport = null
+        mDirectoryPickArchive = null
+        mChatImageSources = emptyMap()
+        if (archive != null) CoroutineScope(Dispatchers.IO).launch { mChatArchiveRepository.releaseImport(archive) }
+    }
+
+    @UiIntentObserver(BackupUiIntent.PickImportImageDirectory::class)
+    private fun onPickImportImageDirectory() {
+        val state = normalOrNull() ?: return
+        val dialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
+        mDirectoryPickArchive = mPendingChatImport ?: return
+        BackupViewEvent.OpenImportImageDirectory.tryEmit()
+    }
+
+    @UiIntentObserver(BackupUiIntent.ImportImageDirectoryResult::class)
+    private fun onImportImageDirectoryResult(intent: BackupUiIntent.ImportImageDirectoryResult) {
+        val archive = mDirectoryPickArchive
+        mDirectoryPickArchive = null
+        if (archive == null || archive !== mPendingChatImport || intent.uri == null) return
+        val state = normalOrNull() ?: return
+        val dialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return
+        if (mChatImportJob?.isActive == true) return
+        state.copy(dialogState = dialog.copy(isResolvingImages = true)).setup()
+        mChatImportJob = viewModelScope.launchDataTask {
+            try {
+                val sources = mChatArchiveRepository.resolveImageDirectory(archive, intent.uri)
+                if (archive !== mPendingChatImport) return@launchDataTask
+                mChatImageSources = sources
+                val current = normalOrNull() ?: return@launchDataTask
+                val currentDialog = current.dialogState as? BackupDialogState.ImportChatCharacterSelection ?: return@launchDataTask
+                val count = archive.messages.sumOf { message -> message.images.count { it.sourceUrl in sources } }
+                current.copy(dialogState = currentDialog.copy(resolvedImageCount = count)).setup()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppLogger.e("Backup", "Cannot read import image directory", error)
+                AppViewEvent.PopupToastMessageByResId(R.string.chat_import_image_directory_failed).tryEmit()
+            } finally {
+                mChatImportJob = null
+                val current = normalOrNull()
+                val currentDialog = current?.dialogState as? BackupDialogState.ImportChatCharacterSelection
+                if (current != null && currentDialog != null && archive === mPendingChatImport) {
+                    current.copy(dialogState = currentDialog.copy(isResolvingImages = false)).setup()
+                }
+            }
+        }
+    }
+
 
     @UiIntentObserver(BackupUiIntent.Init::class)
     private fun onInit() {
@@ -101,7 +157,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         if (state.operation != null) return
         val importDialog = state.dialogState as? BackupDialogState.ImportChatCharacterSelection
         if (importDialog?.isImporting == true) return
-        if (importDialog != null) mPendingChatImport = null
+        if (importDialog != null) releasePendingChatImport()
         val pending = mPendingValidatedBackup
         clearPendingDialogInputs()
         state.copy(dialogState = BackupDialogState.None).setup()
@@ -522,8 +578,9 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
                     uri = uri,
                     fallbackUserName = AppModel.resolvedUserName
                 )
-                val characters = mCharacterRepository.getAllCharacters()
+                releasePendingChatImport()
                 mPendingChatImport = archive
+                val characters = mCharacterRepository.getAllCharacters()
                 val current = normalOrNull() ?: return@launchDataTask
                 val items = characters.map { it.toImportCharacterItem() }
                 current.copy(
@@ -532,6 +589,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
                         messageCount = archive.messages.size,
+                        externalImageCount = archive.messages.sumOf { message -> message.images.count { it.data == null && it.resourceKey == null && it.sourceUrl != null } },
                         query = "",
                         characters = items,
                         visibleCharacters = items,
@@ -544,8 +602,8 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
-                AppLogger.e("Backup", "Chat archive import failed: ${error.message}", error)
-                mPendingChatImport = null
+                AppLogger.e("Backup", "Chat archive import failed", error)
+                releasePendingChatImport()
                 AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
                 normalOrNull()?.copy(isReadingChatArchive = false)?.setup()
             } finally {
@@ -594,8 +652,12 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
         state.copy(dialogState = dialog.copy(isImporting = true)).setup()
         mChatImportJob = viewModelScope.launchDataTask {
             try {
-                val sessionId = mChatArchiveRepository.saveImport(archive, characterId)
-                mPendingChatImport = null
+                val result = mChatArchiveRepository.saveImport(archive, characterId, mChatImageSources)
+                val sessionId = result.sessionId
+                releasePendingChatImport()
+                if (result.skippedImages > 0) {
+                    AppViewEvent.PopupToastMessage(mContext.getString(R.string.chat_archive_images_skipped, result.skippedImages)).tryEmit()
+                }
                 normalOrNull()?.let { current ->
                     val next = if (
                         current.dialogState is BackupDialogState.ImportChatCharacterSelection
@@ -642,6 +704,7 @@ class BackupViewModel : CoreViewModelWithEvent<BackupUiIntent, BackupUiState>(
     private fun normalOrNull(): BackupUiState.Normal? = getOrNull()
 
     override fun onCleared() {
+        releasePendingChatImport()
         mPendingLocalBackupPassword?.fill('\u0000')
         mPendingLocalBackupPassword = null
         mPendingValidatedBackup?.stagingDirectory?.deleteRecursively()

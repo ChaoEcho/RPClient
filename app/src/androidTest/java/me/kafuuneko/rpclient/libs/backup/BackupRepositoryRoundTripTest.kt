@@ -101,6 +101,16 @@ class BackupRepositoryRoundTripTest {
                 postHistoryInstructions = ""
             )
         )
+        val chatId = database.getChatSessionDao().insertOrReplace(me.kafuuneko.rpclient.libs.room.entity.ChatSession(
+            characterId = characterId, createTime = 1L, latestTime = 1L, lorebookEntrySet = "[]", title = "Backup chat", userNote = ""
+        ))
+        val messageId = database.getChatMessageDao().insertOrReplace(me.kafuuneko.rpclient.libs.room.entity.ChatMessage(
+            sessionId = chatId, createTime = 1L, source = me.kafuuneko.rpclient.libs.room.entity.ChatMessage.Source.Char, content = "Illustrated reply"
+        ))
+        val generatedUuid = fileRepository.copyFileReference(fileUuid)
+        database.getMessageImageDao().insertAll(listOf(me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity(
+            me.kafuuneko.rpclient.libs.room.model.MessageType.Single, messageId, 0, generatedUuid, sendToModel = false
+        )))
         AppModel.userName = "Backup Alice"
 
         val password = "correct horse battery staple".toCharArray()
@@ -126,7 +136,9 @@ class BackupRepositoryRoundTripTest {
                 restorePassword.fill('\u0000')
             }
             assertEquals(1L, validated.manifest.tableCounts["tables/characters.jsonl"])
-            assertEquals(1L, validated.manifest.tableCounts["tables/files.jsonl"])
+            assertEquals(2L, validated.manifest.tableCounts["tables/files.jsonl"])
+            assertEquals(2, validated.manifest.backupVersion)
+            assertEquals(1L, validated.manifest.tableCounts["tables/message_images.jsonl"])
 
             repository.restore(validated)
 
@@ -136,6 +148,11 @@ class BackupRepositoryRoundTripTest {
             assertEquals(fileEntity, fileRepository.getFileEntity(fileUuid))
             assertArrayEquals(payload, fileRepository.getFile(fileUuid)?.readBytes())
             assertEquals("Backup Alice", AppModel.userName)
+            val attachment = database.getMessageImageDao().getByMessage(
+                me.kafuuneko.rpclient.libs.room.model.MessageType.Single, messageId).single()
+            assertEquals(false, attachment.sendToModel)
+            assertEquals(generatedUuid, attachment.imageUuid)
+            assertArrayEquals(payload, fileRepository.getFile(generatedUuid)?.readBytes())
             assertEquals(true, AppModel.llmDefaultProvidersInitialized)
         } finally {
             encrypted.delete()

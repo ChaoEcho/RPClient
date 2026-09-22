@@ -540,6 +540,57 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun everyForkSchemaMigratesToCurrentWithoutReplacingHistory() {
+        for (version in 1..9) {
+            val name = "fork-history-$version-to-current"
+            migrationHelper.createDatabase(name, version).close()
+            migrationHelper.runMigrationsAndValidate(
+                name, AppDatabase.VERSION, true,
+                me.kafuuneko.rpclient.libs.room.migration.Migration9To10
+            ).close()
+        }
+    }
+
+    @Test
+    fun migrate9To10RetainsCharacterAndMovesGeneratedImageToDisplayOnlyAttachment() {
+        val name = "fork-generated-image-to-v10"
+        migrationHelper.createDatabase(name, 9).apply {
+            execSQL("""
+                INSERT INTO character (id, name, avatar, characterTags, description, personality,
+                    scenario, firstMessages, examplesOfDialogue, postHistoryInstructions)
+                VALUES (101, 'fixture', 'old-image', '[]', '', '', '', '[]', '', '')
+            """.trimIndent())
+            execSQL("""
+                INSERT INTO chat_sessions (id, characterId, createTime, latestTime, lorebookEntrySet,
+                    title, userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused)
+                VALUES (202, 101, 1, 2, '[]', 'session', '', 'user', '', '{}', 0)
+            """.trimIndent())
+            execSQL("INSERT INTO files(uuid, hash, mimeType) VALUES ('old-image', ?, 'image/png')", arrayOf("a".repeat(64)))
+            execSQL("""
+                INSERT INTO chat_messages(id, sessionId, createTime, source, content, imageFileUuid)
+                VALUES (303, 202, 1, 'Char', 'reply', 'old-image')
+            """.trimIndent())
+            close()
+        }
+        migrationHelper.runMigrationsAndValidate(name, AppDatabase.VERSION, true,
+            me.kafuuneko.rpclient.libs.room.migration.Migration9To10).use { db ->
+            db.query("SELECT imageUuid, sendToModel FROM message_images WHERE messageId=303").use {
+                assertEquals(true, it.moveToFirst())
+                assertEquals("generated-v9-303-old-image", it.getString(0))
+                assertEquals(0, it.getInt(1))
+            }
+            db.query("SELECT imageFileUuid FROM chat_messages WHERE id=303").use {
+                assertEquals(true, it.moveToFirst())
+                assertEquals(true, it.isNull(0))
+            }
+            db.query("SELECT COUNT(*) FROM files WHERE uuid='old-image'").use {
+                it.moveToFirst()
+                assertEquals(1, it.getInt(0))
+            }
+        }
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"

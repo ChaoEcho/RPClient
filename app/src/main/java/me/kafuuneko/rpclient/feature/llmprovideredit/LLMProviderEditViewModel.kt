@@ -299,8 +299,15 @@ class LLMProviderEditViewModel :
             ?: return
         if (catalogState.models.isEmpty()) return
         uiState.copy(
-            dialogState = LLMProviderEditDialogState.ModelPicker(catalogState.models)
+            dialogState = LLMProviderEditDialogState.ModelPicker(searchQuery = "", items = catalogState.models)
         ).setup()
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeModelSearch::class)
+    private fun onChangeModelSearch(intent: LLMProviderEditUiIntent.ChangeModelSearch) {
+        val state = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        val dialog = state.dialogState as? LLMProviderEditDialogState.ModelPicker ?: return
+        state.copy(dialogState = dialog.copy(searchQuery = intent.value)).setup()
     }
 
     /** 在弹窗中选中某个模型并填入表单。 */

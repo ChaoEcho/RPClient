@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.layout.navigationBarsPadding
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -368,7 +371,6 @@ private fun ChatNormal(
     }
     // 记录列表视口高度，在软键盘弹出/收起导致视口尺寸变化时，将差值转化为滚动偏移，
     // 从而使当前查看的消息被键盘等高顶起，保持位置不变，顶部溢出部分在标题栏下方自然裁切
-    val coroutineScope = rememberCoroutineScope()
     var previousListHeight by remember { mutableIntStateOf(0) }
 
     Column(
@@ -991,6 +993,7 @@ private fun MessageBubble(
                         }
                         if (editing) {
                             MessageEditContent(
+                                imageState = imageState,
                                 draft = editingDraft,
                                 isUser = isUser,
                                 emit = emit
@@ -1804,87 +1807,11 @@ private fun ChatInputBar(
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
                     leadingIcon = {
-                        Row {
-                        Box {
-                            IconButton(
-                                onClick = { quickActionsExpanded = true },
-                                enabled = !isGenerating
-                            ) {
-                                Icon(
-                                    Icons.Rounded.AutoAwesome,
-                                    contentDescription = stringResource(R.string.chat_settings_actions)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = quickActionsExpanded,
-                                onDismissRequest = { quickActionsExpanded = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.regenerate_latest_reply)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.Refresh, contentDescription = null)
-                                    },
-                                    enabled = hasAssistantMessage,
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.RegenerateLast.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.continue_latest_reply)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                    },
-                                    enabled = hasAssistantMessage && canStartTextGeneration,
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.ContinueLast.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.impersonate_user)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.Edit, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.ImpersonateUser.emit()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.summarize_now)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        quickActionsExpanded = false
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ChatUiIntent.SummarizeNow.emit()
-                                    }
-                                )
-                            }
-                        }
                         IconButton(
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false))
-                                    .emit()
-                            },
-                            enabled = !isGenerating && !imageState.processing && imageState.canAddDraft
+                            enabled = !isGenerating && !imageState.processing && imageState.canAddDraft,
+                            onClick = { ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)).emit() }
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ImageIcon,
-                                contentDescription = stringResource(R.string.attach_images),
-                                tint = if (!isGenerating && imageState.canAddDraft) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                }
-                            )
-                        }
+                            Icon(Icons.Rounded.ImageIcon, contentDescription = stringResource(R.string.attach_images))
                         }
                     },
                     placeholder = {
@@ -2686,6 +2613,11 @@ private fun PreviewImageMessages(examples: List<Pair<Int, Boolean>>) {
                         imageUuids = ids
                     ),
                     character = character,
+                    imageGenerationState = null,
+                    speechState = ChatSpeechState.Idle,
+                    fileRepository = null,
+                    isLatestAssistantMessage = false,
+                    onImageClick = {},
                     expandedThinkBlockIds = emptySet(),
                     editing = editing,
                     editingDraft = "还有很多呢",

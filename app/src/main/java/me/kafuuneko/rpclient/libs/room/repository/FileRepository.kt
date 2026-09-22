@@ -837,13 +837,12 @@ class FileRepository(
      * 通过 MediaStore 写入，避免先解码或重新压缩图片；Android 29 及以上使用
      * RELATIVE_PATH 和 IS_PENDING，旧版本则写入 Pictures/RPClient 的物理路径。
      */
-    suspend fun saveImageToPictures(uuid: String): Boolean = withContext(Dispatchers.IO) {
-        val entity = mFileDao.getByUuid(uuid) ?: return@withContext false
-        val sourceFile = File(mRepositoryDir, entity.hash)
-        if (!sourceFile.isFile) return@withContext false
+    suspend fun saveImageToPictures(uuid: String): Boolean = readWithLease(uuid, { false }) { sourceFile ->
+        val entity = mFileDao.getByUuid(uuid) ?: return@readWithLease false
+        if (!sourceFile.isFile) return@readWithLease false
 
         val (mimeType, extension) = resolveImageExportFormat(entity.mimeType, sourceFile)
-            ?: return@withContext false
+            ?: return@readWithLease false
         val displayName = "RPClient_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.$extension"
         val resolver = mContext.contentResolver
         val legacyTargetFile = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -856,12 +855,12 @@ class FileRepository(
                     !targetDirectory.mkdirs() &&
                     !targetDirectory.isDirectory
                 ) {
-                    return@withContext false
+                    return@readWithLease false
                 }
-                if (!targetDirectory.isDirectory) return@withContext false
+                if (!targetDirectory.isDirectory) return@readWithLease false
                 File(targetDirectory, displayName)
             } catch (_: Exception) {
-                return@withContext false
+                return@readWithLease false
             }
         } else {
             null
@@ -883,7 +882,7 @@ class FileRepository(
                 }
             }
             insertedUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-                ?: return@withContext false
+                ?: return@readWithLease false
 
             resolver.openOutputStream(insertedUri, "w")?.use { outputStream ->
                 FileInputStream(sourceFile).use { inputStream ->

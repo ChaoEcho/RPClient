@@ -846,7 +846,9 @@ private fun CollapsibleAdvancedPanel(
                         )
                     }
 
-                    TokenEstimateReserveSlider(
+                    RpPercentageSlider(
+                        title = stringResource(R.string.token_estimate_reserve),
+                        helper = stringResource(R.string.token_estimate_reserve_description),
                         value = form.tokenEstimateReservePercent,
                         valueRange = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT..MAX_TOKEN_ESTIMATE_RESERVE_PERCENT,
                         onValueChange = {

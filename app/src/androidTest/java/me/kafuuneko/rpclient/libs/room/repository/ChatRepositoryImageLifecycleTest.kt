@@ -103,13 +103,16 @@ class ChatRepositoryImageLifecycleTest {
     }
 
     @Test
-    fun editRegenerateDeleteAndBranchDoNotRetainImageLinks() = runBlocking {
+    fun branchOwnsIndependentDisplayOnlyReferenceWhileRegenerationReleasesOriginal() = runBlocking {
         val messageId = repository.createMessage(sessionId, ChatMessage.Source.Char, "reply", createTime = 2L)
         val imageUuid = fileRepository.saveBytes(byteArrayOf(10, 11, 12), "image/png")
         assertTrue(repository.replaceMessageImage(messageId, "reply", imageUuid))
 
         val branchId = repository.createBranchSession(sessionId, messageId, "Branch", createTime = 10L)
-        assertNull(repository.getGeneratedImageUuid(repository.getMessagesBySessionId(branchId).single().id))
+        val branchMessageId = repository.getMessagesBySessionId(branchId).single().id
+        val branchImage = requireNotNull(repository.getGeneratedImageUuid(branchMessageId))
+        assertTrue(branchImage != imageUuid)
+        assertFalse(repository.getMessagesWithImages(listOf(branchMessageId)).single().images.single().image.sendToModel)
         assertTrue(fileRepository.getFileEntity(imageUuid) != null)
 
         repository.commitGenerationResult(
@@ -122,10 +125,23 @@ class ChatRepositoryImageLifecycleTest {
         )
         assertNull(repository.getGeneratedImageUuid(messageId))
         assertNull(fileRepository.getFileEntity(imageUuid))
+        assertTrue(fileRepository.getFile(branchImage)?.isFile == true)
 
         val secondUuid = fileRepository.saveBytes(byteArrayOf(13, 14, 15), "image/png")
         assertTrue(repository.replaceMessageImage(messageId, "regenerated", secondUuid))
         repository.deleteMessagesBySessionId(sessionId)
         assertNull(fileRepository.getFileEntity(secondUuid))
+    }
+
+    @Test
+    fun generatedImagesNeverReachPromptPreparationEvenWhenMissingOrInvalid() = runBlocking {
+        val id = repository.createMessage(sessionId, ChatMessage.Source.Char, "Visible reply")
+        val uuid = fileRepository.saveBytes(byteArrayOf(1, 2, 3), "image/png")
+        assertTrue(repository.replaceMessageImage(id, "Visible reply", uuid))
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val runtime = me.kafuuneko.rpclient.libs.media.MessageImageRuntime(context, fileRepository)
+        val prepared = runtime.prepareCandidates(repository.getMessagesWithImages(listOf(id)))
+        assertTrue(prepared.references.isEmpty())
+        assertTrue(prepared.unavailable.isEmpty())
     }
 }

@@ -139,7 +139,8 @@ class GroupChatViewModel :
         val sessionId: Long,
         val speakers: List<GroupChatMemberData>,
         val generationMode: GroupChatGenerationMode,
-        val triggerUserMessageId: Long?
+        val triggerUserMessageId: Long?,
+        val regenerationInstruction: String = ""
     )
 
     private var mReplyRetryContext: ReplyRetryContext? = null
@@ -159,7 +160,7 @@ class GroupChatViewModel :
             refreshState(generationState = GroupChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
             return
         }
-        launchGeneration(retry.sessionId, retry.speakers, retry.generationMode, retry.triggerUserMessageId)
+        launchGeneration(retry.sessionId, retry.speakers, retry.generationMode, retry.regenerationInstruction, retry.triggerUserMessageId)
     }
 
     /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试入口。 */
@@ -1675,33 +1676,25 @@ class GroupChatViewModel :
                     var pendingSpeakers = speakers
                     var nextGenerationMode = generationMode
                     var nextRegenerationInstruction = regenerationInstruction
+                    var batchTriggerMessageId = triggerUserMessageId
                     var autoRoundsCompleted = 0
-                    // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
                     while (pendingSpeakers.isNotEmpty()) {
-                        pendingSpeakers.forEachIndexed { index, speaker ->
-                            currentCoroutineContext().ensureActive()
-                            // 顺序生成当前发言角色的回复
-                            generateSpeakerReply(
-                                sessionId = sessionId,
-                                speaker = speaker,
-                                batchId = batchId,
-                                current = index + 1,
-                                total = pendingSpeakers.size,
-                                generationMode = nextGenerationMode,
-                                regenerationInstruction = nextRegenerationInstruction
-                            )
-                            // 首位发言者可能使用特殊模式；后续角色恢复普通生成且不继承一次性指令
-                            nextGenerationMode = GroupChatGenerationMode.Normal
-                            nextRegenerationInstruction = ""
-                        }
+                        generateReplyBatch(ReplyRetryContext(
+                            sessionId, pendingSpeakers, nextGenerationMode,
+                            batchTriggerMessageId, nextRegenerationInstruction
+                        ))
+                        // 一次性指令与已提交用户图仅保护首轮，不能泄漏到自动续聊。
+                        nextGenerationMode = GroupChatGenerationMode.Normal
+                        nextRegenerationInstruction = ""
+                        batchTriggerMessageId = null
                         // 加载最新群聊快照
                         val nextData = withContext(Dispatchers.IO) {
-                            mGroupChatRepository.getGroupChatData(sessionId)
+                            mGroupChatRepository.getSpeakerSelectionData(sessionId)
                         } ?: break
                         // 自动模式下重新选出下一轮发言角色
                         val maxAutoRounds = nextData.session.autoModeMaxRounds
                             .takeIf { it == -1 || it in 1..3 } ?: 2
-                        val canContinueAuto = nextData.session.autoModeEnabled &&
+                        val canContinueAuto = generationMode != GroupChatGenerationMode.Continue && nextData.session.autoModeEnabled &&
                             nextData.session.activationStrategy != GroupChatSession.ActivationStrategy.Manual &&
                             (maxAutoRounds == -1 || autoRoundsCompleted < maxAutoRounds)
                         pendingSpeakers = if (canContinueAuto) {
@@ -1709,10 +1702,8 @@ class GroupChatViewModel :
                             mSpeakerSelector.select(
                                 session = nextData.session,
                                 members = nextData.members,
-                                messages = nextData.messages,
-                                activationText = nextData.messages.lastOrNull {
-                                    it.source != GroupChatMessage.Source.System
-                                }?.content.orEmpty(),
+                                history = nextData.toSpeakerHistory(),
+                                activationText = nextData.latestNonSystemContent,
                                 isUserInput = false,
                                 manualCharacterId = null
                             ).also { selected ->
@@ -1723,7 +1714,7 @@ class GroupChatViewModel :
                         }
                     }
                     // 检查是否触发自动总结
-                    maybeAutoSummarize(sessionId)
+                    if (generationMode != GroupChatGenerationMode.Continue) maybeAutoSummarize(sessionId)
                     // 恢复 UI 为空闲状态
                     refreshState(generationState = GroupChatGenerationState.Idle)
                 }.onFailure { throwable ->
@@ -1754,6 +1745,7 @@ class GroupChatViewModel :
     private suspend fun generateReplyBatch(batch: ReplyRetryContext) {
         val batchId = UUID.randomUUID().toString()
         var mode = batch.generationMode
+        var instruction = batch.regenerationInstruction
         mReplyRetryContext = batch
         preflightImageSpeakers(batch.sessionId, batch.speakers, batch.triggerUserMessageId)
         // 特殊模式只属于首位角色，恢复快照始终描述下一次实际要执行的操作。
@@ -1766,11 +1758,13 @@ class GroupChatViewModel :
                 current = index + 1,
                 total = batch.speakers.size,
                 generationMode = mode,
+                regenerationInstruction = instruction,
                 triggerUserMessageId = batch.triggerUserMessageId
             )
             mode = GroupChatGenerationMode.Normal
+            instruction = ""
             mReplyRetryContext = batch.speakers.drop(index + 1).takeIf { it.isNotEmpty() }?.let {
-                batch.copy(speakers = it, generationMode = mode)
+                batch.copy(speakers = it, generationMode = mode, regenerationInstruction = "")
             }
         }
         // 必须在 AutoMode 选取下一批之前解除保护，不能等整个 Job 结束。

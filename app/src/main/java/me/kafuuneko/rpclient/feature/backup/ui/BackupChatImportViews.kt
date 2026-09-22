@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.backup.ui
 
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,52 +39,10 @@ import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
-import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
-import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
-
-/** 设置页中的对话文件导入入口。 */
-@Composable
-internal fun ChatDataManagementPanel(
-    state: MainChatDataManagementState,
-    emit: MainUiIntent.() -> Unit
-) {
-    val isReading = state == MainChatDataManagementState.Reading
-    RpSettingsGroup {
-        RpSettingsTile(
-            icon = Icons.Rounded.FileDownload,
-            title = stringResource(R.string.import_chat),
-            subtitle = if (isReading) {
-                stringResource(R.string.reading_chat_file)
-            } else {
-                stringResource(R.string.import_chat_desc)
-            },
-            enabled = !isReading,
-            onClick = { MainUiIntent.ImportChatClick.emit() },
-            trailing = {
-                if (isReading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        )
-    }
-}
 
 /** 解析成功后强制用户确认目标角色卡的导入对话框。 */
 @Composable
@@ -129,7 +89,7 @@ private fun ImportCharacterSelectionContent(
             )
             TextButton(
                 enabled = !state.isImporting && !state.isResolvingImages,
-                onClick = { MainUiIntent.ChooseChatImageDirectory.emit() }
+                onClick = { BackupUiIntent.PickImportImageDirectory.emit() }
             ) { Text(stringResource(if (state.isResolvingImages) R.string.chat_import_reading_images
                 else R.string.chat_import_choose_image_directory)) }
         }

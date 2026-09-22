@@ -45,7 +45,7 @@ class ChatArchiveImagePayloadTest {
 
     /** 同消息内和后续消息共用一个顺序表，重复位置保留但载荷只写一次。 */
     @Test
-    fun repeatedImagesUseOnlyHashesWithinAndAcrossMessagesWithoutVersionBump() {
+    fun repeatedImagesShareBytesButKeepVersionedRelationshipMetadata() {
         val first = image(ByteArray(8192) { 1 })
         val second = image(byteArrayOf(3, 2, 1))
         val archive = codec.decode("{\"chat_metadata\":{}}", "Images").copy(messages = listOf(
@@ -56,10 +56,10 @@ class ChatArchiveImagePayloadTest {
         val rows = encoded.lineSequence().filter { it.isNotBlank() }.drop(1).map {
             JsonParser.parseString(it).asJsonObject.getAsJsonObject("extra").getAsJsonObject("rpclient")
         }.toList()
-        assertTrue(rows.all { it["schema_version"].asInt == 1 })
+        assertTrue(rows.all { it["schema_version"].asInt == 2 })
         val images = rows.flatMap { it.getAsJsonArray("images").map { value -> value.asJsonObject } }
         assertEquals(2, images.count { it.has("data") })
-        assertTrue(images.drop(2).all { it.keySet() == setOf("hash") })
+        assertTrue(images.drop(2).all { it.keySet() == setOf("hash", "send_to_model") })
         // 导入后重复位置仍存在，并继承之前出现的完整资源描述。
         val restored = codec.decode(encoded, "Images").messages.flatMap { it.images }
         assertEquals(listOf(images[0]["hash"].asString, images[1]["hash"].asString,
@@ -130,6 +130,28 @@ class ChatArchiveImagePayloadTest {
         assertThrows(IllegalArgumentException::class.java) {
             ChatArchiveImagePayload.open(image).use { ChatArchiveImagePayload.copyOriginal(it, discard()) }
         }
+    }
+
+    @Test
+    fun identicalBytesDoNotMergeDisplayOnlyAndUploadPolicies() {
+        val uploaded = image(byteArrayOf(1, 2, 3))
+        val generated = uploaded.copy(sendToModel = false)
+        val archive = codec.decode("{\"chat_metadata\":{}}", "Policies").copy(messages = listOf(
+            ChatArchiveMessage(1, ChatArchiveMessageRole.Character, "Generated", listOf(generated)),
+            ChatArchiveMessage(2, ChatArchiveMessageRole.User, "Uploaded", listOf(uploaded)),
+            ChatArchiveMessage(3, ChatArchiveMessageRole.Character, "Generated again", listOf(generated))
+        ))
+        val restored = codec.decode(codec.encode(archive), "Policies").messages.flatMap { it.images }
+        assertEquals(listOf(false, true, false), restored.map { it.sendToModel })
+        assertEquals(1, restored.map { it.hash }.distinct().size)
+    }
+
+    @Test
+    fun v2MissingUsagePolicyIsRejectedInsteadOfSendingUnknownImages() {
+        val archive = """{"chat_metadata":{}}
+            {"mes":"x","extra":{"rpclient":{"schema_version":2,"images":[{"hash":"${"a".repeat(64)}"}]}}}
+        """.trimIndent()
+        assertThrows(IllegalArgumentException::class.java) { codec.decode(archive, "Malformed") }
     }
 
     private fun image(bytes: ByteArray) = ChatArchiveImage("image/png", Base64.getEncoder().encodeToString(bytes))

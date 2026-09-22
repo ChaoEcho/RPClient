@@ -24,6 +24,7 @@ internal object ChatArchiveImageCodec {
     ): Pair<JsonObject, List<ChatArchiveImage>?> {
         val metadata = JsonObject()
         var images: List<ChatArchiveImage>? = null
+        var missingUsagePolicy = false
         reader.beginObject()
         while (reader.hasNext()) {
             val name = reader.nextName()
@@ -38,6 +39,7 @@ internal object ChatArchiveImageCodec {
             while (reader.hasNext()) {
                 require(restored.size < MAX_IMAGES) { "Too many archive images" }
                 val image = JsonParser.parseReader(reader).asJsonObject
+                if (!image.has("send_to_model")) missingUsagePolicy = true
                 restored += transform(descriptor(image))
             }
             reader.endArray()
@@ -45,6 +47,9 @@ internal object ChatArchiveImageCodec {
             images = restored
         }
         reader.endObject()
+        if (metadata.get("schema_version")?.asInt == 2) {
+            require(!missingUsagePolicy) { "Missing archive image usage policy" }
+        }
         return metadata to images
     }
 
@@ -56,7 +61,12 @@ internal object ChatArchiveImageCodec {
             require(custom.get("schema_version")?.asInt in 1..2) { "Unsupported image archive version" }
             val images = custom.getAsJsonArray("images")
             require(images.size() <= MAX_IMAGES) { "Too many archive images" }
-            return images.map { descriptor(it.asJsonObject) }
+            return images.map {
+                if (custom.get("schema_version").asInt == 2) require(it.asJsonObject.has("send_to_model")) {
+                    "Missing archive image usage policy"
+                }
+                descriptor(it.asJsonObject)
+            }
         }
         // 新版数组是权威输入；旧版滑动图片列表保持顺序并去除同一引用的重复项。
         val media = extra.get("media")?.takeIf { it.isJsonArray }?.asJsonArray
@@ -123,6 +133,8 @@ internal object ChatArchiveImageCodec {
 
     /** 校验数据项与 hash 引用的边界，同时接受此前未携带 hash 的内嵌图片。 */
     private fun descriptor(json: JsonObject): ChatArchiveImage {
+        if (json.has("send_to_model")) require(json.get("send_to_model").isJsonPrimitive &&
+            json.getAsJsonPrimitive("send_to_model").isBoolean) { "Invalid image usage policy" }
         val image = ChatArchiveImage(
             mimeType = string(json, "mime_type"),
             data = string(json, "data"),

@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 
 /** 模型配置编辑页的字段变更、连接测试和保存意图。 */
 sealed class LLMProviderEditUiIntent {
+    data class ChangeModelSearch(val value: String) : LLMProviderEditUiIntent()
     data class Init(val providerId: Long?) : LLMProviderEditUiIntent()
 
     data class SelectImageTokenEstimator(val value: ImageTokenEstimatorType) : LLMProviderEditUiIntent()

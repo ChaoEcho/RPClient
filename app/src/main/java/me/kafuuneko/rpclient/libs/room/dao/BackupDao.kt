@@ -401,4 +401,19 @@ interface BackupDao {
 
     @Query("DELETE FROM llm_token_usage_records")
     suspend fun deleteAllLLMTokenUsageRecords()
+
+    @Query("""
+        SELECT COUNT(*) FROM message_images AS images
+        WHERE position < 0 OR messageType NOT IN ('single', 'group')
+        OR (messageType = 'single' AND NOT EXISTS (
+            SELECT 1 FROM chat_messages WHERE id = images.messageId AND source != 'Summary'
+        ))
+        OR (messageType = 'group' AND NOT EXISTS (
+            SELECT 1 FROM group_chat_messages WHERE id = images.messageId
+        ))
+    """)
+    suspend fun countInvalidMessageImages(): Long
+
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE imageFileUuid IS NOT NULL")
+    suspend fun countLegacyGeneratedImages(): Long
 }

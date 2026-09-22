@@ -154,7 +154,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generateCommittedReply(sessionId)
                 maybeAutoSummarize(sessionId)
             } catch (error: Exception) {
-                val failure = error.toGenerationFailurePresentation(mContext, R.string.generation_failed) ?: return@launch
+                val failure = error.toGenerationFailurePresentation(mContext, R.string.generation_failed) ?: return@launchDataTask
                 refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(failure.message))
             }
         }
@@ -173,6 +173,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 结束页面时释放本 ViewModel 拥有的未提交图片。 */
     override fun onCleared() {
         clearReplyRetry()
+        stopSpeechInternal(updateUi = false)
         super.onCleared()
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
@@ -1850,7 +1851,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
         val previousAssistantMessageId = if (generateImageAfterReply) {
-            messages.lastOrNull { it.source == ChatMessage.Source.Char }?.id
+            mChatRepository.getLatestCharacterMessageBySessionId(sessionId)?.id
         } else {
             null
         }
@@ -2263,6 +2264,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param isManual 是否为用户手动触发（决定弹窗、Toast 与是否允许覆盖最新摘要）
      */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
+        try {
         runCatching {
             // 异步组装不会随候选窗口变化的会话、角色和模型配置
             val data = withContext(Dispatchers.IO) {
@@ -2305,7 +2307,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             // 设置 UI 为总结中弹窗状态
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
-            uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
+            setSummarizingStage(SummaryPreparationStage.Preparing)
 
             // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
             val prepared = buildSummaryRequest(
@@ -2375,6 +2377,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             } else {
                 AppViewEvent.PopupToastMessage(failure.message).tryEmit()
             }
+        }
         } finally {
             // 无论成功、失败、提前返回还是被取消，都必须把“总结中”弹窗还原并刷新最新摘要。
             withContext(NonCancellable) { finishSummarizing(sessionId) }
@@ -2682,6 +2685,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 },
             streamEnabled = AppModel.streamEnabled,
+            autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply,
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState
@@ -2827,11 +2831,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             lorebooks = lorebooksWithEntries.associate { it.lorebook.id to it.lorebook },
             entries = lorebooksWithEntries.flatMap { it.entries }
         )
-    }
-
-    override fun onCleared() {
-        stopSpeechInternal(updateUi = false)
-        super.onCleared()
     }
 
     /** 仅在令牌仍匹配当前请求时更新朗读状态。 */

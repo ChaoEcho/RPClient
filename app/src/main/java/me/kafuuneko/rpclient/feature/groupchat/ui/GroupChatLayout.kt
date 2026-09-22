@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -1925,6 +1928,7 @@ private fun Composer(
     onContinue: () -> Unit,
     onSummarize: () -> Unit
 ) {
+    var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     val sendButtonColor by animateColorAsState(
         targetValue = if (generating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -1939,6 +1943,11 @@ private fun Composer(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            DraftAttachmentTray(state = imageState, enabled = !generating && !imageState.submitting, emit = onImageAction)
+            IconButton(
+                enabled = !generating && !imageState.processing && imageState.canAddDraft,
+                onClick = { onImageAction(MessageImageAction.Choose(editing = false)) }
+            ) { Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = stringResource(R.string.attach_images)) }
             if (mentionSuggestions.isNotEmpty() && !generating) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),

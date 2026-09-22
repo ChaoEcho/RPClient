@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.backup.RemoteBackupItem
 
 /** 完整备份页面可接收的用户操作与系统文件选择结果。 */
 sealed class BackupUiIntent {
+    data object PickImportImageDirectory : BackupUiIntent()
+    data class ImportImageDirectoryResult(val uri: Uri?) : BackupUiIntent()
     data object Init : BackupUiIntent()
     data object Back : BackupUiIntent()
     data object DismissDialog : BackupUiIntent()
