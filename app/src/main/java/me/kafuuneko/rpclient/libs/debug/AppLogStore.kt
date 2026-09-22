@@ -5,11 +5,10 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import me.kafuuneko.rpclient.libs.AppModel
 import java.io.File
 import java.io.FileWriter
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
@@ -48,11 +47,6 @@ object AppLogStore {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
-    // 预编译一次；此前每条日志都在 sanitize 内重新编译正则，且漏掉了裸 token 的场景。
-    private val bearerPattern = Regex("""(?i)bearer\s+[a-zA-Z0-9_\-.]+""")
-    private val secretAssignmentPattern =
-        Regex("""(?i)(api[_-]?key|password|secret|token|authorization)\s*[:=]\s*["']?([^"',\s]+)["']?""")
-
     fun init(context: Context) {
         appContext = context.applicationContext
     }
@@ -66,23 +60,19 @@ object AppLogStore {
         module: String,
         rawMessage: String,
         throwable: Throwable? = null
-    ) {
+    ): AppLogEntry? {
         // 关闭时仍保留 ERROR，崩溃后用户打开开发者模式还能看到导致问题的那几条。
         val enabled = isEnabled
-        if (!enabled && level != AppLogLevel.ERROR) return
+        if (!enabled && level != AppLogLevel.ERROR) return null
 
-        val sanitizedMessage = sanitize(rawMessage)
-        val throwableSummary = throwable?.let {
-            val sw = StringWriter()
-            it.printStackTrace(PrintWriter(sw))
-            sanitize(sw.toString())
-        }
+        val sanitizedMessage = if (enabled) LogSanitizer.redact(rawMessage) else "Operation failed"
+        val throwableSummary = throwable?.let(LogSanitizer::throwableSummary)
 
         val entry = AppLogEntry(
             id = idGenerator.getAndIncrement(),
             timestamp = System.currentTimeMillis(),
             level = level,
-            module = module,
+            module = LogSanitizer.redact(module),
             message = sanitizedMessage,
             throwableSummary = throwableSummary
         )
@@ -93,23 +83,18 @@ object AppLogStore {
             }
             memoryBuffer.addLast(entry)
         }
-        mutableRevision.value = mutableRevision.value + 1
+        mutableRevision.update { it + 1 }
 
         if (enabled) {
             writeToFile(entry)
         }
+        return entry
     }
 
     /** 读取当前缓冲区快照；仅供查看器在需要渲染时调用。 */
     fun snapshot(): List<AppLogEntry> = synchronized(lock) { memoryBuffer.toList() }
 
-    private fun sanitize(input: String): String {
-        val withoutBearer = input.replace(bearerPattern, "Bearer ***")
-        return withoutBearer.replace(secretAssignmentPattern) { matchResult ->
-            "${matchResult.groupValues[1]}: ***"
-        }
-    }
-
+    @Synchronized
     private fun writeToFile(entry: AppLogEntry) {
         val context = appContext ?: return
         try {
@@ -126,7 +111,7 @@ object AppLogStore {
                 writer.write(entry.formatLine())
             }
         } catch (e: Exception) {
-            runCatching { Log.w("AppLogStore", "Failed to write log to file", e) }
+            runCatching { Log.w("AppLogStore", "Failed to write log to file (${e.javaClass.simpleName})") }
         }
     }
 
@@ -148,11 +133,12 @@ object AppLogStore {
         }
     }
 
+    @Synchronized
     fun clear() {
         synchronized(lock) {
             memoryBuffer.clear()
         }
-        mutableRevision.value = mutableRevision.value + 1
+        mutableRevision.update { it + 1 }
 
         val context = appContext ?: return
         try {
@@ -161,10 +147,11 @@ object AppLogStore {
                 dir.listFiles()?.forEach { it.delete() }
             }
         } catch (e: Exception) {
-            runCatching { Log.w("AppLogStore", "Failed to clear log files", e) }
+            runCatching { Log.w("AppLogStore", "Failed to clear log files (${e.javaClass.simpleName})") }
         }
     }
 
+    @Synchronized
     fun exportFormattedLogs(): String {
         val list = snapshot()
         if (list.isEmpty()) {
@@ -172,7 +159,7 @@ object AppLogStore {
             val context = appContext ?: return ""
             val logFile = File(File(context.filesDir, "debug"), "app.log")
             if (!logFile.exists()) return ""
-            return runCatching { logFile.readText() }.getOrDefault("")
+            return runCatching { LogSanitizer.redact(logFile.readText()) }.getOrDefault("")
         }
         return buildString { list.forEach { append(it.formatLine()) } }
     }

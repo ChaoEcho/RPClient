@@ -67,11 +67,14 @@ class ChatImageGenerationCoordinator(
 
         val token = Any()
         val job = scope.launch(start = CoroutineStart.LAZY) {
-            val foregroundHandle = foregroundController.acquire()
+            var foregroundHandle: AutoCloseable? = null
             try {
+                foregroundHandle = runCatching { foregroundController.acquire() }
+                    .onFailure { AppLogger.w("Image", "Foreground service unavailable", it) }
+                    .getOrNull()
                 runGeneration(sessionId, messageId)
             } finally {
-                foregroundHandle.close()
+                runCatching { foregroundHandle?.close() }
                 synchronized(this@ChatImageGenerationCoordinator) {
                     if (activeByMessage[messageId]?.token === token) {
                         activeByMessage.remove(messageId)
@@ -88,6 +91,12 @@ class ChatImageGenerationCoordinator(
     @Synchronized
     fun isActive(messageId: Long): Boolean =
         activeByMessage[messageId]?.job?.isCompleted == false
+
+    /** 系统终止前台执行资格时取消在途任务，任务自身负责 NonCancellable 文件收尾。 */
+    @Synchronized
+    fun cancelAll() {
+        activeByMessage.values.toList().forEach { it.job.cancel() }
+    }
 
     private suspend fun runGeneration(sessionId: Long, messageId: Long) {
         var newUuid: String? = null

@@ -10,6 +10,9 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.content.ContextCompat
+import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
+import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
+import org.koin.android.ext.android.inject
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.MainActivity
 
@@ -28,6 +31,16 @@ class AiGenerationForegroundService : Service() {
         ensureNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification(count))
         return START_NOT_STICKY
+    }
+
+    /** Android 的前台服务时限到达后立即停止服务，并请求任务保存 partial 后退出。 */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        val chat by inject<ChatGenerationCoordinator>()
+        val images by inject<ChatImageGenerationCoordinator>()
+        chat.cancelAll()
+        images.cancelAll()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private fun ensureNotificationChannel() {

@@ -34,6 +34,13 @@ class RequestConcurrencyLimiter {
         }
     }
 
+    /** 正文、摘要和图片提词共享同一 Provider 的总额度，任务类别不产生额外额度。 */
+    suspend fun <T> withProviderPermit(
+        providerId: Long,
+        limit: Int,
+        block: suspend () -> T
+    ): T = withPermit("llm-provider:$providerId", limit, block)
+
     private suspend fun acquire(key: String, requestedLimit: Int): Waiter {
         lateinit var waiter: Waiter
         try {

@@ -65,8 +65,6 @@ android {
             isMinifyEnabled = false
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -77,6 +75,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    lint {
+        baseline = file("lint-baseline.xml")
     }
     buildFeatures {
         compose = true
@@ -140,23 +141,11 @@ tasks.configureEach {
         val variantName = if (name.endsWith("Debug")) "debug" else "release"
         doLast {
             val variantDir = layout.buildDirectory.dir("outputs/apk/$variantName").get().asFile
-            if (!variantDir.exists()) return@doLast
+            val distributionDir = layout.buildDirectory.dir("distributions/$variantName").get().asFile
+            distributionDir.mkdirs()
             val timestamp = getBuildTimestamp()
-            variantDir.listFiles()?.forEach { file ->
-                if (file.isFile && file.extension == "apk") {
-                    // Extract base clean prefix e.g. "app-debug" or "app-release-unsigned"
-                    val cleanBase = when {
-                        file.name.startsWith("app-debug") -> "app-debug"
-                        file.name.startsWith("app-release-unsigned") -> "app-release-unsigned"
-                        file.name.startsWith("app-release") -> "app-release"
-                        else -> file.nameWithoutExtension.substringBefore('-')
-                    }
-                    val newName = "$cleanBase-$timestamp.apk"
-                    val targetFile = File(variantDir, newName)
-                    if (file.name != newName) {
-                        file.renameTo(targetFile)
-                    }
-                }
+            variantDir.listFiles().orEmpty().filter { it.isFile && it.extension == "apk" }.forEach { apk ->
+                apk.copyTo(File(distributionDir, "${apk.nameWithoutExtension}-$timestamp.apk"), overwrite = true)
             }
         }
     }

@@ -1,11 +1,13 @@
 package me.kafuuneko.rpclient.libs.backup
 
+import me.kafuuneko.rpclient.libs.room.AppDatabase
+
 /** RPClient 完整备份格式的稳定常量与显式表契约。 */
 object BackupContract {
     const val FORMAT = "rpclient-backup"
     const val BACKUP_VERSION = 1
     const val CONTAINER_VERSION = 1
-    const val DATABASE_VERSION = 5
+    const val DATABASE_VERSION = AppDatabase.VERSION
     const val KDF_ITERATIONS = 200_000
     const val MIME_TYPE = "application/octet-stream"
     const val FILE_EXTENSION = ".rpbackup"

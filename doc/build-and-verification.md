@@ -31,3 +31,11 @@ git diff --check
 - 正式发布仅允许 `main` 历史中的提交，必须提供与既有安装兼容的签名。
 - 签名通过 CI Secrets 或构建机外部凭据注入，不写入 Gradle 文件。
 - 数据库升级前保留完整备份。旧 APK 不保证可读取升级后的数据库，回滚需恢复升级前备份。
+
+## 已知 Lint 基线
+
+- 首次 CI 对未改业务源码的 fork 运行了 343 项 JVM 测试，全部通过。
+- 同次 Lint 报告有 255 项既有 `MissingTranslation` 错误，已精确登记在 `app/lint-baseline.xml`，不是全局禁用翻译检查；新增文案缺失翻译仍会失败。
+- 翻译债务尚未清零；不能把启用基线后的 Lint 成功表述为所有语言已经补齐。
+- AGP 标准 APK 名称保留，带时间戳的副本位于 `app/build/distributions/`，避免破坏设备测试使用的产物元数据。
+- 未提供正式签名时 Release 保持 unsigned，验证构建不自动换用 Debug 密钥冒充正式升级包。

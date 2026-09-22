@@ -71,7 +71,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         StoryCharacter::class,
         StoryLorebookEntry::class
     ],
-    version = 9,
+    version = AppDatabase.VERSION,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
@@ -86,6 +86,10 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    companion object {
+        const val VERSION = 9
+    }
+
     abstract fun getBackupDao(): BackupDao
     abstract fun getCharacterDao(): CharacterDao
     abstract fun getCharacterLLMProviderAssociationDao(): CharacterLLMProviderAssociationDao

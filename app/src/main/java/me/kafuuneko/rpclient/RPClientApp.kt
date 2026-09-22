@@ -133,7 +133,7 @@ internal val appModules = module {
     singleOf(::MimoTtsProvider)
     singleOf(::PcmAudioPlayer)
     singleOf(::AzureTtsProvider)
-    singleOf(::TtsAudioCache)
+    single { TtsAudioCache(androidContext()) }
     singleOf(::TtsService)
     singleOf(::LLMClientFactory)
     singleOf(::LLMProviderSelectionResolver)

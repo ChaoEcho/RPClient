@@ -1240,7 +1240,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
         if (message.content.isBlank()) return
-        ChatViewEvent.CopyText(message.content).emit()
+        ChatViewEvent.CopyText(
+            me.kafuuneko.rpclient.libs.chat.messageClipboardText(message.content, AppModel.includeThinkInContext)
+        ).emit()
     }
 
     /**

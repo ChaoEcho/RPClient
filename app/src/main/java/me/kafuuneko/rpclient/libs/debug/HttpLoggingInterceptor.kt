@@ -12,7 +12,7 @@ class HttpLoggingInterceptor : Interceptor {
         val request = chain.request()
         val method = request.method
         val url = request.url
-        val path = "${url.host}${url.encodedPath}"
+        val path = url.host
         val startNs = System.nanoTime()
 
         try {
@@ -28,7 +28,7 @@ class HttpLoggingInterceptor : Interceptor {
             return response
         } catch (e: Exception) {
             val durationMs = (System.nanoTime() - startNs) / 1_000_000
-            AppLogger.e("HTTP", "$method $path -> FAILED (${durationMs}ms): ${e.message ?: e.javaClass.simpleName}", e)
+            AppLogger.e("HTTP", "$method $path -> FAILED (${durationMs}ms): ${e.javaClass.simpleName}", e)
             throw e
         }
     }

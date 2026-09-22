@@ -2,32 +2,13 @@ package me.kafuuneko.rpclient.libs.generation
 
 import android.content.Context
 import me.kafuuneko.rpclient.service.AiGenerationForegroundService
-import java.util.concurrent.atomic.AtomicBoolean
 
-/** Keeps the foreground service alive while submitted single-chat AI tasks are running. */
+/** 应用级生成任务持有前台服务租约；系统拒绝启动时不会遗留虚假的活跃计数。 */
 class AiTaskForegroundController(context: Context) {
     private val appContext = context.applicationContext
-    private var activeCount = 0
-
-    fun acquire(): AutoCloseable {
-        val count = synchronized(this) {
-            activeCount += 1
-            activeCount
-        }
+    private val counter = TaskLeaseCounter { count ->
         AiGenerationForegroundService.update(appContext, count)
-        return Handle()
     }
 
-    private inner class Handle : AutoCloseable {
-        private val closed = AtomicBoolean(false)
-
-        override fun close() {
-            if (!closed.compareAndSet(false, true)) return
-            val count = synchronized(this@AiTaskForegroundController) {
-                activeCount = (activeCount - 1).coerceAtLeast(0)
-                activeCount
-            }
-            AiGenerationForegroundService.update(appContext, count)
-        }
-    }
+    fun acquire(): AutoCloseable = counter.acquire()
 }

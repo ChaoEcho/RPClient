@@ -145,6 +145,12 @@ class ChatGenerationCoordinator(
             .onFailure { AppLogger.w("Chat", "Foreground service unavailable: ${it.message}") }
             .getOrNull()
 
+    /** 同时取消正文和摘要，不等待主线程；各任务 finally 仍负责持久化及释放租约。 */
+    @Synchronized
+    fun cancelAll() {
+        (activeBySession.values + summaryByKey.values).map { it.job }.forEach { it.cancel() }
+    }
+
     /** Stops only the requested session and waits for its NonCancellable persistence cleanup. */
     suspend fun stop(sessionId: Long): Boolean {
         val job = synchronized(this) {

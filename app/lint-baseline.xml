@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.0.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.0.1)" variant="all">
+    <issue id="MissingTranslation" message="&quot;upstream_project&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;upstream_project&quot;&gt;Upstream project&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="16" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;export_character_json_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;export_character_json_title&quot;&gt;Export character card&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="160" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;copy_character_json&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;copy_character_json&quot;&gt;Copy JSON to clipboard&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="161" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;copy_character_json_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;copy_character_json_description&quot;&gt;Copy the complete Character Card V2 JSON&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="162" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;save_character_json_file&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;save_character_json_file&quot;&gt;Save as JSON file&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="163" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;save_character_json_file_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;save_character_json_file_description&quot;&gt;Choose a location with the system file picker&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="164" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;character_card_json_clip_label&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;character_card_json_clip_label&quot;&gt;Character Card V2 JSON&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="165" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;character_import_source_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;character_import_source_title&quot;&gt;Import Character&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="166" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;character_import_source_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;character_import_source_subtitle&quot;&gt;Select character card source&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="167" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_character_confirm_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_character_confirm_message&quot;&gt;“%1$s” will be overwritten with fields and regex scripts from “%2$s”. The avatar, model binding, chats, and memories will be preserved. %3$s&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="176" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_character_worldbook_added&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_character_worldbook_added&quot;&gt;The embedded lorebook will be added as a new book and rebound; the old book will not be deleted.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="177" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_character_worldbook_detached&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_character_worldbook_detached&quot;&gt;This JSON has no embedded lorebook. The character will be unbound from its current book; the old book will not be deleted.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="178" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_character_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_character_failed&quot;&gt;Failed to update character&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="179" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;character_update_from_card&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;character_update_from_card&quot;&gt;Update from character card&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="180" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_character&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_character&quot;&gt;Update character&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="181" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;choose_character_card_source&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;choose_character_card_source&quot;&gt;Choose the character card content source&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="182" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;paste_character_card_json&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;paste_character_card_json&quot;&gt;Paste character card JSON&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="183" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;paste_character_card_json_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;paste_character_card_json_description&quot;&gt;Paste character card JSON copied from AI, the web, or another device&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="184" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;choose_character_card_file&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;choose_character_card_file&quot;&gt;Choose character card file&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="185" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;choose_character_card_file_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;choose_character_card_file_description&quot;&gt;Choose a JSON character card file from this device&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="186" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;update_json_editor_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;update_json_editor_title&quot;&gt;Paste character card JSON&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="187" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;invalid_character_card_json&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;invalid_character_card_json&quot;&gt;Could not parse the character card JSON. Check the content and try again.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="188" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;confirm_character_update&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;confirm_character_update&quot;&gt;Update character?&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="189" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;confirm_character_update_unsaved_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;confirm_character_update_unsaved_message&quot;&gt;Current unsaved edits will be overwritten by the imported character card.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="190" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;character_updated&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;character_updated&quot;&gt;Character updated&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="191" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;choose_avatar&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;choose_avatar&quot;&gt;Choose avatar&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="192" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;choose_from_gallery&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;choose_from_gallery&quot;&gt;Choose from gallery&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="193" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;generate_avatar_with_ai&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;generate_avatar_with_ai&quot;&gt;Generate avatar with AI&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="194" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;restore_default_avatar&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;restore_default_avatar&quot;&gt;Restore default avatar&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="195" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;avatar_generation_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;avatar_generation_failed&quot;&gt;Failed to generate avatar&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="196" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;cannot_delete_generating_chat&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;cannot_delete_generating_chat&quot;&gt;Stop generation before deleting this chat&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="197" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;preparing_summary&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;preparing_summary&quot;&gt;Preparing summary…&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="294" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;preparing_summary_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;preparing_summary_desc&quot;&gt;Organizing chat history and checking the context budget&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="295" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;generating_summary_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;generating_summary_desc&quot;&gt;Waiting for the model to generate the updated chat memory&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="296" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;chat_settings_voice&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;chat_settings_voice&quot;&gt;Voice&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="315" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;chat_settings_voice_follow_global&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;chat_settings_voice_follow_global&quot;&gt;Use global setting · %1$s&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="316" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;chat_settings_voice_follow_global_menu&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;chat_settings_voice_follow_global_menu&quot;&gt;Use global setting (current: %1$s)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="317" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_prompt_templates_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_prompt_templates_title&quot;&gt;Summary prompt templates&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="343" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_prompt_templates_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_prompt_templates_desc&quot;&gt;Edit the summarize, group summarize, and injection templates in Prompt Presets&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="344" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_already_running&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_already_running&quot;&gt;A summary is already running&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="346" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_budget_too_small&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_budget_too_small&quot;&gt;Context budget is too small to summarize; raise Context Tokens or lower Summary Response Tokens&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="347" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_keep_system_framing_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_keep_system_framing_title&quot;&gt;Keep main prompt when continuing&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="699" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_keep_system_framing_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_keep_system_framing_desc&quot;&gt;Continue and Impersonate also send the main prompt and post-history instructions. Without them the world info becomes the first message and strict providers may reject the request. Turn off if your model starts a new reply instead of continuing.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="700" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_source_regeneration_instruction&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_source_regeneration_instruction&quot;&gt;Regeneration Instruction&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="834" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_service_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_service_section&quot;&gt;Image Service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1113" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_prompt_provider_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_prompt_provider_section&quot;&gt;Prompt Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1114" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_style_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_style_section&quot;&gt;Visual Style&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1115" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_scene_style_prompt&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_scene_style_prompt&quot;&gt;Scene image style&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1116" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_scene_style_prompt_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_scene_style_prompt_desc&quot;&gt;Applied to scene images generated in chat&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1117" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_avatar_style_prompt&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_avatar_style_prompt&quot;&gt;Character avatar style&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1118" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_avatar_style_prompt_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_avatar_style_prompt_desc&quot;&gt;Only affects character avatars; always uses single-character, single-panel, square portrait composition&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1119" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_saved&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_saved&quot;&gt;Image generation settings saved&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1120" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_provider_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_provider_title&quot;&gt;Image Services&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1132" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_provider_list_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_provider_list_subtitle&quot;&gt;Manage image generation endpoints and pick the one in use.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1133" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_provider_edit_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_provider_edit_subtitle&quot;&gt;Base URL, key, model and per-service concurrency.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1134" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;all_image_providers&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;all_image_providers&quot;&gt;All Services&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1135" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;create_image_provider&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;create_image_provider&quot;&gt;Add Service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1136" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;edit_image_provider&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;edit_image_provider&quot;&gt;Edit Service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1137" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;no_image_providers_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;no_image_providers_title&quot;&gt;No image service yet&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1138" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;no_image_providers_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;no_image_providers_subtitle&quot;&gt;Add one to enable avatar and in-chat image generation.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1139" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;add_first_image_provider&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;add_first_image_provider&quot;&gt;Add the first service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1140" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;delete_image_provider&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;delete_image_provider&quot;&gt;Delete image service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1141" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;delete_image_provider_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;delete_image_provider_message&quot;&gt;Delete \&quot;%1$s\&quot;? Images already generated are kept.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1142" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_provider_deleted&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_provider_deleted&quot;&gt;Image service deleted&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1143" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_provider_delete_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_provider_delete_failed&quot;&gt;Failed to delete the image service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1144" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_generate_image_after_reply&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_generate_image_after_reply&quot;&gt;Text + image replies&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1146" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_generate_image_after_reply_enabled&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_generate_image_after_reply_enabled&quot;&gt;Enabled&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1147" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_generate_image_after_reply_disabled&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_generate_image_after_reply_disabled&quot;&gt;Disabled&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1148" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_settings_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_settings_title&quot;&gt;Voice &amp;amp; reading&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1153" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_settings_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_settings_subtitle&quot;&gt;Choose a speech service, voice, and speaking style&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1154" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider&quot;&gt;Speech service&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1155" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_system&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_system&quot;&gt;System text-to-speech&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1156" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_system_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_system_description&quot;&gt;Use voices installed on this device&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1157" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_mimo&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_mimo&quot;&gt;Xiaomi MiMo&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1158" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_mimo_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_mimo_description&quot;&gt;Generate expressive speech with MiMo TTS&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1159" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_azure&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_azure&quot;&gt;Azure Speech&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1160" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_provider_azure_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_provider_azure_description&quot;&gt;Use Microsoft Azure neural voices&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1161" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_language&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_language&quot;&gt;Language&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1162" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_voice&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_voice&quot;&gt;Voice&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1163" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_default&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_default&quot;&gt;MiMo default&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1164" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_bingtang&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_bingtang&quot;&gt;冰糖 (Chinese, female)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1165" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_moli&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_moli&quot;&gt;茉莉 (Chinese, female)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1166" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_soda&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_soda&quot;&gt;苏打 (Chinese, male)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1167" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_baihua&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_baihua&quot;&gt;白桦 (Chinese, male)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1168" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_mia&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_mia&quot;&gt;Mia (English, female)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1169" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_chloe&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_chloe&quot;&gt;Chloe (English, female)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1170" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_milo&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_milo&quot;&gt;Milo (English, male)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1171" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_voice_dean&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_voice_dean&quot;&gt;Dean (English, male)&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1172" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_voice_parameters&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_voice_parameters&quot;&gt;Voice parameters&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1173" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_speech_rate&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_speech_rate&quot;&gt;Speaking speed&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1174" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_pitch&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_pitch&quot;&gt;Pitch&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1175" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_preview&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_preview&quot;&gt;Preview&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1176" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_stop&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_stop&quot;&gt;Stop reading&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1177" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_preview_text&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_preview_text&quot;&gt;This is a preview of the selected voice.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1178" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_preview_text_label&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_preview_text_label&quot;&gt;Preview text&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1179" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_preview_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_preview_failed&quot;&gt;Unable to preview speech.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1180" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_api_key&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_api_key&quot;&gt;API key&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1181" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_base_url&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_base_url&quot;&gt;Base URL&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1182" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_instructions&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_instructions&quot;&gt;Performance instructions&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1183" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_temperature&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_temperature&quot;&gt;Temperature&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1184" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_streaming&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_streaming&quot;&gt;Stream playback&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1185" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_mimo_streaming_description&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_mimo_streaming_description&quot;&gt;Play audio while it is being generated, significantly reducing the wait for long text to start speaking.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1186" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_azure_region&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_azure_region&quot;&gt;Azure region&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1187" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_system_voices_unavailable&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_system_voices_unavailable&quot;&gt;No system voices are available on this device.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1188" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_speak_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_speak_message&quot;&gt;Read message aloud&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1189" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_loading&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_loading&quot;&gt;Preparing speech&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1190" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_no_speakable_text&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_no_speakable_text&quot;&gt;This message has no text that can be read aloud.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1191" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_speech_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_speech_failed&quot;&gt;Unable to read this message aloud.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1192" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_title&quot;&gt;Backup &amp;amp; Restore&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1195" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_entry_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_entry_subtitle&quot;&gt;Back up characters, chats, stories, model providers, and app settings&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1196" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_chat_data_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_chat_data_section&quot;&gt;Chat data&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1197" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_local_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_local_section&quot;&gt;Local backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1198" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_create_full&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_create_full&quot;&gt;Create full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1199" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_create_full_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_create_full_desc&quot;&gt;Create an encrypted .rpbackup file containing all business data and settings&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1200" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_full&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_full&quot;&gt;Restore full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1201" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_full_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_full_desc&quot;&gt;Validate a .rpbackup file, then replace all current business data&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1202" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_last_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_last_success&quot;&gt;Last successful backup: %1$s&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1203" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_never&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_never&quot;&gt;Never&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1204" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_section&quot;&gt;WebDAV cloud backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1205" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_config&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_config&quot;&gt;WebDAV configuration&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1206" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_base_url&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_base_url&quot;&gt;Base URL&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1207" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_username&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_username&quot;&gt;Username&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1208" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_password&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_password&quot;&gt;WebDAV password&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1209" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_remote_path&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_remote_path&quot;&gt;Remote backup path&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1210" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_save_config&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_save_config&quot;&gt;Save configuration&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1211" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_config_saved&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_config_saved&quot;&gt;WebDAV configuration saved&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1212" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_test&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_test&quot;&gt;Test connection&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1213" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_refresh&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_refresh&quot;&gt;Refresh backups&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1214" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_remote_backups&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_remote_backups&quot;&gt;Remote backups&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1215" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_upload&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_upload&quot;&gt;Upload current full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1216" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_upload_new&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_upload_new&quot;&gt;Upload backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1217" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_http_warning&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_http_warning&quot;&gt;This WebDAV connection does not use HTTPS. Credentials and traffic may be exposed.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1218" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_empty&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_empty&quot;&gt;No remote .rpbackup files found&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1219" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_remote_restore&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_remote_restore&quot;&gt;Restore&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1220" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_remote_delete&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_remote_delete&quot;&gt;Delete&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1221" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_password&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_password&quot;&gt;Backup password&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1222" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_password_confirm&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_password_confirm&quot;&gt;Confirm backup password&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1223" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_create_dialog_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_create_dialog_title&quot;&gt;Encrypt full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1224" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_password_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_password_title&quot;&gt;Unlock backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1225" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_upload_dialog_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_upload_dialog_title&quot;&gt;Upload encrypted backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1226" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_remote_restore_dialog_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_remote_restore_dialog_title&quot;&gt;Download and validate %1$s&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1227" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_confirm_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_confirm_title&quot;&gt;Replace all current data?&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1228" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_confirm_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_confirm_message&quot;&gt;The backup has passed full validation. Restoring will replace current characters, chats, stories, model providers, files, and app settings. This cannot be undone.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1229" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_confirm_details&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_confirm_details&quot;&gt;Backup app %1$s · %2$s" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1230" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_delete_remote_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_delete_remote_title&quot;&gt;Delete remote backup?&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1232" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_delete_remote_message&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_delete_remote_message&quot;&gt;Permanently delete %1$s from WebDAV. This cannot be undone.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1233" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_create_local&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_create_local&quot;&gt;Creating full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1234" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_validate_local&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_validate_local&quot;&gt;Validating local backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1235" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_restore&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_restore&quot;&gt;Restoring full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1236" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_test_webdav&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_test_webdav&quot;&gt;Testing WebDAV connection&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1237" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_refresh_webdav&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_refresh_webdav&quot;&gt;Refreshing WebDAV backups&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1238" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_upload_webdav&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_upload_webdav&quot;&gt;Uploading full backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1239" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_download_webdav&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_download_webdav&quot;&gt;Downloading and validating backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1240" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_operation_delete_webdav&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_operation_delete_webdav&quot;&gt;Deleting remote backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1241" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_preparing&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_preparing&quot;&gt;Preparing data and temporary files&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1242" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_exporting_database&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_exporting_database&quot;&gt;Exporting database records&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1243" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_exporting_files&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_exporting_files&quot;&gt;Collecting referenced files&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1244" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_encrypting&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_encrypting&quot;&gt;Encrypting the backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1245" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_validating&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_validating&quot;&gt;Decrypting and validating all backup contents&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1246" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_restoring_database&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_restoring_database&quot;&gt;Replacing database records in one transaction&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1247" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_restoring_settings&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_restoring_settings&quot;&gt;Restoring application settings&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1248" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_phase_finishing&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_phase_finishing&quot;&gt;Finishing and cleaning temporary files&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1249" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_create_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_create_success&quot;&gt;Full backup created&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1250" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_restore_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_restore_success&quot;&gt;Full backup restored&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1251" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_test_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_test_success&quot;&gt;WebDAV connection is available&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1252" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_upload_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_upload_success&quot;&gt;Full backup uploaded&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1253" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_delete_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_delete_success&quot;&gt;Remote backup deleted&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1254" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_password_mismatch&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_password_mismatch&quot;&gt;Backup passwords do not match&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1255" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_password_required&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_password_required&quot;&gt;Enter the backup password&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1256" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_webdav_password_required&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_webdav_password_required&quot;&gt;Enter the WebDAV password&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1257" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_secure_store_error&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_secure_store_error&quot;&gt;Secure password storage is unavailable on this device&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1258" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_unsupported_format&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_unsupported_format&quot;&gt;This is not a supported RPClient backup&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1259" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_unsupported_version&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_unsupported_version&quot;&gt;This backup was created by a newer incompatible version&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1260" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_wrong_password&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_wrong_password&quot;&gt;The password is incorrect or the backup is corrupted&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1261" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_missing_asset&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_missing_asset&quot;&gt;The backup is missing a referenced file&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1262" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_storage_insufficient&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_storage_insufficient&quot;&gt;Not enough free storage to complete this backup operation&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1263" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_webdav_auth&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_webdav_auth&quot;&gt;WebDAV authentication failed&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1264" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_webdav_unavailable&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_webdav_unavailable&quot;&gt;WebDAV is unavailable or the configuration is invalid&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1265" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_validation&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_validation&quot;&gt;The backup failed full validation and no data was changed&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1266" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_generic&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_generic&quot;&gt;The backup operation failed. No unvalidated restore was applied.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1267" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;llm_provider_max_concurrent_requests&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;llm_provider_max_concurrent_requests&quot;&gt;Maximum concurrent requests&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1269" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;llm_provider_concurrency_badge&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;llm_provider_concurrency_badge&quot;&gt;Concurrency %1$d&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1270" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;llm_provider_max_concurrent_requests_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;llm_provider_max_concurrent_requests_desc&quot;&gt;Number of generation requests this model service may run at the same time. A single conversation always generates one reply at a time, so this only takes effect across different conversations and background tasks such as summaries.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1271" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;context_tokens&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;context_tokens&quot;&gt;Context tokens&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1272" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_max_concurrent_requests&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_max_concurrent_requests&quot;&gt;Maximum concurrent image requests&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1273" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_max_concurrent_requests_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_max_concurrent_requests_desc&quot;&gt;Number of image requests that may run at the same time&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1274" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;backup_error_webdav_invalid_response&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;backup_error_webdav_invalid_response&quot;&gt;The WebDAV remote directory response could not be parsed&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1275" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;ai_generation_notification_channel&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;ai_generation_notification_channel&quot;&gt;AI generation&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1276" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;ai_generation_notification_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;ai_generation_notification_title&quot;&gt;AI is generating&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1277" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;ai_generation_notification_content&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;ai_generation_notification_content&quot;&gt;%1$d tasks are running in the background&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1278" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;current_badge&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;current_badge&quot;&gt;Current&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1282" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;set_as_current&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;set_as_current&quot;&gt;Set as Current&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1283" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;chat_model&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;chat_model&quot;&gt;Chat Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1284" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_model&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_model&quot;&gt;Image Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1285" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;voice_model&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;voice_model&quot;&gt;Voice Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1286" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;not_configured&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;not_configured&quot;&gt;Not configured&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1287" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;request_and_dialogue_policy&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;request_and_dialogue_policy&quot;&gt;Request &amp;amp; Dialogue Policy&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1288" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;world_info_budget&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;world_info_budget&quot;&gt;World Book Budget&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1289" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_memory_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_memory_title&quot;&gt;Summary Memory&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1290" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_mode&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_mode&quot;&gt;Developer Mode&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1291" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_mode_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_mode_subtitle&quot;&gt;App logs, diagnostic tools &amp;amp; request logging&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1292" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_logging_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_logging_title&quot;&gt;App Runtime Logging&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1293" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_logging_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_logging_desc&quot;&gt;Safely record app runtime logs and HTTP metadata without secrets&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1294" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;record_ai_raw_requests_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;record_ai_raw_requests_title&quot;&gt;Record AI Raw Requests&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1295" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;record_ai_raw_requests_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;record_ai_raw_requests_desc&quot;&gt;Raw requests may contain prompts and sensitive chat content. Only enable for debugging.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1296" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;app_logs_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;app_logs_desc&quot;&gt;Sanitized runtime events: model calls, latency, concurrency, backup and TTS&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1297" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;ai_request_logs_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;ai_request_logs_desc&quot;&gt;Raw request and response JSON captured when the sub-switch above is on&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1298" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_runtime_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_runtime_section&quot;&gt;Runtime status&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1299" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_active_generations&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_active_generations&quot;&gt;Active generations&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1300" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_active_summaries&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_active_summaries&quot;&gt;Active summaries&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1301" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_buffered_logs&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_buffered_logs&quot;&gt;Buffered log entries&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1302" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;app_logs&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;app_logs&quot;&gt;App Logs&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1303" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;ai_request_logs&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;ai_request_logs&quot;&gt;AI Request Logs&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1304" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;app_log_search_hint&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;app_log_search_hint&quot;&gt;Search logs by keyword or module...&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1305" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;export_logs&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;export_logs&quot;&gt;Export Logs&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1306" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;save_logs_to_file&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;save_logs_to_file&quot;&gt;Save to file&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1307" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;export_request_logs_to_file&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;export_request_logs_to_file&quot;&gt;Export to file&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1308" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;log_export_success&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;log_export_success&quot;&gt;Logs saved&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1309" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;log_export_failed&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;log_export_failed&quot;&gt;Could not save the logs&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1310" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;request_log_export_hint&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;request_log_export_hint&quot;&gt;Exported entries contain full prompts and responses.&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1311" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;clear_logs_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;clear_logs_title&quot;&gt;Clear Logs&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1312" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;clear_logs_confirm_desc&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;clear_logs_confirm_desc&quot;&gt;Are you sure you want to clear all in-memory and rolling app logs?&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1313" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;logs_cleared&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;logs_cleared&quot;&gt;App logs cleared&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1314" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;logs_exported&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;logs_exported&quot;&gt;Logs exported&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1315" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;no_logs_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;no_logs_title&quot;&gt;No logs yet&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1316" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;no_logs_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;no_logs_subtitle&quot;&gt;Runtime logs will appear here when developer logging is active&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1317" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;tts_test_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;tts_test_section&quot;&gt;Voice Test&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1318" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_post_processing_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_post_processing_title&quot;&gt;Prompt Post-Processing&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1319" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;example_dialogue_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;example_dialogue_title&quot;&gt;Example Dialogue&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1320" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;context_behavior_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;context_behavior_title&quot;&gt;Context Behavior&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1321" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;response_behavior_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;response_behavior_title&quot;&gt;Response Behavior&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1322" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_model_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_model_section&quot;&gt;Summary Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1323" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_summary_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_summary_section&quot;&gt;Auto Summary&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1324" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_summary_enabled_summary&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_summary_enabled_summary&quot;&gt;Enabled · Every %1$d messages&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1325" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;auto_summary_disabled_summary&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;auto_summary_disabled_summary&quot;&gt;Disabled&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1326" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;world_info_budget_summary&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;world_info_budget_summary&quot;&gt;Context %1$d%% · Max %2$s Tokens&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1327" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;unlimited&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;unlimited&quot;&gt;Unlimited&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1328" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_behavior_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_behavior_title&quot;&gt;Context &amp;amp; Request Policy&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1330" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;prompt_behavior_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;prompt_behavior_subtitle&quot;&gt;Example dialogue, context behaviour, streaming, and world book budget&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1331" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;world_info_budget_title&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;world_info_budget_title&quot;&gt;World Book Budget&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1332" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;world_info_budget_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;world_info_budget_subtitle&quot;&gt;Configure context token budget share and overflow alert&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1333" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;summary_memory_subtitle&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;summary_memory_subtitle&quot;&gt;Configure conversation auto-summary and memory injection&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1334" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;developer_tools&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;developer_tools&quot;&gt;Developer Tools&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1335" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_generation_params_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_generation_params_section&quot;&gt;Generation Parameters&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1337" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;image_prompt_model_section&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;image_prompt_model_section&quot;&gt;Prompt Model&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1338" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;reply&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;reply&quot;&gt;Reply&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1339" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;replying_to&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;replying_to&quot;&gt;Replying to %1$s&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1340" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;regenerate_with_instruction&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;regenerate_with_instruction&quot;&gt;Regenerate with instruction&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1341" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;guided_regenerate_hint&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;guided_regenerate_hint&quot;&gt;e.g. Be more assertive, but don\'t start a fight&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1342" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_natural_max_speakers&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_natural_max_speakers&quot;&gt;Max speakers per turn&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1343" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_natural_speakers_all&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_natural_speakers_all&quot;&gt;All&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1344" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_natural_speakers_count&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_natural_speakers_count&quot;&gt;%1$d&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1345" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_auto_mode_rounds&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_auto_mode_rounds&quot;&gt;Auto continue rounds&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1346" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_auto_mode_rounds_continuous&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_auto_mode_rounds_continuous&quot;&gt;Continuous&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1347" column="13" />
+    </issue>
+    <issue id="MissingTranslation" message="&quot;group_chat_auto_mode_rounds_count&quot; is not translated in &quot;de&quot; (German), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;fr&quot; (French), &quot;es&quot; (Spanish)" errorLine1="    &lt;string name=&quot;group_chat_auto_mode_rounds_count&quot;&gt;%1$d&lt;/string&gt;" errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/strings.xml" line="1348" column="13" />
+    </issue>
+</issues>

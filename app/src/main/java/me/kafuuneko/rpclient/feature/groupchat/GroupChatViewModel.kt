@@ -991,7 +991,9 @@ class GroupChatViewModel :
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
         if (message.content.isBlank()) return
-        GroupChatViewEvent.CopyText(message.content).emit()
+        GroupChatViewEvent.CopyText(
+            me.kafuuneko.rpclient.libs.chat.messageClipboardText(message.content, AppModel.includeThinkInContext)
+        ).emit()
     }
 
     /**

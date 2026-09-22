@@ -58,17 +58,22 @@ class TtsService(
                         checkActive(sessionId)
                         streamMimo(request, onPlaybackStarted)
                     } else {
-                        val audioFile = try {
-                            cache.getOrCreate(providerType, request) { outputFile ->
-                                providerAndRequest.first.synthesize(request, outputFile)
+                        cache.withAudio(
+                            providerType = providerType,
+                            request = request,
+                            synthesize = { outputFile ->
+                                try {
+                                    providerAndRequest.first.synthesize(request, outputFile)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Throwable) {
+                                    throw synthesisFailure(error)
+                                }
                             }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (error: Throwable) {
-                            throw synthesisFailure(error)
+                        ) { audioFile ->
+                            checkActive(sessionId)
+                            play(sessionId, audioFile, onPlaybackStarted)
                         }
-                        checkActive(sessionId)
-                        play(sessionId, audioFile, onPlaybackStarted)
                     }
                 }
             }

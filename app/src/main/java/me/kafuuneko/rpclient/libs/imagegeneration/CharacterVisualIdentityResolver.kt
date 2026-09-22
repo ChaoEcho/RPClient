@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.imagegeneration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
 import me.kafuuneko.rpclient.libs.debug.AppLogger
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
@@ -30,25 +31,29 @@ class CharacterVisualIdentityResolver(
     private val providerSelectionResolver: LLMProviderSelectionResolver
 ) {
 
-    /** 已落库角色：命中缓存直接返回，未命中则提炼并写回。 */
-    suspend fun resolveForCharacter(character: Character): String {
-        character.visualIdentity.takeIf { it.isNotBlank() }?.let { return it }
-        val description = character.description.trim()
-        if (description.length < REFINEMENT_MIN_LENGTH) return description
+    private val refinementLimiter = RequestConcurrencyLimiter()
 
-        val refined = refine(
-            characterName = character.name,
-            description = description,
-            promptProviderId = null,
-            character = character
-        )
-        if (refined != description && character.id != 0L) {
-            withContext(Dispatchers.IO) {
-                characterRepository.updateVisualIdentity(character.id, refined)
+    /** 同角色请求串行重查缓存；排队取消不占额度，角色已编辑时不复用另一份输入的结果。 */
+    suspend fun resolveForCharacter(character: Character): String =
+        refinementLimiter.withPermit("visual:${character.id}", 1) {
+            val current = withContext(Dispatchers.IO) {
+                characterRepository.getCharacterById(character.id)
             }
+            if (current != null && current.copy(visualIdentity = character.visualIdentity) == character) {
+                current.visualIdentity.takeIf { it.isNotBlank() }?.let { return@withPermit it }
+            }
+            val description = character.description.trim()
+            if (description.length < REFINEMENT_MIN_LENGTH) return@withPermit description
+
+            // 本次生成继续使用提交时的角色快照，缓存写回则必须验证快照没有过期。
+            val refined = refine(character.name, description, null, character)
+            if (refined != description && character.id != 0L) {
+                withContext(Dispatchers.IO) {
+                    characterRepository.updateVisualIdentityIfUnchanged(character, refined)
+                }
+            }
+            refined
         }
-        return refined
-    }
 
     /**
      * 尚未落库的角色编辑草稿：只提炼不缓存。
@@ -109,7 +114,7 @@ class CharacterVisualIdentityResolver(
                         captureReasoning = false,
                         isPromptFinalized = true
                     ),
-                    // 后台辅助任务必须用独立配额档位，否则会排在正文生成后面。
+                    // 标记辅助任务类别，但仍服从 Provider 的总并发限制。
                     permitScope = LLM_PERMIT_SCOPE_IMAGE_PROMPT
                 )
             }
@@ -117,7 +122,7 @@ class CharacterVisualIdentityResolver(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            AppLogger.w("Image", "Visual identity refinement failed: ${error.message}")
+            AppLogger.w("Image", "Visual identity refinement failed: ${error.javaClass.simpleName}")
             description
         }
     }

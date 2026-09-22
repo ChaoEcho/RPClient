@@ -233,9 +233,8 @@ class LLMRepository(
     /**
      * 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。
      *
-     * [permitScope] 让后台辅助任务（摘要、图片提示词提炼）使用独立的并发配额。默认值为 null 时
-     * 与正文生成共享配额；由于流式正文会在整个 collection 期间占用许可，共享配额会让摘要
-     * 一直排队，用户侧表现为“摘要卡住不动”。
+     * [permitScope] 仅标记诊断中的任务类别。后台辅助请求与正文共享 Provider 总额度，
+     * 达到上限时可取消地排队，不绕过用户设置额外创建并发。
      */
     suspend fun generateWithProvider(
         provider: LLMProvider,
@@ -316,19 +315,16 @@ class LLMRepository(
         permitScope: String? = null,
         block: suspend () -> T
     ): T {
-        val key = if (permitScope == null) {
-            "llm-provider:${provider.id}"
-        } else {
-            "llm-provider:${provider.id}:$permitScope"
-        }
+        // scope 仅用于定位任务类别；所有类别必须服从用户设置的 Provider 总并发上限。
+        val task = permitScope ?: "reply"
         val requestId = nextRequestId()
         val queuedAt = SystemClock.elapsedRealtime()
-        return mRequestConcurrencyLimiter.withPermit(
-            key = key,
+        return mRequestConcurrencyLimiter.withProviderPermit(
+            providerId = provider.id,
             limit = provider.maxConcurrentRequests
         ) {
             val startedAt = SystemClock.elapsedRealtime()
-            logPermitAcquired(requestId, provider, key, startedAt - queuedAt)
+            logPermitAcquired(requestId, provider, "llm-provider:${provider.id}/$task", startedAt - queuedAt)
             try {
                 val result = block()
                 AppLogger.i(
@@ -340,7 +336,7 @@ class LLMRepository(
                 AppLogger.e(
                     LOG_MODULE,
                     "[$requestId] failed after ${SystemClock.elapsedRealtime() - startedAt}ms: " +
-                        (error.message ?: error.javaClass.simpleName),
+                        error.javaClass.simpleName,
                     error
                 )
                 throw error

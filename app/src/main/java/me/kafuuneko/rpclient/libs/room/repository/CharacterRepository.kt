@@ -104,10 +104,13 @@ class CharacterRepository(
         saveCharacter(character)
     }
 
-    /** 写回外貌提炼缓存；角色已被删除时静默忽略。 */
-    suspend fun updateVisualIdentity(id: Long, visualIdentity: String) {
-        mCharacterDao.updateVisualIdentity(id, visualIdentity)
-    }
+    /** 仅当提炼时的完整角色快照仍然有效时写回缓存，编辑、删除和竞争写入均不会被覆盖。 */
+    suspend fun updateVisualIdentityIfUnchanged(expected: Character, visualIdentity: String): Boolean =
+        mAppDatabase.withTransaction {
+            if (mCharacterDao.getCharacterById(expected.id) != expected) return@withTransaction false
+            mCharacterDao.updateVisualIdentity(expected.id, visualIdentity)
+            true
+        }
 
     /**
      * 在事务内重读角色并只修改扩展 JSON，保留同时期提交的其他角色字段。
@@ -197,11 +200,11 @@ class CharacterRepository(
      */
     private suspend fun saveCharacterInTransaction(character: Character): Long {
         val extraction = mRegexCodec.extractFromCharacterExtensions(character.extensionsJson)
-        val persistedCharacter = if (extraction.hadRegexScripts) {
+        val persistedCharacter = (if (extraction.hadRegexScripts) {
             character.copy(extensionsJson = extraction.extensionsJson)
         } else {
             character
-        }
+        }).copy(visualIdentity = "")
         val characterId = if (persistedCharacter.id == 0L) {
             mCharacterDao.insertOrReplace(persistedCharacter)
         } else {
