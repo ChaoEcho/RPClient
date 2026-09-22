@@ -364,8 +364,8 @@ class AppDatabaseMigrationTest {
                     "regex_character_authorizations",
                     "regex_scripts",
                     "stories",
-                    "story_characters",
                     "story_chapters",
+                    "story_characters",
                     "story_lorebook_entries",
                     "story_volumes"
                 ),

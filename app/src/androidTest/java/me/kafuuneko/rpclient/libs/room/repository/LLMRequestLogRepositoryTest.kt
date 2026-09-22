@@ -22,12 +22,15 @@ class LLMRequestLogRepositoryTest {
     private lateinit var database: RequestLogDatabase
     private lateinit var repository: LLMRequestLogRepository
     private var previousDebugMode = false
+    private var previousDeveloperMode = false
 
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         Kotpref.init(context)
         previousDebugMode = AppModel.debugModeEnabled
+        previousDeveloperMode = AppModel.developerLoggingEnabled
+        AppModel.developerLoggingEnabled = true
         AppModel.debugModeEnabled = true
         database = Room.inMemoryDatabaseBuilder(context, RequestLogDatabase::class.java).build()
         repository = LLMRequestLogRepository(database)
@@ -37,6 +40,7 @@ class LLMRequestLogRepositoryTest {
     fun tearDown() {
         database.close()
         AppModel.debugModeEnabled = previousDebugMode
+        AppModel.developerLoggingEnabled = previousDeveloperMode
     }
 
     @Test
@@ -70,6 +74,23 @@ class LLMRequestLogRepositoryTest {
         assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
         assertEquals(null, repository.getRequestJson(id))
         assertEquals(null, repository.getResponseJson(id))
+    }
+
+    @Test
+    fun developerSwitchOffOverridesTheRawRequestLogSwitch() = runBlocking {
+        AppModel.developerLoggingEnabled = false
+        AppModel.debugModeEnabled = true
+        val id = repository.saveLog(
+            provider = LLMProviderConfig(
+                name = "Fixture", providerType = LLMProviderType.Custom,
+                protocol = LLMProviderProtocol.OpenAICompatible,
+                baseUrl = "https://example.invalid", model = "model"
+            ),
+            model = "model", isStreaming = false,
+            requestJson = "{}", responseJson = "{}"
+        )
+        assertEquals(0L, id)
+        assertTrue(repository.getLogOverviews(24, 50, 0).isEmpty())
     }
 
     @Test

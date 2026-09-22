@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ChatGenerationCoordinatorTest {
     @Test
-    fun sameSessionIsBusyWhileDifferentSessionsRunTogether() = runBlocking {
+    fun sameSessionIsBusyWhileDifferentSessionsRunTogether() = runBlocking<Unit> {
         val coordinator = ChatGenerationCoordinator()
         val firstEntered = CompletableDeferred<Unit>()
         val secondEntered = CompletableDeferred<Unit>()
@@ -55,7 +55,7 @@ class ChatGenerationCoordinatorTest {
     }
 
     @Test
-    fun stopOnlyCancelsRequestedSessionAndWaitsForItsCleanup() = runBlocking {
+    fun stopOnlyCancelsRequestedSessionAndWaitsForItsCleanup() = runBlocking<Unit> {
         val coordinator = ChatGenerationCoordinator()
         val firstEntered = CompletableDeferred<Unit>()
         val cleanupEntered = CompletableDeferred<Unit>()
@@ -100,7 +100,7 @@ class ChatGenerationCoordinatorTest {
     }
 
     @Test
-    fun summaryRunsAlongsideGenerationAndRefusesASecondOneForTheSameKey() = runBlocking {
+    fun summaryRunsAlongsideGenerationAndRefusesASecondOneForTheSameKey() = runBlocking<Unit> {
         val coordinator = ChatGenerationCoordinator()
         val generationEntered = CompletableDeferred<Unit>()
         val summaryEntered = CompletableDeferred<Unit>()
@@ -131,7 +131,7 @@ class ChatGenerationCoordinatorTest {
     }
 
     @Test
-    fun stopSummaryCancelsTheTaskWithoutSuspendingTheCaller() = runBlocking {
+    fun stopSummaryCancelsTheTaskWithoutSuspendingTheCaller() = runBlocking<Unit> {
         val coordinator = ChatGenerationCoordinator()
         val entered = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
@@ -155,7 +155,7 @@ class ChatGenerationCoordinatorTest {
     }
 
     @Test
-    fun stopSummaryReportsFalseWhenNothingIsRunning() = runBlocking {
+    fun stopSummaryReportsFalseWhenNothingIsRunning() = runBlocking<Unit> {
         val coordinator = ChatGenerationCoordinator()
         assertFalse(coordinator.stopSummary(chatSummaryKey(77L)))
         assertFalse(coordinator.isSummaryActive(chatSummaryKey(77L)))
