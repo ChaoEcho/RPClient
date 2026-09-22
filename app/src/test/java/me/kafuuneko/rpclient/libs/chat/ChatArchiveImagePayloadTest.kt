@@ -46,11 +46,13 @@ class ChatArchiveImagePayloadTest {
     /** 同消息内和后续消息共用一个顺序表，重复位置保留但载荷只写一次。 */
     @Test
     fun repeatedImagesShareBytesButKeepVersionedRelationshipMetadata() {
-        val first = image(ByteArray(8192) { 1 })
+        val first = image(ByteArray(8192) { 1 }).copy(sendToModel = false)
+        val upload = first.copy(sendToModel = true)
         val second = image(byteArrayOf(3, 2, 1))
+        val policies = listOf(false, true, true, false, false, true)
         val archive = codec.decode("{\"chat_metadata\":{}}", "Images").copy(messages = listOf(
-            ChatArchiveMessage(1, ChatArchiveMessageRole.User, "", listOf(first, second, first, first)),
-            ChatArchiveMessage(2, ChatArchiveMessageRole.Character, "later", listOf(second, first))
+            ChatArchiveMessage(1, ChatArchiveMessageRole.Character, "", listOf(first, second, upload, first)),
+            ChatArchiveMessage(2, ChatArchiveMessageRole.User, "later", listOf(second.copy(sendToModel = false), upload))
         ))
         val encoded = codec.encode(archive)
         val rows = encoded.lineSequence().filter { it.isNotBlank() }.drop(1).map {
@@ -60,12 +62,14 @@ class ChatArchiveImagePayloadTest {
         val images = rows.flatMap { it.getAsJsonArray("images").map { value -> value.asJsonObject } }
         assertEquals(2, images.count { it.has("data") })
         assertTrue(images.drop(2).all { it.keySet() == setOf("hash", "send_to_model") })
-        // 导入后重复位置仍存在，并继承之前出现的完整资源描述。
+        assertEquals(policies, images.map { it["send_to_model"].asBoolean })
+        // 相同字节共享载荷，但显示用途属于每一条关系，不能被首个引用的策略覆盖。
         val restored = codec.decode(encoded, "Images").messages.flatMap { it.images }
         assertEquals(listOf(images[0]["hash"].asString, images[1]["hash"].asString,
             images[0]["hash"].asString, images[0]["hash"].asString,
             images[1]["hash"].asString, images[0]["hash"].asString), restored.map { it.hash })
-        assertEquals(restored[0], restored[2])
+        assertEquals(policies, restored.map { it.sendToModel })
+        assertEquals(restored[0].copy(sendToModel = true), restored[2])
         assertEquals(encoded, codec.encode(codec.decode(encoded, "Images")))
     }
 

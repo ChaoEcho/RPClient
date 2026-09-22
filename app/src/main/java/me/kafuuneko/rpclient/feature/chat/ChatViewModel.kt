@@ -334,7 +334,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
         val currentSpeechState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.speechState ?: refreshed.conversationState.speechState
+        // 系统选择器返回时图片处理可能已完成，不能用 IO 加载期间的旧快照覆盖实时草稿。
         refreshed.copy(
+            imageState = mImageCoordinator.state,
             conversationState = refreshed.conversationState.copy(speechState = currentSpeechState),
             dialogState = refreshed.dialogState.resolveExportDialogState(
                 isExportActive = mChatExportJob?.isActive == true
@@ -2798,7 +2800,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         } ?: return
         val currentSpeechState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.speechState ?: speechState
+        // 只在发布时读取协调器状态，保留加载消息期间新增、取消或处理完成的图片。
         nextState.copy(
+            imageState = mImageCoordinator.state,
             conversationState = nextState.conversationState.copy(speechState = currentSpeechState)
         ).setup()
         if (mGenerationCoordinator.isActive(sessionId) || mGenerationCoordinator.stateFor(sessionId) != null) {

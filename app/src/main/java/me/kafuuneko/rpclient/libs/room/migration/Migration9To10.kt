@@ -6,6 +6,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /** 沿用 fork v1–v9 历史，只在 v10 接入上游用量与附件，不能套用上游另一套 v4。 */
 object Migration9To10 : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        // 新索引以前两列为前缀覆盖旧查询，不能把旧声明留在实际 schema 中。
+        db.execSQL("DROP INDEX IF EXISTS `index_group_chat_messages_sessionId_createTime`")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId_createTime_id` ON `chat_messages` (`sessionId`, `createTime`, `id`)")
         db.execSQL("ALTER TABLE `llm_providers` ADD COLUMN `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic'")
         db.execSQL("ALTER TABLE `llm_providers` ADD COLUMN `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0")

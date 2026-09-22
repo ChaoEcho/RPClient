@@ -58,6 +58,10 @@ def main():
             expected = {field['columnName']: (field['affinity'], field.get('notNull', False), field.get('defaultValue'))
                         for field in entity['fields']}
             assert actual == expected, f'Migration columns differ from Room v10: {table}'
+            actual_indexes = {row[1]: bool(row[2]) for row in db.execute(f'PRAGMA index_list(`{table}`)')
+                              if not row[1].startswith('sqlite_autoindex_')}
+            expected_indexes = {index['name']: index['unique'] for index in entity.get('indices', [])}
+            assert actual_indexes == expected_indexes, f'Migration index set differs from Room v10: {table}'
             for index in entity.get('indices', []):
                 name = index['name']
                 columns = [row[2] for row in db.execute(f'PRAGMA index_info(`{name}`)')]

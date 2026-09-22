@@ -64,6 +64,51 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun systemFramingSwitchUsesCurrentPreferencesForEveryGenerationMode() {
+        val preferences = object : PromptPreferences by TestPromptPreferences(
+            mainPrompt = "Global main framing",
+            postHistoryInstructions = "Global history framing"
+        ) {
+            override var keepSystemPromptInSpecialModes = true
+        }
+        val configuredBuilder = ChatPromptBuilder(
+            mPreferences = preferences,
+            mMacroResolver = PromptMacroResolver(historyBuilder),
+            mHistoryBuilder = historyBuilder,
+            mWorldBookActivator = WorldBookActivator()
+        )
+
+        // 同一构建器反复切换开关，既验证特殊模式，也保护普通回复与重生成不受影响。
+        for (keep in listOf(true, false, true)) {
+            preferences.keepSystemPromptInSpecialModes = keep
+            for (mode in PromptGenerationMode.entries) {
+                val expected = keep || mode == PromptGenerationMode.Normal ||
+                    mode == PromptGenerationMode.Regenerate
+                val request = configuredBuilder.build(
+                    context(
+                        messages = listOf(chatMessage(1L, ChatMessage.Source.Char, "Partial reply")),
+                        generationMode = mode
+                    )
+                )
+                assertEquals("main framing: $mode, keep=$keep", expected,
+                    request.messages.any { it.content == "Global main framing" })
+                assertEquals("history framing: $mode, keep=$keep", expected,
+                    request.messages.any { it.content == "Global history framing" })
+                // 关闭全局提示不应删除特殊模式自身的尾部控制消息。
+                when (mode) {
+                    PromptGenerationMode.Continue -> assertTrue(
+                        request.messages.last().content.contains("Continue your last message")
+                    )
+                    PromptGenerationMode.Impersonate -> assertTrue(
+                        request.messages.last().content.contains("point of view of User")
+                    )
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    @Test
     fun normalPromptUsesMessageTextWithoutLocalImageMetadata() {
         val imageUuid = "local-image-file-uuid-should-not-leave-device"
         val imageData = "data:image/png;base64,should-not-be-added"

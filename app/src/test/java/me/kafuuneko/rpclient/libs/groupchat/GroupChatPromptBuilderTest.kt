@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.TestPromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
@@ -60,6 +61,52 @@ class GroupChatPromptBuilderTest {
                 it.content == "Profile of Alex: Alex trusts Lyra."
             }
         )
+    }
+
+    @Test
+    fun systemFramingSwitchUsesCurrentPreferencesForEveryGenerationMode() {
+        val preferences = object : PromptPreferences by TestPromptPreferences(
+            mainPrompt = "Global main framing",
+            postHistoryInstructions = "Global history framing"
+        ) {
+            override var keepSystemPromptInSpecialModes = true
+        }
+        val configuredBuilder = GroupChatPromptBuilder(mPreferences = preferences)
+        val lyra = character(1, "Lyra")
+        val context = GroupChatPromptContext(
+            session = GroupChatSession(
+                id = 1, title = "Crew", createTime = 1, latestTime = 1,
+                userName = "Alex", userDescription = ""
+            ),
+            members = listOf(member(lyra, 0)),
+            speaker = lyra,
+            messages = listOf(message(GroupChatMessage.Source.Character, "Lyra", "Partial reply")),
+            provider = provider()
+        )
+
+        // 开关来自与单聊相同的显式偏好，不能因为 Android 存储不可用就强制按开启处理。
+        for (keep in listOf(true, false, true)) {
+            preferences.keepSystemPromptInSpecialModes = keep
+            for (mode in GroupChatGenerationMode.entries) {
+                val expected = keep || mode == GroupChatGenerationMode.Normal ||
+                    mode == GroupChatGenerationMode.Regenerate
+                val request = configuredBuilder.build(context.copy(generationMode = mode))
+                assertEquals("main framing: $mode, keep=$keep", expected,
+                    request.messages.any { it.content == "Global main framing" })
+                assertEquals("history framing: $mode, keep=$keep", expected,
+                    request.messages.any { it.content == "Global history framing" })
+                // 全局开关不改变续写或扮演用户的最终任务目标。
+                when (mode) {
+                    GroupChatGenerationMode.Continue -> assertTrue(
+                        request.messages.last().content.contains("Continue your last message")
+                    )
+                    GroupChatGenerationMode.Impersonate -> assertTrue(
+                        request.messages.last().content.contains("point of view of Alex")
+                    )
+                    else -> Unit
+                }
+            }
+        }
     }
 
     @Test
@@ -190,7 +237,7 @@ class GroupChatPromptBuilderTest {
     fun replyAwareHistoryIncludesNormalizedBoundedTargetPreview() {
         val lyra = character(1, "Lyra")
         val targetContent = "Original\nmessage\t" + "x".repeat(180)
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -236,7 +283,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun missingReplyTargetFallsBackToOrdinaryHistory() {
         val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder().build(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -268,7 +315,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun regenerateInstructionIsInjectedAsTerminalUserControlWithInspectableSource() {
         val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -305,7 +352,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun ordinaryRegenerateDoesNotInjectRegenerationInstruction() {
         val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder().buildWithMetadata(
+        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
             GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,

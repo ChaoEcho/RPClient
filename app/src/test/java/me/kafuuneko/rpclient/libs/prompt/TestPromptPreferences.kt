@@ -24,5 +24,6 @@ internal class TestPromptPreferences(
     override val summaryInjectionRole: Int = 0,
     override val worldInfoBudgetPercent: Int = 25,
     override val worldInfoBudgetCap: Int = 0,
+    override val keepSystemPromptInSpecialModes: Boolean = true,
     override val includeThinkInContext: Boolean = false
 ) : PromptPreferences

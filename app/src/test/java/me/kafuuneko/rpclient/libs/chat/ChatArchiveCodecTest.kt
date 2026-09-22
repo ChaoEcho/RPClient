@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.chat
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import java.io.Reader
+import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -20,6 +21,7 @@ class ChatArchiveCodecTest {
             {"chat_metadata":{}}
             {"name":"Alice","is_user":true,"mes":"","extra":{"rpclient":{"schema_version":1,"images":[{"mime_type":"image/png","data":"AQID"},{"mime_type":"image/jpeg","data":"BAU="}]}}}
         """.trimIndent(), "Images")
+        assertTrue(source.messages.single().images.all { it.sendToModel })
         val encoded = codec.encode(source)
         val message = JsonParser.parseString(encoded.lineSequence().drop(1).first()).asJsonObject
         val extra = message.getAsJsonObject("extra")
@@ -55,8 +57,9 @@ class ChatArchiveCodecTest {
     @Test
     fun malformedAndFutureImageExtensionsFailExplicitly() {
         for (extension in listOf(
-            """{"schema_version":2,"images":[]}""",
-            """{"schema_version":1,"images":[{"mime_type":"image/png"}]}"""
+            """{"schema_version":3,"images":[]}""",
+            """{"schema_version":1,"images":[{"mime_type":"image/png"}]}""",
+            """{"schema_version":2,"images":[{"mime_type":"image/png","data":"AQID"}]}"""
         )) {
             assertThrows(IllegalArgumentException::class.java) {
                 codec.decode("{\"chat_metadata\":{}}\n{\"mes\":\"\",\"extra\":{\"rpclient\":$extension}}", "Images")
@@ -106,43 +109,7 @@ class ChatArchiveCodecTest {
 
     @Test
     fun rpclientArchiveRoundTripsThroughSillyTavernJsonl() {
-        val archive = ChatArchive(
-            title = "Investigation",
-            createTime = 1_000L,
-            latestTime = 3_000L,
-            userName = "Alice",
-            userDescription = "Detective",
-            userNote = "Private note",
-            creatorNotes = "Session notes",
-            lorebookEntrySet = "[1,2]",
-            worldInfoStateJson = """{"sticky":true}""",
-            autoSummaryPaused = true,
-            characterNameHint = "Seraphina",
-            characterFingerprint = "fingerprint",
-            messages = listOf(
-                ChatArchiveMessage(
-                    createTime = 1_000L,
-                    role = ChatArchiveMessageRole.User,
-                    content = "Hello\n\"there\""
-                ),
-                ChatArchiveMessage(
-                    createTime = 2_000L,
-                    role = ChatArchiveMessageRole.Character,
-                    content = "Welcome."
-                ),
-                ChatArchiveMessage(
-                    createTime = 3_000L,
-                    role = ChatArchiveMessageRole.Narrator,
-                    content = "The lights dim."
-                )
-            ),
-            summary = ChatArchiveSummary(
-                content = "Alice arrived.",
-                createTime = 4_000L,
-                coveredMessageIndex = 1
-            ),
-            mimoTtsVoiceOverride = "mimo_voice_1"
-        )
+        val archive = archive().copy(mimoTtsVoiceOverride = "mimo_voice_1")
 
         val encoded = codec.encode(archive)
         val lines = encoded.lineSequence().filter { it.isNotBlank() }.toList()
@@ -312,4 +279,40 @@ class ChatArchiveCodecTest {
         assertNull(decoded.summary)
     }
 
+    private fun archive() = ChatArchive(
+        title = "Investigation",
+        createTime = 1_000L,
+        latestTime = 3_000L,
+        userName = "Alice",
+        userDescription = "Detective",
+        userNote = "Private note",
+        creatorNotes = "Session notes",
+        lorebookEntrySet = "[1,2]",
+        worldInfoStateJson = """{"sticky":true}""",
+        autoSummaryPaused = true,
+        characterNameHint = "Seraphina",
+        characterFingerprint = "fingerprint",
+        messages = listOf(
+            ChatArchiveMessage(
+                createTime = 1_000L,
+                role = ChatArchiveMessageRole.User,
+                content = "Hello\n\"there\""
+            ),
+            ChatArchiveMessage(
+                createTime = 2_000L,
+                role = ChatArchiveMessageRole.Character,
+                content = "Welcome."
+            ),
+            ChatArchiveMessage(
+                createTime = 3_000L,
+                role = ChatArchiveMessageRole.Narrator,
+                content = "The lights dim."
+            )
+        ),
+        summary = ChatArchiveSummary(
+            content = "Alice arrived.",
+            createTime = 4_000L,
+            coveredMessageIndex = 1
+        )
+    )
 }

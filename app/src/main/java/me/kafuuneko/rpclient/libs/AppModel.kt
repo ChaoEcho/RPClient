@@ -354,7 +354,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 
     // 续写与扮演用户时是否照常注入主提示词与 PHI。
     // 关闭后回到"特殊模式只由自己的 Nudge 定义任务"的旧行为，见 ChatPromptBuilder 的注释。
-    var keepSystemPromptInSpecialModes by booleanPref(default = true)
+    override var keepSystemPromptInSpecialModes by booleanPref(default = true)
 
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)

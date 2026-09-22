@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.libs.prompt.model
 
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
@@ -68,7 +67,7 @@ enum class PromptGenerationMode {
 /**
  * 普通回复和重新生成共享“编写角色下一条回复”的任务提示。
  *
- * Continue 与 Impersonate 会在聊天末尾提供各自唯一的生成目标，不能再叠加主提示词或 PHI。
+ * Continue 与 Impersonate 使用各自的任务提示；主提示词和 PHI 是否保留由偏好另行决定。
  */
 internal fun PromptGenerationMode.usesCharacterReplyTask(): Boolean {
     return this == PromptGenerationMode.Normal || this == PromptGenerationMode.Regenerate
@@ -77,12 +76,9 @@ internal fun PromptGenerationMode.usesCharacterReplyTask(): Boolean {
 /**
  * 是否注入主提示词与 PHI。
  *
- * 这两段同时承担两件事：一是"让角色写下一条回复"的任务，二是全局沙盒定义与虚构免责声明。
- * 只按任务维度剥掉它们，世界书就会成为请求的第一条消息，上游内容安全模型看到的开头
- * 是未加框的剧情描写，严格风控的服务会直接返回 403。因此默认在续写与扮演下也保留，
- * 由排在最后的模式 Nudge 覆盖任务目标；需要旧行为的用户可以关掉这个开关。
+ * 默认在特殊模式保留用户配置的全局行为和世界观约束，由末尾的模式 Nudge 指定任务目标。
+ * 开关通过构建器的只读偏好传入，不在模式判断中访问 Android 存储或用异常伪装默认值。
  */
-internal fun PromptGenerationMode.injectsSystemFraming(): Boolean {
-    return usesCharacterReplyTask() ||
-            runCatching { AppModel.keepSystemPromptInSpecialModes }.getOrDefault(true)
+internal fun PromptGenerationMode.injectsSystemFraming(keepInSpecialModes: Boolean): Boolean {
+    return usesCharacterReplyTask() || keepInSpecialModes
 }

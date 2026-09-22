@@ -104,6 +104,7 @@ class MultimodalImageIntegrationTest {
     private lateinit var logs: LLMRequestLogRepository
     private var sessionId = 0L
     private var previousDebug = false
+    private var previousDeveloperLogging = false
 
     /** 预览失败不能解除另一个仍在读取图片的任务对发送按钮的保护。 */
     @Test
@@ -235,12 +236,15 @@ class MultimodalImageIntegrationTest {
         sessionId = database.getChatSessionDao().insertOrReplace(ChatSession(characterId = characterId,
             createTime = 1, latestTime = 1, lorebookEntrySet = "[]", title = "test", userNote = "", userName = "test", userDescription = ""))
         previousDebug = AppModel.debugModeEnabled
+        previousDeveloperLogging = AppModel.developerLoggingEnabled
+        AppModel.developerLoggingEnabled = true
         AppModel.debugModeEnabled = true
     }
 
     @After
     fun tearDown() {
         AppModel.debugModeEnabled = previousDebug
+        AppModel.developerLoggingEnabled = previousDeveloperLogging
         database.close()
         logDatabase.close()
         directory.deleteRecursively()

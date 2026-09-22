@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -11,6 +9,9 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.FileEntity
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -133,6 +134,52 @@ class ChatRepositoryGenerationCommitTest {
         val session = repository.getSessionById(sessionId)
         assertEquals(10L, session?.latestTime)
         assertEquals("{\"turn\":0}", session?.worldInfoStateJson)
+    }
+
+    @Test
+    fun rejectedOutput_doesNotDeleteMessagesOutsideItsSessionOrSource() = runBlocking {
+        val messageId = repository.createGenerationPlaceholder(sessionId, ChatMessage.Source.Char)
+        repository.updateGenerationDraft(messageId, "protected draft")
+        val original = repository.getMessageById(messageId)
+
+        // 即使调用方要求清理，占位也必须属于本轮会话及消息来源。
+        for ((targetSession, source) in listOf(
+            (sessionId + 1L) to ChatMessage.Source.Char,
+            sessionId to ChatMessage.Source.User
+        )) {
+            assertNull(repository.commitGenerationResult(
+                sessionId = targetSession,
+                messageId = messageId,
+                source = source,
+                content = "",
+                deleteEmptyPlaceholder = true,
+                worldInfoStateJson = "{}"
+            ))
+            assertEquals(original, repository.getMessageById(messageId))
+        }
+    }
+
+    @Test
+    fun rejectedOutput_keepsMessageAndIndependentAttachmentReference() = runBlocking {
+        val messageId = repository.createGenerationPlaceholder(sessionId, ChatMessage.Source.Char)
+        val original = repository.getMessageById(messageId)
+        val file = FileEntity(uuid = "protected-attachment", hash = "a".repeat(64), mimeType = "image/png")
+        val attachment = MessageImageEntity(MessageType.Single, messageId, 0, file.uuid, sendToModel = false)
+        // 该路径只判断关系所有权，不读取文件字节；内存数据库足以覆盖保留条件。
+        database.getFileDao().insert(file)
+        database.getMessageImageDao().insertAll(listOf(attachment))
+
+        assertNull(repository.commitGenerationResult(
+            sessionId = sessionId,
+            messageId = messageId,
+            source = ChatMessage.Source.Char,
+            content = "",
+            deleteEmptyPlaceholder = true,
+            worldInfoStateJson = "{}"
+        ))
+        assertEquals(original, repository.getMessageById(messageId))
+        assertEquals(listOf(attachment), database.getMessageImageDao().getByMessage(MessageType.Single, messageId))
+        assertEquals(file, database.getFileDao().getByUuid(file.uuid))
     }
 
     @Test

@@ -209,26 +209,31 @@ class ChatArchiveRepositoryTest {
         // JPEG 尾部填充保持原始字节，可验证归档封装没有重编码或截断文件。
         val bytes = imageBytes(Bitmap.CompressFormat.JPEG) + ByteArray(64 * 1024)
         val encoded = ChatArchiveImagePayload.encode(ChatArchiveImage("image/jpeg",
-            Base64.getEncoder().encodeToString(bytes)))
+            Base64.getEncoder().encodeToString(bytes), sendToModel = false))
         assertEquals("gzip", encoded.compression)
         val reference = ChatArchiveImage(hash = encoded.hash)
         val input = archive().copy(messages = List(300) { index ->
-            ChatArchiveMessage(index + 1L, ChatArchiveMessageRole.User, "message-$index",
-                if (index == 0) listOf(encoded, reference) else listOf(reference))
+            ChatArchiveMessage(index + 1L,
+                if (index % 2 == 0) ChatArchiveMessageRole.Character else ChatArchiveMessageRole.User,
+                "message-$index",
+                if (index == 0) listOf(encoded, reference)
+                else listOf(reference.copy(sendToModel = index % 2 != 0)))
         }, summary = null)
+        val policies = input.messages.flatMap { message -> message.images.map { it.sendToModel } }
         val original = repository.saveImport(input, characterId)
         val target = File(context.cacheDir, "deduplicated.jsonl")
         assertEquals(0, repository.exportToUri(original.sessionId, Uri.fromFile(target)))
         val entries = target.readLines().drop(1).flatMap { line ->
             val extension = JsonParser.parseString(line).asJsonObject.getAsJsonObject("extra")
                 .getAsJsonObject("rpclient")
-            assertEquals(1, extension["schema_version"].asInt)
+            assertEquals(2, extension["schema_version"].asInt)
             extension.getAsJsonArray("images").map { it.asJsonObject }
         }
         assertEquals(301, entries.size)
+        assertEquals(policies, entries.map { it["send_to_model"].asBoolean })
         assertEquals(1, entries.count { it.has("data") })
         assertEquals("gzip", entries.first()["compression"].asString)
-        assertTrue(entries.drop(1).all { it.keySet() == setOf("hash") })
+        assertTrue(entries.drop(1).all { it.keySet() == setOf("hash", "send_to_model") })
 
         // 暂存和 PreparedFile 均按唯一资源复用，只有数据库引用按附件位置增加。
         val parsed = repository.readImportFromUri(Uri.fromFile(target))
@@ -241,6 +246,7 @@ class ChatArchiveRepositoryTest {
             val messages = database.getChatMessageDao().getMessagesBySessionId(restored.sessionId)
             val attachments = database.getMessageImageDao().getByMessages(MessageType.Single, messages.map { it.id })
             assertEquals(301, attachments.map { it.imageUuid }.distinct().size)
+            assertEquals(policies, attachments.map { it.sendToModel })
             assertEquals(listOf(0, 1), attachments.take(2).map { it.position })
             assertArrayEquals(bytes, files.withFileLease(attachments.last().imageUuid) { it.readBytes() })
             assertTrue(attachments.all { files.getFileEntity(it.imageUuid)?.hash == encoded.hash })

@@ -893,7 +893,8 @@ class ChatRepository(
             if (content.isBlank()) {
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
-                    if (placeholder?.sessionId == sessionId && placeholder.content.isBlank() &&
+                    // deleteEmptyPlaceholder 只用于本轮新建的消息；已有历史及附件不得误删。
+                    if (placeholder?.sessionId == sessionId && placeholder.source == source &&
                         mAppDatabase.getMessageImageDao()
                             .getByMessage(MessageType.Single, messageId).isEmpty()
                     ) {

@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
@@ -104,9 +103,8 @@ private fun GroupChatGenerationMode.usesCharacterReplyTask(): Boolean {
 }
 
 /** 与单聊同义：主提示词与 PHI 还兼作全局沙盒，默认在续写与扮演下保留。 */
-private fun GroupChatGenerationMode.injectsSystemFraming(): Boolean {
-    return usesCharacterReplyTask() ||
-            runCatching { AppModel.keepSystemPromptInSpecialModes }.getOrDefault(true)
+private fun GroupChatGenerationMode.injectsSystemFraming(keepInSpecialModes: Boolean): Boolean {
+    return usesCharacterReplyTask() || keepInSpecialModes
 }
 
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
@@ -389,6 +387,10 @@ class GroupChatPromptBuilder(
         worldInfo: WorldBookActivationResult,
         exampleBehavior: ExampleDialogueBehavior
     ): PromptSections {
+        // 同一次构建只读取一次开关，保证主提示词与 PHI 同进同出。
+        val injectSystemFraming = context.generationMode.injectsSystemFraming(
+            mPreferences.keepSystemPromptInSpecialModes
+        )
         val before = mutableListOf<PromptMessageDraft>()
         val after = mutableListOf<PromptMessageDraft>()
         val memberNames = context.memberNames()
@@ -398,8 +400,8 @@ class GroupChatPromptBuilder(
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             summaryDraft(context)?.let { before += it }
         }
-        // 群聊主提示词同样兼作全局沙盒，缺席时世界书会成为 System 0 被上游风控命中。
-        if (context.generationMode.injectsSystemFraming()) {
+        // 群聊与单聊遵循同一开关，不因构建入口不同而丢失全局约束。
+        if (injectSystemFraming) {
             before += requiredSystem(
                 context.mainPrompt(),
                 PromptSourceKind.MainPrompt
@@ -480,7 +482,7 @@ class GroupChatPromptBuilder(
         }
 
         // 注入历史后指令（Post-history instructions），与主提示词同进同出
-        if (context.generationMode.injectsSystemFraming()) {
+        if (injectSystemFraming) {
             context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let {
                 after += requiredSystem(
                     it,

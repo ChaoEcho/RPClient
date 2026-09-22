@@ -275,15 +275,18 @@ class ChatPromptBuilder(
         context: PromptBuildContext,
         worldInfo: WorldBookActivationResult
     ): PromptSections {
+        // 同一次构建只读取一次开关，保证主提示词与 PHI 同进同出。
+        val injectSystemFraming = context.generationMode.injectsSystemFraming(
+            mPreferences.keepSystemPromptInSpecialModes
+        )
         val beforeHistory = mutableListOf<PromptPiece>()
         val summaryPosition = readSummaryInjectionPosition()
         // 摘要注入：位于主提示词之前
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }
-        // 主提示词同时是任务描述与全局沙盒定义，缺席时世界书会成为 System 0 被上游风控命中。
-        // 特殊模式下的任务目标由排在最后的 Nudge 覆盖，见 injectsSystemFraming 的说明。
-        if (context.generationMode.injectsSystemFraming()) {
+        // 主提示词保留全局约束，特殊模式的任务目标仍由末尾的 Nudge 指定。
+        if (injectSystemFraming) {
             beforeHistory += PromptPiece(
                 LLMMessageRole.System,
                 readCharacterMainPrompt(context),
@@ -354,7 +357,7 @@ class ChatPromptBuilder(
         // 组装历史消息之后的固定指令区段
         val afterHistory = buildList {
             // PHI 承载最新轮次规范与虚构免责声明，和主提示词同进同出。
-            if (context.generationMode.injectsSystemFraming()) {
+            if (injectSystemFraming) {
                 add(
                     PromptPiece.required(
                         role = LLMMessageRole.User,

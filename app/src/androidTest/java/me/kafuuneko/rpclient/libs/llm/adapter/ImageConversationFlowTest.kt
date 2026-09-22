@@ -84,7 +84,7 @@ class ImageConversationFlowTest {
                 scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first() }
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
-                withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first { it.imageState.draft.size == 1 && !it.imageState.processing } }
+                await("chat draft image picker result") { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { it.draft.size == 1 && !it.processing } == true }
                 // Activity 配置重建复用 ViewModel，内存中的文字和图片草稿仍然保留。
                 vm.emit(ChatUiIntent.ChangeInputDraft("unsent draft"))
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.inputDraft == "unsent draft" }
@@ -286,7 +286,7 @@ class ImageConversationFlowTest {
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == messageId.toString() }
                 vm.emit(ChatUiIntent.ChangeEditingMessageDraft(""))
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
-                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { it.editing.size == 1 && !it.processing } == true }
+                await("character image picker result") { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { it.editing.size == 1 && !it.processing } == true }
                 screenshot("chat-character-image-edit.png")
                 vm.emit(ChatUiIntent.SaveEditingMessage)
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == null }
@@ -377,7 +377,7 @@ class ImageConversationFlowTest {
                 scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
                 withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first() }
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
-                withTimeout(30_000) { vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>().first { it.imageState.draft.size == 1 && !it.imageState.processing } }
+                await("chat draft image picker result") { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { it.draft.size == 1 && !it.processing } == true }
                 // 服务端保持 SSE 开启却不返回下一行，停止必须主动关闭 socket。
                 vm.emit(ChatUiIntent.SendMessage)
                 await { fixture.server.requests.isNotEmpty() }

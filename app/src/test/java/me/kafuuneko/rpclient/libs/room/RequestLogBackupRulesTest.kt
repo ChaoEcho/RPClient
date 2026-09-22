@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -16,6 +17,7 @@ class RequestLogBackupRulesTest {
         assertEquals(ExpectedDatabasePaths, excludes.filter { it.getAttribute("domain") == "database" }.databasePaths())
         assertEquals(setOf(SECURE_PREFS_FILE), excludes.sharedPreferencePaths())
         assertEquals(ExpectedFilePaths, excludes.filePaths())
+        assertEquals(ExpectedRootPaths, excludes.rootPaths())
         assertFalse(
             excludes.filter { it.getAttribute("domain") == "database" }.databasePaths().contains("primary.sqlite")
         )
@@ -43,6 +45,8 @@ class RequestLogBackupRulesTest {
         )
         assertEquals(ExpectedFilePaths, cloud.getElementsByTagName("exclude").asElements().filePaths())
         assertEquals(ExpectedFilePaths, transfer.getElementsByTagName("exclude").asElements().filePaths())
+        assertEquals(ExpectedRootPaths, cloud.getElementsByTagName("exclude").asElements().rootPaths())
+        assertEquals(ExpectedRootPaths, transfer.getElementsByTagName("exclude").asElements().rootPaths())
         assertTrue(root.getElementsByTagName("include").length == 0)
     }
 
@@ -61,11 +65,14 @@ class RequestLogBackupRulesTest {
         return (0 until length).map { item(it) as Element }
     }
 
-    private fun List<Element>.databasePaths(): Set<String> {
-        val temporary = filter { it.getAttribute("domain") == "root" }
-        assertEquals(setOf("app_repository/staging/"), temporary.map { it.getAttribute("path") }.toSet())
-        return filter { it.getAttribute("domain") == "database" }.mapTo(mutableSetOf()) { it.getAttribute("path") }
-    }
+    private fun List<Element>.databasePaths(): Set<String> =
+        filter { it.getAttribute("domain") == "database" }
+            .mapTo(mutableSetOf()) { it.getAttribute("path") }
+
+    /** 暂存目录与数据库属于不同备份域，必须分别检查，不能先过滤数据库再断言暂存目录。 */
+    private fun List<Element>.rootPaths(): Set<String> =
+        filter { it.getAttribute("domain") == "root" }
+            .mapTo(mutableSetOf()) { it.getAttribute("path") }
 
     /** 应用运行日志目录同样是可丢弃的调试数据，不应随系统备份离开设备。 */
     private fun List<Element>.filePaths(): Set<String> =
@@ -86,5 +93,6 @@ class RequestLogBackupRulesTest {
             "request_logs.sqlite-wal"
         )
         val ExpectedFilePaths = setOf(APP_LOG_DIRECTORY)
+        val ExpectedRootPaths = setOf("app_repository/staging/")
     }
 }

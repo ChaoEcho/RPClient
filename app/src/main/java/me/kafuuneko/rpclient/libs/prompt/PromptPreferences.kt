@@ -63,6 +63,9 @@ interface PromptPreferences {
     /** 世界书绝对 Token 上限，0 表示不限制。 */
     val worldInfoBudgetCap: Int
 
+    /** 续写与扮演用户时是否保留主提示词和历史后指令。 */
+    val keepSystemPromptInSpecialModes: Boolean
+
     /** 是否将已保存的推理块带回上下文。 */
     val includeThinkInContext: Boolean
 }

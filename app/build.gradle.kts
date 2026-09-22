@@ -82,6 +82,8 @@ android {
         versionNameSuffix = "-verification"
         signingConfig = signingConfigs.getByName("debug")
         matchingFallbacks += "release"
+        proguardFile("proguard-verification.pro")
+        testProguardFiles("proguard-verification-tests.pro")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
