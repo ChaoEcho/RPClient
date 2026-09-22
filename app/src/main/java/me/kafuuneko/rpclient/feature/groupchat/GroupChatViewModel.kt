@@ -2310,7 +2310,8 @@ class GroupChatViewModel :
             )
         } ?: return
         mPendingMemberOrder = null
-        next.setup()
+        // 图片选择器返回后可能已经更新协调器；不能用 IO 加载期间的旧 imageState 覆盖实时草稿。
+        next.copy(imageState = mImageCoordinator.state).setup()
     }
 
     /**

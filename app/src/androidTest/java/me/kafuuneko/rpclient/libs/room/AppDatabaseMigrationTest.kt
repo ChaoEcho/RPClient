@@ -468,12 +468,15 @@ class AppDatabaseMigrationTest {
             assertEquals("Automatic", cursor.getString(4))
         }
 
-        // 验证 message_images 表及其字段在 3→4 迁移中正确生成
+        // 验证 message_images 表及其字段在当前历史迁移链中正确生成
         migrated.query("PRAGMA table_info(message_images)").use { cursor ->
             val columnNames = buildSet {
                 while (cursor.moveToNext()) add(cursor.getString(1))
             }
-            assertEquals(setOf("messageType", "messageId", "position", "imageUuid"), columnNames)
+            assertEquals(
+                setOf("messageType", "messageId", "position", "imageUuid", "sendToModel"),
+                columnNames
+            )
         }
     }
 
