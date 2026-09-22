@@ -5,9 +5,12 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 
 /** 持久化的模型配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
@@ -45,12 +48,24 @@ data class LLMProvider(
     // 代理 Tokenizer 的本地预算预留率，不会发送给模型服务。
     @ColumnInfo(defaultValue = "15")
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
+    // Prompt 预算与用量回退共同使用的本地 Token 预估器类型。
+    @ColumnInfo(defaultValue = "'Automatic'")
+    val localTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
     // 是否在请求中显式发送 temperature。
     val sendTemperature: Boolean = true,
     // 是否在请求中显式发送 top_p。
     val sendTopP: Boolean = true,
+    // 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。
+    @ColumnInfo(defaultValue = "0")
+    val useServerReportedUsage: Boolean = false,
     // 当前模型配置独立使用的 Prompt 后处理模式 ordinal。
     val promptPostProcessingMode: Int = 0,
+    // 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。
+    @ColumnInfo(defaultValue = "'Auto'")
+    val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    /** 图片本地预估类别，禁用图片时仍保留选择。 */
+    @ColumnInfo(defaultValue = "'Automatic'")
+    val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
     // 是否启用
     val isEnabled: Boolean = true,
     // 创建时间
@@ -84,6 +99,11 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     topP = topP,
     maxTokens = maxTokens,
     contextTokens = contextTokens,
+    localTokenEstimatorType = localTokenEstimatorType,
     sendTemperature = sendTemperature,
-    sendTopP = sendTopP
+    sendTopP = sendTopP,
+    useServerReportedUsage = useServerReportedUsage,
+    imageInputSetting = imageInputSetting,
+    imageTokenEstimatorType = imageTokenEstimatorType,
+    providerId = id
 )

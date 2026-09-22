@@ -15,8 +15,6 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.orSingleBlank
-import me.kafuuneko.rpclient.utils.removeAtOrSelf
-import me.kafuuneko.rpclient.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -76,45 +74,15 @@ class WorldBookEntryEditViewModel :
     private fun onChangeName(intent: WorldBookEntryEditUiIntent.ChangeName) =
         updateForm { copy(name = intent.value) }
 
-    /** 追加一个空的主关键词输入项。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.AddKeyword::class)
-    private fun onAddKeyword() =
-        updateForm { copy(keywords = keywords + "") }
-
     /** 批量设置主关键词列表。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.SetKeywords::class)
     private fun onSetKeywords(intent: WorldBookEntryEditUiIntent.SetKeywords) =
         updateForm { copy(keywords = intent.keywords.orSingleBlank()) }
 
-    /** 修改指定索引处的主关键词。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeKeyword::class)
-    private fun onChangeKeyword(intent: WorldBookEntryEditUiIntent.ChangeKeyword) =
-        updateForm { copy(keywords = keywords.updateAt(intent.index, intent.value)) }
-
-    /** 删除指定索引处的主关键词。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteKeyword::class)
-    private fun onDeleteKeyword(intent: WorldBookEntryEditUiIntent.DeleteKeyword) =
-        updateForm { copy(keywords = keywords.removeAtOrSelf(intent.index).orSingleBlank()) }
-
-    /** 追加一个空的次关键词（与逻辑/或逻辑触发项）输入项。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.AddSecondaryKeyword::class)
-    private fun onAddSecondaryKeyword() =
-        updateForm { copy(secondaryKeywords = secondaryKeywords + "") }
-
     /** 批量设置次关键词列表。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.SetSecondaryKeywords::class)
     private fun onSetSecondaryKeywords(intent: WorldBookEntryEditUiIntent.SetSecondaryKeywords) =
         updateForm { copy(secondaryKeywords = intent.secondaryKeywords.orSingleBlank()) }
-
-    /** 修改指定索引处的次关键词。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeSecondaryKeyword::class)
-    private fun onChangeSecondaryKeyword(intent: WorldBookEntryEditUiIntent.ChangeSecondaryKeyword) =
-        updateForm { copy(secondaryKeywords = secondaryKeywords.updateAt(intent.index, intent.value)) }
-
-    /** 删除指定索引处的次关键词。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteSecondaryKeyword::class)
-    private fun onDeleteSecondaryKeyword(intent: WorldBookEntryEditUiIntent.DeleteSecondaryKeyword) =
-        updateForm { copy(secondaryKeywords = secondaryKeywords.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     /** 修改是否常驻激活（Constant）。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeConstant::class)
@@ -126,25 +94,10 @@ class WorldBookEntryEditViewModel :
     private fun onChangeDisabled(intent: WorldBookEntryEditUiIntent.ChangeDisabled) =
         updateForm { copy(disabled = intent.value) }
 
-    /** 追加一个空的分类标签。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.AddCategory::class)
-    private fun onAddCategory() =
-        updateForm { copy(category = category + "") }
-
     /** 批量设置分类标签列表。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.SetCategories::class)
     private fun onSetCategories(intent: WorldBookEntryEditUiIntent.SetCategories) =
         updateForm { copy(category = intent.categories.orSingleBlank()) }
-
-    /** 修改指定索引处的分类标签。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeCategory::class)
-    private fun onChangeCategory(intent: WorldBookEntryEditUiIntent.ChangeCategory) =
-        updateForm { copy(category = category.updateAt(intent.index, intent.value)) }
-
-    /** 删除指定索引处的分类标签。 */
-    @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteCategory::class)
-    private fun onDeleteCategory(intent: WorldBookEntryEditUiIntent.DeleteCategory) =
-        updateForm { copy(category = category.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     /** 修改插入排序序号（Order）。 */
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeOrder::class)
@@ -366,6 +319,32 @@ class WorldBookEntryEditViewModel :
     private fun onDismissDialog() {
         val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
         uiState.copy(dialogState = WorldBookEntryEditDialogState.None).setup()
+    }
+
+    /** 开启设定正文全屏专注编辑器。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.OpenPromptEditor::class)
+    private fun onOpenPromptEditor() {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        uiState.copy(dialogState = WorldBookEntryEditDialogState.PromptEditor(uiState.form.content)).setup()
+    }
+
+    /** 更新全屏编辑器内部草稿内容。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangePromptEditorDraft::class)
+    private fun onChangePromptEditorDraft(intent: WorldBookEntryEditUiIntent.ChangePromptEditorDraft) {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is WorldBookEntryEditDialogState.PromptEditor) return
+        uiState.copy(dialogState = WorldBookEntryEditDialogState.PromptEditor(intent.text)).setup()
+    }
+
+    /** 确认全屏编辑器修改并同步回正文表单。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ConfirmPromptEditor::class)
+    private fun onConfirmPromptEditor() {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? WorldBookEntryEditDialogState.PromptEditor ?: return
+        uiState.copy(
+            form = uiState.form.copy(content = dialog.draftText),
+            dialogState = WorldBookEntryEditDialogState.None
+        ).setup()
     }
 
     /** 辅助方法：以不可变方式更新当前条目表单数据。 */

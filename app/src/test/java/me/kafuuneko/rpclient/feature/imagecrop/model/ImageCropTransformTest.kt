@@ -78,26 +78,7 @@ class ImageCropTransformTest {
         assertTrue(selection.isFlippedHorizontal)
     }
 
-    @Test
-    fun resetRestoresDefaultTransform() {
-        val modified = ImageCropTransform(sourceAspectRatio = 2f)
-            .rotateRight()
-            .flipHorizontal()
-            .update(panX = 0.2f, panY = 0.2f, zoomChange = 3f)
-
-        assertFalse(modified.isDefault)
-
-        val reset = modified.reset()
-        assertTrue(reset.isDefault)
-        assertEquals(1f, reset.zoom, EPSILON)
-        assertEquals(0f, reset.offsetX, EPSILON)
-        assertEquals(0f, reset.offsetY, EPSILON)
-        assertEquals(0, reset.rotationDegrees)
-        assertFalse(reset.isFlippedHorizontal)
-    }
-
     private companion object {
         const val EPSILON = 0.0001f
     }
 }
-

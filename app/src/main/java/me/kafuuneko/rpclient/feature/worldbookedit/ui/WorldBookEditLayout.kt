@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -71,6 +70,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -109,14 +109,17 @@ private fun WorldBookEditNormal(
                 TopBarSaveButton(state, emit)
             }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                )
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
+                ),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -192,7 +195,11 @@ private fun BasicPanel(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = stringResource(R.string.entry_count, form.entries.size) + " • " + stringResource(R.string.active_entries_count, activeCount),
+                    text = stringResource(
+                        R.string.world_book_stats_format,
+                        stringResource(R.string.entry_count, form.entries.size),
+                        stringResource(R.string.active_entries_count, activeCount)
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
@@ -283,7 +290,7 @@ private fun EntryHeader(
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
     RpSectionHeader(
-        title = stringResource(R.string.entries) + " ($totalCount)",
+        title = stringResource(R.string.entries_with_count, totalCount),
         action = stringResource(R.string.add),
         onAction = { WorldBookEditUiIntent.AddEntry.emit() }
     )
@@ -356,11 +363,19 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = if (hasEntries) stringResource(R.string.search_entries_placeholder) else stringResource(R.string.no_world_book_entries),
+                    text = if (hasEntries) {
+                        stringResource(R.string.no_matching_entries)
+                    } else {
+                        stringResource(R.string.no_world_book_entries)
+                    },
                     style = MaterialTheme.typography.titleSmall
                 )
                 Text(
-                    text = if (hasEntries) "未找到符合搜索或过滤条件的条目" else stringResource(R.string.no_world_book_entries_desc),
+                    text = if (hasEntries) {
+                        stringResource(R.string.no_matching_entries_desc)
+                    } else {
+                        stringResource(R.string.no_world_book_entries_desc)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )

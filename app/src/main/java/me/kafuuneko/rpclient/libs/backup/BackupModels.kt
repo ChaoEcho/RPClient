@@ -5,7 +5,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 /** RPClient 完整备份格式的稳定常量与显式表契约。 */
 object BackupContract {
     const val FORMAT = "rpclient-backup"
-    const val BACKUP_VERSION = 1
+    const val BACKUP_VERSION = 2
     const val CONTAINER_VERSION = 1
     const val DATABASE_VERSION = AppDatabase.VERSION
     const val KDF_ITERATIONS = 200_000
@@ -40,6 +40,11 @@ object BackupContract {
      *
      * 旧备份里没有这些条目，缺失时按空表处理；若按必需表校验，升级后所有历史备份都会被判为损坏。
      */
+    val v2TableEntries = listOf(
+        "tables/message_images.jsonl",
+        "tables/llm_token_usage_records.jsonl"
+    )
+
     val optionalTableEntries = listOf(
         "tables/image_providers.jsonl"
     )

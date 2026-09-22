@@ -6,6 +6,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
@@ -375,4 +377,28 @@ interface BackupDao {
     /** 清空故事世界书条目关联表。 */
     @Query("DELETE FROM story_lorebook_entries")
     suspend fun deleteAllStoryLorebookEntries()
+
+    @Query("SELECT COUNT(*) FROM message_images")
+    suspend fun countMessageImages(): Long
+
+    @Query("SELECT * FROM message_images ORDER BY messageType, messageId, position LIMIT :limit OFFSET :offset")
+    suspend fun readMessageImages(limit: Int, offset: Int): List<MessageImageEntity>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMessageImages(items: List<MessageImageEntity>)
+
+    @Query("DELETE FROM message_images")
+    suspend fun deleteAllMessageImages()
+
+    @Query("SELECT COUNT(*) FROM llm_token_usage_records")
+    suspend fun countLLMTokenUsageRecords(): Long
+
+    @Query("SELECT * FROM llm_token_usage_records ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun readLLMTokenUsageRecords(limit: Int, offset: Int): List<LLMTokenUsageRecord>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertLLMTokenUsageRecords(items: List<LLMTokenUsageRecord>)
+
+    @Query("DELETE FROM llm_token_usage_records")
+    suspend fun deleteAllLLMTokenUsageRecords()
 }

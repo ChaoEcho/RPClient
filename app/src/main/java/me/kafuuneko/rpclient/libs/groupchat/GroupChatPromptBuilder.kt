@@ -1,39 +1,42 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
+import me.kafuuneko.rpclient.libs.prompt.filterEntries
+import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
+import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
-import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
-import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
-import me.kafuuneko.rpclient.libs.prompt.filterEntries
-import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
-import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
-import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
-import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
+import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
+import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
+import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -52,6 +55,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
  * @property members 群聊全体成员数据列表（包含角色卡与群内关系状态）
  * @property speaker 本轮被选中发言的目标角色实体
  * @property messages 当前群聊历史消息列表
+ * @property totalMessageCount 当前群聊的完整消息总数，用于世界书时序计算
  * @property provider 调用的 LLM 服务提供商配置
  * @property summary 当前群聊会话的已有摘要内容
  * @property candidateLorebookEntries 候选世界书条目全集
@@ -60,6 +64,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
  * @property generationMode 群聊生成模式（普通、续写、重生成、扮演用户）
  * @property regexScripts 生效的 Regex 脚本列表
  * @property regenerationInstruction 本次带指令重生成的一次性要求，不会写入会话历史
+ * @property protectedUserMessageId 仅本批次不可裁剪的触发用户消息，后续无新输入批次为空
  */
 data class GroupChatPromptContext(
     val session: GroupChatSession,
@@ -67,13 +72,17 @@ data class GroupChatPromptContext(
     val speaker: Character,
     val messages: List<GroupChatMessage>,
     val provider: LLMProvider,
+    val totalMessageCount: Int = messages.size,
     val summary: String = "",
     val candidateLorebookEntries: List<LorebookEntry> = emptyList(),
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
     val regexScripts: List<ScopedRegexScript> = emptyList(),
-    val regenerationInstruction: String = ""
+    val regenerationInstruction: String = "",
+    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+    val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
+    val protectedUserMessageId: Long? = null
 )
 
 /** 群聊回复的生成模式。 */
@@ -120,9 +129,10 @@ data class GroupChatPromptBuildResult(
  * - 上下文预算与协议适配：统一交由 [PromptRequestFinalizer] 进行 Token 预算裁剪与格式后处理
  */
 class GroupChatPromptBuilder(
+    private val mPreferences: PromptPreferences,
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
-        me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
+        RegexScriptEngine()
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
@@ -156,15 +166,12 @@ class GroupChatPromptBuilder(
      */
     fun buildWithMetadata(context: GroupChatPromptContext): GroupChatPromptBuildResult {
         val exampleBehavior = mExampleDialogueBehaviorProvider.current()
-        // 计算可用 Prompt Token 预算（总上下文扣除最大响应 Token）
-        val maxPromptTokens = (
-            context.provider.contextTokens - context.provider.maxTokens
-        ).coerceAtLeast(0)
-        // 解析世界书全局 Token 预算上限
+        val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+        // 扣除回复预留，再由统一预算函数归一化并应用世界书上限
         val worldBudget = resolveWorldInfoBudget(
-            promptTokenBudget = maxPromptTokens,
-            contextPercent = readWorldInfoBudgetPercent(),
-            tokenBudgetCap = readWorldInfoBudgetCap()
+            promptTokenBudget = context.provider.contextTokens - context.provider.maxTokens,
+            contextPercent = mPreferences.worldInfoBudgetPercent,
+            tokenBudgetCap = mPreferences.worldInfoBudgetCap
         )
         val regexHits = mutableListOf<RegexExecutionHit>()
         val regexErrors = mutableListOf<RegexExecutionError>()
@@ -196,7 +203,7 @@ class GroupChatPromptBuilder(
             result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
             lorebooks = context.candidateLorebooks,
-            tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+            tokenizer = tokenizer
         )
         val worldInfo = worldSelection.result
         // 构建固定系统消息区段（主提示词、多角色卡合并、用户画像等）
@@ -204,7 +211,7 @@ class GroupChatPromptBuilder(
         // 构建待按深度插入的 In-Chat 注入项
         val inChatPieces = buildInChatPieces(context, worldInfo)
         // 过滤推理块并对群聊历史消息执行 Regex 替换
-        val history = sanitizeHistory(context.messages).mapIndexed { index, message ->
+        val history = sanitizeHistory(context.messages, (context.messageImages.keys + context.unavailableImages.keys)).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
                 GroupChatMessage.Source.User -> mRegexProcessor.applyPrompt(
@@ -235,11 +242,19 @@ class GroupChatPromptBuilder(
         // Prompt Regex 的原消息正文，避免改变用户实际正文的 Regex 处理路径。
         val historyById = history.associateBy { it.id }
         val historyMessages = history.mapIndexed { index, message ->
+            val hasImages = !context.messageImages[message.id].isNullOrEmpty() ||
+                !context.unavailableImages[message.id].isNullOrEmpty()
+            // 只保护明确触发本批次的用户图文，旧批次图片恢复普通历史裁剪规则。
+            val protectsUserImages = hasImages && message.source == GroupChatMessage.Source.User &&
+                message.id == context.protectedUserMessageId
             message.toPromptDraft(
                 userName = context.session.userName,
                 replyTarget = message.replyToMessageId?.let(historyById::get),
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != history.lastIndex
+                canDrop = index != history.lastIndex && !protectsUserImages
+            ).copy(
+                images = context.messageImages[message.id].orEmpty(),
+                unavailableImages = context.unavailableImages[message.id].orEmpty()
             )
         }.toMutableList()
         // 将 In-Chat 片段按深度插入群聊历史
@@ -292,7 +307,8 @@ class GroupChatPromptBuilder(
                 characterName = context.speaker.name,
                 groupNames = context.members.map { it.character.name }
             ),
-            preOmittedItems = worldSelection.omittedItems
+            preOmittedItems = worldSelection.omittedItems,
+            tokenizer = tokenizer
         )
         // 组装调试检查器元数据
         val inspection = finalized.inspection.copy(
@@ -327,7 +343,7 @@ class GroupChatPromptBuilder(
                     WorldBookScanMessage(it.speakerNameSnapshot, it.content)
                 },
                 currentUserMessage = null,
-                totalMessageCount = context.messages.size,
+                totalMessageCount = context.totalMessageCount,
                 worldInfoStateJson = context.session.worldInfoStateJson,
                 candidateLorebookEntries = context.candidateLorebookEntries,
                 candidateLorebooks = context.candidateLorebooks,
@@ -403,7 +419,7 @@ class GroupChatPromptBuilder(
         // 注入用户形象设定（User persona）
         before += requiredSystem(
             renderUserPersonaTemplate(
-                template = readUserPersonaFormat(),
+                template = mPreferences.userPersonaFormat,
                 userName = context.session.userName,
                 userDescription = context.session.userDescription,
                 characterName = context.speaker.name
@@ -413,7 +429,7 @@ class GroupChatPromptBuilder(
         // 注入合并后的成员角色卡
         before += buildCharacterCards(context)
         // 注入辅助提示词
-        readAuxiliaryPrompt().takeIf { it.isNotBlank() }?.let {
+        mPreferences.auxiliaryPrompt.takeIf { it.isNotBlank() }?.let {
             before += optionalSystem(
                 it.resolve(context, memberNames),
                 PromptSource(PromptSourceKind.AuxiliaryPrompt),
@@ -555,7 +571,7 @@ class GroupChatPromptBuilder(
                 .filter { it.isNotBlank() }
                 .flatMap { block ->
                     buildList {
-                        readNewExampleChatPrompt().takeIf { it.isNotBlank() }?.let {
+                        mPreferences.newExampleChatPrompt.takeIf { it.isNotBlank() }?.let {
                             add(
                                 optionalSystem(
                                     it,
@@ -741,14 +757,14 @@ class GroupChatPromptBuilder(
     }
 
     /** 过滤群聊历史消息中的 `<think>...</think>` 推理思考块。 */
-    private fun sanitizeHistory(messages: List<GroupChatMessage>): List<GroupChatMessage> {
+    private fun sanitizeHistory(messages: List<GroupChatMessage>, imageMessageIds: Set<Long>): List<GroupChatMessage> {
         return messages.mapNotNull { message ->
-            val cleaned = if (readIncludeThinkInContext()) {
+            val cleaned = if (mPreferences.includeThinkInContext) {
                 message.content
             } else {
                 message.content.stripThinkBlocks()
             }.trim()
-            if (cleaned.isBlank()) null else message.copy(content = cleaned)
+            if (cleaned.isBlank() && message.id !in imageMessageIds) null else message.copy(content = cleaned)
         }
     }
 
@@ -773,7 +789,7 @@ class GroupChatPromptBuilder(
 
     /** 读取并解析群聊主提示词。 */
     private fun GroupChatPromptContext.mainPrompt(): String {
-        val original = readMainPrompt()
+        val original = mPreferences.mainPrompt
         return session.systemPromptOverride.trim()
             .ifBlank {
                 speaker.systemPrompt.trim().ifBlank { original }
@@ -783,7 +799,7 @@ class GroupChatPromptBuilder(
 
     /** 读取并解析群聊历史后指令。 */
     private fun GroupChatPromptContext.postHistoryInstructions(): String {
-        val original = readPostHistoryInstructions()
+        val original = mPreferences.postHistoryInstructions
         return speaker.postHistoryInstructions.trim()
             .ifBlank { original }
             .resolve(this, memberNames(), original)
@@ -792,13 +808,13 @@ class GroupChatPromptBuilder(
     /** 读取群聊任务引导词（Group Nudge）。 */
     private fun GroupChatPromptContext.groupNudgePrompt(): String {
         return session.groupNudgePromptOverride.trim()
-            .ifBlank { readGroupNudgePrompt() }
+            .ifBlank { mPreferences.groupNudgePrompt }
     }
 
     /** 读取新群聊标记提示词。 */
     private fun GroupChatPromptContext.newGroupChatPrompt(): String {
         return session.newGroupChatPromptOverride.trim()
-            .ifBlank { readNewGroupChatPrompt() }
+            .ifBlank { mPreferences.newGroupChatPrompt }
     }
 
     /** 将群聊消息实体转换为带发言者前缀的 Prompt 草稿。 */
@@ -827,7 +843,7 @@ class GroupChatPromptBuilder(
         return PromptMessageDraft(
             role = role,
             content = "$speaker$replyContext: $content",
-            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
+            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id", id),
             retentionPriority = retentionPriority,
             canDrop = canDrop
         )
@@ -863,12 +879,12 @@ class GroupChatPromptBuilder(
 
     /** 格式化世界书条目内容。 */
     private fun formatWorldInfo(content: String): String {
-        return readWorldInfoFormat().replace("{0}", content)
+        return mPreferences.worldInfoFormat.replace("{0}", content)
     }
 
     /** 格式化性格描述文本。 */
     private fun formatPersonality(content: String): String {
-        return readPersonalityFormat().let { template ->
+        return mPreferences.personalityFormat.let { template ->
             if (template.contains("{{personality}}")) {
                 template.replace("{{personality}}", content)
             } else {
@@ -879,7 +895,7 @@ class GroupChatPromptBuilder(
 
     /** 格式化场景描述文本。 */
     private fun formatScenario(content: String): String {
-        return readScenarioFormat().let { template ->
+        return mPreferences.scenarioFormat.let { template ->
             if (template.contains("{{scenario}}")) {
                 template.replace("{{scenario}}", content)
             } else {
@@ -887,77 +903,6 @@ class GroupChatPromptBuilder(
             }
         }
     }
-
-    /** 读取全局主提示词。 */
-    private fun readMainPrompt(): String =
-        runCatching { AppModel.mainPrompt }.getOrDefault(AppModel.DEFAULT_MAIN_PROMPT)
-
-    /** 读取历史后指令。 */
-    private fun readPostHistoryInstructions(): String =
-        runCatching { AppModel.postHistoryInstructions }.getOrDefault("")
-
-    /** 读取辅助提示词。 */
-    private fun readAuxiliaryPrompt(): String =
-        runCatching { AppModel.auxiliaryPrompt }
-            .getOrDefault(AppModel.DEFAULT_AUXILIARY_PROMPT)
-
-    /** 读取扮演用户提示词。 */
-    private fun readImpersonationPrompt(): String =
-        runCatching { AppModel.impersonationPrompt }
-            .getOrDefault(AppModel.DEFAULT_IMPERSONATION_PROMPT)
-
-    /** 读取续写引导提示词。 */
-    private fun readContinueNudgePrompt(): String =
-        runCatching { AppModel.continueNudgePrompt }
-            .getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
-
-    /** 读取示例对话分隔标记提示词。 */
-    private fun readNewExampleChatPrompt(): String =
-        runCatching { AppModel.newExampleChatPrompt }
-            .getOrDefault(AppModel.DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
-
-    /** 读取群聊任务引导提示词（Group Nudge）。 */
-    private fun readGroupNudgePrompt(): String =
-        runCatching { AppModel.groupNudgePrompt }
-            .getOrDefault(AppModel.DEFAULT_GROUP_NUDGE_PROMPT)
-
-    /** 读取新群聊标记提示词。 */
-    private fun readNewGroupChatPrompt(): String =
-        runCatching { AppModel.newGroupChatPrompt }
-            .getOrDefault(AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT)
-
-    /** 读取世界书包装模板。 */
-    private fun readWorldInfoFormat(): String =
-        runCatching { AppModel.worldInfoFormat }
-            .getOrDefault(AppModel.DEFAULT_WORLD_INFO_FORMAT)
-
-    /** 读取性格包装模板。 */
-    private fun readPersonalityFormat(): String =
-        runCatching { AppModel.personalityFormat }
-            .getOrDefault(AppModel.DEFAULT_PERSONALITY_FORMAT)
-
-    /** 读取场景包装模板。 */
-    private fun readScenarioFormat(): String =
-        runCatching { AppModel.scenarioFormat }
-            .getOrDefault(AppModel.DEFAULT_SCENARIO_FORMAT)
-
-    /** 读取统一用户人设包装模板。 */
-    private fun readUserPersonaFormat(): String =
-        runCatching { AppModel.userPersonaFormat }
-            .getOrDefault(AppModel.DEFAULT_USER_PERSONA_FORMAT)
-
-    /** 读取世界书预算百分比。 */
-    private fun readWorldInfoBudgetPercent(): Int =
-        runCatching { AppModel.worldInfoBudgetPercent }.getOrDefault(25)
-
-    /** 读取世界书绝对 Token 预算上限。 */
-    private fun readWorldInfoBudgetCap(): Int =
-        runCatching { AppModel.worldInfoBudgetCap }
-            .getOrDefault(0)
-
-    /** 读取是否在上下文中保留推理思考块。 */
-    private fun readIncludeThinkInContext(): Boolean =
-        runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
 
     /** 读取 Prompt 后处理模式。 */
     private fun readPostProcessingMode(provider: LLMProvider): PromptPostProcessingMode {
@@ -967,30 +912,26 @@ class GroupChatPromptBuilder(
     /** 读取摘要注入位置。 */
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
         return SummaryInjectionPosition.fromPersistedValue(
-            runCatching { AppModel.summaryInjectionPosition }
-                .getOrDefault(SummaryInjectionPosition.default.persistedValue)
+            mPreferences.summaryInjectionPosition
         )
     }
 
     /** 读取摘要注入深度。 */
     private fun readSummaryInjectionDepth(): Int {
-        return runCatching { AppModel.summaryInjectionDepth }
-            .getOrDefault(2)
-            .coerceAtLeast(0)
+        return mPreferences.summaryInjectionDepth.coerceAtLeast(0)
     }
 
     /** 读取摘要注入角色。 */
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
         return SummaryInjectionRole.fromPersistedValue(
-            runCatching { AppModel.summaryInjectionRole }.getOrDefault(0)
+            mPreferences.summaryInjectionRole
         )
     }
 
     /** 构建群聊摘要消息草稿。 */
     private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         if (context.summary.isBlank()) return null
-        val template = runCatching { AppModel.summaryInjectionTemplate }
-            .getOrDefault(AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+        val template = mPreferences.summaryInjectionTemplate
         val content = if (template.contains("{{summary}}", ignoreCase = true)) {
             template.replace("{{summary}}", context.summary, ignoreCase = true)
         } else {
@@ -1025,8 +966,8 @@ class GroupChatPromptBuilder(
         val content = when (context.generationMode) {
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
-            GroupChatGenerationMode.Continue -> readContinueNudgePrompt()
-            GroupChatGenerationMode.Impersonate -> readImpersonationPrompt()
+            GroupChatGenerationMode.Continue -> mPreferences.continueNudgePrompt
+            GroupChatGenerationMode.Impersonate -> mPreferences.impersonationPrompt
         }.resolve(context, context.memberNames())
         val sourceKind = when (context.generationMode) {
             GroupChatGenerationMode.Continue -> PromptSourceKind.ContinueNudge
@@ -1114,15 +1055,21 @@ class GroupChatPromptBuilder(
 
     /** 包含历史前与历史后固定系统消息的分区容器。 */
     private data class PromptSections(
+        /** 插入聊天历史之前的 Prompt 内容列表。 */
         val beforeHistory: List<PromptMessageDraft>,
+        /** 插入聊天历史之后的 Prompt 内容列表。 */
         val afterHistory: List<PromptMessageDraft>
     )
 
     /** 包含深度排序元数据的历史内部注入片段。 */
     private data class InChatPiece(
+        /** 需要展示或传递的消息内容。 */
         val message: PromptMessageDraft,
+        /** 当前内容相对聊天末尾的插入或扫描深度。 */
         val depth: Int,
+        /** 当前对象在同类数据中的排序值。 */
         val order: Int,
+        /** 业务优先级相同时用于保持稳定顺序的次级排序值。 */
         val tieBreaker: Long
     )
 

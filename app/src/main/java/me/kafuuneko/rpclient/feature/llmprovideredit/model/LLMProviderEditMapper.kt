@@ -23,8 +23,12 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     contextTokens = contextTokens.toString(),
     maxConcurrentRequests = maxConcurrentRequests.toString(),
     tokenEstimateReservePercent = tokenEstimateReservePercent,
+    localTokenEstimatorType = localTokenEstimatorType,
     sendTemperature = sendTemperature,
     sendTopP = sendTopP,
+    useServerReportedUsage = useServerReportedUsage,
     promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode),
+    imageInputSetting = imageInputSetting,
+    imageTokenEstimatorType = imageTokenEstimatorType,
     isEnabled = isEnabled
 )

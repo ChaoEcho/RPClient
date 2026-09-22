@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
@@ -17,6 +18,8 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -27,6 +30,17 @@ import org.koin.core.component.inject
 class ChatActivity : CoreActivityWithEvent(), KoinComponent {
     private val mFileRepository by inject<FileRepository>()
     private val mViewModel by viewModels<ChatViewModel>()
+    private val mImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(4)
+    ) { uris ->
+        mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.Picked(uris)))
+    }
+    private val mImageSaver = registerForActivityResult(
+        CreateImageDocumentContract()
+    ) { uri ->
+        uri?.let { mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) }
+    }
+
 
     /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
     private val mChatExporterLauncher = registerForActivityResult(
@@ -66,13 +80,27 @@ class ChatActivity : CoreActivityWithEvent(), KoinComponent {
         mViewModel.emit(ChatUiIntent.Resume)
     }
 
+    /**
+     * 分发图片选择、保存及其他页面宿主事件。
+     *
+     * @param viewEvent ViewModel 已准备好参数的一次性系统操作。
+     */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        // 图片保存使用本次原图的格式元数据，其他导出沿用各自的文档合约。
         when (viewEvent) {
+            ChatViewEvent.PickImages -> mImagePicker.launch(
+                PickVisualMediaRequest(
+                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+
+            is ChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
             is ChatViewEvent.CopyText -> copyText(viewEvent.text)
             is ChatViewEvent.OpenSession -> openSession(viewEvent.sessionId)
             is ChatViewEvent.OpenChatExporter -> {
                 mChatExporterLauncher.launch(viewEvent.fileName)
             }
+
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }

@@ -15,6 +15,8 @@ import me.kafuuneko.rpclient.BuildConfig
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
@@ -283,6 +285,8 @@ class BackupRepository(
         "tables/chat_messages.jsonl" to mBackupDao.countChatMessages(),
         "tables/llm_providers.jsonl" to mBackupDao.countLLMProviders(),
         "tables/image_providers.jsonl" to mBackupDao.countImageProviders(),
+        "tables/message_images.jsonl" to mBackupDao.countMessageImages(),
+        "tables/llm_token_usage_records.jsonl" to mBackupDao.countLLMTokenUsageRecords(),
         "tables/files.jsonl" to mBackupDao.countFiles(),
         "tables/group_chat_sessions.jsonl" to mBackupDao.countGroupChatSessions(),
         "tables/group_chat_members.jsonl" to mBackupDao.countGroupChatMembers(),
@@ -323,6 +327,8 @@ class BackupRepository(
         writeTable(zip, "tables/chat_messages.jsonl", mBackupDao::readChatMessages)
         writeTable(zip, "tables/llm_providers.jsonl", mBackupDao::readLLMProviders)
         writeTable(zip, "tables/image_providers.jsonl", mBackupDao::readImageProviders)
+        writeTable(zip, "tables/message_images.jsonl", mBackupDao::readMessageImages)
+        writeTable(zip, "tables/llm_token_usage_records.jsonl", mBackupDao::readLLMTokenUsageRecords)
         writeTable(zip, "tables/files.jsonl", mBackupDao::readFiles)
         writeTable(zip, "tables/group_chat_sessions.jsonl", mBackupDao::readGroupChatSessions)
         writeTable(zip, "tables/group_chat_members.jsonl", mBackupDao::readGroupChatMembers)
@@ -367,6 +373,8 @@ class BackupRepository(
     }
 
     private suspend fun deleteBusinessTables() {
+        mBackupDao.deleteAllMessageImages()
+        mBackupDao.deleteAllLLMTokenUsageRecords()
         mBackupDao.deleteAllStoryLorebookEntries()
         mBackupDao.deleteAllStoryCharacters()
         mBackupDao.deleteAllStoryChapters()
@@ -409,6 +417,11 @@ class BackupRepository(
         restoreTable(backup, "tables/group_chat_members.jsonl", GroupChatMember::class.java, mBackupDao::insertGroupChatMembers)
         restoreTable(backup, "tables/group_chat_messages.jsonl", GroupChatMessage::class.java, mBackupDao::insertGroupChatMessages)
         restoreTable(backup, "tables/group_chat_summaries.jsonl", GroupChatSummary::class.java, mBackupDao::insertGroupChatSummaries)
+        restoreTable(backup, "tables/message_images.jsonl", MessageImageEntity::class.java, mBackupDao::insertMessageImages)
+        restoreTable(backup, "tables/llm_token_usage_records.jsonl", LLMTokenUsageRecord::class.java, mBackupDao::insertLLMTokenUsageRecords)
+        if (backup.manifest.backupVersion == 1) {
+            me.kafuuneko.rpclient.libs.room.migration.migrateLegacyGeneratedImages(mDatabase.openHelper.writableDatabase)
+        }
         restoreTable(backup, "tables/regex_scripts.jsonl", RegexScriptEntity::class.java, mBackupDao::insertRegexScripts)
         restoreTable(
             backup,

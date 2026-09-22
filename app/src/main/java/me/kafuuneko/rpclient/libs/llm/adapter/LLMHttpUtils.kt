@@ -3,9 +3,16 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import java.io.File
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
@@ -15,6 +22,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.llm.model.mergeContentBlocks
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.Call
 import okhttp3.Callback
@@ -25,16 +34,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
 /** 已序列化的协议请求，用于同时发起网络调用和记录原始请求日志。 */
 internal data class LLMHttpRequest(
     val request: Request,
-    val payloadJson: String
+    val payloadJson: String,
+    val temporaryFile: File? = null
 )
 
 /**
@@ -50,16 +57,20 @@ internal suspend fun OkHttpClient.await(request: Request): String {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    val body = it.body?.string().orEmpty()
-                    if (!it.isSuccessful) {
-                        continuation.resumeWithException(
-                            LLMHttpStatusException(it.code, body.ifBlank { it.message })
-                        )
-                        return
+                // 读取响应期间的断流或取消也必须恢复挂起调用，不能逸出 OkHttp 回调线程。
+                val result = runCatching {
+                    response.use {
+                        val body = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) {
+                            throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(body.ifBlank { it.message }))
+                        }
+                        body
                     }
-                    continuation.resume(body)
                 }
+                if (!continuation.isCancelled) result.fold(
+                    onSuccess = { continuation.resume(it) },
+                    onFailure = { continuation.resumeWithException(it) }
+                )
             }
         })
     }
@@ -72,18 +83,27 @@ internal fun OkHttpClient.streamLines(
     request: Request,
     onConnected: suspend () -> Unit = {}
 ): Flow<String> = flow {
-    val response = withContext(Dispatchers.IO) { newCall(request).execute() }
-    response.use {
-        val body = it.body ?: throw LLMEmptyResponseException()
-        if (!it.isSuccessful) {
-            val errorBody = withContext(Dispatchers.IO) { body.string() }
-            throw LLMHttpStatusException(it.code, errorBody.ifBlank { it.message })
+    coroutineScope {
+        val call = newCall(request)
+        // 停止生成必须取消正在等待头部或 SSE 下一行的网络调用，随后才能释放请求临时文件。
+        val cancellation = launch {
+            try { awaitCancellation() } finally { call.cancel() }
         }
-        onConnected()
-        while (true) {
-            val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
-            emit(line)
-        }
+        try {
+            val response = withContext(Dispatchers.IO) { call.execute() }
+            response.use {
+                val body = it.body ?: throw LLMEmptyResponseException()
+                if (!it.isSuccessful) {
+                    val errorBody = withContext(Dispatchers.IO) { body.string() }
+                    throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(errorBody.ifBlank { it.message }))
+                }
+                onConnected()
+                while (true) {
+                    val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
+                    emit(line)
+                }
+            }
+        } finally { cancellation.cancel() }
     }
 }
 
@@ -148,8 +168,8 @@ internal fun JsonObject.arrayOrNull(name: String): JsonArray? {
 /** 将缺失、JSON null 或伪 null 字符串统一读取为空文本。 */
 internal fun JsonObject.cleanString(name: String): String {
     val element = get(name) ?: return ""
-    if (element.isJsonNull || !element.isJsonPrimitive) return ""
-    return cleanContentString(runCatching { element.asString }.getOrDefault(""))
+    if (!element.isJsonPrimitive) return ""
+    return cleanContentString(element.asString)
 }
 
 /** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
@@ -161,25 +181,64 @@ internal fun cleanContentString(value: String): String {
 internal fun JsonObject.booleanOrFalse(name: String): Boolean {
     val element = get(name) ?: return false
     if (!element.isJsonPrimitive) return false
-    return runCatching { element.asBoolean }.getOrDefault(false)
+    return element.asBoolean
+}
+
+/** 安全读取可能缺失或类型异常的整数字段。 */
+internal fun JsonObject.intOrNull(name: String): Int? {
+    val element = get(name) ?: return null
+    if (!element.isJsonPrimitive) return null
+    return runCatching { element.asInt }.getOrNull()
+}
+
+/** 合并同一流不同响应块上报的用量，较新的非空字段优先。 */
+internal fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
+    if (this == null) return newer
+    if (newer == null) return this
+    return LLMUsage(
+        promptTokens = newer.promptTokens ?: promptTokens,
+        completionTokens = newer.completionTokens ?: completionTokens,
+        totalTokens = newer.totalTokens ?: totalTokens,
+        cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
+        reasoningTokens = newer.reasoningTokens ?: reasoningTokens
+    )
 }
 
 /** 协议解析器输出的正文、推理或完成片段。 */
 internal sealed class LLMProviderStreamPart {
     data class Text(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String
     ) : LLMProviderStreamPart()
 
     data class Reasoning(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String,
+        /** 当前 Prompt 来源或推理文本的细分类型。 */
         val kind: LLMReasoningKind = LLMReasoningKind.Detailed
     ) : LLMProviderStreamPart()
 
     data class Finished(
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String? = null,
+        /** 模型服务给出的生成停止原因。 */
         val finishReason: String? = null,
+        /** 当前配置或请求使用的模型名称。 */
+        val model: String? = null,
+        /** 模型服务上报或本地估算的 Token 用量。 */
+        val usage: LLMUsage? = null,
+        /** true 表示协议已到达不可再追加用量的最终结束标记。 */
+        val terminal: Boolean = true
+    ) : LLMProviderStreamPart()
+
+    data class Usage(
+        /** 模型服务上报或本地估算的 Token 用量。 */
+        val usage: LLMUsage,
+        /** 当前配置或请求使用的模型名称。 */
         val model: String? = null
     ) : LLMProviderStreamPart()
 }
@@ -196,28 +255,30 @@ internal class LLMStreamPartMapper(
     private val captureReasoning: Boolean
 ) {
     private var mIsThinking = false
+    private var mUsage: LLMUsage? = null
+    private var mFinishReason: String? = null
+    private var mModel: String? = null
+    private var mRawChunk: String? = null
+    private var mHasFinished = false
 
     /** 将单个协议片段转换为一个或多个通用流事件。 */
     fun map(part: LLMProviderStreamPart): List<LLMStreamEvent> {
         return when (part) {
             is LLMProviderStreamPart.Text -> mapText(part)
             is LLMProviderStreamPart.Reasoning -> mapReasoning(part)
-            is LLMProviderStreamPart.Finished -> buildList {
-                closeReasoning()?.let(::add)
-                add(
-                    LLMStreamEvent.Finished(
-                        rawChunk = part.rawChunk,
-                        finishReason = part.finishReason,
-                        model = part.model
-                    )
-                )
+            is LLMProviderStreamPart.Finished -> mapFinished(part)
+            is LLMProviderStreamPart.Usage -> {
+                mUsage = mUsage.mergeWith(part.usage)
+                mModel = part.model ?: mModel
+                emptyList()
             }
         }
     }
 
-    /** 在响应流未发送完成块时关闭兼容思考标签。 */
-    fun finish(): LLMStreamEvent.Delta? {
-        return closeReasoning()
+    /** 在响应流正常关闭时补齐思考标签和统一完成事件。 */
+    fun finish(): List<LLMStreamEvent> {
+        if (mHasFinished) return listOfNotNull(closeReasoning())
+        return finishEvents()
     }
 
     private fun mapText(
@@ -237,6 +298,7 @@ internal class LLMStreamPartMapper(
         part: LLMProviderStreamPart.Reasoning
     ): List<LLMStreamEvent> {
         if (part.content.isBlank()) return emptyList()
+        // 聊天兼容模式将推理并入正文，结构化捕获模式则保持独立事件
         if (includeReasoningInContent) {
             val content = if (mIsThinking) part.content else "<think>\n${part.content}"
             mIsThinking = true
@@ -255,6 +317,28 @@ internal class LLMStreamPartMapper(
                 kind = part.kind
             )
         )
+    }
+
+    private fun mapFinished(part: LLMProviderStreamPart.Finished): List<LLMStreamEvent> {
+        mUsage = mUsage.mergeWith(part.usage)
+        mFinishReason = part.finishReason ?: mFinishReason
+        mModel = part.model ?: mModel
+        mRawChunk = part.rawChunk ?: mRawChunk
+        if (!part.terminal || mHasFinished) return emptyList()
+        return finishEvents()
+    }
+
+    private fun finishEvents(): List<LLMStreamEvent> = buildList {
+        closeReasoning()?.let(::add)
+        add(
+            LLMStreamEvent.Finished(
+                rawChunk = mRawChunk,
+                finishReason = mFinishReason,
+                model = mModel,
+                usage = mUsage
+            )
+        )
+        mHasFinished = true
     }
 
     private fun closeReasoning(): LLMStreamEvent.Delta? {
@@ -336,7 +420,8 @@ internal fun List<LLMMessage>.toAlternatingConversationMessages(
             merged[merged.lastIndex] = previous.copy(
                 content = listOf(previous.content, message.content)
                     .filter { it.isNotBlank() }
-                    .joinToString("\n\n")
+                    .joinToString("\n\n"),
+                blocks = if (previous.images.isNotEmpty() || message.images.isNotEmpty()) mergeContentBlocks(previous.contentBlocks + message.contentBlocks) else emptyList()
             )
         } else {
             merged += message

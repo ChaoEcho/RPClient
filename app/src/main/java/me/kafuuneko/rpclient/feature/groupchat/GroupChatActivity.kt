@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,12 +17,21 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<GroupChatViewModel>()
+    private val mImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(4)
+    ) { uris -> mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Picked(uris))) }
+    private val mImageSaver = registerForActivityResult(
+        CreateImageDocumentContract()
+    ) { uri -> uri?.let { mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) } }
+
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -50,8 +61,16 @@ class GroupChatActivity : CoreActivityWithEvent() {
         mViewModel.emit(GroupChatUiIntent.Resume)
     }
 
+    /**
+     * 分发图片选择、保存及其他页面宿主事件。
+     *
+     * @param viewEvent ViewModel 已准备好参数的一次性系统操作。
+     */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            GroupChatViewEvent.PickImages -> mImagePicker.launch(PickVisualMediaRequest(
+                ActivityResultContracts.PickVisualMedia.ImageOnly))
+            is GroupChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
             is GroupChatViewEvent.CopyText -> copyText(viewEvent.text)
             else -> super.onReceivedViewEvent(viewEvent)
         }

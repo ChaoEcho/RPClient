@@ -1,13 +1,19 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 
 /** 模型配置编辑页的字段变更、连接测试和保存意图。 */
 sealed class LLMProviderEditUiIntent {
     data class Init(val providerId: Long?) : LLMProviderEditUiIntent()
+
+    data class SelectImageTokenEstimator(val value: ImageTokenEstimatorType) : LLMProviderEditUiIntent()
+    data class ChangeImageInput(val value: ImageInputSetting) : LLMProviderEditUiIntent()
 
     data object Back : LLMProviderEditUiIntent()
 
@@ -69,9 +75,15 @@ sealed class LLMProviderEditUiIntent {
 
     data class ChangeTokenEstimateReservePercent(val value: Int) : LLMProviderEditUiIntent()
 
+    data class SelectLocalTokenEstimator(
+        val value: LocalTokenEstimatorType
+    ) : LLMProviderEditUiIntent()
+
     data class ToggleSendTemperature(val value: Boolean) : LLMProviderEditUiIntent()
 
     data class ToggleSendTopP(val value: Boolean) : LLMProviderEditUiIntent()
+
+    data class ToggleUseServerReportedUsage(val value: Boolean) : LLMProviderEditUiIntent()
 
     data class SelectPostProcessingMode(
         val value: PromptPostProcessingMode

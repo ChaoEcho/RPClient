@@ -1,19 +1,28 @@
 package me.kafuuneko.rpclient.libs.prompt
 
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.yield
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
+import me.kafuuneko.rpclient.libs.prompt.model.requireAvailable
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
+
+/** 摘要消息首次读取窗口，后续仅在完整窗口仍符合预算时按倍数扩展。 */
+internal const val INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE = 128
+
+/** 无模型配置时沿用的摘要上下文 Token 上限。 */
+internal const val DEFAULT_SUMMARY_CONTEXT_TOKENS = 8192
 
 /** 单聊总结请求与其实际覆盖消息使用同一次预算选择结果。 */
 data class SummaryPromptBuildResult(
@@ -37,22 +46,21 @@ class SummaryPromptBuilder(
      * - 从最早消息开始贪婪选择不超过 Prompt 预算的最大消息前缀；
      * - 组装并渲染包含总结指令模板与格式化历史的请求对象。
      */
-    suspend fun buildWithSelection(
+    fun buildWithSelection(
         userName: String,
         userDescription: String,
         character: Character,
         session: ChatSession,
         existingSummary: String,
         messages: List<ChatMessage>,
-        provider: LLMProvider?
+        provider: LLMProvider?,
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
-        val maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS
+        val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
         val responseTokens = AppModel.summaryResponseTokens
-        val promptBudget = maxContextTokens - responseTokens
-        require(promptBudget > 0) {
-            "Summary response token reserve must be smaller than the context token limit."
-        }
+        val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         // 获取候选摘要消息（排除最后一条正在变动的消息并限制最大单次处理条数）
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
@@ -60,43 +68,28 @@ class SummaryPromptBuilder(
         val sanitized = limited.map { message ->
             message.copy(content = message.content.summarySafeContent())
         }
-        val baseTokenEstimate = tokenizer.countMessages(
-            renderRequestMessages(
-                userName = userName,
-                userDescription = userDescription,
-                character = character,
-                session = session,
-                existingSummary = safeExistingSummary,
-                messages = emptyList(),
-                provider = provider
-            )
-        )
-        // 逐条 Token 估算只用于定位预算边界；最终连续前缀仍由完整请求精确校验。
+        // 使用有界 Token 统计定位符合预算的最长连续前缀
         val selected = selectSummaryPrefix(
             items = limited,
-            promptBudget = promptBudget,
-            baseTokenEstimate = baseTokenEstimate,
-            estimateItemTokens = { message ->
-                val safeMessage = message.copy(content = message.content.summarySafeContent())
-                tokenizer.countText(
-                    "\n" + mHistoryBuilder.build(listOf(safeMessage), userName, character.name)
-                ).coerceAtLeast(1)
-            },
-            countPrefixTokens = { prefixSize ->
-                tokenizer.countMessages(
-                    renderRequestMessages(
-                        userName = userName,
-                        userDescription = userDescription,
-                        character = character,
-                        session = session,
-                        existingSummary = safeExistingSummary,
-                        messages = sanitized.subList(0, prefixSize),
-                        provider = provider
-                    )
-                )
-            }
-        )
-        // 若存在候选消息但连单条都超出预算则抛出异常。
+            promptBudget = promptBudget
+        ) { prefix ->
+            countSummaryTokens(tokenizer,
+                renderRequestMessages(
+                    userName = userName,
+                    userDescription = userDescription,
+                    character = character,
+                    session = session,
+                    existingSummary = safeExistingSummary,
+                    messages = sanitized.subList(0, prefix.size),
+                    provider = provider,
+                    messageImages = messageImages,
+                    unavailableImages = unavailableImages
+                ),
+                promptBudget,
+                prefix.sumOf { unavailableImages[it.id].orEmpty().size }
+            )
+        }
+        // 若存在候选消息但连单条都超出预算则抛出异常
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
                 renderRequestMessages(
@@ -105,13 +98,16 @@ class SummaryPromptBuilder(
                     character,
                     session,
                     safeExistingSummary,
-                    sanitized.subList(0, 1),
-                    provider
+                    listOf(sanitized.first()),
+                    provider, messageImages, unavailableImages
                 )
             )
-            throw PromptBudgetExceededException(required, promptBudget)
+            throw PromptBudgetExceededException(
+                (required.toLong() + tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
+                promptBudget
+            )
         }
-        val sanitizedSelected = sanitized.subList(0, selected.size)
+        val sanitizedSelected = sanitized.take(selected.size)
         // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
@@ -121,7 +117,7 @@ class SummaryPromptBuilder(
                 session,
                 safeExistingSummary,
                 sanitizedSelected,
-                provider
+                provider, messageImages, unavailableImages
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
@@ -131,6 +127,7 @@ class SummaryPromptBuilder(
             ),
             isPromptFinalized = true
         )
+        selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return SummaryPromptBuildResult(request, selected)
     }
 
@@ -142,7 +139,9 @@ class SummaryPromptBuilder(
         session: ChatSession,
         existingSummary: String,
         messages: List<ChatMessage>,
-        provider: LLMProvider?
+        provider: LLMProvider?,
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
     ): List<LLMMessage> {
         val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
@@ -155,7 +154,7 @@ class SummaryPromptBuilder(
             currentUserMessage = null,
             candidateLorebookEntries = emptyList(),
             provider = provider,
-            maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
+            maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS,
             maxResponseTokens = AppModel.summaryResponseTokens
         )
         val instruction = mMacroResolver.resolve(
@@ -175,13 +174,17 @@ class SummaryPromptBuilder(
             "",
             ignoreCase = true
         )
-        return buildRawSummaryMessages(instruction, existingSummary, history)
+        val historyBlocks = messages.flatMap { message ->
+            listOf(LLMContentBlock.Text("${if (message.source == ChatMessage.Source.User) userName else character.name}:")) +
+                messageImages[message.id].orEmpty().map { LLMContentBlock.Image(it) } +
+                LLMContentBlock.Text(message.content)
+        }
+        return buildRawSummaryMessages(instruction, existingSummary, history,
+            historyBlocks.takeIf { messages.any { message ->
+                !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
+            } })
     }
 
-    private companion object {
-        /** 默认上下文 Token 上限。 */
-        const val DEFAULT_CONTEXT_TOKENS = 8192
-    }
 }
 
 /**
@@ -190,15 +193,21 @@ class SummaryPromptBuilder(
  * 最后一条消息固定排除，再按用户配置保留连续前缀。
  */
 internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
-    val withoutLast = dropLast(1)
-    return if (maxMessages > 0) withoutLast.take(maxMessages) else withoutLast
+    if (size <= 1) return emptyList()
+    val candidateCount = if (maxMessages > 0) {
+        minOf(size - 1, maxMessages)
+    } else {
+        size - 1
+    }
+    return subList(0, candidateCount).toList()
 }
 
 /** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */
 internal fun buildRawSummaryMessages(
     instruction: String,
     existingSummary: String,
-    history: String
+    history: String,
+    historyBlocks: List<LLMContentBlock>? = null
 ): List<LLMMessage> {
     val rawPrompt = buildList {
         existingSummary.takeIf { it.isNotBlank() }?.let {
@@ -209,98 +218,105 @@ internal fun buildRawSummaryMessages(
         }
     }.joinToString("\n\n")
     return listOf(
-        LLMMessage(LLMMessageRole.System, instruction.trim()),
-        LLMMessage(LLMMessageRole.User, rawPrompt)
-    ).filter { it.content.isNotBlank() }
+        LLMMessage(LLMMessageRole.System, instruction.trim() + if (historyBlocks != null) "\nRecord relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details." else ""),
+        if (historyBlocks == null) LLMMessage(LLMMessageRole.User, rawPrompt)
+        else messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Text("Existing summary:\n$existingSummary\nChat history:")) + historyBlocks)
+    ).filter { it.content.isNotBlank() || it.images.isNotEmpty() }
 }
 
 /**
- * 先用逐条 Token 估算定位预算边界，再对少量完整请求做精确校验。
+ * 用完整前缀请求的 Token 数选择连续消息，第一条超预算时也不会被强行纳入。
  *
- * 逐条计数不能代替最终校验，因为 BPE 可能跨文本边界合并 Token。返回值始终是从第一条
- * 开始的连续前缀；遍历和精确校验之间包含协作取消检查，避免长摘要准备任务拖延取消。
+ * 摘要历史追加非空发言者行后 Token 数单调不减，因此先按指数窗口定位预算边界，再在
+ * 最后一段执行二分查找。返回结果仍是旧实现遇到首个超预算前缀之前的连续消息。
  */
-internal suspend fun <T> selectSummaryPrefix(
+internal fun <T> selectSummaryPrefix(
     items: List<T>,
     promptBudget: Int,
-    baseTokenEstimate: Int,
-    estimateItemTokens: (T) -> Int,
-    countPrefixTokens: (prefixSize: Int) -> Int
+    countPrefixTokens: (List<T>) -> Int
 ): List<T> {
     if (items.isEmpty()) return emptyList()
-
-    val cumulativeEstimates = LongArray(items.size + 1)
-    items.forEachIndexed { index, item ->
-        if (index % CANCELLATION_CHECK_INTERVAL == 0) {
-            currentCoroutineContext().ensureActive()
-            if (index > 0) yield()
-        }
-        cumulativeEstimates[index + 1] = cumulativeEstimates[index] +
-            estimateItemTokens(item).coerceAtLeast(1)
+    var acceptedSize = 0
+    var probeSize = 1
+    // 指数扩展只探测少量前缀，避免直接格式化远超预算的大窗口
+    while (true) {
+        if (countPrefixTokens(items.subList(0, probeSize)) > promptBudget) break
+        acceptedSize = probeSize
+        if (acceptedSize == items.size) return items.toList()
+        probeSize = minOf(items.size, probeSize.saturatedDouble())
     }
-
-    fun estimatedTotal(prefixSize: Int): Long {
-        return baseTokenEstimate.toLong() + cumulativeEstimates[prefixSize]
-    }
-
-    fun estimatedPrefixForBudget(adjustment: Long): Int {
-        val target = promptBudget.toLong() - baseTokenEstimate - adjustment
-        if (target < 0L) return 0
-        var low = 0
-        var high = items.size + 1
-        while (low + 1 < high) {
-            val middle = (low + high) ushr 1
-            if (cumulativeEstimates[middle] <= target) low = middle else high = middle
-        }
-        return low
-    }
-
-    var knownFit = 0
-    var knownOver = items.size + 1
-    var candidate = estimatedPrefixForBudget(adjustment = 0L).coerceAtLeast(1)
-    var attempts = 0
-
-    while (knownFit + 1 < knownOver && attempts < MAX_EXACT_REFINEMENT_ATTEMPTS) {
-        candidate = candidate.coerceIn(knownFit + 1, knownOver - 1)
-        currentCoroutineContext().ensureActive()
-        val exactTokens = countPrefixTokens(candidate)
-        currentCoroutineContext().ensureActive()
-        attempts += 1
-
-        val adjustment = exactTokens.toLong() - estimatedTotal(candidate)
-        if (exactTokens <= promptBudget) {
-            knownFit = candidate
-            if (knownFit == items.size) break
-            val predicted = estimatedPrefixForBudget(adjustment)
-            candidate = if (predicted > knownFit) predicted else knownFit + 1
+    // 在最后一个可接受前缀与首个超限探测点之间精确定位边界
+    var rejectedSize = probeSize
+    while (acceptedSize + 1 < rejectedSize) {
+        val middleSize = acceptedSize + (rejectedSize - acceptedSize) / 2
+        if (countPrefixTokens(items.subList(0, middleSize)) <= promptBudget) {
+            acceptedSize = middleSize
         } else {
-            knownOver = candidate
-            val predicted = estimatedPrefixForBudget(adjustment)
-            candidate = if (predicted in (knownFit + 1) until knownOver) {
-                predicted
-            } else {
-                (knownFit + knownOver) ushr 1
-            }
+            rejectedSize = middleSize
         }
     }
-
-    // 极端估算误差下用二分精确收敛；常规路径通常只需 1～3 次完整请求计数。
-    while (knownFit + 1 < knownOver) {
-        currentCoroutineContext().ensureActive()
-        val middle = (knownFit + knownOver) ushr 1
-        if (countPrefixTokens(middle) <= promptBudget) {
-            knownFit = middle
-        } else {
-            knownOver = middle
-        }
-    }
-    return items.take(knownFit)
+    return items.take(acceptedSize)
 }
 
-private const val CANCELLATION_CHECK_INTERVAL = 64
-private const val MAX_EXACT_REFINEMENT_ATTEMPTS = 6
+/** 计算摘要输入预算，并统一校验回复预留不能耗尽上下文。 */
+internal fun summaryPromptBudget(maxContextTokens: Int, responseTokens: Int): Int {
+    val promptBudget = maxContextTokens - responseTokens
+    require(promptBudget > 0) {
+        "Summary response token reserve must be smaller than the context token limit."
+    }
+    return promptBudget
+}
+
+/**
+ * 计算数据库最多需要提供的摘要候选消息数。
+ *
+ * 每条格式化历史都包含非空发言者前缀，至少消耗一个 Token，因此超过输入预算数量的
+ * 消息不可能被选中；显式摘要条数设置仍优先形成更小上限。
+ */
+internal fun summaryCandidateMessageLimit(
+    maxContextTokens: Int,
+    responseTokens: Int,
+    configuredMaxMessages: Int
+): Int {
+    val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
+    return if (configuredMaxMessages > 0) {
+        minOf(configuredMaxMessages, promptBudget)
+    } else {
+        promptBudget
+    }
+}
+
+/** 在不超过最终上限的前提下扩展下一轮摘要候选窗口。 */
+internal fun nextSummaryCandidateWindowSize(currentSize: Int, maximumSize: Int): Int {
+    require(currentSize > 0) { "currentSize must be positive" }
+    require(maximumSize >= currentSize) { "maximumSize must not be smaller than currentSize" }
+    return minOf(maximumSize, currentSize.saturatedDouble())
+}
+
+/** 避免窗口倍增时发生整数溢出。 */
+private fun Int.saturatedDouble(): Int {
+    return if (this > Int.MAX_VALUE / 2) Int.MAX_VALUE else this * 2
+}
 
 /** 总结路径始终排除 reasoning，不受普通聊天上下文展示设置影响。 */
 internal fun String.summarySafeContent(): String {
     return stripThinkBlocks()
+}
+
+/** 摘要前缀同时受图片数量、发送字节与视觉 Token 限制，保持连续前缀的单调成本。 */
+internal fun countSummaryTokens(
+    tokenizer: PromptTokenizer,
+    messages: List<LLMMessage>,
+    budget: Int,
+    unavailableCount: Int = 0
+): Int {
+    val images = messages.flatMap { it.images }
+    val imageCount = images.size + unavailableCount
+    val bytes = estimateImageRequestBytes(messages, unavailableCount)
+    if (imageCount > MessageImagePolicy.MAX_IMAGES_PER_REQUEST ||
+        (imageCount > 0 && bytes > MessageImagePolicy.MAX_REQUEST_BYTES)) return (budget.toLong() + 1).toTokenInt()
+    val unavailableTokens = tokenizer.countUnavailableImages(unavailableCount)
+    if (unavailableTokens > budget) return (budget.toLong() + 1).toTokenInt()
+    return (tokenizer.countMessagesUpTo(messages, budget - unavailableTokens.toInt()).toLong() +
+        unavailableTokens).toTokenInt()
 }

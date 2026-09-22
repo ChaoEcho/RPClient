@@ -13,6 +13,7 @@ sealed class LLMProviderListUiIntent {
     data class EditProvider(val providerId: String) : LLMProviderListUiIntent()
 
     data class SelectCurrentProvider(val providerId: Long) : LLMProviderListUiIntent()
+    data class CloneProvider(val providerId: String) : LLMProviderListUiIntent()
 
     data class ToggleProviderEnabled(
         val providerId: String,

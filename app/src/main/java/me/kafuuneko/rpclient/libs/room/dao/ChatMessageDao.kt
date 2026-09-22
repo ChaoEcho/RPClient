@@ -12,6 +12,14 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
  */
 @Dao
 interface ChatMessageDao : MutableDao<ChatMessage> {
+    /** 清理附件时只读取父消息 ID，避免将整个会话正文加载到内存。 */
+    @Query("SELECT id FROM chat_messages WHERE sessionId = :sessionId AND id >= :fromId")
+    suspend fun getMessageIdsBySessionId(sessionId: Long, fromId: Long = 0): List<Long>
+
+    /** 批量读取指定消息，调用方按批次控制参数数量并恢复所需顺序。 */
+    @Query("SELECT * FROM chat_messages WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<ChatMessage>
+
     /**
      * 获取指定会话下的全部消息。
      *
@@ -20,6 +28,49 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      */
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' ORDER BY createTime ASC, id ASC")
     suspend fun getMessagesBySessionId(sessionId: Long): List<ChatMessage>
+
+    /**
+     * 从会话末尾开始读取一页普通消息。
+     *
+     * 查询保持倒序以利用索引快速定位最新记录，Repository 会在返回业务层前恢复为正序。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId AND source != 'Summary'
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagePageBySessionId(
+        sessionId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /**
+     * 读取稳定游标之前的一页普通消息。
+     *
+     * 创建时间相同时使用消息 ID 继续排序，避免跨页重复或遗漏导入的同时间消息。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND (
+              createTime < :beforeCreateTime
+              OR (createTime = :beforeCreateTime AND id < :beforeMessageId)
+          )
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessagePageBeforeBySessionId(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
 
     /**
      * 按稳定的创建时间与主键顺序分页读取普通消息。
@@ -94,6 +145,77 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getMessagesAfterId(sessionId: Long, coveredMessageId: Long): List<ChatMessage>
 
+    /** 统计总结边界之后尚未覆盖的普通消息数量。 */
+    @Query(
+        """
+        SELECT COUNT(*) FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        """
+    )
+    suspend fun getMessageCountAfterId(sessionId: Long, coveredMessageId: Long): Int
+
+    /** 读取总结边界之后按稳定顺序排列的最后一条普通消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessageAfterId(
+        sessionId: Long,
+        coveredMessageId: Long
+    ): ChatMessage?
+
+    /**
+     * 读取总结边界之后、最新消息之前的最早候选窗口。
+     *
+     * 最新消息由 Repository 单独附加，确保 Builder 继续按旧规则将其排除。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+          AND (
+              createTime < :latestCreateTime
+              OR (createTime = :latestCreateTime AND id < :latestMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstMessagesBeforeLatestAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        latestCreateTime: Long,
+        latestMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /** 从会话末尾读取总结边界之后的有限普通消息窗口。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
     /**
      * 获取两个消息边界之间的普通消息。
      *
@@ -116,6 +238,68 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         afterMessageId: Long,
         throughMessageId: Long
+    ): List<ChatMessage>
+
+    /** 读取指定摘要范围按稳定顺序排列的最后一条普通消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessageInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long
+    ): ChatMessage?
+
+    /** 读取指定摘要范围内、最后一条消息之前的最早候选窗口。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+          AND (
+              createTime < :latestCreateTime
+              OR (createTime = :latestCreateTime AND id < :latestMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstMessagesBeforeLatestInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        latestCreateTime: Long,
+        latestMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /** 从范围末尾读取有限普通消息窗口，供重生成回退总结边界时使用。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        limit: Int
     ): List<ChatMessage>
 
     /**
@@ -233,6 +417,33 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      */
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' ORDER BY createTime DESC, id DESC LIMIT 1")
     suspend fun getLatestMessageBySessionId(sessionId: Long): ChatMessage?
+
+    /** 获取指定会话最后一条角色消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId AND source = 'Char'
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestCharacterMessageBySessionId(sessionId: Long): ChatMessage?
+
+    /**
+     * 判断指定会话的完整历史中是否存在角色消息。
+     *
+     * @param sessionId 会话 ID。
+     * @return 存在至少一条角色消息时返回 true。
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM chat_messages
+            WHERE sessionId = :sessionId AND source = 'Char'
+        )
+        """
+    )
+    suspend fun hasCharacterMessageBySessionId(sessionId: Long): Boolean
 
     /**
      * 修改消息正文。

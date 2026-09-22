@@ -29,13 +29,13 @@ internal fun JsonObject.positiveIntOrNull(name: String): Int? {
 
 /** 仅在字段确实为数组时返回值，避免 Gson 的类型访问异常向上泄露。 */
 internal fun JsonObject.arrayOrNull(name: String): JsonArray? {
-    val element = get(name)?.takeUnless { it.isJsonNull } ?: return null
+    val element = get(name) ?: return null
     return element.takeIf { it.isJsonArray }?.asJsonArray
 }
 
 /** 仅在字段确实为对象时返回值，用于读取可选的模型服务扩展结构。 */
 internal fun JsonObject.objectOrNull(name: String): JsonObject? {
-    val element = get(name)?.takeUnless { it.isJsonNull } ?: return null
+    val element = get(name) ?: return null
     return element.takeIf { it.isJsonObject }?.asJsonObject
 }
 

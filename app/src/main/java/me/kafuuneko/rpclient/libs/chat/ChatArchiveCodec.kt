@@ -5,6 +5,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
+import com.google.gson.Strictness
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
 import java.io.Reader
 import java.io.StringWriter
 import java.io.Writer
@@ -13,6 +16,7 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.CancellationException
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 
@@ -27,10 +31,11 @@ class ChatArchiveCodec(
 ) {
     /** 将小型单聊归档编码为可被 SillyTavern 导入的 JSONL 字符串。 */
     fun encode(archive: ChatArchive): String {
+        val writtenHashes = mutableSetOf<String>()
         return StringWriter().also { writer ->
             encodeHeader(archive, writer)
             archive.messages.forEach { message ->
-                encodeMessage(archive, message, writer)
+                encodeMessage(archive, message, writer, writtenHashes)
             }
         }.toString()
     }
@@ -49,9 +54,29 @@ class ChatArchiveCodec(
     internal fun encodeMessage(
         archive: ChatArchive,
         message: ChatArchiveMessage,
-        writer: Writer
+        writer: Writer,
+        writtenHashes: MutableSet<String> = mutableSetOf()
     ) {
-        writeJsonLine(buildMessage(archive, message), writer)
+        writeJsonLine(buildMessage(archive, message, writtenHashes), writer)
+    }
+
+    /** 分段写出含图消息；图片字节由仓库在文件读取保护范围内编码。 */
+    internal suspend fun encodeMessageWithImages(
+        archive: ChatArchive,
+        message: ChatArchiveMessage,
+        writer: Writer,
+        writeImages: suspend () -> Unit
+    ) {
+        val json = buildMessage(archive, message.copy(images = emptyList()))
+        val extra = json.remove(KEY_EXTRA).asJsonObject
+        // 保留旁白等原有 extra 字段，仅将图片数组交给文件仓库分段写入。
+        writer.write(json.toString().dropLast(1))
+        writer.write(",\"extra\":")
+        writer.write(extra.toString().dropLast(1))
+        if (extra.size() > 0) writer.write(",")
+        writer.write("\"rpclient\":{\"schema_version\":2,\"images\":[")
+        writeImages()
+        writer.write("]}}}\n")
     }
 
     private fun writeJsonLine(json: JsonObject, writer: Writer) {
@@ -79,13 +104,24 @@ class ChatArchiveCodec(
         )
     }
 
+    /** 从字符流解析；图片回调可立即释放当前 Base64，返回不含大载荷的暂存描述。 */
     fun decode(
         reader: Reader,
         fallbackTitle: String,
         fallbackTime: Long = System.currentTimeMillis(),
-        fallbackUserName: String = DefaultNames.USER
+        fallbackUserName: String = DefaultNames.USER,
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage = { it }
     ): ChatArchive {
-        val parsed = parseLines(reader, fallbackTime)
+        // 对外保持归档格式错误类型稳定；协程取消必须继续交给资源所有者处理。
+        val parsed = try {
+            parseLines(reader, fallbackTime, transformImage)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: IllegalArgumentException) {
+            throw error
+        } catch (error: Exception) {
+            throw IllegalArgumentException("Invalid chat archive JSON", error)
+        }
         val header = parsed.header
         require(header.isChatHeader()) { "Chat archive header is missing" }
         val metadata = header.objectOrNull(KEY_CHAT_METADATA)
@@ -187,7 +223,8 @@ class ChatArchiveCodec(
 
     private fun buildMessage(
         archive: ChatArchive,
-        message: ChatArchiveMessage
+        message: ChatArchiveMessage,
+        writtenHashes: MutableSet<String> = mutableSetOf()
     ): JsonObject {
         val isUser = message.role == ChatArchiveMessageRole.User
         val isNarrator = message.role == ChatArchiveMessageRole.Narrator
@@ -209,29 +246,35 @@ class ChatArchiveCodec(
                 KEY_EXTRA,
                 JsonObject().apply {
                     if (isNarrator) addProperty(KEY_TYPE, NARRATOR_TYPE)
+                    if (message.images.isNotEmpty()) add(KEY_RPCLIENT, ChatArchiveImageCodec.encode(message.images, writtenHashes))
                 }
             )
         }
     }
 
-    private fun parseLines(reader: Reader, fallbackTime: Long): ParsedArchiveLines {
+    private fun parseLines(
+        reader: Reader,
+        fallbackTime: Long,
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage
+    ): ParsedArchiveLines {
         var header: JsonObject? = null
         val messages = mutableListOf<DecodedMessage>()
         var messageObjectCount = 0
-        reader.buffered().lineSequence().forEachIndexed { index, sourceLine ->
-            val line = if (index == 0) sourceLine.removePrefix(BYTE_ORDER_MARK) else sourceLine
-            if (line.isBlank()) return@forEachIndexed
-
+        val resolver = ChatArchiveImageCodec.Resolver(transformImage)
+        // Gson 按对象消费字符流，避免 readLine 先复制整条含图消息。
+        val input = JsonReader(reader.buffered()).apply { strictness = Strictness.LENIENT }
+        while (input.peek() != JsonToken.END_DOCUMENT) {
             if (header == null) {
-                header = parseLine(line, index)
-                return@forEachIndexed
+                header = JsonParser.parseReader(input).asJsonObject
+                continue
             }
-
-            require(messageObjectCount < MAX_MESSAGE_COUNT) {
-                "Chat archive has too many messages"
+            require(messageObjectCount < MAX_MESSAGE_COUNT) { "Chat archive has too many messages" }
+            val (json, images) = readMessage(input, resolver::resolve)
+            decodeMessage(json, fallbackTime + messageObjectCount)?.let { decoded ->
+                messages.add(decoded.copy(message = decoded.message.copy(
+                    images = images ?: decoded.message.images.map(resolver::resolve)
+                )))
             }
-            val json = parseLine(line, index)
-            decodeMessage(json, fallbackTime + messageObjectCount)?.let(messages::add)
             messageObjectCount += 1
         }
         return ParsedArchiveLines(
@@ -240,15 +283,36 @@ class ChatArchiveCodec(
         )
     }
 
-    private fun parseLine(line: String, index: Int): JsonObject {
-        return try {
-            JsonParser.parseString(line).asJsonObject
-        } catch (error: Exception) {
-            throw IllegalArgumentException(
-                "Invalid chat archive JSON at line ${index + 1}",
-                error
-            )
+    /** 流式提取自有扩展图片，其他酒馆消息字段仍交给原有解码逻辑。 */
+    private fun readMessage(
+        reader: JsonReader,
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage
+    ): Pair<JsonObject, List<ChatArchiveImage>?> {
+        var images: List<ChatArchiveImage>? = null
+        // 仅遍历已知两层扩展；任意正文和未知扩展不被当作图片协议解释。
+        fun readObject(isExtra: Boolean): JsonObject {
+            val result = JsonObject()
+            reader.beginObject()
+            // 不接受重复键，避免后一个扩展覆盖已经暂存的图片及其归属。
+            while (reader.hasNext()) {
+                val name = reader.nextName()
+                require(!result.has(name)) { "Duplicate archive message field" }
+                val objectValue = reader.peek() == JsonToken.BEGIN_OBJECT
+                val value = when {
+                    !isExtra && name == KEY_EXTRA && objectValue -> readObject(true)
+                    isExtra && name == KEY_RPCLIENT && objectValue -> {
+                        val extension = ChatArchiveImageCodec.readExtension(reader, transformImage)
+                        images = extension.second
+                        extension.first
+                    }
+                    else -> JsonParser.parseReader(reader)
+                }
+                result.add(name, value)
+            }
+            reader.endObject()
+            return result
         }
+        return readObject(false) to images
     }
 
     private fun decodeMessage(json: JsonObject, fallbackTime: Long): DecodedMessage? {
@@ -264,7 +328,8 @@ class ChatArchiveCodec(
             message = ChatArchiveMessage(
                 createTime = json.elementOrNull(KEY_SEND_DATE).toTimestampOrNull() ?: fallbackTime,
                 role = role,
-                content = content
+                content = content,
+                images = ChatArchiveImageCodec.decode(json.objectOrNull(KEY_EXTRA))
             ),
             speakerName = json.stringOrNull(KEY_NAME).orEmpty()
         )
@@ -334,9 +399,7 @@ class ChatArchiveCodec(
     }
 
     private fun JsonObject.stringOrNull(key: String): String? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asString }.getOrNull()
-        }
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.asString
     }
 
     private fun JsonObject.stringValueOrNull(key: String): String? {
@@ -358,9 +421,7 @@ class ChatArchiveCodec(
     }
 
     private fun JsonObject.booleanOrNull(key: String): Boolean? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asBoolean }.getOrNull()
-        }
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.asBoolean
     }
 
     private fun JsonElement?.toTimestampOrNull(): Long? {
@@ -368,7 +429,7 @@ class ChatArchiveCodec(
         if (primitive.isNumber) {
             return primitive.asLong.normalizeEpoch()
         }
-        val value = runCatching { primitive.asString.trim() }.getOrNull() ?: return null
+        val value = primitive.asString.trim()
         value.toLongOrNull()?.let { return it.normalizeEpoch() }
         runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()?.let { return it }
         runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
@@ -424,7 +485,6 @@ class ChatArchiveCodec(
         const val SCHEMA_VERSION = 1
         const val MAX_MESSAGE_COUNT = 100_000
         const val SECONDS_EPOCH_THRESHOLD = 100_000_000_000L
-        const val BYTE_ORDER_MARK = "\uFEFF"
         const val UNUSED_NAME = "unused"
         const val NARRATOR_NAME = "Narrator"
         const val NARRATOR_TYPE = "narrator"

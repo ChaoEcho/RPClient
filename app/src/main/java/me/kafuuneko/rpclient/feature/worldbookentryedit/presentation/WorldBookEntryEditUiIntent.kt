@@ -12,33 +12,15 @@ sealed class WorldBookEntryEditUiIntent {
 
     data class ChangeName(val value: String) : WorldBookEntryEditUiIntent()
 
-    data object AddKeyword : WorldBookEntryEditUiIntent()
-
     data class SetKeywords(val keywords: List<String>) : WorldBookEntryEditUiIntent()
 
-    data class ChangeKeyword(val index: Int, val value: String) : WorldBookEntryEditUiIntent()
-
-    data class DeleteKeyword(val index: Int) : WorldBookEntryEditUiIntent()
-
-    data object AddSecondaryKeyword : WorldBookEntryEditUiIntent()
-
     data class SetSecondaryKeywords(val secondaryKeywords: List<String>) : WorldBookEntryEditUiIntent()
-
-    data class ChangeSecondaryKeyword(val index: Int, val value: String) : WorldBookEntryEditUiIntent()
-
-    data class DeleteSecondaryKeyword(val index: Int) : WorldBookEntryEditUiIntent()
 
     data class ChangeConstant(val value: Boolean) : WorldBookEntryEditUiIntent()
 
     data class ChangeDisabled(val value: Boolean) : WorldBookEntryEditUiIntent()
 
-    data object AddCategory : WorldBookEntryEditUiIntent()
-
     data class SetCategories(val categories: List<String>) : WorldBookEntryEditUiIntent()
-
-    data class ChangeCategory(val index: Int, val value: String) : WorldBookEntryEditUiIntent()
-
-    data class DeleteCategory(val index: Int) : WorldBookEntryEditUiIntent()
 
     data class ChangeOrder(val value: String) : WorldBookEntryEditUiIntent()
 
@@ -95,6 +77,12 @@ sealed class WorldBookEntryEditUiIntent {
     data class ChangeExtensionsJson(val value: String) : WorldBookEntryEditUiIntent()
 
     data class ChangeContent(val value: String) : WorldBookEntryEditUiIntent()
+
+    data object OpenPromptEditor : WorldBookEntryEditUiIntent()
+
+    data class ChangePromptEditorDraft(val text: String) : WorldBookEntryEditUiIntent()
+
+    data object ConfirmPromptEditor : WorldBookEntryEditUiIntent()
 
     data object SaveEntry : WorldBookEntryEditUiIntent()
 

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.animateContentSize
@@ -64,6 +63,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 
 /** LLM 请求日志列表与清理确认对话框的 Compose 入口。 */
 @Composable
@@ -119,14 +119,18 @@ private fun NormalView(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 18.dp,
+                end = 18.dp,
+                bottom = 32.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {

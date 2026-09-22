@@ -38,8 +38,8 @@ android {
         applicationId = "me.kafuuneko.rpclient"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20260203
-        versionName = "2026.2.3"
+        versionCode = 20260302
+        versionName = "2026.3.1-fork.1"
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTimestamp()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -62,7 +62,8 @@ android {
             versionNameSuffix = "-dev"
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -102,6 +103,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.adaptive)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.kotlin.reflect)
     testImplementation(libs.junit)

@@ -2,10 +2,12 @@ package me.kafuuneko.rpclient.feature.main
 
 
 import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
@@ -26,17 +28,24 @@ import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
+import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
+import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
@@ -56,13 +65,14 @@ import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
 import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
-import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
+import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
-import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
+import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
+import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
@@ -72,22 +82,25 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
+import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
-import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
@@ -120,22 +133,47 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mStoryRepository by inject<StoryRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mGenerationCoordinator by inject<ChatGenerationCoordinator>()
+    private val mChatArchiveRepository by inject<ChatArchiveRepository>()
+    private val mAppThemeManager by inject<AppThemeManager>()
     private val mContext by inject<Context>()
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
+    private var mPendingChatImport: ChatArchive? = null
+    private var mDirectoryPickArchive: ChatArchive? = null
+    private var mChatImageSources: Map<String, Uri> = emptyMap()
+
+    /** 页面销毁时清理只属于本次导入的文件，不保存跨进程草稿。 */
+    override fun onCleared() {
+        super.onCleared()
+        val archive = mPendingChatImport ?: return
+        CoroutineScope(Dispatchers.IO).launch { mChatArchiveRepository.releaseImport(archive) }
+    }
+
+    /** 清除导入所有权和目录选择归属，资源清理独立于页面生命周期完成。 */
+    private fun releasePendingChatImport() {
+        val archive = mPendingChatImport
+        mPendingChatImport = null
+        mDirectoryPickArchive = null
+        mChatImageSources = emptyMap()
+        if (archive != null) CoroutineScope(Dispatchers.IO).launch { mChatArchiveRepository.releaseImport(archive) }
+    }
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
     /** 首页观察 Application 级单聊生成状态的任务。 */
     private var mGenerationObserverJob: Job? = null
 
     /** 初始化主页与设置页全量状态。 */
     @UiIntentObserver(MainUiIntent.Init::class)
-    private suspend fun onInit() {
+    private suspend fun onInit(intent: MainUiIntent.Init) {
         if (!isStateOf<MainUiState.None>()) return
         val allProviders = mLLMRepository.getAllProviders()
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
+            selectedPage = when (intent.route) {
+                Route.Main -> MainPage.Home
+                Route.Setting -> MainPage.Settings
+            },
             homeState = buildHomeState().withGenerationSnapshot(mGenerationCoordinator.snapshotBySession.value),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
@@ -376,11 +414,230 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
+        if (importDialog?.isImporting == true || importDialog?.isResolvingImages == true) return
         val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
         if (deleteDialog?.isDeleting == true) return
         val renameDialog = uiState.dialogState as? MainDialogState.RenameItem
         if (renameDialog?.isSaving == true) return
+        if (importDialog != null) {
+            releasePendingChatImport()
+        }
         uiState.copy(dialogState = MainDialogState.None).setup()
+    }
+
+    /** 触发系统文件选择器以导入聊天存档文件。 */
+    @UiIntentObserver(MainUiIntent.ImportChatClick::class)
+    private fun onImportChatClick() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (!uiState.canOpenDialog() || mChatImportJob?.isActive == true) return
+        MainViewEvent.OpenChatImporter.tryEmit()
+    }
+
+    /** 读取并解析导入的聊天存档 JSON 文件，匹配候选角色并弹出角色绑定弹窗。 */
+    @UiIntentObserver(MainUiIntent.ImportChatResult::class)
+    private fun onImportChatResult(intent: MainUiIntent.ImportChatResult) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (!uiState.canOpenDialog() || mChatImportJob?.isActive == true) return
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                chatDataManagementState = MainChatDataManagementState.Reading
+            )
+        ).setup()
+        mChatImportJob = viewModelScope.launchDataTask {
+            try {
+                // 在 IO 线程解析聊天存档并检索全量候选角色
+                val archive = mChatArchiveRepository.readImportFromUri(
+                    uri = intent.uri,
+                    fallbackUserName = AppModel.resolvedUserName
+                )
+                releasePendingChatImport()
+                mPendingChatImport = archive
+                // 先接管暂存所有权，再执行可取消的角色查询，避免页面销毁时遗留图片。
+                val characters = mCharacterRepository.getAllCharacters()
+                val current = getOrNull<MainUiState.Normal>() ?: run {
+                    releasePendingChatImport()
+                    return@launch
+                }
+                val items = characters.map { it.toImportCharacterItem() }
+                // 推荐最佳匹配角色并展示角色绑定选择弹窗
+                current.copy(
+                    settingsState = current.settingsState.copy(
+                        chatDataManagementState = MainChatDataManagementState.Idle
+                    ),
+                    dialogState = MainDialogState.ImportChatCharacterSelection(
+                        title = archive.title,
+                        sourceCharacterName = archive.characterNameHint,
+                        messageCount = archive.messages.size,
+                        externalImageCount = archive.messages.sumOf { message ->
+                            message.images.count { it.sourceUrl != null && it.resourceKey == null }
+                        },
+                        query = "",
+                        characters = items,
+                        visibleCharacters = items,
+                        selectedCharacterId = ChatCharacterMatcher.suggestCharacterId(
+                            archive,
+                            characters
+                        )
+                    )
+                ).setup()
+            } catch (cancellation: CancellationException) {
+                releasePendingChatImport()
+                throw cancellation
+            } catch (_: Exception) {
+                releasePendingChatImport()
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                getOrNull<MainUiState.Normal>()?.let { current ->
+                    current.copy(
+                        settingsState = current.settingsState.copy(
+                            chatDataManagementState = MainChatDataManagementState.Idle
+                        )
+                    ).setup()
+                }
+            } finally {
+                mChatImportJob = null
+            }
+        }
+    }
+
+    /** 为当前导入草稿打开系统目录选择器，并记录单次归属。 */
+    @UiIntentObserver(MainUiIntent.ChooseChatImageDirectory::class)
+    private fun onChooseChatImageDirectory() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
+        mDirectoryPickArchive = mPendingChatImport ?: return
+        MainViewEvent.OpenChatImageDirectory.tryEmit()
+    }
+
+    /** 在后台解析用户授权目录；迟到回调不能用于另一份导入草稿。 */
+    @UiIntentObserver(MainUiIntent.ChatImageDirectoryResult::class)
+    private fun onChatImageDirectoryResult(intent: MainUiIntent.ChatImageDirectoryResult) {
+        // 先消费本次选择器归属，取消及迟到结果不能污染其他归档。
+        val archive = mDirectoryPickArchive
+        mDirectoryPickArchive = null
+        val uri = intent.uri ?: return
+        if (archive == null || archive !== mPendingChatImport) return
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || mChatImportJob?.isActive == true) return
+        state.copy(dialogState = dialog.copy(isResolvingImages = true)).setup()
+        mChatImportJob = viewModelScope.launchDataTask {
+            try {
+                val sources = mChatArchiveRepository.resolveImageDirectory(archive, uri)
+                // 扫描期间页面状态可能变化，回写前再次确认同一份草稿。
+                if (archive !== mPendingChatImport) return@launch
+                mChatImageSources = sources
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val currentDialog = current.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return@launch
+                current.copy(dialogState = currentDialog.copy(resolvedImageCount = archive.messages.sumOf { message ->
+                    message.images.count { it.sourceUrl in sources }
+                })).setup()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.chat_import_image_directory_failed).tryEmit()
+            } finally {
+                mChatImportJob = null
+                val current = getOrNull<MainUiState.Normal>()
+                val currentDialog = current?.dialogState as? MainDialogState.ImportChatCharacterSelection
+                if (archive === mPendingChatImport && current != null && currentDialog != null) {
+                    current.copy(dialogState = currentDialog.copy(isResolvingImages = false)).setup()
+                }
+            }
+        }
+    }
+
+    /** 过滤导入角色绑定弹窗中的候选角色列表。 */
+    @UiIntentObserver(MainUiIntent.ChangeImportCharacterQuery::class)
+    private fun onChangeImportCharacterQuery(
+        intent: MainUiIntent.ChangeImportCharacterQuery
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting) return
+        val query = intent.value.trim()
+        val visible = if (query.isBlank()) {
+            dialog.characters
+        } else {
+            dialog.characters.filter { item ->
+                item.name.contains(query, ignoreCase = true) ||
+                    item.details.contains(query, ignoreCase = true)
+            }
+        }
+        uiState.copy(
+            dialogState = dialog.copy(
+                query = intent.value,
+                visibleCharacters = visible
+            )
+        ).setup()
+    }
+
+    /** 选择导入聊天记录所归属的目标角色。 */
+    @UiIntentObserver(MainUiIntent.SelectImportCharacter::class)
+    private fun onSelectImportCharacter(intent: MainUiIntent.SelectImportCharacter) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
+        uiState.copy(
+            dialogState = dialog.copy(selectedCharacterId = intent.characterId)
+        ).setup()
+    }
+
+    /** 确认将暂存的聊天存档与选定角色绑定并原子事务落库，导入成功后立即进入聊天页。 */
+    @UiIntentObserver(MainUiIntent.ConfirmImportChat::class)
+    private fun onConfirmImportChat() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        val characterId = dialog.selectedCharacterId ?: return
+        val archive = mPendingChatImport ?: return
+        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
+        uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
+        mChatImportJob = viewModelScope.launchDataTask {
+            try {
+                // 在 IO 线程事务保存会话与全量导入消息
+                val result = mChatArchiveRepository.saveImport(archive, characterId, mChatImageSources)
+                val sessionId = result.sessionId
+                releasePendingChatImport()
+                val homeState = buildHomeState()
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                // 更新首页会话列表并关闭导入弹窗
+                current.copy(
+                    homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
+                    dialogState = if (
+                        current.dialogState is MainDialogState.ImportChatCharacterSelection
+                    ) {
+                        MainDialogState.None
+                    } else {
+                        current.dialogState
+                    }
+                ).setup()
+                if (result.skippedImages > 0) AppViewEvent.PopupToastMessage(
+                    mContext.getString(R.string.chat_archive_images_skipped, result.skippedImages)
+                ).tryEmit()
+                else AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
+                // 导航进入新导入的会话页
+                AppViewEvent.StartActivity(
+                    activity = ChatActivity::class.java,
+                    extras = Bundle().apply {
+                        putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
+                    }
+                ).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.import_chat_failed).tryEmit()
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val currentDialog = current.dialogState
+                    as? MainDialogState.ImportChatCharacterSelection
+                    ?: return@launch
+                current.copy(
+                    dialogState = currentDialog.copy(isImporting = false)
+                ).setup()
+            } finally {
+                mChatImportJob = null
+            }
+        }
     }
 
     /** 切换主页底部导航标签页（首页 / 设置）。 */
@@ -388,6 +645,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onSelectPage(intent: MainUiIntent.SelectPage) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         uiState.copy(selectedPage = intent.page).setup()
+    }
+
+    /** 选择应用配色主题并同步更新全局主题与设置页状态。 */
+    @UiIntentObserver(MainUiIntent.SelectThemeMode::class)
+    private fun onSelectThemeMode(intent: MainUiIntent.SelectThemeMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        mAppThemeManager.setThemeMode(intent.themeMode)
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                appearanceState = uiState.settingsState.appearanceState.copy(
+                    themeMode = intent.themeMode
+                )
+            )
+        ).setup()
     }
 
     /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
@@ -591,6 +862,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(DeveloperSettingsActivity::class.java).tryEmit()
     }
 
+    /** 打开成功 LLM 请求的 Token 消耗统计页。 */
+    @UiIntentObserver(MainUiIntent.OpenTokenUsage::class)
+    private fun onOpenTokenUsage() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(TokenUsageActivity::class.java).tryEmit()
+    }
+
     /** 打开关于软件页面。 */
     @UiIntentObserver(MainUiIntent.OpenAbout::class)
     private fun onOpenAbout() {
@@ -681,6 +959,371 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换全局默认使用的 LLM 供应商。 */
+    @UiIntentObserver(MainUiIntent.SelectProvider::class)
+    private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
+        if (!isStateOf<MainUiState.Normal>()) return
+        // 更新数据库中的当前首选供应商
+        mLLMRepository.updateCurrentProvider(intent.providerId)
+        val providers = mLLMRepository.getEnabledProviders()
+        val selectedProvider = providers.firstOrNull { it.id == intent.providerId } ?: return
+        val current = getOrNull<MainUiState.Normal>() ?: return
+        val promptBehaviorState = current.settingsState.promptBehaviorState
+        // 刷新模型供应商面板及后处理能力状态
+        current.copy(
+            selectedPage = MainPage.Settings,
+            settingsState = current.settingsState.copy(
+                providerState = buildProviderSettingsState(providers, selectedProvider),
+                promptBehaviorState = promptBehaviorState.copy(
+                    providerPostProcessingState = MainProviderPostProcessingState.Available(
+                        selectedProvider.postProcessingMode()
+                    )
+                )
+            )
+        ).setup()
+    }
+
+    /** 切换是否启用长对话自动总结功能。 */
+    @UiIntentObserver(MainUiIntent.ToggleAutoSummaryEnabled::class)
+    private fun onToggleAutoSummaryEnabled(intent: MainUiIntent.ToggleAutoSummaryEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.autoSummaryEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    autoSummaryEnabled = intent.enabled
+                )
+            )
+        ).setup()
+    }
+
+    /** 选择用于执行会话总结的专用 LLM 供应商（ID 为 0 时继承当前主供应商）。 */
+    @UiIntentObserver(MainUiIntent.SelectSummaryProvider::class)
+    private fun onSelectSummaryProvider(intent: MainUiIntent.SelectSummaryProvider) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val summaryState = uiState.settingsState.summaryState
+        if (intent.providerId != 0L && summaryState.providers.none { it.id == intent.providerId }) {
+            return
+        }
+        AppModel.summaryLLMProvider = intent.providerId
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = summaryState.copy(
+                    selectedProviderId = intent.providerId,
+                    providers = summaryState.providers.filter {
+                        it.isEnabled || it.id == intent.providerId
+                    }
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改自动总结的触发消息轮数阈值。 */
+    @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
+    private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
+        updateSettingsInt(intent.value, minimum = 1) {
+            AppModel.summaryTriggerMessageCount = it
+            copy(
+                summaryState = summaryState.copy(triggerMessageCount = it)
+            )
+        }
+    }
+
+    /** 修改总结生成的目标字数限制。 */
+    @UiIntentObserver(MainUiIntent.ChangeSummaryWordsLimit::class)
+    private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
+        updateSettingsInt(intent.value, minimum = 50) {
+            AppModel.summaryWordsLimit = it
+            copy(
+                summaryState = summaryState.copy(wordsLimit = it)
+            )
+        }
+    }
+
+    /** 修改单次总结请求包含的最大历史消息条数。 */
+    @UiIntentObserver(MainUiIntent.ChangeSummaryMaxMessagesPerRequest::class)
+    private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
+        updateSettingsInt(intent.value, minimum = 0) {
+            AppModel.summaryMaxMessagesPerRequest = it
+            copy(
+                summaryState = summaryState.copy(maxMessagesPerRequest = it)
+            )
+        }
+    }
+
+    /** 修改普通生成最多读取的最近历史消息条数。 */
+    @UiIntentObserver(MainUiIntent.ChangeMaxPromptHistoryMessages::class)
+    private fun onChangeMaxPromptHistoryMessages(intent: MainUiIntent.ChangeMaxPromptHistoryMessages) {
+        updateSettingsInt(intent.value, minimum = 0) {
+            AppModel.maxPromptHistoryMessages = it
+            copy(
+                promptBehaviorState = promptBehaviorState.copy(maxHistoryMessages = it)
+            )
+        }
+    }
+
+    /** 修改总结生成请求的最大 Token 限制。 */
+    @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
+    private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
+        updateSettingsInt(intent.value, minimum = 128) {
+            AppModel.summaryResponseTokens = it
+            copy(
+                summaryState = summaryState.copy(responseTokens = it)
+            )
+        }
+    }
+
+    /** 切换会话总结设置页内的子标签页。 */
+    @UiIntentObserver(MainUiIntent.SelectSummarySettingsTab::class)
+    private fun onSelectSummarySettingsTab(intent: MainUiIntent.SelectSummarySettingsTab) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    selectedTab = intent.tab
+                )
+            )
+        ).setup()
+    }
+
+    /** 选择总结内容在 Prompt 上下文中的注入位置（系统提示词 / 对话历史中）。 */
+    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
+    private fun onSelectSummaryInjectionPosition(
+        intent: MainUiIntent.SelectSummaryInjectionPosition
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.summaryInjectionPosition = intent.position.persistedValue
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = buildSummaryInjectionState(intent.position)
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改总结在对话历史中注入的倒数消息深度（Depth）。 */
+    @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionDepth::class)
+    private fun onChangeSummaryInjectionDepth(intent: MainUiIntent.ChangeSummaryInjectionDepth) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val injectionState = uiState.settingsState.summaryState.injectionState
+            as? MainSummaryInjectionState.InChat
+            ?: return
+        val value = intent.value.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        AppModel.summaryInjectionDepth = value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = injectionState.copy(depth = value)
+                )
+            )
+        ).setup()
+    }
+
+    /** 选择总结注入为消息时的角色标识（System / User / Assistant）。 */
+    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionRole::class)
+    private fun onSelectSummaryInjectionRole(intent: MainUiIntent.SelectSummaryInjectionRole) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val injectionState = uiState.settingsState.summaryState.injectionState
+            as? MainSummaryInjectionState.InChat
+            ?: return
+        AppModel.summaryInjectionRole = intent.role.persistedValue
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(
+                    injectionState = injectionState.copy(role = intent.role)
+                )
+            )
+        ).setup()
+    }
+
+    /** 切换是否启用全局流式响应输出（SSE Stream）。 */
+    @UiIntentObserver(MainUiIntent.ToggleStreamEnabled::class)
+    private fun onToggleStreamEnabled(intent: MainUiIntent.ToggleStreamEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.streamEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    streamEnabled = intent.enabled
+                )
+            )
+        ).setup()
+    }
+
+    /** 选择模型特定的 Prompt 后处理模式（如 Raw、Claude 强化、DeepSeek 优化等）。 */
+    @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
+    private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val providerState = uiState.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
+        // 在 IO 线程加载当前供应商
+        val provider = withContext(Dispatchers.IO) {
+            mLLMRepository.getProviderById(providerState.selectedProviderId)
+        } ?: return
+        val updatedProvider = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
+        // 保存后处理模式更新
+        withContext(Dispatchers.IO) {
+            mLLMRepository.saveProvider(updatedProvider)
+        }
+        val current = getOrNull<MainUiState.Normal>() ?: return
+        val currentProviderState = current.settingsState.providerState
+            as? MainProviderSettingsState.Available
+            ?: return
+        if (currentProviderState.selectedProviderId != updatedProvider.id) return
+        // 同步刷新后处理状态
+        current.copy(
+            settingsState = current.settingsState.copy(
+                promptBehaviorState = current.settingsState.promptBehaviorState.copy(
+                    providerPostProcessingState = MainProviderPostProcessingState.Available(
+                        intent.mode
+                    )
+                )
+            )
+        ).setup()
+    }
+
+    /** 切换历史消息中的思考过程（Think Blocks）是否回传给模型作为上下文。 */
+    @UiIntentObserver(MainUiIntent.ToggleIncludeThinkInContext::class)
+    private fun onToggleIncludeThinkInContext(intent: MainUiIntent.ToggleIncludeThinkInContext) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.includeThinkInContext = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    includeThinkInContext = intent.enabled
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改世界书占上下文总量的百分比上限预算。 */
+    @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetPercent::class)
+    private fun onChangeWorldInfoBudgetPercent(intent: MainUiIntent.ChangeWorldInfoBudgetPercent) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val percent = intent.value.coerceIn(0, 100)
+        AppModel.worldInfoBudgetPercent = percent
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
+                    budgetPercent = percent
+                )
+            )
+        ).setup()
+    }
+
+    /** 修改世界书硬性 Token 上限预算（Cap）。 */
+    @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetCap::class)
+    private fun onChangeWorldInfoBudgetCap(intent: MainUiIntent.ChangeWorldInfoBudgetCap) {
+        updateSettingsInt(intent.value, minimum = 0) {
+            AppModel.worldInfoBudgetCap = it
+            copy(
+                worldInfoBudgetState = worldInfoBudgetState.copy(budgetCap = it)
+            )
+        }
+    }
+
+    /** 切换当世界书条目超出预算被裁切时是否弹出 Toast 警报。 */
+    @UiIntentObserver(MainUiIntent.ToggleWorldInfoOverflowAlert::class)
+    private fun onToggleWorldInfoOverflowAlert(intent: MainUiIntent.ToggleWorldInfoOverflowAlert) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.worldInfoOverflowAlert = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
+                    overflowAlert = intent.enabled
+                )
+            )
+        ).setup()
+    }
+
+    /** 切换当历史消息因超限被裁切时是否弹出 Toast 警报。 */
+    @UiIntentObserver(MainUiIntent.ToggleContextTrimmingAlert::class)
+    private fun onToggleContextTrimmingAlert(intent: MainUiIntent.ToggleContextTrimmingAlert) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.contextTrimmingAlert = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    contextTrimmingAlert = intent.enabled
+                )
+            )
+        ).setup()
+    }
+
+    /** 选择示例对话（MES / Example Dialogue）的注入与展示行为。 */
+    @UiIntentObserver(MainUiIntent.SelectExampleDialogueBehavior::class)
+    private fun onSelectExampleDialogueBehavior(
+        intent: MainUiIntent.SelectExampleDialogueBehavior
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.exampleDialogueBehavior = intent.behavior.persistedValue
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    exampleDialogueBehavior = intent.behavior
+                )
+            )
+        ).setup()
+    }
+
+    /** 切换后续请求的发送模式；保留已保存的自定义参数，当前请求继续使用冻结快照。 */
+    @UiIntentObserver(MainUiIntent.SelectImageSendMode::class)
+    private fun onSelectImageSendMode(intent: MainUiIntent.SelectImageSendMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.settingsState.imageSendState.mode == intent.mode) return
+        val settings = ImageSendSettings.decode(AppModel.imageSendSettings).copy(mode = intent.mode)
+        AppModel.imageSendSettings = settings.encode()
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            imageSendState = MainImageSendState.from(settings)
+        )).setup()
+    }
+
+    /** 保存用户输入草稿；允许暂时清空字段，校验失败不会写入持久偏好。 */
+    @UiIntentObserver(MainUiIntent.ChangeImageSendLimit::class)
+    private fun onChangeImageSendLimit(intent: MainUiIntent.ChangeImageSendLimit) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val state = uiState.settingsState.imageSendState
+        if (state.mode != ImageSendMode.Custom) return
+        val edited = when (intent.field) {
+            ImageSendField.FileKiB -> state.copy(maxFileKiB = intent.value)
+            ImageSendField.Width -> state.copy(maxWidth = intent.value)
+            ImageSendField.Height -> state.copy(maxHeight = intent.value)
+        }
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            imageSendState = edited.copy(hasChanges = true, errorResId = null)
+        )).setup()
+    }
+
+    /** 校验完整参数后一次性保存，避免请求读到编辑中的混合上限。 */
+    @UiIntentObserver(MainUiIntent.SaveImageSendLimits::class)
+    private fun onSaveImageSendLimits() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val state = uiState.settingsState.imageSendState
+        if (state.mode != ImageSendMode.Custom) return
+        // 草稿保留原始输入用于纠错，非法值不自动钳制成意外的发送设置。
+        val settings = ImageSendSettings(state.mode, state.maxFileKiB.trim().toIntOrNull() ?: 0,
+            state.maxWidth.trim().toIntOrNull() ?: 0, state.maxHeight.trim().toIntOrNull() ?: 0)
+        val updated = if (settings.isValid()) {
+            AppModel.imageSendSettings = settings.encode()
+            MainImageSendState.from(settings)
+        } else state.copy(errorResId = R.string.image_send_invalid_limits)
+        uiState.copy(settingsState = uiState.settingsState.copy(imageSendState = updated)).setup()
+    }
+
+    /** 切换是否开启全局 Debug 调试模式（影响日志捕获与详细错误输出）。 */
+    @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
+    private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.debugModeEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                debugState = uiState.settingsState.debugState.copy(enabled = intent.enabled)
+            )
+        ).setup()
+    }
+
     /**
      * 在 IO 线程并发装配首页各组件数据。
      *
@@ -711,10 +1354,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     id = session.id.toString(),
                     title = session.title,
                     memberNames = session.memberNames,
-                    preview = session.latestMessageContent
-                        ?.stripThinkBlocks()
-                        ?.takeIf { it.isNotBlank() }
-                        ?: mContext.getString(R.string.no_messages_yet),
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
                     messageCount = session.messageCount,
                     updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm"),
                     latestTime = session.latestTime
@@ -768,6 +1408,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         allProviders: List<LLMProvider>
     ): MainSettingsState {
         return MainSettingsState(
+            imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
+            appearanceState = MainAppearanceSettingsState(
+                themeMode = mAppThemeManager.themeModeFlow.value
+            ),
             identityState = MainUserIdentityState(
                 userName = AppModel.resolvedUserName,
                 userDescription = AppModel.userDescription,
@@ -787,6 +1431,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             promptBehaviorState = MainPromptBehaviorState(
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
+                maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
                 streamEnabled = AppModel.streamEnabled
             ),
@@ -872,7 +1517,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun resolveUserAvatarImage() =
         AppModel.userAvatar
             .takeIf { it.isNotBlank() }
-            ?.let { withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() } }
+            ?.let {
+                withContext(Dispatchers.IO) {
+                    mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+                }
+            }
 
     /** 从当前首页状态中按 ID 查找故事。 */
     private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
@@ -950,6 +1599,16 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             }
         )
     }
+    /**
+     * 优先显示可见正文，纯图片消息使用本地化占位。
+     *
+     * @param content 最新消息的原始正文，空会话为 null。
+     * @param hasImages 同一条最新消息是否包含图片。
+     * @return 首页会话预览文案。
+     */
+    private fun messagePreview(content: String?, hasImages: Boolean): String =
+        content?.stripThinkBlocks()?.takeIf { it.isNotBlank() }
+            ?: mContext.getString(if (hasImages) R.string.message_image else R.string.no_messages_yet)
 
     /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */
     private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
@@ -958,7 +1617,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             characterId = characterId.toString(),
             characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
-            preview = latestMessageContent?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
+            preview = messagePreview(latestMessageContent, latestMessageHasImages),
             messageCount = messageCount,
             updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
             latestTime = latestTime

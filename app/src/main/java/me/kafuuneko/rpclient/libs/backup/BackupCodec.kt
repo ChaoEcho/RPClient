@@ -6,6 +6,8 @@ import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
@@ -131,7 +133,21 @@ class BackupCodec internal constructor(
         }
         when (type) {
             Character::class.java -> if (!json.has("visualIdentity")) json.addProperty("visualIdentity", "")
-            LLMProvider::class.java -> defaultInt("maxConcurrentRequests", 1)
+            LLMProvider::class.java -> {
+                defaultInt("maxConcurrentRequests", 1)
+                defaultInt("tokenEstimateReservePercent", 15)
+                if (!json.has("localTokenEstimatorType")) json.addProperty("localTokenEstimatorType", "Automatic")
+                if (!json.has("imageInputSetting")) json.addProperty("imageInputSetting", "Auto")
+                if (!json.has("imageTokenEstimatorType")) json.addProperty("imageTokenEstimatorType", "Automatic")
+                if (!json.has("useServerReportedUsage")) {
+                    json.addProperty("useServerReportedUsage", json.get("protocol")?.asString in setOf("Gemini", "AnthropicMessages"))
+                }
+            }
+            MessageImageEntity::class.java -> {
+                // v2 必须显式记录用途，缺失不是普通上传图，拒绝静默扩大模型可见范围。
+                require(json.has("sendToModel") && json.get("sendToModel").isJsonPrimitive &&
+                    json.getAsJsonPrimitive("sendToModel").isBoolean) { "Missing image usage policy" }
+            }
             GroupChatSession::class.java -> {
                 defaultInt("naturalMaxSpeakers", 2)
                 defaultInt("autoModeMaxRounds", 2)
@@ -183,10 +199,13 @@ class BackupCodec internal constructor(
             throw BackupException.RestoreValidationFailed()
         }
         val manifest = parseManifest(manifestFile)
+        val requiredTables = BackupContract.requiredTableEntries +
+            if (manifest.backupVersion >= 2) BackupContract.v2TableEntries else emptyList()
+        val optionalTables = BackupContract.optionalTableEntries
         parsePreferences(preferencesFile)
         // 每张显式业务表都必须存在、逐行可解析且计数一致
         val tableFiles = linkedMapOf<String, File>()
-        BackupContract.requiredTableEntries.forEach { entryName ->
+        requiredTables.forEach { entryName ->
             val tableFile = File(contentDirectory, entryName)
             if (!tableFile.isFile) throw BackupException.RestoreValidationFailed()
             val type = requireNotNull(TABLE_TYPES[entryName])
@@ -197,7 +216,7 @@ class BackupCodec internal constructor(
             tableFiles[entryName] = tableFile
         }
         // 可选表只在备份里出现过时才校验，缺失即视为空表
-        BackupContract.optionalTableEntries.forEach { entryName ->
+        optionalTables.forEach { entryName ->
             if (!manifest.tableCounts.containsKey(entryName)) return@forEach
             val tableFile = File(contentDirectory, entryName)
             if (!tableFile.isFile) throw BackupException.RestoreValidationFailed()
@@ -208,8 +227,8 @@ class BackupCodec internal constructor(
             tableFiles[entryName] = tableFile
         }
         val knownEntries =
-            (BackupContract.requiredTableEntries + BackupContract.optionalTableEntries).toSet()
-        if (!manifest.tableCounts.keys.containsAll(BackupContract.requiredTableEntries) ||
+            (requiredTables + optionalTables).toSet()
+        if (!manifest.tableCounts.keys.containsAll(requiredTables) ||
             !knownEntries.containsAll(manifest.tableCounts.keys)
         ) {
             throw BackupException.RestoreValidationFailed()
@@ -239,7 +258,7 @@ class BackupCodec internal constructor(
         if (manifest.backupVersion > BackupContract.BACKUP_VERSION) {
             throw BackupException.UnsupportedVersion()
         }
-        if (manifest.backupVersion != BackupContract.BACKUP_VERSION ||
+        if (manifest.backupVersion !in 1..BackupContract.BACKUP_VERSION ||
             manifest.containerVersion != BackupContract.CONTAINER_VERSION ||
             manifest.tableCounts == null
         ) {
@@ -337,6 +356,8 @@ class BackupCodec internal constructor(
             "tables/lorebook_entries.jsonl" to LorebookEntry::class.java,
             "tables/chat_sessions.jsonl" to ChatSession::class.java,
             "tables/chat_messages.jsonl" to ChatMessage::class.java,
+            "tables/message_images.jsonl" to MessageImageEntity::class.java,
+            "tables/llm_token_usage_records.jsonl" to LLMTokenUsageRecord::class.java,
             "tables/llm_providers.jsonl" to LLMProvider::class.java,
             "tables/image_providers.jsonl" to ImageProvider::class.java,
             FILES_TABLE_ENTRY to FileEntity::class.java,

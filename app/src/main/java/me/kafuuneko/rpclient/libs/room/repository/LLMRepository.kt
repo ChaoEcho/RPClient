@@ -22,6 +22,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.requireNonEmptyContent
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
@@ -57,6 +58,7 @@ const val LLM_PERMIT_SCOPE_IMAGE_PROMPT = "image-prompt"
  *
  * 核心职责：
  * - 初始化默认模型配置并同步当前选择。
+ * - 保存、克隆与删除完整模型配置。
  * - 在请求前执行 Prompt 最终化兜底。
  * - 将模型调用内部的未知异常收敛为脱敏请求错误。
  *
@@ -129,6 +131,24 @@ class LLMRepository(
         }
         syncCurrentProvider(preferredProviderId = providerId.takeIf { nextProvider.isEnabled })
         return providerId
+    }
+
+    /**
+     * 克隆指定模型配置为新的数据库记录。
+     *
+     * 新记录保留源配置的鉴权、请求扩展、生成参数和启用状态，仅重新生成主键、名称与时间戳。
+     *
+     * @param id 源模型配置 ID
+     * @return 新模型配置 ID；源配置不存在时返回空
+     */
+    suspend fun cloneProvider(id: Long): Long? {
+        val source = getProviderById(id) ?: return null
+        return saveProvider(
+            source.copy(
+                id = 0L,
+                name = "${source.name} Copy"
+            )
+        )
     }
 
     /**
@@ -397,7 +417,8 @@ class LLMRepository(
             mode = PromptPostProcessingMode.fromOrdinal(
                 provider.promptPostProcessingMode
             ),
-            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER
+            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
+            protocol = provider.protocol
         )
     }
 
@@ -456,6 +477,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.openai.com/v1",
             model = "gpt-4o-mini",
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -467,6 +489,8 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://generativelanguage.googleapis.com",
             model = DEFAULT_GEMINI_MODEL,
             requestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -478,7 +502,9 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.anthropic.com",
             model = DEFAULT_CLAUDE_MODEL,
             requestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
             sendTopP = false,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -490,6 +516,8 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.deepseek.com",
             model = DEFAULT_DEEPSEEK_MODEL,
             requestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -501,6 +529,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.x.ai/v1",
             model = DEFAULT_GROK_MODEL,
             requestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
             createTime = now,
             updateTime = now,
             isEnabled = false

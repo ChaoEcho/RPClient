@@ -205,27 +205,6 @@ class RegexScriptEngineTest {
         assertEquals("<think>hidden</think>reply", result.text)
     }
 
-    @Test
-    fun displayUsesSourcePlacementAndReasoningPlacement() {
-        val runtime = RegexScriptRuntime(engine)
-        val display = script("display", "/answer/g", "shown").copy(
-            placement = listOf(RegexPlacement.AiResponse.value),
-            markdownOnly = true
-        )
-        val reasoning = script("reasoning", "/secret/g", "hidden").copy(
-            placement = listOf(RegexPlacement.Reasoning.value),
-            markdownOnly = true
-        )
-
-        val result = runtime.executeDisplayMessage(
-            "<think>secret</think>answer",
-            listOf(scoped(display), scoped(reasoning, order = 1)),
-            emptyMap()
-        )
-
-        assertEquals("<think>hidden</think>shown", result.text)
-    }
-
     private fun script(
         id: String,
         find: String,

@@ -63,6 +63,7 @@ class ChatGenerationCoordinatorTest {
         val cleanupEntered = CompletableDeferred<Unit>()
         val releaseCleanup = CompletableDeferred<Unit>()
         val secondRelease = CompletableDeferred<Unit>()
+        val secondEntered = CompletableDeferred<Unit>()
         var cleanupFinished = false
 
         coordinator.launch(33L) {
@@ -80,9 +81,11 @@ class ChatGenerationCoordinatorTest {
         }
         coordinator.launch(44L) {
             coordinator.publish(44L, ChatGenerationState.Requesting)
+            secondEntered.complete(Unit)
             secondRelease.await()
         }
         firstEntered.await()
+        secondEntered.await()
 
         val stopResult = CompletableDeferred<Boolean>()
         launch { stopResult.complete(coordinator.stop(33L)) }

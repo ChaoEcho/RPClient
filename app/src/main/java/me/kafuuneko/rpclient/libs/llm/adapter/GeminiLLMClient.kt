@@ -1,7 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -9,7 +11,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -26,7 +30,9 @@ import org.json.JSONObject
 class GeminiLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,
-    private val mProvider: LLMProviderConfig
+    private val mProvider: LLMProviderConfig,
+    private val mImageRuntime: MessageImageRuntime? = null,
+    private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
     /**
      * Gemini 非流式调用，等待 generateContent 返回完整文本。
@@ -34,17 +40,37 @@ class GeminiLLMClient(
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
-        val raw = runCatching {
-            mOkHttpClient.await(httpRequest.request)
-        }.onSuccess {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
-        }.onFailure {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
-        }.getOrThrow()
-        return raw.toGeminiResponse(
-            fallbackModel = model,
-            includeReasoningInContent = request.includeReasoningInContent
-        )
+        try {
+            val raw = runCatching {
+                mOkHttpClient.await(httpRequest.request)
+            }.onSuccess {
+                mLLMRequestLogRepository.trySaveLog(
+                    mProvider,
+                    model,
+                    false,
+                    httpRequest.payloadJson,
+                    it
+                )
+            }.onFailure {
+                mLLMRequestLogRepository.trySaveLog(
+                    mProvider,
+                    model,
+                    false,
+                    httpRequest.payloadJson,
+                    it.toErrorJson()
+                )
+            }.getOrElse { error ->
+                throw if (request.messages.any { it.images.isNotEmpty() }) {
+                    mImageCapabilities.recordFailure(mProvider.copy(model = model), error)
+                } else error
+            }
+            return raw.toGeminiResponse(
+                fallbackModel = model,
+                includeReasoningInContent = request.includeReasoningInContent
+            )
+        } finally {
+            httpRequest.temporaryFile?.delete()
+        }
     }
 
     /**
@@ -54,28 +80,49 @@ class GeminiLLMClient(
         val model = request.model ?: mProvider.model
         return flow {
             val httpRequest = buildRequest(request, model, stream = true)
-            val rawChunks = JSONArray()
-            val partMapper = LLMStreamPartMapper(
-                includeReasoningInContent = request.includeReasoningInContent,
-                captureReasoning = request.captureReasoning
-            )
-            runCatching {
-                mOkHttpClient.streamLines(
-                    request = httpRequest.request,
-                    onConnected = { emit(LLMStreamEvent.Connected) }
-                ).collect { line ->
-                    rawChunks.put(line)
-                    parseGeminiStreamParts(line).forEach { part ->
-                        partMapper.map(part).forEach { emit(it) }
+            try {
+                val rawChunks = JSONArray()
+                var loggedChars = 0
+                val partMapper = LLMStreamPartMapper(
+                    includeReasoningInContent = request.includeReasoningInContent,
+                    captureReasoning = request.captureReasoning
+                )
+                runCatching {
+                    mOkHttpClient.streamLines(
+                        request = httpRequest.request,
+                        onConnected = { emit(LLMStreamEvent.Connected) }
+                    ).collect { line ->
+                        if (loggedChars < 65_536) {
+                            val safeLine = ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
+                            rawChunks.put(safeLine)
+                            loggedChars += safeLine.length
+                        }
+                        parseGeminiStreamParts(line).forEach { part ->
+                            partMapper.map(part).forEach { emit(it) }
+                        }
                     }
+                    // 兼容未发送 finishReason 便关闭连接的代理服务
+                    partMapper.finish().forEach { emit(it) }
+                }.onSuccess {
+                    mLLMRequestLogRepository.trySaveLog(
+                        mProvider,
+                        model,
+                        true,
+                        httpRequest.payloadJson,
+                        rawChunks.toString()
+                    )
+                }.onFailure {
+                    mLLMRequestLogRepository.trySaveLog(
+                        mProvider,
+                        model,
+                        true,
+                        httpRequest.payloadJson,
+                        it.toErrorJson()
+                    )
+                    throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), it) else it
                 }
-                // 兼容未发送 finishReason 便关闭连接的代理服务
-                partMapper.finish()?.let { emit(it) }
-            }.onSuccess {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
-            }.onFailure {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
-                throw it
+            } finally {
+                httpRequest.temporaryFile?.delete()
             }
         }
     }
@@ -83,11 +130,15 @@ class GeminiLLMClient(
     /**
      * 构建 Gemini 请求。stream=true 时切换到 streamGenerateContent 并启用 SSE。
      */
-    private fun buildRequest(
+    private suspend fun buildRequest(
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
+            mProvider.copy(model = model)
+        )
+        val codec = MultimodalWireCodec(mProvider)
         val options = request.options.resolveFor(mProvider)
         val generationConfig = JSONObject()
             .put("maxOutputTokens", options.maxTokens)
@@ -103,7 +154,7 @@ class GeminiLLMClient(
             generationConfig.put("stopSequences", options.stop.toJsonArray())
         }
         val payload = JSONObject()
-            .put("contents", request.messages.toGeminiContents())
+            .put("contents", request.messages.toGeminiContents(codec, request.isPromptFinalized))
             .put("generationConfig", generationConfig)
         val systemInstruction = request.messages.leadingSystemPrompt()
         if (!systemInstruction.isNullOrBlank()) {
@@ -116,7 +167,7 @@ class GeminiLLMClient(
             )
         }
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
-
+        // 地址解析可能失败，必须在生成含图临时文件之前完成。
         val action = if (stream) "streamGenerateContent" else "generateContent"
         val url = "${mProvider.normalizedBaseUrl()}/v1beta/models/$model:$action"
             .toHttpUrl()
@@ -124,27 +175,30 @@ class GeminiLLMClient(
             .apply { if (mProvider.apiKey.isNotBlank()) addQueryParameter("key", mProvider.apiKey) }
             .apply { if (stream) addQueryParameter("alt", "sse") }
             .build()
-        return LLMHttpRequest(
-            request = Request.Builder()
+        val prepared = codec.prepare(finalPayload, request, mImageRuntime)
+        return prepared.toHttpRequest {
+            Request.Builder()
                 .url(url)
-                .post(finalPayload.toRequestBody())
+                .post(prepared.body)
                 .header("Content-Type", "application/json")
                 .applyProviderHeaders(mProvider)
-                .build(),
-            payloadJson = finalPayload.toString()
-        )
+                .build()
+        }
     }
 
     /**
      * 转换通用消息为 Gemini contents 数组。
      */
-    private fun List<LLMMessage>.toGeminiContents(): JSONArray {
+    private fun List<LLMMessage>.toGeminiContents(
+        codec: MultimodalWireCodec,
+        finalized: Boolean
+    ): JSONArray {
         return JSONArray().also { array ->
-            toAlternatingConversationMessages().forEach { message ->
+            (if (finalized) dropWhile { it.role == LLMMessageRole.System } else toAlternatingConversationMessages()).forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toGeminiRole())
-                        .put("parts", JSONArray().put(JSONObject().put("text", message.content)))
+                        .put("parts", codec.content(message))
                 )
             }
         }
@@ -173,6 +227,8 @@ class GeminiLLMClient(
             },
             model = fallbackModel,
             provider = mProvider.providerType,
+            usage = parseGeminiUsage(this),
+            reasoningContent = reasoningContent,
             finishReason = candidates
                 ?.optJSONObject(0)
                 ?.optString("finishReason")
@@ -201,11 +257,10 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
         ?.firstOrNull()
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?: return emptyList()
-    val parts = candidate
-        .objectOrNull("content")
-        ?.arrayOrNull("parts")
+    val parts = candidate?.objectOrNull("content")?.arrayOrNull("parts")
+    val usage = json.geminiUsage()
     return buildList {
+        usage?.let { add(LLMProviderStreamPart.Usage(it)) }
         // Gemini 通过 thought 标记区分思考摘要与最终文本，顺序必须原样保留
         if (parts != null) {
             for (element in parts) {
@@ -218,8 +273,42 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
                 }
             }
         }
-        candidate.cleanString("finishReason").takeIf { it.isNotBlank() }?.let {
-            add(LLMProviderStreamPart.Finished(rawChunk = data, finishReason = it))
+        candidate?.cleanString("finishReason")?.takeIf { it.isNotBlank() }?.let {
+            add(
+                LLMProviderStreamPart.Finished(
+                    rawChunk = data,
+                    finishReason = it,
+                    terminal = false
+                )
+            )
         }
     }
+}
+
+/** 解析 Gemini usageMetadata，并将思考与候选输出统一计入输出 Token。 */
+internal fun parseGeminiUsage(value: String): LLMUsage? {
+    return parseStreamJsonObject(value)?.geminiUsage()
+}
+
+private fun JsonObject.geminiUsage(): LLMUsage? {
+    val usage = objectOrNull("usageMetadata") ?: return null
+    val promptTokens = usage.intOrNull("promptTokenCount")
+    val candidateTokens = usage.intOrNull("candidatesTokenCount")
+    val thoughtTokens = usage.intOrNull("thoughtsTokenCount")
+    val totalTokens = usage.intOrNull("totalTokenCount")
+    // Gemini 总量包含候选正文与思考；优先用总量差值兼容未来新增的输出类别
+    val completionTokens = if (totalTokens != null && promptTokens != null) {
+        (totalTokens - promptTokens).coerceAtLeast(0)
+    } else if (candidateTokens != null || thoughtTokens != null) {
+        (candidateTokens ?: 0) + (thoughtTokens ?: 0)
+    } else {
+        null
+    }
+    return LLMUsage(
+        promptTokens = promptTokens,
+        completionTokens = completionTokens,
+        totalTokens = totalTokens,
+        cachedPromptTokens = usage.intOrNull("cachedContentTokenCount"),
+        reasoningTokens = thoughtTokens
+    )
 }

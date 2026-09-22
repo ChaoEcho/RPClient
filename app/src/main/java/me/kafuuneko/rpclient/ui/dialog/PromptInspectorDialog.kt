@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +34,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,13 +53,15 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 
 /** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的现代化调试对话框。 */
 @Composable
 fun PromptInspectorDialog(
     inspection: PromptInspection,
     onDismissRequest: () -> Unit,
-    onCopyRequest: (String) -> Unit
+    onCopyRequest: (String) -> Unit,
+    onPreviewImages: ((List<String>, Int) -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -82,7 +84,7 @@ fun PromptInspectorDialog(
             Column(modifier = Modifier.fillMaxSize()) {
                 InspectorHeader(onDismissRequest)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                LazyColumn(
+                RpLazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -193,7 +195,7 @@ fun PromptInspectorDialog(
                     }
 
                     itemsIndexed(inspection.items) { _, item ->
-                        InspectionItemCard(item, onCopyRequest)
+                        InspectionItemCard(item, onCopyRequest, onPreviewImages)
                     }
                     item { Spacer(modifier = Modifier.height(8.dp)) }
                 }
@@ -357,10 +359,11 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
                     R.string.prompt_inspector_omitted_detail,
                     item.tokenCount,
                     stringResource(
-                        if (item.reason == PromptOmissionReason.WorldInfoBudget) {
-                            R.string.prompt_omission_world_info_budget
-                        } else {
-                            R.string.prompt_omission_context_budget
+                        when (item.reason) {
+                            PromptOmissionReason.WorldInfoBudget -> R.string.prompt_omission_world_info_budget
+                            PromptOmissionReason.ImageCount -> R.string.image_error_count
+                            PromptOmissionReason.RequestBytes -> R.string.image_error_large
+                            else -> R.string.prompt_omission_context_budget
                         }
                     )
                 ),
@@ -374,7 +377,8 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
 @Composable
 private fun InspectionItemCard(
     item: PromptInspectionItem,
-    onCopyRequest: (String) -> Unit
+    onCopyRequest: (String) -> Unit,
+    onPreviewImages: ((List<String>, Int) -> Unit)?
 ) {
     val sourceLabel = promptSourcesLabel(item.sources)
 
@@ -437,6 +441,25 @@ private fun InspectionItemCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            item.images.forEachIndexed { index, image ->
+                Text(
+                    text = stringResource(
+                        R.string.prompt_inspector_image_meta,
+                        index + 1,
+                        image.width,
+                        image.height,
+                        image.mimeType,
+                        image.byteCount,
+                        item.imageTokenCounts.getOrElse(index) { 0L }
+                    ),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                onPreviewImages?.let { preview ->
+                    TextButton(onClick = { preview(item.images.map { it.uuid }, index) }) {
+                        Text(stringResource(R.string.image_view))
+                    }
+                }
+            }
             SelectionContainer {
                 Text(
                     text = item.content,

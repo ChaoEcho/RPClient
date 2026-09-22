@@ -2,13 +2,23 @@ package me.kafuuneko.rpclient.feature.imagecrop.model
 
 import me.kafuuneko.rpclient.model.SquareCropSelection
 
-/** 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。 */
+/**
+ * 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。
+ *
+ * 由已解码位图的宽高比创建；缩放和平移边界由 [update] 与 [rotateRight] 维持。
+ */
 data class ImageCropTransform(
+    /** 原始图像的宽高比。 */
     val sourceAspectRatio: Float,
+    /** 当前图像相对适配尺寸的缩放倍数。 */
     val zoom: Float = MIN_ZOOM,
+    /** 当前图像中心相对裁剪区域的水平偏移。 */
     val offsetX: Float = 0f,
+    /** 当前图像中心相对裁剪区域的垂直偏移。 */
     val offsetY: Float = 0f,
+    /** 图像当前顺时针旋转的角度。 */
     val rotationDegrees: Int = 0,
+    /** 图像是否相对原始方向水平翻转。 */
     val isFlippedHorizontal: Boolean = false
 ) {
     /** 是否处于 90 度或 270 度垂直旋转状态。 */
@@ -39,8 +49,8 @@ data class ImageCropTransform(
         val appliedZoomChange = newZoom / zoom
         val baseWidth = maxOf(effectiveAspectRatio, 1f)
         val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
-        val maxOffsetX = ((baseWidth * newZoom - 1f) / 2f).coerceAtLeast(0f)
-        val maxOffsetY = ((baseHeight * newZoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetX = (baseWidth * newZoom - 1f) / 2f
+        val maxOffsetY = (baseHeight * newZoom - 1f) / 2f
         return copy(
             zoom = newZoom,
             offsetX = (offsetX * appliedZoomChange + panX).coerceIn(-maxOffsetX, maxOffsetX),
@@ -55,8 +65,8 @@ data class ImageCropTransform(
         val nextEffectiveAspect = if (isNextRotated90) 1f / sourceAspectRatio else sourceAspectRatio
         val nextBaseW = maxOf(nextEffectiveAspect, 1f)
         val nextBaseH = maxOf(1f / nextEffectiveAspect, 1f)
-        val maxOffsetX = ((nextBaseW * zoom - 1f) / 2f).coerceAtLeast(0f)
-        val maxOffsetY = ((nextBaseH * zoom - 1f) / 2f).coerceAtLeast(0f)
+        val maxOffsetX = (nextBaseW * zoom - 1f) / 2f
+        val maxOffsetY = (nextBaseH * zoom - 1f) / 2f
         return copy(
             rotationDegrees = nextRotation,
             offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX),
@@ -66,11 +76,9 @@ data class ImageCropTransform(
 
     /** 水平镜像翻转并反转 X 轴偏移量。 */
     fun flipHorizontal(): ImageCropTransform {
-        val baseWidth = maxOf(effectiveAspectRatio, 1f)
-        val maxOffsetX = ((baseWidth * zoom - 1f) / 2f).coerceAtLeast(0f)
         return copy(
             isFlippedHorizontal = !isFlippedHorizontal,
-            offsetX = (-offsetX).coerceIn(-maxOffsetX, maxOffsetX)
+            offsetX = -offsetX
         )
     }
 
@@ -105,4 +113,3 @@ data class ImageCropTransform(
         const val MAX_ZOOM = 8f
     }
 }
-

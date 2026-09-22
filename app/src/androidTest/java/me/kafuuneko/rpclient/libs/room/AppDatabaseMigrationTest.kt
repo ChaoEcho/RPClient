@@ -4,7 +4,6 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.libs.llm.model.OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON
-import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -393,75 +392,87 @@ class AppDatabaseMigrationTest {
             assertEquals(405L, cursor.getLong(0))
             assertEquals("{}", cursor.getString(1))
         }
-        migrated.execSQL(
-            """
-            INSERT INTO stories (
-                id, title, memory, summary, authorNote,
-                worldInfoGenerationStep, revision,
-                createTime, latestTime
-            ) VALUES (202, 'draft', 'memory', 'summary', 'note', 3, 7, 5, 6)
-            """.trimIndent()
+    }
+
+    @Test
+    fun migrate3To4_addsTokenUsageStorageWithoutSensitivePayloadColumns() {
+        migrationHelper.createDatabase(TokenUsageDatabaseName, 3).apply {
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model,
+                    customHeadersJson, requestBodyPatchJson, temperature, topP,
+                    maxTokens, contextTokens, tokenEstimateReservePercent,
+                    sendTemperature, sendTopP, promptPostProcessingMode,
+                    isEnabled, createTime, updateTime
+                ) VALUES (
+                    404, 'existing-openai-compatible', 'ChatGPT', 'OpenAICompatible',
+                    'https://proxy.example.invalid/v1', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 1, 0, 1, 4, 4
+                ), (
+                    405, 'existing-gemini', 'Gemini', 'Gemini',
+                    'https://generativelanguage.googleapis.com', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 1, 0, 1, 4, 4
+                ), (
+                    406, 'existing-anthropic', 'Claude', 'AnthropicMessages',
+                    'https://api.anthropic.com', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 0, 0, 1, 4, 4
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TokenUsageDatabaseName,
+            4,
+            true
         )
-        migrated.execSQL(
-            """
-            INSERT INTO story_volumes (id, storyId, title, sortOrder)
-            VALUES (303, 202, 'Volume One', 0)
-            """.trimIndent()
-        )
-        migrated.execSQL(
-            """
-            INSERT INTO story_chapters (
-                id, storyId, volumeId, title, content, sortOrder,
-                contentRevision, createTime, latestTime
-            ) VALUES (304, 202, 303, 'Chapter One', 'body', 0, 4, 5, 6)
-            """.trimIndent()
-        )
-        migrated.execSQL(
-            """
-            INSERT INTO story_characters (
-                storyId, characterId, sortOrder, activationMode
-            ) VALUES (202, 101, 0, ${StoryCharacter.ACTIVATION_PRIMARY})
-            """.trimIndent()
-        )
-        migrated.query(
-            """
-            SELECT title, memory, summary, authorNote,
-                   worldInfoGenerationStep, revision, includeUserPersona
-            FROM stories WHERE id = 202
-            """.trimIndent()
-        ).use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals("draft", cursor.getString(0))
-            assertEquals("memory", cursor.getString(1))
-            assertEquals("summary", cursor.getString(2))
-            assertEquals("note", cursor.getString(3))
-            assertEquals(3, cursor.getInt(4))
-            assertEquals(7L, cursor.getLong(5))
-            assertEquals(0, cursor.getInt(6))
+
+        // 表结构由 Room 校验，额外约束统计表不得保存敏感载荷。
+        migrated.query("PRAGMA table_info(llm_token_usage_records)").use { cursor ->
+            val columnNames = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(1))
+            }
+            assertFalse(columnNames.contains("requestJson"))
+            assertFalse(columnNames.contains("responseJson"))
+            assertFalse(columnNames.contains("apiKey"))
+            assertFalse(columnNames.contains("baseUrl"))
         }
         migrated.query(
             """
-            SELECT volume.title, chapter.title, chapter.content, chapter.contentRevision
-            FROM story_chapters AS chapter
-            JOIN story_volumes AS volume ON volume.id = chapter.volumeId
-            WHERE chapter.id = 304
+            SELECT id, useServerReportedUsage, localTokenEstimatorType, imageInputSetting, imageTokenEstimatorType
+            FROM llm_providers
+            WHERE id IN (404, 405, 406)
+            ORDER BY id
             """.trimIndent()
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
-            assertEquals("Volume One", cursor.getString(0))
-            assertEquals("Chapter One", cursor.getString(1))
-            assertEquals("body", cursor.getString(2))
-            assertEquals(4L, cursor.getLong(3))
+            assertEquals(404L, cursor.getLong(0))
+            assertEquals(0, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(405L, cursor.getLong(0))
+            assertEquals(1, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(406L, cursor.getLong(0))
+            assertEquals(1, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
+            assertEquals("Automatic", cursor.getString(4))
         }
-        migrated.query(
-            """
-            SELECT characterId, activationMode
-            FROM story_characters WHERE storyId = 202
-            """.trimIndent()
-        ).use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals(101L, cursor.getLong(0))
-            assertEquals(StoryCharacter.ACTIVATION_PRIMARY, cursor.getInt(1))
+
+        // 验证 message_images 表及其字段在 3→4 迁移中正确生成
+        migrated.query("PRAGMA table_info(message_images)").use { cursor ->
+            val columnNames = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(1))
+            }
+            assertEquals(setOf("messageType", "messageId", "position", "imageUuid"), columnNames)
         }
     }
 

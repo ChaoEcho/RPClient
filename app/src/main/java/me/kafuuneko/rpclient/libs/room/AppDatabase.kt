@@ -16,8 +16,10 @@ import me.kafuuneko.rpclient.libs.room.dao.GroupChatSessionDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatSummaryDao
 import me.kafuuneko.rpclient.libs.room.dao.ImageProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
+import me.kafuuneko.rpclient.libs.room.dao.LLMTokenUsageDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
+import me.kafuuneko.rpclient.libs.room.dao.MessageImageDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
@@ -35,8 +37,10 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 import me.kafuuneko.rpclient.libs.room.entity.ImageProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.Story
@@ -69,7 +73,9 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         StoryVolume::class,
         StoryChapter::class,
         StoryCharacter::class,
-        StoryLorebookEntry::class
+        StoryLorebookEntry::class,
+        LLMTokenUsageRecord::class,
+        MessageImageEntity::class
     ],
     version = AppDatabase.VERSION,
     autoMigrations = [
@@ -87,7 +93,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     companion object {
-        const val VERSION = 9
+        const val VERSION = 10
     }
 
     abstract fun getBackupDao(): BackupDao
@@ -111,5 +117,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getStoryChapterDao(): StoryChapterDao
     abstract fun getStoryCharacterDao(): StoryCharacterDao
     abstract fun getStoryLorebookEntryDao(): StoryLorebookEntryDao
+    abstract fun getLLMTokenUsageDao(): LLMTokenUsageDao
+    abstract fun getMessageImageDao(): MessageImageDao
 
 }

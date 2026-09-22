@@ -308,25 +308,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onChangeName(intent: CharacterEditUiIntent.ChangeName) =
         updateForm { copy(name = intent.value) }
 
-    /** 追加一个空的标签项。 */
-    @UiIntentObserver(CharacterEditUiIntent.AddTag::class)
-    private fun onAddTag() =
-        updateForm { copy(tags = tags + "") }
-
     /** 批量设置标签列表。 */
     @UiIntentObserver(CharacterEditUiIntent.SetTags::class)
     private fun onSetTags(intent: CharacterEditUiIntent.SetTags) =
         updateForm { copy(tags = intent.tags.orSingleBlank()) }
-
-    /** 修改指定索引处的标签。 */
-    @UiIntentObserver(CharacterEditUiIntent.ChangeTag::class)
-    private fun onChangeTag(intent: CharacterEditUiIntent.ChangeTag) =
-        updateForm { copy(tags = tags.updateAt(intent.index, intent.value)) }
-
-    /** 删除指定索引处的标签。 */
-    @UiIntentObserver(CharacterEditUiIntent.DeleteTag::class)
-    private fun onDeleteTag(intent: CharacterEditUiIntent.DeleteTag) =
-        updateForm { copy(tags = tags.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     /** 修改角色描述（Description）。 */
     @UiIntentObserver(CharacterEditUiIntent.ChangeDescription::class)
@@ -864,7 +849,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 异步加载当前表单持有的头像图片并解码为 ImageBitmap。 */
     private suspend fun CharacterEditForm.resolveAvatarImage() =
         avatar.takeIf { it.isNotBlank() }?.let {
-            withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { mFileRepository.loadAvatarBitmap(it)?.asImageBitmap() }
         }
 
     /** 清理尚未提交保存的新头像临时物理文件。 */

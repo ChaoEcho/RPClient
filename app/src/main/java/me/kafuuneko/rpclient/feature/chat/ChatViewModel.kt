@@ -3,9 +3,11 @@ package me.kafuuneko.rpclient.feature.chat
 
 import android.content.Context
 import android.os.Bundle
-import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import android.os.SystemClock
@@ -17,15 +19,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
-import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
-import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSpeechState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -39,8 +41,11 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
-import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.MainActivity
+import me.kafuuneko.rpclient.feature.main.model.Route
+import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
@@ -55,18 +60,28 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
+import me.kafuuneko.rpclient.libs.llm.GenerationFailure
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
+import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
-import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
+import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
@@ -77,19 +92,25 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.entity.toConfig
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.tts.TtsService
 import me.kafuuneko.rpclient.libs.tts.TtsSpeakOptions
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
-import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -110,6 +131,92 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ChatUiState.None
 ), KoinComponent {
     // 数据仓库与领域服务注入
+    private var mRetryUserMessageId: Long? = null
+
+    /** 重试已提交用户图文的回复，不重复创建用户消息和附件。 */
+    @UiIntentObserver(ChatUiIntent.RetryImageReply::class)
+    private suspend fun onRetryImageReply() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if ((uiState.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply != true) return
+        val sessionId = mSessionId ?: return
+        val messageId = mRetryUserMessageId ?: return
+        if (mGenerationJob?.isCompleted == false) return
+        // 按当前会话再次校验持久化目标，不能依赖按钮显示时的旧快照。
+        val message = mChatRepository.getMessageById(messageId)
+        if (message?.sessionId != sessionId || message.source != ChatMessage.Source.User) {
+            clearReplyRetry()
+            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
+            return
+        }
+        mGenerationJob = viewModelScope.launchDataTask {
+            try {
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Requesting)
+                generateCommittedReply(sessionId)
+                maybeAutoSummarize(sessionId)
+            } catch (error: Exception) {
+                val failure = error.toGenerationFailurePresentation(mContext, R.string.generation_failed) ?: return@launch
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(failure.message))
+            }
+        }
+    }
+
+    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试入口。 */
+    private fun clearReplyRetry() {
+        mRetryUserMessageId = null
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val failed = uiState.conversationState.generationState as? ChatGenerationState.Failed ?: return
+        uiState.copy(conversationState = uiState.conversationState.copy(
+            generationState = failed.copy(canRetryReply = false)
+        )).setup()
+    }
+
+    /** 结束页面时释放本 ViewModel 拥有的未提交图片。 */
+    override fun onCleared() {
+        clearReplyRetry()
+        super.onCleared()
+        CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
+    }
+
+    private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
+    private val mImageRuntime by inject<MessageImageRuntime>()
+    private val mImageCoordinator by lazy { MessageImageCoordinator(mImageRuntime, mFileRepository) { state ->
+        getOrNull<ChatUiState.Normal>()?.copy(imageState = state)?.setup()
+    } }
+
+    /**
+     * 图片选择、编辑与查看共用一套状态；生成过程中禁止修改待发送附件。
+     *
+     * @param intent 包含用户图片操作的页面意图。
+     */
+    @UiIntentObserver(ChatUiIntent.ImageAction::class)
+    private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val action = intent.action
+        if (mImageCoordinator.state.processing && (action is MessageImageAction.Choose ||
+                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
+        if (mGenerationJob?.isCompleted == false && action !is MessageImageAction.Load &&
+            action !is MessageImageAction.RegisterDisplay && action !is MessageImageAction.ReleaseDisplay &&
+            action !is MessageImageAction.Preview && action != MessageImageAction.ClosePreview &&
+            action != MessageImageAction.Save && action !is MessageImageAction.SaveResult) return
+        // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
+        when (action) {
+            is MessageImageAction.Picked -> {
+                if (mImageCoordinator.state.processing) return
+                viewModelScope.launchDataTask { mImageCoordinator.handle(action) }
+            }
+            MessageImageAction.CancelProcessing -> mImageCoordinator.cancelProcessing()
+
+            is MessageImageAction.Choose -> {
+                mImageCoordinator.choose(action.editing)
+                ChatViewEvent.PickImages.tryEmit()
+            }
+            MessageImageAction.Save -> mImageCoordinator.beginSave()?.let { metadata ->
+                ChatViewEvent.SaveImage(metadata).tryEmit()
+            }
+            else -> mImageCoordinator.handle(action)
+        }
+    }
+
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
@@ -143,6 +250,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mActiveStreamingGeneration: ActiveStreamingGeneration? = null
     /** 最近一次实际发送给模型请求的 Prompt 检查报告，供调试及 Prompt 检查器对话框读取。 */
     private var mLastPromptInspection: PromptInspection? = null
+    /** 当前消息窗口最早记录的稳定分页游标。 */
+    private var mOldestLoadedMessageCursor: ChatMessageCursor? = null
+    /** 分页消息执行 Display Regex 与 UI 映射所需的会话快照。 */
+    private var mMessageDisplayContext: ChatMessageDisplayContext? = null
 
     /**
      * 初始化会话数据。
@@ -186,7 +297,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /**
      * 页面从后台恢复或重新可见时的刷新处理。
      *
-     * 保持当前的输入草稿、当前子页面（对话/设置）、世界书抽屉展开状态、生成中状态、
+     * 保持当前的输入草稿、当前子页面（对话/设置）、对话框、生成中状态、
      * 正在编辑的消息草稿及已展开的思考块状态，重新从数据库载入最新数据并刷新。
      */
     @UiIntentObserver(ChatUiIntent.Resume::class)
@@ -199,7 +310,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 inputDraft = uiState.conversationState.inputDraft,
                 page = uiState.page,
-                isExpanded = uiState.lorebookState.isExpanded,
                 loadState = uiState.loadState,
                 generationState = mGenerationCoordinator.stateFor(sessionId)
                     ?: uiState.conversationState.generationState,
@@ -208,7 +318,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = uiState.conversationState.editingMessageId,
                 editingMessageDraft = uiState.conversationState.editingMessageDraft,
-                dialogState = uiState.dialogState
+                dialogState = uiState.dialogState,
+                messageLimit = uiState.conversationState.messages.size.coerceAtLeast(
+                    MESSAGE_PAGE_SIZE
+                )
             )
         }
         // 若会话已被删除，则取消任务并结束页面
@@ -224,6 +337,74 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             conversationState = refreshed.conversationState.copy(speechState = currentSpeechState),
             dialogState = refreshed.dialogState.resolveExportDialogState(
                 isExportActive = mChatExportJob?.isActive == true
+            )
+        ).setup()
+    }
+
+    /**
+     * 用户滚动到当前消息窗口顶部时向前加载一页历史消息。
+     *
+     * - 使用创建时间和消息 ID 组成的稳定游标，避免同时间消息跨页重复。
+     * - 新页面只执行自身消息的 Display Regex 与展示模型转换。
+     * - 合并时以最新 UiState 为准，避免覆盖流式内容等并发内存更新。
+     */
+    @UiIntentObserver(ChatUiIntent.LoadOlderMessages::class)
+    private suspend fun onLoadOlderMessages() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val cursor = mOldestLoadedMessageCursor ?: return
+        val displayContext = mMessageDisplayContext ?: return
+        if (!uiState.conversationState.canLoadOlderMessages ||
+            uiState.conversationState.isLoadingOlderMessages
+        ) return
+
+        // 先发布加载标记，拦截顶部滚动在同一页内重复触发
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                isLoadingOlderMessages = true
+            )
+        ).setup()
+        val loadedPage = try {
+            withContext(Dispatchers.IO) {
+                val page = mChatRepository.getMessagePageBefore(
+                    sessionId = sessionId,
+                    beforeCreateTime = cursor.createTime,
+                    beforeMessageId = cursor.messageId,
+                    pageSize = MESSAGE_PAGE_SIZE
+                )
+                LoadedChatMessagePage(
+                    items = page.messages.toDisplayMessageItems(
+                        context = displayContext,
+                        newerMessageCount = uiState.conversationState.messages.size,
+                        messageImages = page.messageImages
+                    ),
+                    cursor = page.messages.firstOrNull()?.toChatMessageCursor(),
+                    canLoadOlderMessages = page.canLoadOlderMessages,
+                    totalMessageCount = page.totalMessageCount
+                )
+            }
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+            val currentState = getOrNull<ChatUiState.Normal>() ?: return
+            currentState.copy(
+                conversationState = currentState.conversationState.copy(
+                    isLoadingOlderMessages = false
+                )
+            ).setup()
+            return
+        }
+
+        // 保留加载期间可能更新的尾部消息，并按 ID 防御性去重
+        val currentState = getOrNull<ChatUiState.Normal>() ?: return
+        val existingIds = currentState.conversationState.messages.mapTo(mutableSetOf()) { it.id }
+        val olderItems = loadedPage.items.filterNot { it.id in existingIds }
+        mOldestLoadedMessageCursor = loadedPage.cursor ?: cursor
+        currentState.copy(
+            session = currentState.session.copy(messageCount = loadedPage.totalMessageCount),
+            conversationState = currentState.conversationState.copy(
+                messages = olderItems + currentState.conversationState.messages,
+                canLoadOlderMessages = loadedPage.canLoadOlderMessages,
+                isLoadingOlderMessages = false
             )
         ).setup()
     }
@@ -312,10 +493,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (mImageCoordinator.state.processing) return
+        val images = mImageCoordinator.draftInputs()
         val rawInput = uiState.conversationState.inputDraft.trim()
-            .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
+            .ifBlank { if (images.isEmpty()) AppModel.replaceEmptyMessagePrompt.trim() else "" }
         // 若最终输入为空，退化为续写角色消息
-        if (rawInput.isBlank()) {
+        if (rawInput.isBlank() && images.isEmpty()) {
             continueLastAssistantMessage(sessionId, generateImageAfterReply)
             return
         }
@@ -334,45 +517,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
 
         // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
+        clearReplyRetry()
         mGenerationJob = launchGeneration(sessionId) {
+            var committed = false
             var replyGenerationCompleted = false
             val generationResult = runCatching {
+                // 已知不支持时保留草稿，防止先清空输入后才发现模型能力不足。
+                if (images.isNotEmpty()) {
+                    val character = mCharacterRepository.getCharacterById(uiState.character.id) ?: return@runCatching
+                    mImageCapabilities.requireImages(mProviderSelectionResolver.requireCharacterProvider(character).toConfig())
+                }
                 // 执行用户输入端 Source 正则
                 val input = withContext(Dispatchers.IO) {
                     applyUserRegex(sessionId, rawInput)
                 }
                 // 将用户消息写入数据库
-                withContext(Dispatchers.IO) {
-                    mChatRepository.createMessage(sessionId, ChatMessage.Source.User, input)
+                mImageCoordinator.submit { finalInputs ->
+                    mChatRepository.createUserMessageWithImages(
+                        sessionId, input, finalInputs.filterIsInstance<MessageImageInput.Prepared>()
+                    ).also {
+                        mRetryUserMessageId = it.key.messageId
+                        committed = true
+                    }
                 }
                 // 清空草稿并将 UI 切换至“请求中”状态
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = "",
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting
                 )
-                // 构建 Prompt 请求并记录检查项
-                val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
-                recordPromptInspection(built.inspection)
-                // 分发调用大模型生成角色回复
-                if (AppModel.streamEnabled) {
-                    generateStreaming(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
-                    )
-                } else {
-                    generateOnce(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
-                    )
-                }
+                generateCommittedReply(sessionId)
                 replyGenerationCompleted = true
                 // 检查并按需触发自动总结
                 maybeAutoSummarize(sessionId)
@@ -386,8 +560,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
-                    inputDraft = "",
-                    isExpanded = uiState.lorebookState.isExpanded,
+                    inputDraft = if (committed) "" else uiState.conversationState.inputDraft,
                     generationState = ChatGenerationState.Failed(failure.message),
                     dialogState = guideDialog ?: ChatDialogState.None
                 )
@@ -417,6 +590,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    /** 为已提交的用户消息生成回复；成功后先释放恢复目标，再运行独立的摘要流程。 */
+    private suspend fun generateCommittedReply(sessionId: Long) {
+        val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+        recordPromptInspection(built.inspection)
+        val output = GenerationOutput.Create(ChatMessage.Source.Char)
+        // 首次发送和失败恢复共享相同分发，恢复时不再提交用户正文或附件。
+        if (AppModel.streamEnabled) {
+            generateStreaming(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
+        } else {
+            generateOnce(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
+        }
+        clearReplyRetry()
+    }
+
     /**
      * 响应用户点击“停止生成”按钮。
      *
@@ -439,6 +626,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 若有活跃任务被取消返回 true，否则返回 false
      */
     private suspend fun cancelActiveGeneration(): Boolean {
+        clearReplyRetry()
         val sessionId = mSessionId ?: return false
         return mGenerationCoordinator.stop(sessionId)
     }
@@ -724,13 +912,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(loadState = ChatLoadState.Saving).setup()
         val branchCreateTime = System.currentTimeMillis()
         // 异步在数据库中创建分支会话
-        val branchId = withContext(Dispatchers.IO) {
-            mChatRepository.createBranchSession(
-                sourceSessionId = sessionId,
-                throughMessageId = messageId,
-                title = branchCreateTime.toDefaultChatTitle(),
-                createTime = branchCreateTime
-            )
+        val branchId = try {
+            withContext(Dispatchers.IO) {
+                mChatRepository.createBranchSession(
+                    sourceSessionId = sessionId,
+                    throughMessageId = messageId,
+                    title = branchCreateTime.toDefaultChatTitle(),
+                    createTime = branchCreateTime
+                )
+            }
+        } catch (error: Exception) {
+            // 文件或数据库失败统一回到可操作状态，协程取消仍向上传播。
+            currentCoroutineContext().ensureActive()
+            0L
         }
         // 处理分叉创建失败
         if (branchId == 0L) {
@@ -742,15 +936,70 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ChatViewEvent.OpenSession(branchId.toString()).emit()
     }
 
-    /**
-     * 展开或收起会话的世界书抽屉/选择面板。
-     */
-    @UiIntentObserver(ChatUiIntent.OpenSessionLore::class)
-    private fun onOpenSessionLore() {
+    /** 打开当前会话的世界书快捷管理对话框。 */
+    @UiIntentObserver(ChatUiIntent.ShowSessionLoreDialog::class)
+    private fun onShowSessionLoreDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val groups = uiState.lorebookState.groups
         uiState.copy(
-            lorebookState = uiState.lorebookState.copy(
-                isExpanded = !uiState.lorebookState.isExpanded
+            dialogState = ChatDialogState.SessionLorebook(
+                query = "",
+                visibleGroups = groups,
+                enabledEntryIds = uiState.session.enabledLorebookEntryIds
+            )
+        ).setup()
+    }
+
+    /** 更新单聊快捷管理对话框中的世界书搜索词与过滤结果。 */
+    @UiIntentObserver(ChatUiIntent.ChangeSessionLorebookDialogQuery::class)
+    private fun onChangeSessionLorebookDialogQuery(
+        intent: ChatUiIntent.ChangeSessionLorebookDialogQuery
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                query = intent.value,
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value)
+            )
+        ).setup()
+    }
+
+    /** 切换单聊快捷管理对话框草稿中的单个条目。 */
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogEntry::class)
+    private fun onToggleSessionLorebookDialogEntry(
+        intent: ChatUiIntent.ToggleSessionLorebookDialogEntry
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        val entryExists = uiState.lorebookState.groups.any { group ->
+            group.entries.any { it.id == intent.entryId }
+        }
+        if (!entryExists) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggle(intent.entryId)
+            )
+        ).setup()
+    }
+
+    /** 切换单聊快捷管理对话框草稿中的整个世界书分组。 */
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogGroup::class)
+    private fun onToggleSessionLorebookDialogGroup(
+        intent: ChatUiIntent.ToggleSessionLorebookDialogGroup
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响。
+        val entryIds = uiState.lorebookState.groups
+            .firstOrNull { it.lorebookId == intent.lorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { it.id }
+            .orEmpty()
+        if (entryIds.isEmpty()) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(entryIds)
             )
         ).setup()
     }
@@ -773,7 +1022,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
             generationState = uiState.conversationState.generationState
         )
     }
@@ -796,8 +1044,29 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
             generationState = uiState.conversationState.generationState
+        )
+    }
+
+    /**
+     * 确认并保存快捷管理对话框中的世界书条目选择。
+     */
+    @UiIntentObserver(ChatUiIntent.ConfirmSessionLorebookSelection::class)
+    private suspend fun onConfirmSessionLorebookSelection() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        val sessionId = mSessionId ?: return
+        // 提交前剔除已经被删除的条目 ID，再一次性覆盖会话配置。
+        val validEntryIds = uiState.lorebookState.groups
+            .flatMap { it.entries }
+            .mapTo(mutableSetOf()) { it.id }
+        val enabledEntryIds = dialogState.enabledEntryIds.intersect(validEntryIds)
+        saveSessionLorebookEntryIds(sessionId, enabledEntryIds)
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = uiState.conversationState.inputDraft,
+            generationState = uiState.conversationState.generationState,
+            dialogState = ChatDialogState.None
         )
     }
 
@@ -839,7 +1108,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 校验前置条件（非生成中、非总结中），生成默认文件名并触发系统的 SAF 文件保存选择器。
      */
     @UiIntentObserver(ChatUiIntent.ExportChatClick::class)
-    private fun onExportChatClick() {
+    private suspend fun onExportChatClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         // 校验是否正处于忙碌或已在导出中
@@ -889,8 +1158,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mChatExportJob = viewModelScope.launchDataTask {
             try {
                 // 异步向目标 URI 写入导出的 JSONL 聊天归档
-                mChatArchiveRepository.exportToUri(sessionId, intent.uri)
-                AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
+                val skipped = mChatArchiveRepository.exportToUri(sessionId, intent.uri)
+                if (skipped > 0) AppViewEvent.PopupToastMessage(
+                    mContext.getString(R.string.chat_archive_images_skipped, skipped)
+                ).tryEmit()
+                else AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -1051,6 +1323,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         AppViewEvent.PopupToastMessageByResId(R.string.chat_deleted).tryEmit()
         // 关闭退出聊天页面
+        clearReplyRetry()
         ChatUiState.finished(uiStateFlow.value).setup()
     }
 
@@ -1094,6 +1367,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.deleteMessage(messageId)
         }
+        if (mRetryUserMessageId == messageId) clearReplyRetry()
         AppViewEvent.PopupToastMessageByResId(R.string.message_deleted).tryEmit()
         refreshUiState(sessionId = sessionId)
     }
@@ -1157,7 +1431,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
@@ -1172,6 +1447,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             extras = Bundle().apply {
                 putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, uiState.character.id)
             }
+        ).tryEmit()
+    }
+
+    /** 关闭摘要额度提示并打开全局设置，返回后可重新发起摘要。 */
+    @UiIntentObserver(ChatUiIntent.OpenSummarySettings::class)
+    private fun onOpenSummarySettings() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState != ChatDialogState.SummaryTokenLimit) return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
+        AppViewEvent.StartActivity(
+            MainActivity::class.java,
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
         ).tryEmit()
     }
 
@@ -1231,7 +1518,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 复制指定消息的正文内容到剪贴板。
+     * 复制指定消息的展示内容到剪贴板。
+     *
+     * 全局设置不允许思考块进入上下文时，复制同样排除已保存的思考内容。
      *
      * @param intent 包含消息 ID 的意图
      */
@@ -1255,9 +1544,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.StartEditMessage::class)
     private suspend fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
+        val messageId = intent.messageId.toLongOrNull() ?: return
         // 流式生成中的消息禁止编辑
         if (message.isStreaming) return
         if (uiState.conversationState.speechState.messageIdOrNull() == message.id) {
@@ -1266,13 +1557,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 异步从数据库拉取未经 Display 正则修改的原始文本
         val rawContent = withContext(Dispatchers.IO) {
             val sessionId = mSessionId ?: return@withContext null
-            mChatRepository.getMessagesBySessionId(sessionId)
-                .firstOrNull { it.id.toString() == intent.messageId }
+            mChatRepository.getMessageById(messageId)
+                ?.takeIf { it.sessionId == sessionId }
                 ?.content
         } ?: return
+        mImageCoordinator.startEditing(message.imageUuids)
         // 将 UI 切换至消息编辑状态并填入原始草稿，保留异步读取期间的最新朗读状态。
         val currentState = getOrNull<ChatUiState.Normal>() ?: return
         currentState.copy(
+            imageState = mImageCoordinator.state,
             conversationState = currentState.conversationState.copy(
                 editingMessageId = message.id,
                 editingMessageDraft = rawContent
@@ -1287,6 +1580,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ChangeEditingMessageDraft::class)
     private fun onChangeEditingMessageDraft(intent: ChatUiIntent.ChangeEditingMessageDraft) {
+        if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
         uiState.copy(
@@ -1304,48 +1598,55 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SaveEditingMessage::class)
     private suspend fun onSaveEditingMessage() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        val sessionId = mSessionId ?: return
-        val messageId = uiState.conversationState.editingMessageId?.toLongOrNull() ?: return
-        // 异步处理消息内容更新与对应 Source 正则规则执行
-        withContext(Dispatchers.IO) {
-            val message = mChatRepository.getMessagesBySessionId(sessionId)
-                .firstOrNull { it.id == messageId } ?: return@withContext
-            // 依据消息来源分别执行对应的编辑期正则（isEdit = true）
-            val content = when (message.source) {
-                ChatMessage.Source.User -> applyUserRegex(
-                    sessionId,
-                    uiState.conversationState.editingMessageDraft,
-                    isEdit = true
-                )
-                ChatMessage.Source.Char -> applyAiRegex(
-                    sessionId,
-                    uiState.conversationState.editingMessageDraft,
-                    isEdit = true
-                )
-                ChatMessage.Source.System,
-                ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
+        if (mImageCoordinator.state.processing) return
+        try {
+            val uiState = getOrNull<ChatUiState.Normal>() ?: return
+            val sessionId = mSessionId ?: return
+            val messageId = uiState.conversationState.editingMessageId?.toLongOrNull() ?: return
+            val message = mChatRepository.getMessageById(messageId)
+                ?.takeIf { it.sessionId == sessionId } ?: return
+            mImageCoordinator.submit(editing = true) { finalInputs ->
+                // 只处理新增附件；文字与附件在同一事务保存，已有文件不会重复压缩。
+                val content = withContext(Dispatchers.IO) {
+                    when (message.source) {
+                        ChatMessage.Source.User -> applyUserRegex(
+                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                        )
+                        ChatMessage.Source.Char -> applyAiRegex(
+                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                        )
+                        ChatMessage.Source.System,
+                        ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
+                    }
+                }
+                if (message.source != ChatMessage.Source.Summary) {
+                    mChatRepository.editMessageWithImages(sessionId, messageId, content, finalInputs)
+                } else mChatRepository.updateMessageContent(messageId, content)
             }
-            // 将修改后的消息正文持久化回数据库
-            mChatRepository.updateMessageContent(messageId, content)
+            // 刷新 UI 状态并重置编辑态草稿
+            refreshUiState(
+                sessionId = sessionId,
+                inputDraft = uiState.conversationState.inputDraft,
+                generationState = uiState.conversationState.generationState,
+                expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
+                editingMessageId = null,
+                editingMessageDraft = ""
+            )
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            val failure = error.toGenerationFailurePresentation(mContext, R.string.image_error_invalid)
+            failure?.let { AppViewEvent.PopupToastMessage(it.message).tryEmit() }
         }
-        // 刷新 UI 状态并重置编辑态草稿
-        refreshUiState(
-            sessionId = sessionId,
-            inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
-            generationState = uiState.conversationState.generationState,
-            expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
-            editingMessageId = null,
-            editingMessageDraft = ""
-        )
     }
 
     /**
      * 取消消息编辑，重置编辑状态与草稿。
      */
     @UiIntentObserver(ChatUiIntent.CancelEditingMessage::class)
-    private fun onCancelEditingMessage() {
+    private suspend fun onCancelEditingMessage() {
+        if (mImageCoordinator.state.submitting) return
+        mImageCoordinator.cancelProcessing()
+        mImageCoordinator.cancelEditing()
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(
             conversationState = uiState.conversationState.copy(
@@ -1440,11 +1741,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 校验历史记录：只允许重生成最后一条角色回复，避免破坏中间历史
-        val messages = withContext(Dispatchers.IO) {
-            mChatRepository.getMessagesBySessionId(sessionId)
+        val (latestAssistantMessage, messageCount) = withContext(Dispatchers.IO) {
+            mChatRepository.getLatestMessageBySessionId(sessionId) to
+                mChatRepository.getMessageCountBySessionId(sessionId)
         }
-        val latestAssistantMessage = messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
-        if (latestAssistantMessage == null) {
+        if (latestAssistantMessage?.source != ChatMessage.Source.Char) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_regenerate).tryEmit()
             return
         }
@@ -1453,11 +1754,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.only_latest_assistant_reply_regenerate).tryEmit()
             return
         }
-        if (messages.size == 1) {
+        if (messageCount == 1) {
             AppViewEvent.PopupToastMessageByResId(R.string.cannot_regenerate_only_first_message).tryEmit()
             return
         }
         // 启动重生成协程任务
+        clearReplyRetry()
         mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 // 更新 UI 为请求中状态
@@ -1465,7 +1767,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
@@ -1540,10 +1841,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 检查最后一条消息及其来源
-        val messages = withContext(Dispatchers.IO) {
-            mChatRepository.getMessagesBySessionId(sessionId)
+        val latestMessage = withContext(Dispatchers.IO) {
+            mChatRepository.getLatestMessageBySessionId(sessionId)
         }
-        val latestMessage = messages.lastOrNull()
         if (latestMessage == null || (latestMessage.source != ChatMessage.Source.User && latestMessage.source != ChatMessage.Source.Char)) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_continue).tryEmit()
             return
@@ -1555,14 +1855,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             null
         }
         // 启动续写任务
+        clearReplyRetry()
         mGenerationJob = launchGeneration(sessionId) {
             var replyGenerationCompleted = false
             runCatching {
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
-                    isExpanded = uiState.lorebookState.isExpanded,
-                    generationState = ChatGenerationState.Requesting,
+            generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
                 // 依据最后一条消息来源决定生成模式（Normal 或 Continue）
@@ -1631,13 +1931,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 启动模仿用户生成任务
+        clearReplyRetry()
         mGenerationJob = launchGeneration(sessionId) {
             runCatching {
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
@@ -1938,8 +2238,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mChatRepository.getSessionById(sessionId)
             if (session?.autoSummaryPaused != false) return@withContext false
-            val messages = mChatRepository.getMessagesAfterLatestSummary(sessionId)
-            messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
+            val messageCount = mChatRepository.getUnsummarizedMessageCount(sessionId)
+            messageCount > 0 && messageCount >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
             // 交给协调器持有：自动总结同样需要可取消、可查询，且不能随页面销毁而中断。
@@ -1962,105 +2262,118 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param isManual 是否为用户手动触发（决定弹窗、Toast 与是否允许覆盖最新摘要）
      */
-    private suspend fun summarizeSession(sessionId: Long, isManual: Boolean) {
-        if (isManual) setSummarizingStage(SummaryPreparationStage.Preparing)
-        try {
-            runCatching {
-                // 异步组装总结所需的基础数据（会话、角色、待总结切片、模型提供商）
-                val data = withContext(Dispatchers.IO) {
-                    val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
-                    val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
-                    val summaryContext = mChatRepository.getSummaryGenerationContext(
-                        sessionId = sessionId,
-                        allowRefreshLatest = isManual
-                    )
-                    val provider = mProviderSelectionResolver.requireSummaryProvider()
-                    AutoSummaryData(
-                        session = session,
-                        character = character,
-                        summary = summaryContext.existingSummary,
-                        messages = summaryContext.messages,
-                        summaryIdToUpdate = summaryContext.summaryToUpdate?.id,
-                        provider = provider
-                    )
-                } ?: run {
-                    AppLogger.w("Summary", "Session or character missing for session $sessionId")
-                    return
+    private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
+        runCatching {
+            // 异步组装不会随候选窗口变化的会话、角色和模型配置
+            val data = withContext(Dispatchers.IO) {
+                val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
+                val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
+                val provider = mProviderSelectionResolver.requireSummaryProvider()
+                AutoSummaryData(
+                    session = session,
+                    character = character,
+                    provider = provider
+                )
+            } ?: return
+            // 自动摘要使用计数查询复核触发条件，不再反序列化完整历史
+            if (!showToast) {
+                val unsummarizedCount = withContext(Dispatchers.IO) {
+                    mChatRepository.getUnsummarizedMessageCount(sessionId)
                 }
-                // 检查待总结消息列表是否为空或未达自动阈值
-                if (data.messages.isEmpty()) {
-                    AppLogger.i("Summary", "No unsummarized messages for session $sessionId")
-                    if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
-                    return
-                }
-                if (!isManual && data.messages.size < AppModel.summaryTriggerMessageCount) return
+                if (unsummarizedCount < AppModel.summaryTriggerMessageCount) return
+            }
+            val maximumCandidates = summaryCandidateMessageLimit(
+                maxContextTokens = data.provider.contextTokens,
+                responseTokens = AppModel.summaryResponseTokens,
+                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest
+            )
+            val initialWindowSize = minOf(
+                INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                maximumCandidates
+            )
+            val initialContext = withContext(Dispatchers.IO) {
+                mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    allowRefreshLatest = showToast,
+                    maxCandidateMessages = initialWindowSize
+                )
+            }
+            if (initialContext.messages.isEmpty()) {
+                if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
+                return
+            }
 
-                // Tokenizer 与 Prompt 选择属于 CPU 密集工作，必须离开主线程。
-                val built = withContext(Dispatchers.Default) {
-                    mSummaryPromptBuilder.buildWithSelection(
-                        userName = data.session.userName,
-                        userDescription = data.session.userDescription,
-                        character = data.character,
-                        session = data.session,
-                        existingSummary = data.summary,
-                        messages = data.messages,
-                        provider = data.provider
-                    )
-                }
-                if (built.selectedMessages.isEmpty()) {
-                    // 预算不足以容纳任何一条消息；静默返回会让用户以为按钮没反应。
-                    AppLogger.w(
-                        "Summary",
-                        "Token budget selected no messages for session $sessionId " +
-                            "(${data.messages.size} candidates, model ${data.provider.model})"
-                    )
-                    if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.summary_budget_too_small).tryEmit()
-                    return
-                }
+            // 设置 UI 为总结中弹窗状态
+            val uiState = getOrNull<ChatUiState.Normal>() ?: return
+            uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
 
-                currentCoroutineContext().ensureActive()
-                if (isManual) setSummarizingStage(SummaryPreparationStage.Generating)
+            // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
+            val prepared = buildSummaryRequest(
+                sessionId = sessionId,
+                allowRefreshLatest = showToast,
+                data = data,
+                initialContext = initialContext,
+                initialWindowSize = initialWindowSize,
+                maximumCandidates = maximumCandidates
+            ) ?: return
 
-                // 调用大模型生成摘要
-                val response = withContext(Dispatchers.IO) {
-                    mLLMRepository.generateWithProvider(
-                        provider = data.provider,
-                        request = built.request,
-                        routingSessionKey = "chat:$sessionId",
-                        permitScope = LLM_PERMIT_SCOPE_SUMMARY
-                    )
-                }
-                // 清洗摘要文本
-                val summaryContent = response.content.summarySafeContent()
-                if (summaryContent.isBlank()) {
-                    error(mContext.getString(R.string.summary_failed))
-                }
+            currentCoroutineContext().ensureActive()
 
-                currentCoroutineContext().ensureActive()
+            // 调用大模型生成摘要
+            val response = withContext(Dispatchers.IO) {
+                mLLMRepository.generateWithProvider(
+                    provider = data.provider,
+                    request = prepared.request,
+                    routingSessionKey = "chat:$sessionId"
+                )
+            }
+            // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
+            if (response.isOutputTokenLimitReached()) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return
+                uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
+                return
+            }
+            val summaryContent = response.content.summarySafeContent()
+            if (summaryContent.isBlank()) {
+                error(mContext.getString(R.string.summary_failed))
+            }
 
-                // 持久化新摘要与覆盖边界消息 ID
-                withContext(Dispatchers.IO) {
-                    mChatRepository.saveSummary(
-                        sessionId = sessionId,
-                        content = summaryContent,
-                        coveredMessageId = built.selectedMessages.last().id,
-                        summaryIdToUpdate = data.summaryIdToUpdate
-                    )
-                }
-                if (isManual) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
-            }.onFailure { throwable ->
-                val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.summary_failed
-                ) ?: throw throwable
-                AppLogger.e("Summary", "Summary failed for session $sessionId: ${failure.message}", throwable)
-                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-                if (guideDialog != null) {
-                    val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
-                    uiState.copy(dialogState = guideDialog).setup()
-                } else {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
+            currentCoroutineContext().ensureActive()
+
+            // 持久化新摘要与覆盖边界消息 ID
+            withContext(Dispatchers.IO) {
+                mChatRepository.saveSummary(
+                    sessionId = sessionId,
+                    content = summaryContent,
+                    coveredMessageId = prepared.coveredMessageId,
+                    summaryIdToUpdate = prepared.summaryIdToUpdate,
+                    expectedSnapshot = prepared.inputSnapshot
+                )
+            }
+            if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
+        }.onFailure { throwable ->
+            val cause = classifyGenerationFailure(throwable)
+            // Repository 会先拦截空正文，因此额度提示还必须覆盖异常路径。
+            if (cause is GenerationFailure.EmptyResponse && cause.outputTokenLimitReached) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
+                return@onFailure
+            }
+            val imageFailure = cause is GenerationFailure.Image
+            if (!showToast && imageFailure) {
+                mChatRepository.updateAutoSummaryPaused(sessionId, true)
+                AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()
+            }
+            val failure = throwable.toGenerationFailurePresentation(
+                mContext,
+                R.string.summary_failed
+            ) ?: throw throwable
+            val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
+            if (guideDialog != null) {
+                val uiState = getOrNull<ChatUiState.Normal>() ?: return@onFailure
+                uiState.copy(dialogState = guideDialog).setup()
+            } else {
+                AppViewEvent.PopupToastMessage(failure.message).tryEmit()
             }
         } finally {
             // 无论成功、失败、提前返回还是被取消，都必须把“总结中”弹窗还原并刷新最新摘要。
@@ -2089,6 +2402,68 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
+     * 按需扩展单聊摘要候选窗口，并在后台计算线程完成 Prompt 构建。
+     *
+     * 只有当前窗口全部进入预算且数据库仍有更早候选时才扩大窗口；一旦 Token 预算截断，
+     * 立即返回与完整历史构建相同的连续前缀及覆盖边界。
+     */
+    private suspend fun buildSummaryRequest(
+        sessionId: Long,
+        allowRefreshLatest: Boolean,
+        data: AutoSummaryData,
+        initialContext: ChatSummaryGenerationContext,
+        initialWindowSize: Int,
+        maximumCandidates: Int
+    ): PreparedSummaryRequest? {
+        var windowSize = initialWindowSize
+        var context = initialContext
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val inputSnapshot = mChatRepository.getSummaryInputSnapshot(sessionId, context.messages.map { it.id })
+            require(mChatRepository.getSummaryGenerationContext(sessionId, allowRefreshLatest, windowSize) == context) {
+                "Summary input changed, retry"
+            }
+            val summaryImages = mImageRuntime.prepareCandidates(mChatRepository.getMessagesWithImages(context.messages.map { it.id }))
+            // 格式化与 BPE Token 统计属于 CPU 密集任务，不能占用 UI 主线程
+            val built = withContext(Dispatchers.Default) {
+                mSummaryPromptBuilder.buildWithSelection(
+                    userName = data.session.userName,
+                    userDescription = data.session.userDescription,
+                    character = data.character,
+                    session = data.session,
+                    existingSummary = context.existingSummary,
+                    messages = context.messages,
+                    messageImages = summaryImages.references,
+                    unavailableImages = summaryImages.unavailable,
+                    provider = data.provider
+                )
+            }
+            val candidateCount = (context.messages.size - 1).coerceAtLeast(0)
+            val shouldExpand = built.selectedMessages.size == candidateCount &&
+                context.hasMoreCandidateMessages &&
+                windowSize < maximumCandidates
+            if (!shouldExpand) {
+                val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
+                return PreparedSummaryRequest(
+                    request = built.request,
+                    coveredMessageId = coveredMessageId,
+                    summaryIdToUpdate = context.summaryToUpdate?.id,
+                    inputSnapshot = inputSnapshot
+                )
+            }
+            // 下一窗口仍从同一摘要边界读取，最终结果不依赖中间探测请求
+            windowSize = nextSummaryCandidateWindowSize(windowSize, maximumCandidates)
+            context = withContext(Dispatchers.IO) {
+                mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    allowRefreshLatest = allowRefreshLatest,
+                    maxCandidateMessages = windowSize
+                )
+            }
+        }
+    }
+
+    /**
      * 收集单聊 Prompt 所需的完整上下文数据并交给 [ChatPromptBuilder] 构建大模型请求。
      *
      * 特殊边界处理：
@@ -2110,31 +2485,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 加载会话实体与角色人设数据
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
-        val summaryContext = mChatRepository.getSummaryContext(sessionId)
-        // 计算历史记录切片，处理重生成边界回退逻辑
-        val generationHistory = if (
-            excludedMessageId != null &&
-            summaryContext.summary?.coveredMessageId == excludedMessageId &&
-            summaryContext.messagesAfterSummary.isEmpty()
-        ) {
-            val regenerationContext = mChatRepository.getSummaryGenerationContext(
-                sessionId = sessionId,
-                allowRefreshLatest = true
-            )
-            GenerationHistory(
-                summary = regenerationContext.existingSummary,
-                messages = regenerationContext.messages.filterNot { it.id == excludedMessageId },
-                totalMessageCount = (summaryContext.totalMessageCount - 1).coerceAtLeast(0)
-            )
-        } else {
-            GenerationHistory(
-                summary = summaryContext.summary?.content.orEmpty(),
-                messages = summaryContext.messagesAfterSummary.filterNot { it.id == excludedMessageId },
-                totalMessageCount = (
-                    summaryContext.totalMessageCount - if (excludedMessageId == null) 0 else 1
-                ).coerceAtLeast(0)
-            )
-        }
+        val generationHistory = mChatRepository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = excludedMessageId,
+            maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0)
+        )
         // 收集并过滤当前会话已启用的世界书条目与递归扫描设置
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookData = getAllLorebookEntries()
@@ -2150,27 +2505,44 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 解析角色绑定的模型服务提供商
         val provider = mProviderSelectionResolver.requireCharacterProvider(character)
         // 组装 PromptBuildContext 并调用 Prompt 构建器
-        val buildResult = mChatPromptBuilder.buildWithMetadata(
-            PromptBuildContext(
-                userName = session.userName,
-                userDescription = session.userDescription,
-                character = character,
-                session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
-                summary = generationHistory.summary,
-                messages = generationHistory.messages,
-                currentUserMessage = null,
-                totalMessageCount = generationHistory.totalMessageCount,
-                candidateLorebookEntries = lorebookEntries,
-                candidateLorebooks = activeLorebooks,
-                recursiveScanningLorebookIds = recursiveLorebookIds,
-                provider = provider,
-                maxContextTokens = provider.contextTokens,
-                maxResponseTokens = provider.maxTokens,
-                generationMode = generationMode,
-                regenerationInstruction = regenerationInstruction,
-                regexScripts = mRegexRepository.activeScripts(listOf(character))
+        val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
+        val regexScripts = mRegexRepository.activeScripts(listOf(character))
+        val imageReferences = mImageRuntime.prepareCandidates(generationHistory.messages)
+        val buildResult = withContext(Dispatchers.Default) {
+            mChatPromptBuilder.buildWithMetadata(
+                PromptBuildContext(
+                    userName = session.userName,
+                    userDescription = session.userDescription,
+                    character = character,
+                    session = session.copy(creatorNotes = creatorNotes),
+                    summary = generationHistory.summary,
+                    // Builder 的正文输入也由同一图文快照投影，不再持有另一份数据库消息列表。
+                    messages = generationHistory.messages.map { message ->
+                        ChatMessage(
+                            id = message.key.messageId,
+                            sessionId = sessionId,
+                            createTime = message.createTime,
+                            source = ChatMessage.Source.valueOf(message.source),
+                            content = message.content,
+                            coveredMessageId = message.coveredMessageId
+                        )
+                    },
+                    messageImages = imageReferences.references,
+                    unavailableImages = imageReferences.unavailable,
+                    currentUserMessage = null,
+                    totalMessageCount = generationHistory.totalMessageCount,
+                    candidateLorebookEntries = lorebookEntries,
+                    candidateLorebooks = activeLorebooks,
+                    recursiveScanningLorebookIds = recursiveLorebookIds,
+                    provider = provider,
+                    maxContextTokens = provider.contextTokens,
+                    maxResponseTokens = provider.maxTokens,
+                    generationMode = generationMode,
+                    regenerationInstruction = regenerationInstruction,
+                    regexScripts = regexScripts
+                )
             )
-        )
+        }
         return BuiltGenerationRequest(
             provider = provider,
             request = buildResult.request,
@@ -2217,17 +2589,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 从持久化数据层加载并重建完整的单聊页面 UI 状态。
+     * 从持久化数据层加载并重建单聊页面 UI 状态。
      *
      * 展示特性：
      * - Display 正则：历史消息在内存中执行 Display 阶段正则，以便支持 Markdown 替换，而数据库中的原始 Source 正文保持纯净。
-     * - 头像解析：将角色头像本地文件路径解码为 [androidx.compose.ui.graphics.ImageBitmap]。
+     * - 头像解析：将角色头像本地文件路径解码为 [ImageBitmap]。
      * - 世界书分组：将条目按所属世界书组织，并应用当前搜索词过滤。
      *
      * @param sessionId 会话 ID
      * @param inputDraft 输入框草稿
      * @param page 当前子页面（对话/设置）
-     * @param isExpanded 世界书抽屉是否展开
      * @param lorebookQuery 世界书搜索词
      * @param loadState 页面整体加载/保存状态
      * @param generationState 大模型生成状态
@@ -2235,13 +2606,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param editingMessageId 正在编辑的消息 ID
      * @param editingMessageDraft 正在编辑的消息草稿
      * @param dialogState 当前展示的对话框状态
+     * @param messageLimit 从会话末尾保留的消息窗口大小
      * @return 组装完成的 [ChatUiState.Normal]，若会话或角色不存在返回 null
      */
     private suspend fun loadNormalState(
         sessionId: Long,
         inputDraft: String = "",
         page: ChatPage = ChatPage.Conversation,
-        isExpanded: Boolean = false,
         lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
@@ -2250,22 +2621,99 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: String? = null,
         editingMessageDraft: String = "",
-        dialogState: ChatDialogState = ChatDialogState.None
+        dialogState: ChatDialogState = ChatDialogState.None,
+        messageLimit: Int = MESSAGE_PAGE_SIZE
     ): ChatUiState.Normal? {
-        // 查询会话基础数据、角色人设及历史消息
+        // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
-        val messages = mChatRepository.getMessagesBySessionId(sessionId)
-        val regexScripts = mRegexRepository.activeScripts(listOf(character))
-        val regexMacros = RegexScriptRuntime.macros(
-            userName = session.userName,
-            characterName = character.name,
-            userDescription = session.userDescription,
-            scenario = character.scenario
+        val pageData = mChatRepository.getChatPageData(sessionId, messageLimit)
+        val messagePage = pageData.page
+        val displayContext = ChatMessageDisplayContext(session, character)
+        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext, messageImages = messagePage.messageImages)
+        mMessageDisplayContext = displayContext
+        mOldestLoadedMessageCursor = messagePage.messages.firstOrNull()?.toChatMessageCursor()
+        // 获取摘要、世界书及角色头像资源
+        val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
+        val lorebookData = getAllLorebookEntries()
+        val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
+        val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
+        val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let {
+            mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+        }
+        val hasAvailableProvider = mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
+        // 组装并返回 Normal UI 状态
+        return ChatUiState.Normal(
+            imageState = mImageCoordinator.state,
+            page = page,
+            loadState = loadState,
+            session = session.toChatSessionItem(
+                summary = summary,
+                creatorNotes = effectiveCreatorNotes,
+                messageCount = messagePage.totalMessageCount,
+                enabledIds = enabledIds
+            ),
+            character = character.toChatCharacterItem(
+                userName = session.userName,
+                avatarImage = avatarImage
+            ),
+            conversationState = ChatConversationState(
+                messages = displayMessages,
+                hasAssistantMessage = pageData.hasCharacterMessage,
+                canLoadOlderMessages = messagePage.canLoadOlderMessages,
+                inputDraft = inputDraft,
+                generationState = if (generationState is ChatGenerationState.Failed) {
+                    generationState.copy(canRetryReply = mRetryUserMessageId?.let {
+                        mChatRepository.getMessageById(it)?.sessionId == sessionId
+                    } == true)
+                } else generationState,
+                expandedThinkBlockIds = expandedThinkBlockIds,
+                editingMessageId = editingMessageId,
+                editingMessageDraft = editingMessageDraft
+            ),
+            lorebookState = lorebookData.toChatLorebookGroupItems(
+                    enabledIds = enabledIds,
+                    unknownLorebookName = mContext.getString(R.string.unknown_lorebook)
+                ).let { groups ->
+                    ChatLorebookState(
+                        groups = groups,
+                        visibleGroups = groups.filterForQuery(lorebookQuery),
+                        query = lorebookQuery
+                    )
+                },
+            streamEnabled = AppModel.streamEnabled,
+            hasPromptInspection = mLastPromptInspection != null,
+            hasAvailableProvider = hasAvailableProvider,
+            dialogState = dialogState
         )
-        // 映射展示消息并执行 Display 阶段正则渲染
-        val displayMessages = messages.mapIndexed { index, message ->
-            val depth = messages.lastIndex - index
+    }
+
+    /**
+     * 将一段连续的数据库消息转换为单聊页面展示模型。
+     *
+     * [newerMessageCount] 保证分批转换时的 Regex depth 仍以会话最新消息为零点，
+     * 与一次性转换完整历史的行为保持一致。
+     *
+     * @receiver 按创建时间正序排列的连续消息。
+     * @param context 当前会话和角色的 Display Regex 上下文。
+     * @param newerMessageCount 当前片段之后已经加载的消息数量。
+     * @return 已应用 Display Regex 和思考块拆分的展示消息。
+     */
+    private suspend fun List<ChatMessage>.toDisplayMessageItems(
+        context: ChatMessageDisplayContext,
+        messageImages: List<MessageWithImages>,
+        newerMessageCount: Int = 0
+    ): List<ChatMessageUiModel> {
+        val regexScripts = mRegexRepository.activeScripts(listOf(context.character))
+        val regexMacros = RegexScriptRuntime.macros(
+            userName = context.session.userName,
+            characterName = context.character.name,
+            userDescription = context.session.userDescription,
+            scenario = context.character.scenario
+        )
+        // 每一页只处理自身消息，深度偏移仍覆盖已经加载的较新窗口
+        val displayMessages = mapIndexed { index, message ->
+            val depth = newerMessageCount + lastIndex - index
             val result = when (message.source) {
                 ChatMessage.Source.User -> mRegexProcessor.applyDisplay(
                     input = message.content,
@@ -2286,65 +2734,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (result == null) message else message.copy(content = result)
         }
-        // 获取摘要、世界书及角色头像资源
-        val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
-        val lorebookData = getAllLorebookEntries()
-        val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
-        val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
-        val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let {
-            mFileRepository.loadBitmap(it)?.asImageBitmap()
+        val imageMap = messageImages.associate { snapshot ->
+            snapshot.key.messageId.toString() to snapshot.images.filter { it.image.sendToModel }.map { it.image.imageUuid }
         }
-        val hasAvailableProvider = mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
-        // 组装并返回 Normal UI 状态
-        return ChatUiState.Normal(
-            page = page,
-            loadState = loadState,
-            session = session.toChatSessionItem(
-                summary = summary,
-                creatorNotes = effectiveCreatorNotes,
-                messageCount = messages.size,
-                enabledIds = enabledIds
-            ),
-            character = character.toChatCharacterItem(
-                userName = session.userName,
-                avatarImage = avatarImage
-            ),
-            conversationState = ChatConversationState(
-                messages = displayMessages.toChatMessageItems(
-                    characterName = character.name,
-                    userName = session.userName,
-                    systemSpeaker = mContext.getString(R.string.system_speaker),
-                    // ViewModel 重建后本地引用为空，此时以协调器快照为准，
-                    // 否则重进页面会看到一条不再标记为“生成中”的空消息。
-                    streamingMessageId = mActiveStreamingGeneration?.messageId
-                        ?: (mGenerationCoordinator.stateFor(sessionId)
-                            as? ChatGenerationState.Streaming)?.messageId
-                ),
-                inputDraft = inputDraft,
-                generationState = generationState,
-                imageGenerationStates = imageGenerationStates,
-                speechState = speechState,
-                expandedThinkBlockIds = expandedThinkBlockIds,
-                editingMessageId = editingMessageId,
-                editingMessageDraft = editingMessageDraft
-            ),
-            lorebookState = lorebookData.toChatLorebookGroupItems(
-                    enabledIds = enabledIds,
-                    unknownLorebookName = mContext.getString(R.string.unknown_lorebook)
-                ).let { groups ->
-                    ChatLorebookState(
-                        groups = groups,
-                        visibleGroups = groups.filterForQuery(lorebookQuery),
-                        query = lorebookQuery,
-                        isExpanded = isExpanded
-                    )
-                },
-            streamEnabled = AppModel.streamEnabled,
-            autoGenerateImageAfterReply = AppModel.autoGenerateImageAfterReply,
-            hasPromptInspection = mLastPromptInspection != null,
-            hasAvailableProvider = hasAvailableProvider,
-            dialogState = dialogState
-        )
+        val generatedImages = messageImages.associate { snapshot ->
+            snapshot.key.messageId.toString() to snapshot.images.firstOrNull { !it.image.sendToModel }?.image?.imageUuid
+        }
+        return displayMessages.toChatMessageItems(
+            characterName = context.character.name,
+            userName = context.session.userName,
+            systemSpeaker = mContext.getString(R.string.system_speaker),
+            streamingMessageId = mActiveStreamingGeneration?.messageId
+        ).map { it.copy(imageUuids = imageMap[it.id].orEmpty(), imageFileUuid = generatedImages[it.id]) }
     }
 
     /**
@@ -2355,7 +2756,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         inputDraft: String = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.inputDraft.orEmpty(),
         page: ChatPage = getOrNull<ChatUiState.Normal>()?.page ?: ChatPage.Conversation,
-        isExpanded: Boolean = getOrNull<ChatUiState.Normal>()?.lorebookState?.isExpanded ?: false,
         lorebookQuery: String = getOrNull<ChatUiState.Normal>()?.lorebookState?.query.orEmpty(),
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()
@@ -2370,14 +2770,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?.conversationState?.editingMessageId,
         editingMessageDraft: String = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.editingMessageDraft.orEmpty(),
-        dialogState: ChatDialogState = getOrNull<ChatUiState.Normal>()?.dialogState ?: ChatDialogState.None
+        dialogState: ChatDialogState = getOrNull<ChatUiState.Normal>()?.dialogState ?: ChatDialogState.None,
+        messageLimit: Int = getOrNull<ChatUiState.Normal>()
+            ?.conversationState?.messages?.size
+            ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
+            ?: MESSAGE_PAGE_SIZE
     ) {
         val nextState = withContext(Dispatchers.IO) {
             loadNormalState(
                 sessionId = sessionId,
                 inputDraft = inputDraft,
                 page = page,
-                isExpanded = isExpanded,
                 lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,
@@ -2386,7 +2789,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
-                dialogState = dialogState
+                dialogState = dialogState,
+                messageLimit = messageLimit
             )
         } ?: return
         val currentSpeechState = getOrNull<ChatUiState.Normal>()
@@ -2463,6 +2867,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ChatUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 将持久化消息转换为向前分页使用的稳定游标。 */
+    private fun ChatMessage.toChatMessageCursor(): ChatMessageCursor {
+        return ChatMessageCursor(createTime = createTime, messageId = id)
+    }
+
+    private companion object {
+        /** 聊天页面首次和后续向前加载的单页消息数量。 */
+        const val MESSAGE_PAGE_SIZE = 50
+    }
+
+    /** 单聊分页消息执行 Display Regex 所需的持久化上下文。 */
+    private data class ChatMessageDisplayContext(
+        val session: ChatSession,
+        val character: Character
+    )
+
+    /** 单聊消息由创建时间与 ID 组成的稳定分页游标。 */
+    private data class ChatMessageCursor(
+        val createTime: Long,
+        val messageId: Long
+    )
+
+    /** 已完成展示转换、可直接合并进 UiState 的一页单聊消息。 */
+    private data class LoadedChatMessagePage(
+        val items: List<ChatMessageUiModel>,
+        val cursor: ChatMessageCursor?,
+        val canLoadOlderMessages: Boolean,
+        val totalMessageCount: Int
+    )
+
     /**
      * 构建好的 LLM 请求及元数据包装。
      *
@@ -2472,9 +2906,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @property worldInfoStateJson 世界书时序激活状态快照 JSON
      */
     private data class BuiltGenerationRequest(
+        /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider,
+        /** 经过业务层组装、准备提交给模型服务的请求。 */
         val request: LLMGenerationRequest,
+        /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
         val inspection: PromptInspection,
+        /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
         val worldInfoStateJson: String
     )
 
@@ -2616,21 +3054,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 自动总结流程所需的数据包装类。
      */
     private data class AutoSummaryData(
+        /** 当前页面展示或编辑的会话数据。 */
         val session: ChatSession,
+        /** 当前状态或操作关联的角色数据。 */
         val character: Character,
-        val summary: String,
-        val messages: List<ChatMessage>,
-        val summaryIdToUpdate: Long?,
+        /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider
     )
 
-    /**
-     * 用于构建 Prompt 的历史上下文包装类。
-     */
-    private data class GenerationHistory(
-        val summary: String,
-        val messages: List<ChatMessage>,
-        val totalMessageCount: Int
+    /** 已完成预算选择、可以直接发送并写回覆盖边界的摘要请求。 */
+    private data class PreparedSummaryRequest(
+        val request: LLMGenerationRequest,
+        val coveredMessageId: Long,
+        val summaryIdToUpdate: Long?,
+        val inputSnapshot: SummaryInputSnapshot
     )
 
     /**
@@ -2638,9 +3075,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private sealed class GenerationOutput {
         /** 创建一条新消息并写入指定 source */
-        data class Create(val source: ChatMessage.Source) : GenerationOutput()
+        data class Create(
+            /** 产生当前数据的来源。 */
+            val source: ChatMessage.Source
+        ) : GenerationOutput()
         /** 更新覆盖已有的消息记录（如重新生成） */
-        data class Update(val messageId: Long) : GenerationOutput()
+        data class Update(
+            /** 当前操作关联的消息 ID。 */
+            val messageId: Long
+        ) : GenerationOutput()
     }
 
     /**
@@ -2657,7 +3100,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 流式生成初始化时绑定的正则脚本与宏快照。
      */
     private data class StreamingRegexContext(
+        /** 当前页面或流程可使用的正则脚本列表。 */
         val scripts: List<ScopedRegexScript> = emptyList(),
+        /** 当前正则执行允许展开的宏变量映射。 */
         val macros: Map<String, String> = emptyMap()
     )
 
@@ -2675,14 +3120,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @property worldInfoStateJson 世界书时序状态快照
      */
     private data class ActiveStreamingGeneration(
+        /** 用于识别并取消当前生成任务的唯一令牌。 */
         val token: Any,
+        /** 当前操作关联的会话 ID。 */
         val sessionId: Long,
+        /** 当前流式生成累计得到的正文。 */
         val output: GenerationOutput,
+        /** 当前操作关联的消息 ID。 */
         val messageId: Long?,
+        /** 本次流式生成是否已经创建待写回的占位记录。 */
         val createdPlaceholder: Boolean,
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 当前对象关联或允许执行的正则脚本列表。 */
         val regexScripts: List<ScopedRegexScript>,
+        /** 流式生成完成时执行 Source 正则所需的宏映射。 */
         val regexMacros: Map<String, String>,
+        /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
         val worldInfoStateJson: String
     )
 }

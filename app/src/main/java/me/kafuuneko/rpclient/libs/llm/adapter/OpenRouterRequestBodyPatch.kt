@@ -7,8 +7,11 @@ import com.google.gson.JsonParser
 
 /** OpenRouter 路由快捷配置；底层仍以通用请求体 Patch 为唯一数据源。 */
 internal data class OpenRouterRoutingPreferences(
+    /** OpenRouter 路由时优先选择的上游供应商。 */
     val preferredProvider: String = "",
+    /** 首选上游不可用时是否允许 OpenRouter 回退。 */
     val allowFallbacks: Boolean = true,
+    /** 高级路由 JSON 是否显式配置了供应商顺序。 */
     private val mHasProviderOrder: Boolean = false
 ) {
     val usesPreferredProvider: Boolean get() = mHasProviderOrder
@@ -87,12 +90,11 @@ internal fun String.hasValidOpenRouterRoutingPreferences(): Boolean {
 }
 
 private fun String.updateOpenRouterPatch(block: (JsonObject) -> Unit): String {
-    val root = runCatching { JsonParser.parseString(this).asJsonObject.deepCopy() }
+    val root = runCatching { JsonParser.parseString(this).asJsonObject }
         .getOrElse { JsonObject() }
     val provider = root.get("provider")
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?.deepCopy()
         ?: JsonObject()
     block(provider)
     if (provider.size() == 0) root.remove("provider") else root.add("provider", provider)

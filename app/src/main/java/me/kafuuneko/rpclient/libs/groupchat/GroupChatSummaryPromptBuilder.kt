@@ -1,23 +1,31 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
+import me.kafuuneko.rpclient.libs.prompt.countSummaryTokens
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
+import me.kafuuneko.rpclient.libs.prompt.model.requireAvailable
 import me.kafuuneko.rpclient.libs.prompt.selectSummaryPrefix
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidates
+import me.kafuuneko.rpclient.libs.prompt.summaryPromptBudget
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.prompt.toTokenInt
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 群聊总结请求和其实际覆盖的连续消息。 */
 data class GroupChatSummaryBuildResult(
+    /** 经过业务层组装、准备提交给模型服务的请求。 */
     val request: LLMGenerationRequest,
+    /** 按当前规则选入 Prompt 的历史消息。 */
     val selectedMessages: List<GroupChatMessage>
 )
 
@@ -26,61 +34,43 @@ class GroupChatSummaryPromptBuilder(
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /** 使用当前摘要和未覆盖消息构建群聊摘要请求。 */
-    suspend fun buildWithSelection(
+    fun buildWithSelection(
         session: GroupChatSession,
         memberNames: List<String>,
         existingSummary: String,
         messages: List<GroupChatMessage>,
-        provider: LLMProvider
+        provider: LLMProvider,
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
     ): GroupChatSummaryBuildResult {
         val responseTokens = AppModel.summaryResponseTokens
-        val promptBudget = provider.contextTokens - responseTokens
-        require(promptBudget > 0) {
-            "Summary response token reserve must be smaller than the context token limit."
-        }
+        val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitized = limited.map { message ->
             message.copy(content = message.content.summarySafeContent())
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
-        val baseTokenEstimate = tokenizer.countMessages(
-            renderRequestMessages(
+        val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
+            val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
-                emptyList()
+                sanitized.subList(0, prefix.size), messageImages, unavailableImages
             )
-        )
-        val selected = selectSummaryPrefix(
-            items = limited,
-            promptBudget = promptBudget,
-            baseTokenEstimate = baseTokenEstimate,
-            estimateItemTokens = { message ->
-                val safeContent = message.content.summarySafeContent()
-                tokenizer.countText("\n${message.speakerNameSnapshot}: $safeContent")
-                    .coerceAtLeast(1)
-            },
-            countPrefixTokens = { prefixSize ->
-                tokenizer.countMessages(
-                    renderRequestMessages(
-                        session,
-                        memberNames,
-                        safeExistingSummary,
-                        sanitized.subList(0, prefixSize)
-                    )
-                )
-            }
-        )
+            countSummaryTokens(tokenizer, requestMessages, promptBudget,
+                prefix.sumOf { unavailableImages[it.id].orEmpty().size })
+        }
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
-                sanitized.subList(0, 1)
+                listOf(sanitized.first()), messageImages, unavailableImages
             )
             throw PromptBudgetExceededException(
-                tokenizer.countMessages(requestMessages),
+                (tokenizer.countMessages(requestMessages).toLong() +
+                    tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
                 promptBudget
             )
         }
@@ -88,8 +78,9 @@ class GroupChatSummaryPromptBuilder(
             session,
             memberNames,
             safeExistingSummary,
-            sanitized.subList(0, selected.size)
+            sanitized.take(selected.size), messageImages, unavailableImages
         )
+        selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return GroupChatSummaryBuildResult(
             request = LLMGenerationRequest(
                 messages = requestMessages,
@@ -110,7 +101,9 @@ class GroupChatSummaryPromptBuilder(
         session: GroupChatSession,
         memberNames: List<String>,
         existingSummary: String,
-        messages: List<GroupChatMessage>
+        messages: List<GroupChatMessage>,
+        messageImages: Map<Long, List<LLMImageReference>>,
+        unavailableImages: Map<Long, List<UnavailablePromptImage>>
     ): List<LLMMessage> {
         val history = messages.joinToString("\n") {
             "${it.speakerNameSnapshot}: ${it.content}"
@@ -121,6 +114,14 @@ class GroupChatSummaryPromptBuilder(
             .replace("{{summary}}", "", ignoreCase = true)
             .replace("{{history}}", "", ignoreCase = true)
             .replace("{{words}}", AppModel.summaryWordsLimit.toString(), ignoreCase = true)
-        return buildRawSummaryMessages(instruction, existingSummary, history)
+        val historyBlocks = messages.flatMap { message ->
+            listOf(LLMContentBlock.Text("${message.speakerNameSnapshot}:")) +
+                messageImages[message.id].orEmpty().map { LLMContentBlock.Image(it) } +
+                LLMContentBlock.Text(message.content)
+        }
+        return buildRawSummaryMessages(instruction, existingSummary, history,
+            historyBlocks.takeIf { messages.any { message ->
+                !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
+            } })
     }
 }

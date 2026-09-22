@@ -1,11 +1,16 @@
 package me.kafuuneko.rpclient.libs.room
 
 import androidx.room.TypeConverter
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageSource
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 
 /**
  * 将业务枚举按名称写入 Room 字符串列。
@@ -13,6 +18,15 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
  * 枚举名称属于持久化格式的一部分；重命名成员时必须提供数据库迁移，不能只修改 Kotlin 名称。
  */
 class Converters {
+    /** 未知历史名称保守回退到自动，保证数据库仍可打开。 */
+    @TypeConverter
+    fun toImageTokenEstimatorType(value: String): ImageTokenEstimatorType =
+        ImageTokenEstimatorType.entries.firstOrNull { it.name == value } ?: ImageTokenEstimatorType.Automatic
+
+    /** 持久化稳定名称，避免枚举新增改变既有配置。 */
+    @TypeConverter
+    fun fromImageTokenEstimatorType(value: ImageTokenEstimatorType): String = value.name
+
     @TypeConverter
     fun toChatMessageSource(value: String): ChatMessage.Source {
         return ChatMessage.Source.valueOf(value)
@@ -70,6 +84,54 @@ class Converters {
 
     @TypeConverter
     fun fromLLMProviderProtocol(value: LLMProviderProtocol): String {
+        return value.name
+    }
+
+    /** 从数据库持久化名称恢复本地 Token 预估器类型。 */
+    @TypeConverter
+    fun toLocalTokenEstimatorType(value: String): LocalTokenEstimatorType {
+        return LocalTokenEstimatorType.valueOf(value)
+    }
+
+    /** 将本地 Token 预估器类型转换为稳定的数据库持久化名称。 */
+    @TypeConverter
+    fun fromLocalTokenEstimatorType(value: LocalTokenEstimatorType): String {
+        return value.name
+    }
+
+    /** 从数据库持久化名称恢复 Token 用量来源。 */
+    @TypeConverter
+    fun toLLMTokenUsageSource(value: String): LLMTokenUsageSource {
+        return LLMTokenUsageSource.valueOf(value)
+    }
+
+    /** 将 Token 用量来源转换为稳定的数据库持久化名称。 */
+    @TypeConverter
+    fun fromLLMTokenUsageSource(value: LLMTokenUsageSource): String {
+        return value.name
+    }
+
+    /** 从数据库持久化编码恢复消息类型枚举；使用 stableCode 而非 ordinal。 */
+    @TypeConverter
+    fun toMessageType(value: String): MessageType {
+        return MessageType.fromStableCode(value)
+    }
+
+    /** 将消息类型枚举转换为稳定的数据库持久化编码。 */
+    @TypeConverter
+    fun fromMessageType(value: MessageType): String {
+        return value.stableCode
+    }
+
+    /** 从数据库持久化名称恢复图片输入能力设置。 */
+    @TypeConverter
+    fun toImageInputSetting(value: String): ImageInputSetting {
+        return ImageInputSetting.valueOf(value)
+    }
+
+    /** 将图片输入能力设置转换为稳定的数据库持久化名称。 */
+    @TypeConverter
+    fun fromImageInputSetting(value: ImageInputSetting): String {
         return value.name
     }
 }

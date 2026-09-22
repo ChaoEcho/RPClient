@@ -1,11 +1,15 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.mergeContentBlocks
+import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 
 /**
  * 在协议适配前改写通用消息结构。
@@ -16,21 +20,25 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 fun LLMGenerationRequest.withPostProcessedMessages(
     mode: PromptPostProcessingMode,
     strictPromptPlaceholder: String,
-    names: PromptPostProcessingNames = PromptPostProcessingNames()
+    names: PromptPostProcessingNames = PromptPostProcessingNames(),
+    protocol: LLMProviderProtocol? = null
 ): LLMGenerationRequest {
     return copy(
-        messages = postProcessTrackedMessages(
-            messages.map {
-                TrackedPromptMessage(
-                    role = it.role,
-                    content = it.content,
-                    sources = listOf(PromptSource(PromptSourceKind.Other))
-                )
-            },
-            mode,
-            strictPromptPlaceholder,
-            names
-        ).map { LLMMessage(it.role, it.content) },
+        messages = normalizeProtocolMessages(
+            postProcessTrackedMessages(
+                messages.map {
+                    TrackedPromptMessage(
+                        role = it.role,
+                        content = it.content,
+                        sources = listOf(PromptSource(PromptSourceKind.Other)),
+                        blocks = it.contentBlocks
+                    )
+                },
+                mode,
+                strictPromptPlaceholder,
+                names
+            ), protocol
+        ).map { messageWithBlocks(it.role, it.blocks) },
         isPromptFinalized = true
     )
 }
@@ -42,8 +50,11 @@ fun LLMGenerationRequest.withPostProcessedMessages(
  * 以保留多轮对话中的发言者边界。
  */
 data class PromptPostProcessingNames(
+    /** 当前会话或 Prompt 使用的用户名称。 */
     val userName: String = "",
+    /** 关联角色的显示名称快照。 */
     val characterName: String = "",
+    /** Prompt 后处理规则识别的分组名称映射。 */
     val groupNames: List<String> = emptyList()
 )
 
@@ -54,9 +65,14 @@ data class PromptPostProcessingNames(
  * 和世界书时序提交判断实际进入请求的内容。
  */
 internal data class TrackedPromptMessage(
+    /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
+    /** 当前对象承载的正文内容。 */
     val content: String,
-    val sources: List<PromptSource>
+    /** 当前 Prompt 项合并后保留的原始来源列表。 */
+    val sources: List<PromptSource>,
+    val blocks: List<LLMContentBlock> = listOf(LLMContentBlock.Text(content)),
+    val unavailableImages: List<UnavailablePromptImage> = emptyList()
 )
 
 /**
@@ -89,7 +105,9 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
                 content = listOf(previous.content, message.content)
                     .filter { it.isNotBlank() }
                     .joinToString("\n\n"),
-                sources = (previous.sources + message.sources).distinct()
+                sources = (previous.sources + message.sources).distinct(),
+                blocks = mergeContentBlocks(previous.blocks + message.blocks),
+                unavailableImages = previous.unavailableImages + message.unavailableImages
             )
         } else {
             merged += message
@@ -135,9 +153,10 @@ private fun List<TrackedPromptMessage>.toStrictMessages(
     when {
         strict.isEmpty() -> strict += placeholder
         strict.first().role == LLMMessageRole.System &&
-            (strict.size == 1 || strict[1].role != LLMMessageRole.User) -> {
+                (strict.size == 1 || strict[1].role != LLMMessageRole.User) -> {
             strict.add(1, placeholder)
         }
+
         strict.first().role == LLMMessageRole.Assistant -> strict.add(0, placeholder)
     }
     return strict.mergeConsecutiveRoles()
@@ -165,7 +184,16 @@ private fun List<TrackedPromptMessage>.toSingleUserMessage(
             LLMMessageRole.Assistant -> message.content.withAssistantPrefix(names)
             LLMMessageRole.System -> message.content
         }
-        message.copy(role = LLMMessageRole.User, content = content)
+        message.copy(
+            role = LLMMessageRole.User, content = content,
+            blocks = if (message.unavailableImages.isNotEmpty() || message.blocks.any { it is LLMContentBlock.Image }) {
+                val speaker = when (message.role) {
+                    LLMMessageRole.User -> names.userName.ifBlank { "User" }
+                    LLMMessageRole.Assistant -> names.characterName.ifBlank { "Assistant" }
+                    LLMMessageRole.System -> "System"
+                }
+                listOf(LLMContentBlock.Text("$speaker:")) + message.blocks
+            } else listOf(LLMContentBlock.Text(content)))
     }
     return flattened.mergeConsecutiveRoles()
 }
@@ -185,3 +213,15 @@ private fun String.withSpeakerPrefix(name: String): String {
 /** 默认严格模式占位提示词内容。 */
 const val DEFAULT_STRICT_PROMPT_PLACEHOLDER = "Let's get started."
 
+
+/** 在最终预算之前完成协议角色正规化，检查器与实际发送共享此结果。 */
+internal fun normalizeProtocolMessages(
+    messages: List<TrackedPromptMessage>,
+    protocol: LLMProviderProtocol?
+): List<TrackedPromptMessage> {
+    require(messages.none { it.role == LLMMessageRole.System && it.blocks.any { block -> block is LLMContentBlock.Image } }) {
+        "System instructions cannot contain user images"
+    }
+    if (protocol == null || protocol == LLMProviderProtocol.OpenAICompatible) return messages
+    return messages.toStrictMessages(DEFAULT_STRICT_PROMPT_PLACEHOLDER)
+}

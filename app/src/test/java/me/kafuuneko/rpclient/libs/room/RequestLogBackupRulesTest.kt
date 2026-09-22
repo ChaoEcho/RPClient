@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.libs.room
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -63,8 +62,9 @@ class RequestLogBackupRulesTest {
     }
 
     private fun List<Element>.databasePaths(): Set<String> {
-        forEach { assertEquals("database", it.getAttribute("domain")) }
-        return mapTo(mutableSetOf()) { it.getAttribute("path") }
+        val temporary = filter { it.getAttribute("domain") == "root" }
+        assertEquals(setOf("app_repository/staging/"), temporary.map { it.getAttribute("path") }.toSet())
+        return filter { it.getAttribute("domain") == "database" }.mapTo(mutableSetOf()) { it.getAttribute("path") }
     }
 
     /** 应用运行日志目录同样是可丢弃的调试数据，不应随系统备份离开设备。 */

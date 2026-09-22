@@ -29,20 +29,36 @@ import org.junit.Test
 class ChatPromptBuilderTest {
     private val historyBuilder = FormattedHistoryBuilder()
     private val builder = ChatPromptBuilder(
+        mPreferences = TestPromptPreferences(),
         mMacroResolver = PromptMacroResolver(historyBuilder),
         mHistoryBuilder = historyBuilder,
         mWorldBookActivator = WorldBookActivator()
     )
 
     @Test
-    fun userPersonaUsesSharedFormatAndChatMacros() {
-        val result = builder.buildWithMetadata(
-            context(userDescription = "{{user}} trusts {{char}}.")
+    fun userPersonaUsesCurrentPreferencesAndChatMacros() {
+        val preferences = object : PromptPreferences by TestPromptPreferences() {
+            override var userPersonaFormat = "Profile of {{user}}: {{persona}}"
+        }
+        val configuredBuilder = ChatPromptBuilder(
+            mPreferences = preferences,
+            mMacroResolver = PromptMacroResolver(historyBuilder),
+            mHistoryBuilder = historyBuilder,
+            mWorldBookActivator = WorldBookActivator()
         )
+        val context = context(userDescription = "{{user}} trusts {{char}}.")
 
+        // 使用自定义模板确认构建器没有静默回退到默认配置。
         assertTrue(
-            result.request.messages.any {
-                it.content == "User Persona (User):\nUser trusts Char."
+            configuredBuilder.build(context).messages.any {
+                it.content == "Profile of User: User trusts Char."
+            }
+        )
+        // 构建器是应用级单例，设置修改后下一轮必须读取新值。
+        preferences.userPersonaFormat = "Updated {{user}}: {{persona}}"
+        assertTrue(
+            configuredBuilder.build(context).messages.any {
+                it.content == "Updated User: User trusts Char."
             }
         )
     }
@@ -179,6 +195,7 @@ class ChatPromptBuilderTest {
             override fun countText(text: String): Int = text.length
         }
         val disabledBuilder = ChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mMacroResolver = PromptMacroResolver(historyBuilder),
             mHistoryBuilder = historyBuilder,
             mWorldBookActivator = WorldBookActivator(),
@@ -1013,6 +1030,7 @@ class ChatPromptBuilderTest {
             override fun countText(text: String): Int = text.length
         }
         return ChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
             mMacroResolver = PromptMacroResolver(historyBuilder),
             mHistoryBuilder = historyBuilder,
             mWorldBookActivator = WorldBookActivator(),

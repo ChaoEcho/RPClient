@@ -1,105 +1,15 @@
 package me.kafuuneko.rpclient.libs.prompt
 
 import kotlinx.coroutines.runBlocking
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
-import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import org.junit.Test
 
 class SummaryPromptBuilderTest {
-
-    @Test
-    fun selectionMatchesExactContinuousPrefixSemantics() = runBlocking {
-        val messages = listOf("one", "two", "three")
-        var exactCalls = 0
-
-        val selected = selectSummaryPrefix(
-            items = messages,
-            promptBudget = 18,
-            baseTokenEstimate = 10,
-            estimateItemTokens = { it.length + 1 },
-            countPrefixTokens = { prefixSize ->
-                exactCalls += 1
-                10 + messages.take(prefixSize).sumOf { it.length + 1 }
-            }
-        )
-
-        assertEquals(listOf("one", "two"), selected)
-        assertTrue(exactCalls <= 3)
-    }
-
-    @Test
-    fun exactVerificationCorrectsAnInaccurateLightweightEstimate() = runBlocking {
-        val messages = List(10) { "message-$it" }
-
-        val selected = selectSummaryPrefix(
-            items = messages,
-            promptBudget = 22,
-            baseTokenEstimate = 2,
-            estimateItemTokens = { 1 },
-            countPrefixTokens = { prefixSize -> 2 + prefixSize * 5 }
-        )
-
-        assertEquals(messages.take(4), selected)
-    }
-
-    @Test
-    fun selectionRejectsFirstMessageWhenCompleteRequestExceedsBudget() = runBlocking {
-        val selected = selectSummaryPrefix(
-            items = listOf("oversized"),
-            promptBudget = 8,
-            baseTokenEstimate = 2,
-            estimateItemTokens = { it.length },
-            countPrefixTokens = { 9 }
-        )
-
-        assertEquals(emptyList<String>(), selected)
-    }
-
-    @Test
-    fun largeSelectionUsesLinearItemEstimatesAndFewCompleteRequestCounts() = runBlocking {
-        val messages = List(1_000) { "message-$it" }
-        var itemEstimateCalls = 0
-        var completeRequestCalls = 0
-
-        val selected = selectSummaryPrefix(
-            items = messages,
-            promptBudget = 2_510,
-            baseTokenEstimate = 10,
-            estimateItemTokens = {
-                itemEstimateCalls += 1
-                5
-            },
-            countPrefixTokens = { prefixSize ->
-                completeRequestCalls += 1
-                10 + prefixSize * 5
-            }
-        )
-
-        assertEquals(500, selected.size)
-        assertEquals(messages.take(500), selected)
-        assertEquals(1_000, itemEstimateCalls)
-        assertTrue("full prompt counted $completeRequestCalls times", completeRequestCalls <= 3)
-    }
-
-    @Test
-    fun longExistingSummaryOverheadStillKeepsExactBudgetBoundary() = runBlocking {
-        val messages = List(20) { "中文长段消息$it" }
-        val existingSummaryTokens = 1_200
-
-        val selected = selectSummaryPrefix(
-            items = messages,
-            promptBudget = 1_260,
-            baseTokenEstimate = existingSummaryTokens,
-            estimateItemTokens = { 10 },
-            countPrefixTokens = { prefixSize -> existingSummaryTokens + prefixSize * 10 }
-        )
-
-        assertEquals(messages.take(6), selected)
-    }
 
     @Test
     fun formattedSummaryHistoryUsesTextWithoutLocalImageMetadata() {
@@ -125,6 +35,73 @@ class SummaryPromptBuilderTest {
         assertFalse(outbound.contains(imageUuid))
         assertFalse(outbound.contains("data:image/"))
         assertFalse(outbound.contains("base64"))
+    }
+
+    @Test
+    fun selectionUsesLogarithmicPrefixProbesForLargeHistory() {
+        var probeCount = 0
+        val messages = (1..100_000).toList()
+
+        val selected = selectSummaryPrefix(
+            items = messages,
+            promptBudget = 54_321
+        ) { prefix ->
+            probeCount += 1
+            prefix.size
+        }
+
+        assertEquals(54_321, selected.size)
+        assertTrue(probeCount < 40)
+    }
+
+    @Test
+    fun candidateLimitHonorsExplicitSettingAndPromptBudget() {
+        assertEquals(900, summaryCandidateMessageLimit(1_000, 100, 0))
+        assertEquals(50, summaryCandidateMessageLimit(1_000, 100, 50))
+        assertEquals(900, summaryCandidateMessageLimit(1_000, 100, 2_000))
+        assertEquals(256, nextSummaryCandidateWindowSize(128, 900))
+        assertEquals(900, nextSummaryCandidateWindowSize(512, 900))
+    }
+
+    @Test
+    fun boundedBpeCountingMatchesExactResultAndSignalsOverflow() {
+        val tokenizer = PromptTokenizerRegistry().resolve(null)
+        val messages = buildRawSummaryMessages(
+            instruction = "Summarize the conversation",
+            existingSummary = "Earlier events",
+            history = (1..200).joinToString("\n") { "User: message-$it" }
+        )
+        val exactCount = tokenizer.countMessages(messages)
+
+        assertEquals(exactCount, tokenizer.countMessagesUpTo(messages, exactCount))
+        assertTrue(
+            tokenizer.countMessagesUpTo(messages, exactCount - 1) > exactCount - 1
+        )
+    }
+
+    @Test
+    fun optimizedSelectionMatchesLegacyGreedyTokenBoundary() {
+        val tokenizer = PromptTokenizerRegistry().resolve(null)
+        val historyLines = (1..80).map { index ->
+            when (index % 4) {
+                0 -> "Alice: short message $index"
+                1 -> "Character: 包含中文的历史消息 $index"
+                2 -> "Alice: punctuation!? message-$index"
+                else -> "Character: multiline $index\ncontinued"
+            }
+        }
+        val budgets = listOf(32, 64, 128, 256, 512, 1_024)
+
+        budgets.forEach { budget ->
+            val exactSelection = historyLines.selectLinearly(budget) { prefix ->
+                tokenizer.countMessages(summaryMessagesForHistory(prefix))
+            }
+            val optimizedSelection = selectSummaryPrefix(historyLines, budget) { prefix ->
+                tokenizer.countMessagesUpTo(summaryMessagesForHistory(prefix), budget)
+            }
+
+            assertEquals(exactSelection, optimizedSelection)
+        }
     }
 
     @Test
@@ -192,4 +169,25 @@ class SummaryPromptBuilderTest {
         assertEquals(listOf("one", "two"), listOf("one", "two", "three").summaryCandidates(0))
         assertEquals(listOf("one"), listOf("one", "two", "three").summaryCandidates(1))
     }
+
+    /** 使用优化前的逐前缀算法生成兼容性基准。 */
+    private fun <T> List<T>.selectLinearly(
+        promptBudget: Int,
+        countPrefixTokens: (List<T>) -> Int
+    ): List<T> {
+        val selected = mutableListOf<T>()
+        for (item in this) {
+            val candidate = selected + item
+            if (countPrefixTokens(candidate) > promptBudget) break
+            selected += item
+        }
+        return selected
+    }
+
+    /** 按生产摘要请求格式包装测试历史。 */
+    private fun summaryMessagesForHistory(historyLines: List<String>) = buildRawSummaryMessages(
+        instruction = "Summarize the conversation",
+        existingSummary = "Earlier events",
+        history = historyLines.joinToString("\n")
+    )
 }

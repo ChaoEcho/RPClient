@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.adapter.ImageLogSanitizer
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
@@ -57,8 +58,8 @@ class LLMRequestLogRepository(
                 protocol = provider.protocol,
                 model = model,
                 isStreaming = isStreaming,
-                requestJson = requestJson,
-                responseJson = responseJson
+                requestJson = ImageLogSanitizer.sanitize(requestJson),
+                responseJson = ImageLogSanitizer.sanitize(responseJson)
             )
         )
         // 每条日志都带完整请求与响应 JSON，没有上限会把调试库撑到几百 MB。

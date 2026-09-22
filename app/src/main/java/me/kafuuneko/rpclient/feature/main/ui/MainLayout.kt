@@ -1343,7 +1343,9 @@ private fun SettingsPage(
             )
         }
 
-        // ================= 1. 用户身份与人设 =================
+        item { IntegrationAppearancePanel(state.appearanceState, emit) }
+
+        // 用户身份与人设
         item {
             RpSectionHeader(title = stringResource(R.string.user_identity))
         }
@@ -1360,7 +1362,20 @@ private fun SettingsPage(
             ModelConfigPanel(state.providerState, state.imageProviderSummary, emit)
         }
 
-        // ================= 3. 提示词与上下文 =================
+        item { ImageSendPanel(state.imageSendState, emit) }
+        item {
+            RpSettingsGroup {
+                RpSettingsTile(
+                    icon = Icons.Rounded.SmartToy,
+                    title = stringResource(R.string.token_usage),
+                    subtitle = stringResource(R.string.token_usage_entry_subtitle),
+                    onClick = { MainUiIntent.OpenTokenUsage.emit() },
+                    trailing = { RpNavigationChevron() }
+                )
+            }
+        }
+
+        // 提示词与上下文
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }

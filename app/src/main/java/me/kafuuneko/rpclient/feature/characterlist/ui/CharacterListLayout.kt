@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,6 +73,7 @@ import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -130,13 +130,17 @@ private fun CharacterListNormal(
                 }
             }
         )
-        LazyColumn(
+        RpLazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 8.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { SearchField(state.searchText, emit) }

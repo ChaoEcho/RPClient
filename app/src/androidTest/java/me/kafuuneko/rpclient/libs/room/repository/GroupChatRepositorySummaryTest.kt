@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -10,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -27,7 +30,7 @@ class GroupChatRepositorySummaryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = GroupChatRepository(database, Gson())
+        repository = GroupChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
         sessionId = runBlocking {
             database.getGroupChatSessionDao().insertOrReplace(
                 GroupChatSession(
@@ -93,5 +96,104 @@ class GroupChatRepositorySummaryTest {
             ?: error("Group chat should exist")
         assertEquals("", dataAfterRestore.summary?.content)
         assertEquals(0L, dataAfterRestore.summary?.coveredMessageId)
+    }
+
+    @Test
+    fun promptDataUsesLatestWindowAndKeepsFullMessageCount() = runBlocking {
+        (1..5).forEach { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = GroupChatMessage.Source.User,
+                content = "message-$index",
+                speakerCharacterId = null,
+                speakerNameSnapshot = "Alice",
+                createTime = index.toLong()
+            )
+        }
+
+        val limited = repository.getGroupChatPromptData(
+            sessionId = sessionId,
+            maxHistoryMessages = 2
+        ) ?: error("Group chat should exist")
+        assertEquals(
+            listOf("message-4", "message-5"),
+            limited.data.messages.map { it.content }
+        )
+        assertEquals(5, limited.totalMessageCount)
+
+        val unlimited = repository.getGroupChatPromptData(
+            sessionId = sessionId,
+            maxHistoryMessages = 0
+        ) ?: error("Group chat should exist")
+        assertEquals(5, unlimited.data.messages.size)
+        assertEquals(5, unlimited.totalMessageCount)
+    }
+
+    @Test
+    fun speakerSelectionDataMatchesFullHistorySemantics() = runBlocking {
+        val session = repository.getSessionById(sessionId)
+            ?: error("Group chat should exist")
+        repository.updateSession(
+            session.copy(activationStrategy = GroupChatSession.ActivationStrategy.Pooled)
+        )
+        val messages = listOf(
+            Triple(GroupChatMessage.Source.Character, 1L, "Character 1"),
+            Triple(GroupChatMessage.Source.User, null, "Alice"),
+            Triple(GroupChatMessage.Source.Character, 2L, "Character 2"),
+            Triple(GroupChatMessage.Source.System, null, "System"),
+            Triple(GroupChatMessage.Source.Character, 1L, "Character 1")
+        )
+        messages.forEachIndexed { index, (source, speakerId, speakerName) ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = source,
+                content = "message-${index + 1}",
+                speakerCharacterId = speakerId,
+                speakerNameSnapshot = speakerName,
+                createTime = (index + 1).toLong()
+            )
+        }
+
+        val selectionData = repository.getSpeakerSelectionData(sessionId)
+            ?: error("Group chat should exist")
+
+        assertEquals(setOf(1L, 2L), selectionData.spokenCharacterIdsSinceLastUserMessage)
+        assertEquals(1L, selectionData.lastCharacterSpeakerId)
+        assertEquals("message-5", selectionData.latestNonSystemContent)
+    }
+
+    @Test
+    fun summaryGenerationDataKeepsOldestCandidatesAndLatestExclusionSentinel() = runBlocking {
+        (1..5).forEach { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = GroupChatMessage.Source.User,
+                content = "message-$index",
+                speakerCharacterId = null,
+                speakerNameSnapshot = "Alice",
+                createTime = index.toLong()
+            )
+        }
+
+        val limited = repository.getGroupChatSummaryData(
+            sessionId = sessionId,
+            maxCandidateMessages = 2
+        ) ?: error("Group chat should exist")
+        assertEquals(
+            listOf("message-1", "message-2", "message-5"),
+            limited.data.messages.map { it.content }
+        )
+        assertTrue(limited.hasMoreCandidateMessages)
+        assertEquals(5, repository.getUnsummarizedMessageCount(sessionId))
+
+        val expanded = repository.getGroupChatSummaryData(
+            sessionId = sessionId,
+            maxCandidateMessages = 10
+        ) ?: error("Group chat should exist")
+        assertEquals(
+            listOf("message-1", "message-2", "message-3", "message-4", "message-5"),
+            expanded.data.messages.map { it.content }
+        )
+        assertFalse(expanded.hasMoreCandidateMessages)
     }
 }

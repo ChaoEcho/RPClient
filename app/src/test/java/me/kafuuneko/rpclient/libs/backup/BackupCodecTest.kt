@@ -64,14 +64,29 @@ class BackupCodecTest {
     }
 
     @Test
-    fun validatesManifestVersionOneAndAllRequiredEmptyTables() {
+    fun validatesCurrentManifestAndAllRequiredEmptyTables() {
         val encrypted = createBackup()
 
         val backup = codec.validate(encrypted, password)
 
         assertEquals(BackupContract.BACKUP_VERSION, backup.manifest.backupVersion)
+        assertEquals((BackupContract.requiredTableEntries + BackupContract.v2TableEntries).toSet(), backup.tableFiles.keys)
+        codec.cleanup(backup)
+    }
+
+    @Test
+    fun acceptsLegacyV1WithoutNewTables() {
+        val backup = codec.validate(createBackup(backupVersion = 1), password)
+        assertEquals(1, backup.manifest.backupVersion)
         assertEquals(BackupContract.requiredTableEntries.toSet(), backup.tableFiles.keys)
         codec.cleanup(backup)
+    }
+
+    @Test
+    fun rejectsV2WithoutAttachmentTable() {
+        assertThrows(BackupException.RestoreValidationFailed::class.java) {
+            codec.validate(createBackup(omittedEntries = setOf("tables/message_images.jsonl")), password)
+        }
     }
 
     @Test
@@ -140,7 +155,8 @@ class BackupCodecTest {
     ): File {
         val zipFile = File.createTempFile("payload_", ".zip", root)
         val encryptedFile = File.createTempFile("backup_", BackupContract.FILE_EXTENSION, root)
-        val tableCounts = BackupContract.requiredTableEntries.associateWith { entry ->
+        val tables = BackupContract.requiredTableEntries + if (backupVersion >= 2) BackupContract.v2TableEntries else emptyList()
+        val tableCounts = tables.associateWith { entry ->
             tableCountsOverride[entry] ?: tableContents[entry]?.lineSequence()
                 ?.count { it.isNotEmpty() }
                 ?.toLong()
@@ -159,7 +175,7 @@ class BackupCodecTest {
         ZipOutputStream(FileOutputStream(zipFile)).use { zip ->
             writeEntry(zip, "manifest.json", gson.toJson(manifest))
             writeEntry(zip, "preferences.json", gson.toJson(validPreferences()))
-            BackupContract.requiredTableEntries.forEach { entry ->
+            tables.forEach { entry ->
                 if (entry !in omittedEntries) writeEntry(zip, entry, tableContents[entry].orEmpty())
             }
         }

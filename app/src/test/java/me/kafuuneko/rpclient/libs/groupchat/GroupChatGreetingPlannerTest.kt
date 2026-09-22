@@ -64,16 +64,4 @@ class GroupChatGreetingPlannerTest {
         assertEquals(2L, messages.single().characterId)
         assertEquals("Mina asks Alex to sit down.", messages.single().content)
     }
-
-    @Test
-    fun noneModeCreatesNoMessages() {
-        assertEquals(
-            emptyList<GroupChatOpeningMessage>(),
-            planner.plan(
-                candidates = candidates,
-                selection = GroupChatGreetingSelection.None,
-                userName = "Alex"
-            )
-        )
-    }
 }

@@ -1,16 +1,13 @@
 package me.kafuuneko.rpclient.feature.backup.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +15,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
@@ -40,6 +37,52 @@ import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
+import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
+import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
+import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
+
+/** 设置页中的对话文件导入入口。 */
+@Composable
+internal fun ChatDataManagementPanel(
+    state: MainChatDataManagementState,
+    emit: MainUiIntent.() -> Unit
+) {
+    val isReading = state == MainChatDataManagementState.Reading
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.FileDownload,
+            title = stringResource(R.string.import_chat),
+            subtitle = if (isReading) {
+                stringResource(R.string.reading_chat_file)
+            } else {
+                stringResource(R.string.import_chat_desc)
+            },
+            enabled = !isReading,
+            onClick = { MainUiIntent.ImportChatClick.emit() },
+            trailing = {
+                if (isReading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        )
+    }
+}
 
 /** 解析成功后强制用户确认目标角色卡的导入对话框。 */
 @Composable
@@ -47,7 +90,7 @@ internal fun ImportChatCharacterDialog(
     state: BackupDialogState.ImportChatCharacterSelection,
     emit: BackupUiIntent.() -> Unit
 ) {
-    val canDismiss = !state.isImporting
+    val canDismiss = !state.isImporting && !state.isResolvingImages
     AppDialogScaffold(
         onDismissRequest = {
             if (canDismiss) BackupUiIntent.DismissDialog.emit()
@@ -59,7 +102,7 @@ internal fun ImportChatCharacterDialog(
             if (state.isImporting) R.string.importing_chat else R.string.import_chat
         ),
         dismissText = stringResource(R.string.cancel),
-        confirmEnabled = state.selectedCharacterId != null && !state.isImporting,
+        confirmEnabled = state.selectedCharacterId != null && !state.isImporting && !state.isResolvingImages,
         isConfirmLoading = state.isImporting,
         onConfirm = { BackupUiIntent.ConfirmImportChat.emit() },
         onDismiss = {
@@ -77,6 +120,19 @@ private fun ImportCharacterSelectionContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ImportPreview(state)
+        // 仅外部引用需要用户选择目录；自有 Base64 归档不增加额外操作。
+        if (state.externalImageCount > 0) {
+            Text(
+                stringResource(R.string.chat_import_external_images, state.externalImageCount, state.resolvedImageCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(
+                enabled = !state.isImporting && !state.isResolvingImages,
+                onClick = { MainUiIntent.ChooseChatImageDirectory.emit() }
+            ) { Text(stringResource(if (state.isResolvingImages) R.string.chat_import_reading_images
+                else R.string.chat_import_choose_image_directory)) }
+        }
         if (state.characters.isEmpty()) {
             Text(
                 text = stringResource(R.string.no_characters_for_chat_import),
@@ -109,7 +165,7 @@ private fun ImportCharacterSelectionContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            LazyColumn(
+            RpLazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 360.dp),

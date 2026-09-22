@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.debug.AppLogStore
@@ -20,16 +21,18 @@ import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
 import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
 import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
 import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import me.kafuuneko.rpclient.libs.generation.RequestConcurrencyLimiter
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
-import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.imagegeneration.CharacterVisualIdentityResolver
 import me.kafuuneko.rpclient.libs.imagegeneration.OpenAICompatibleImageClient
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
@@ -47,20 +50,23 @@ import me.kafuuneko.rpclient.libs.story.StoryContextSelector
 import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
-import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -70,8 +76,11 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.ImageProviderRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
@@ -81,7 +90,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
-import java.util.concurrent.TimeUnit
 
 /** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
 class RPClientApp : Application() {
@@ -103,6 +111,7 @@ class RPClientApp : Application() {
                 return@runBlocking
             }
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
+            koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
         }
     }
 }
@@ -141,26 +150,39 @@ internal val appModules = module {
     singleOf(::AzureTtsProvider)
     single { TtsAudioCache(androidContext()) }
     singleOf(::TtsService)
-    singleOf(::LLMClientFactory)
+    single {
+        LLMClientFactory(
+            mOkHttpClient = get(),
+            mLLMRequestLogRepository = get(),
+            mLLMTokenUsageRepository = get(),
+            mPromptTokenizerRegistry = get(),
+            mImageRuntime = get(),
+            mImageCapabilities = get()
+        )
+    }
     singleOf(::LLMProviderSelectionResolver)
+    singleOf(::AppThemeManager)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
+    singleOf(::ImageInputCapabilityResolver)
     singleOf(::FormattedHistoryBuilder)
     singleOf(::PromptMacroResolver)
     singleOf(::WorldBookActivator)
-    singleOf(::PromptTokenizerRegistry)
+    single { ImageTokenEstimatorRegistry(get()) }
+    single { PromptTokenizerRegistry(get()) }
     single { PromptRequestFinalizer(get<PromptTokenizerRegistry>()) }
     single<ExampleDialogueBehaviorProvider> {
         ExampleDialogueBehaviorProvider {
             ExampleDialogueBehavior.fromPersistedValue(
-                runCatching { AppModel.exampleDialogueBehavior }
-                    .getOrDefault(ExampleDialogueBehavior.default.persistedValue)
+                AppModel.exampleDialogueBehavior
             )
         }
     }
+    single<PromptPreferences> { AppModel }
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::ChatArchiveCodec)
+    singleOf(::ChatArchiveImageStore)
     singleOf(::ChatArchiveRepository)
     singleOf(::GroupChatPromptBuilder)
     singleOf(::GroupChatGreetingPlanner)
@@ -193,7 +215,7 @@ internal val appModules = module {
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
-            .fallbackToDestructiveMigrationOnDowngrade(true)
+            .addMigrations(me.kafuuneko.rpclient.libs.room.migration.Migration9To10)
             .build()
     }
 
@@ -208,7 +230,10 @@ internal val appModules = module {
     singleOf(::LLMRepository)
     singleOf(::ImageProviderRepository)
     singleOf(::LLMRequestLogRepository)
+    singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
+    singleOf(::MessageImageRepository)
+    single { MessageImageRuntime(get(), get()) }
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)

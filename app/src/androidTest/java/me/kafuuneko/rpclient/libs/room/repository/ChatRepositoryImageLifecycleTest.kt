@@ -32,7 +32,7 @@ class ChatRepositoryImageLifecycleTest {
             .allowMainThreadQueries()
             .build()
         fileRepository = FileRepository(context, database)
-        repository = ChatRepository(database, Gson(), fileRepository)
+        repository = ChatRepository(database, Gson(), MessageImageRepository(database, fileRepository))
         val characterId = database.getCharacterDao().insertOrReplace(
             Character(
                 name = "Character",
@@ -71,7 +71,7 @@ class ChatRepositoryImageLifecycleTest {
 
         val newUuid = fileRepository.saveBytes(byteArrayOf(4, 5, 6), "image/png")
         assertTrue(repository.replaceMessageImage(messageId, "old", newUuid))
-        assertEquals(newUuid, repository.getMessageById(messageId)?.imageFileUuid)
+        assertEquals(newUuid, repository.getGeneratedImageUuid(messageId))
         assertNull(fileRepository.getFileEntity(oldUuid))
         assertTrue(fileRepository.getFileEntity(newUuid) != null)
 
@@ -79,7 +79,7 @@ class ChatRepositoryImageLifecycleTest {
         repository.updateMessageContent(messageId, "edited")
         assertFalse(repository.replaceMessageImage(messageId, "old", rejectedUuid))
         assertTrue(fileRepository.getFileEntity(rejectedUuid) != null)
-        assertNull(repository.getMessageById(messageId)?.imageFileUuid)
+        assertNull(repository.getGeneratedImageUuid(messageId))
         assertNull(fileRepository.getFileEntity(newUuid))
     }
 
@@ -109,7 +109,7 @@ class ChatRepositoryImageLifecycleTest {
         assertTrue(repository.replaceMessageImage(messageId, "reply", imageUuid))
 
         val branchId = repository.createBranchSession(sessionId, messageId, "Branch", createTime = 10L)
-        assertNull(repository.getMessageById(repository.getMessagesBySessionId(branchId).single().id)?.imageFileUuid)
+        assertNull(repository.getGeneratedImageUuid(repository.getMessagesBySessionId(branchId).single().id))
         assertTrue(fileRepository.getFileEntity(imageUuid) != null)
 
         repository.commitGenerationResult(
@@ -120,7 +120,7 @@ class ChatRepositoryImageLifecycleTest {
             deleteEmptyPlaceholder = false,
             worldInfoStateJson = "{}"
         )
-        assertNull(repository.getMessageById(messageId)?.imageFileUuid)
+        assertNull(repository.getGeneratedImageUuid(messageId))
         assertNull(fileRepository.getFileEntity(imageUuid))
 
         val secondUuid = fileRepository.saveBytes(byteArrayOf(13, 14, 15), "image/png")

@@ -1,14 +1,27 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
+    /** 从摘要额度提示前往全局设置。 */
+    data object OpenSummarySettings : GroupChatUiIntent()
+
+    data object RetryImageReply : GroupChatUiIntent()
+    data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
     data class Init(val sessionId: String?) : GroupChatUiIntent()
     data object Resume : GroupChatUiIntent()
+    data object LoadOlderMessages : GroupChatUiIntent()
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
+    data object ShowSessionLoreDialog : GroupChatUiIntent()
+    data object OpenWorldBookManager : GroupChatUiIntent()
+    data class ChangeSessionLorebookDialogQuery(val value: String) : GroupChatUiIntent()
+    data class ToggleSessionLorebookDialogEntry(val entryId: Long) : GroupChatUiIntent()
+    data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : GroupChatUiIntent()
+    data object ConfirmSessionLorebookSelection : GroupChatUiIntent()
     data object OpenPromptInspector : GroupChatUiIntent()
 
     data class CopyPromptItem(val text: String) : GroupChatUiIntent()

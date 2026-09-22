@@ -27,7 +27,7 @@ class VisualIdentityCacheTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         val gson = Gson()
-        repository = CharacterRepository(database, gson, RegexScriptCodec(gson))
+        repository = CharacterRepository(database, gson, RegexScriptCodec(gson), MessageImageRepository(database, FileRepository(context, database)))
         val id = repository.saveCharacter(Character(
             name = "Fixture", avatar = "", characterTags = "[]", description = "Old appearance",
             personality = "", scenario = "", firstMessages = "", examplesOfDialogue = "",

@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -12,6 +13,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,7 +29,9 @@ import org.json.JSONObject
 class OpenAICompatibleLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,
-    private val mProvider: LLMProviderConfig
+    private val mProvider: LLMProviderConfig,
+    private val mImageRuntime: MessageImageRuntime? = null,
+    private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
     /**
      * OpenAI-compatible 非流式调用，适用于 ChatGPT、DeepSeek、OpenRouter 等服务。
@@ -35,17 +39,21 @@ class OpenAICompatibleLLMClient(
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
-        val raw = runCatching {
-            mOkHttpClient.await(httpRequest.request)
-        }.onSuccess {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
-        }.onFailure {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
-        }.getOrThrow()
-        return raw.toOpenAIResponse(
-            fallbackModel = model,
-            includeReasoningInContent = request.includeReasoningInContent
-        )
+        try {
+            val raw = runCatching {
+                mOkHttpClient.await(httpRequest.request)
+            }.onSuccess {
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
+            }.onFailure {
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
+            }.getOrElse { error ->
+                throw if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), error) else error
+            }
+            return raw.toOpenAIResponse(
+                fallbackModel = model,
+                includeReasoningInContent = request.includeReasoningInContent
+            )
+        } finally { httpRequest.temporaryFile?.delete() }
     }
 
     /**
@@ -56,82 +64,95 @@ class OpenAICompatibleLLMClient(
         return flow {
             // 构建带 stream=true 的 HTTP 请求与参数补丁
             val httpRequest = buildRequest(request, model, stream = true)
-            val rawChunks = JSONArray()
-            val partMapper = LLMStreamPartMapper(
-                includeReasoningInContent = request.includeReasoningInContent,
-                captureReasoning = request.captureReasoning
-            )
-            runCatching {
-                // 逐行消费 SSE 数据流
-                mOkHttpClient.streamLines(
-                    request = httpRequest.request,
-                    onConnected = { emit(LLMStreamEvent.Connected) }
-                ).collect { line ->
-                    rawChunks.put(line)
-                    parseOpenAIStreamParts(line).forEach { part ->
-                        partMapper.map(part).forEach { emit(it) }
+            try {
+                val rawChunks = JSONArray()
+                var loggedChars = 0
+                val partMapper = LLMStreamPartMapper(
+                    includeReasoningInContent = request.includeReasoningInContent,
+                    captureReasoning = request.captureReasoning
+                )
+                runCatching {
+                    // 逐行消费 SSE 数据流
+                    mOkHttpClient.streamLines(
+                        request = httpRequest.request,
+                        onConnected = { emit(LLMStreamEvent.Connected) }
+                    ).collect { line ->
+                        if (loggedChars < 65_536) {
+                            val safeLine = ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
+                            rawChunks.put(safeLine)
+                            loggedChars += safeLine.length
+                        }
+                        parseOpenAIStreamParts(line).forEach { part ->
+                            partMapper.map(part).forEach { emit(it) }
+                        }
                     }
+                    // 兼容未发送完成块便直接关闭连接的模型服务
+                    partMapper.finish().forEach { emit(it) }
+                }.onSuccess {
+                    // 记录成功的请求与完整 SSE 原始块日志
+                    mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
+                }.onFailure {
+                    // 记录失败日志并向上层抛出
+                    mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
+                    throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), it) else it
                 }
-                // 兼容未发送完成块便直接关闭连接的模型服务
-                partMapper.finish()?.let { emit(it) }
-            }.onSuccess {
-                // 记录成功的请求与完整 SSE 原始块日志
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
-            }.onFailure {
-                // 记录失败日志并向上层抛出
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
-                throw it
-            }
+            } finally { httpRequest.temporaryFile?.delete() }
         }
     }
 
     /**
      * 构建 OpenAI-compatible 请求体。stream 参数决定接口返回完整响应还是 SSE 增量。
      */
-    private fun buildRequest(
+    private suspend fun buildRequest(
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(mProvider.copy(model = model))
+        val codec = MultimodalWireCodec(mProvider)
         val options = request.options.resolveFor(mProvider)
         // 组装通用请求体字段
         val payload = JSONObject()
             .put("model", model)
-            .put("messages", request.messages.toOpenAIMessages())
+            .put("messages", request.messages.toOpenAIMessages(codec, request.isPromptFinalized))
             .put(
                 openAICompatibleTokenLimitField(mProvider.providerType),
                 options.maxTokens
             )
             .put("stream", stream)
+        // 开启服务端用量策略时，OpenAI 流式协议需要显式请求额外的 usage 块
+        if (stream && mProvider.useServerReportedUsage) {
+            payload.put("stream_options", JSONObject().put("include_usage", true))
+        }
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
         if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
         // 应用针对 OpenRouter / 自定义 JSON Patch 的扩展补丁
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
+        val prepared = codec.prepare(finalPayload, request, mImageRuntime)
 
         // 构造 OkHttp 请求对象
-        return LLMHttpRequest(
-            request = Request.Builder()
+        return prepared.toHttpRequest {
+            Request.Builder()
             .url("${mProvider.normalizedBaseUrl()}/chat/completions")
-            .post(finalPayload.toRequestBody())
+            .post(prepared.body)
             .header("Authorization", "Bearer ${mProvider.apiKey}")
             .header("Content-Type", "application/json")
             .applyProviderHeaders(mProvider)
-            .build(),
-            payloadJson = finalPayload.toString()
-        )
+            .build()
+        }
     }
 
     /**
      * 转换通用消息为 OpenAI-compatible messages 数组。
      */
-    private fun List<LLMMessage>.toOpenAIMessages(): JSONArray {
+    private fun List<LLMMessage>.toOpenAIMessages(codec: MultimodalWireCodec, finalized: Boolean): JSONArray {
         return JSONArray().also { array ->
             forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toOpenAIRole())
-                        .put("content", message.content)
+                        .put("content", codec.content(message))
                 )
             }
         }
@@ -147,7 +168,6 @@ class OpenAICompatibleLLMClient(
         val json = JSONObject(this)
         val choice = json.getJSONArray("choices").getJSONObject(0)
         val message = choice.optJSONObject("message")
-        val usageJson = json.optJSONObject("usage")
         val reasoningContent = message?.optReasoningContent().orEmpty()
         val content = message?.optContentString("content").orEmpty()
         return LLMGenerationResponse(
@@ -158,13 +178,8 @@ class OpenAICompatibleLLMClient(
             ),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
-            usage = usageJson?.let {
-                LLMUsage(
-                    promptTokens = it.optNullableInt("prompt_tokens"),
-                    completionTokens = it.optNullableInt("completion_tokens"),
-                    totalTokens = it.optNullableInt("total_tokens")
-                )
-            },
+            usage = parseOpenAIUsage(this),
+            reasoningContent = reasoningContent,
             finishReason = choice.optCleanString("finish_reason"),
             rawResponse = this
         )
@@ -179,12 +194,6 @@ class OpenAICompatibleLLMClient(
         return "<think>\n$reasoningContent\n</think>\n\n$content".trim()
     }
 
-    /**
-     * 读取可空整数字段。
-     */
-    private fun JSONObject.optNullableInt(name: String): Int? {
-        return if (has(name) && !isNull(name)) optInt(name) else null
-    }
 }
 
 /** 解析 OpenAI-compatible SSE 行并保留同一增量中的推理与正文。 */
@@ -195,15 +204,17 @@ internal fun parseOpenAIStreamParts(line: String): List<LLMProviderStreamPart> {
         return listOf(LLMProviderStreamPart.Finished(rawChunk = line))
     }
     val json = parseStreamJsonObject(data) ?: return emptyList()
+    val actualModel = json.cleanString("model")
+    val usage = json.openAIUsage()
     val choice = json.arrayOrNull("choices")
         ?.firstOrNull()
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?: return emptyList()
-    val deltaObject = choice.objectOrNull("delta")
-    val finishReason = choice.cleanString("finish_reason")
-    val actualModel = json.cleanString("model")
     return buildList {
+        usage?.let { add(LLMProviderStreamPart.Usage(it, actualModel)) }
+        if (choice == null) return@buildList
+        val deltaObject = choice.objectOrNull("delta")
+        val finishReason = choice.cleanString("finish_reason")
         // 部分兼容网关会在同一个增量中同时返回推理和正文，两者都必须保留
         deltaObject?.reasoningContent()?.takeIf { it.isNotBlank() }?.let {
             add(LLMProviderStreamPart.Reasoning(it, data))
@@ -212,9 +223,34 @@ internal fun parseOpenAIStreamParts(line: String): List<LLMProviderStreamPart> {
             add(LLMProviderStreamPart.Text(it, data))
         }
         finishReason.takeIf { it.isNotBlank() }?.let {
-            add(LLMProviderStreamPart.Finished(data, it, actualModel))
+            add(
+                LLMProviderStreamPart.Finished(
+                    rawChunk = data,
+                    finishReason = it,
+                    model = actualModel,
+                    terminal = false
+                )
+            )
         }
     }
+}
+
+/** 解析 OpenAI-compatible 完整响应中的标准用量与缓存、推理明细。 */
+internal fun parseOpenAIUsage(value: String): LLMUsage? {
+    return parseStreamJsonObject(value)?.openAIUsage()
+}
+
+private fun JsonObject.openAIUsage(): LLMUsage? {
+    val usage = objectOrNull("usage") ?: return null
+    return LLMUsage(
+        promptTokens = usage.intOrNull("prompt_tokens"),
+        completionTokens = usage.intOrNull("completion_tokens"),
+        totalTokens = usage.intOrNull("total_tokens"),
+        cachedPromptTokens = usage.objectOrNull("prompt_tokens_details")
+            ?.intOrNull("cached_tokens"),
+        reasoningTokens = usage.objectOrNull("completion_tokens_details")
+            ?.intOrNull("reasoning_tokens")
+    )
 }
 
 private fun JsonObject.reasoningContent(): String {

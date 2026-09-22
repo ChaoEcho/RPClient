@@ -12,5 +12,5 @@ sealed class ChatGenerationState {
         val content: String
     ) : ChatGenerationState()
     /** 本轮生成失败，消息用于页面提示。 */
-    data class Failed(val message: String) : ChatGenerationState()
+    data class Failed(val message: String, val canRetryReply: Boolean = false) : ChatGenerationState()
 }

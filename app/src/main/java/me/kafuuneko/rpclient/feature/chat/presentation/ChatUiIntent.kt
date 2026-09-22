@@ -1,12 +1,22 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
+    /** 从摘要额度提示前往全局设置。 */
+    data object OpenSummarySettings : ChatUiIntent()
+
+    data object RetryImageReply : ChatUiIntent()
+
+    data class ImageAction(val action: MessageImageAction) : ChatUiIntent()
+
     data class Init(val sessionId: String?) : ChatUiIntent()
 
     data object Resume : ChatUiIntent()
+
+    data object LoadOlderMessages : ChatUiIntent()
 
     data object Back : ChatUiIntent()
 
@@ -40,9 +50,17 @@ sealed class ChatUiIntent {
 
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
-    data object OpenSessionLore : ChatUiIntent()
+    data object ShowSessionLoreDialog : ChatUiIntent()
 
     data object OpenWorldBookManager : ChatUiIntent()
+
+    data class ChangeSessionLorebookDialogQuery(val value: String) : ChatUiIntent()
+
+    data class ToggleSessionLorebookDialogEntry(val entryId: Long) : ChatUiIntent()
+
+    data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : ChatUiIntent()
+
+    data object ConfirmSessionLorebookSelection : ChatUiIntent()
 
     data object OpenCharacterEditor : ChatUiIntent()
 
@@ -61,6 +79,7 @@ sealed class ChatUiIntent {
     data class CopyPromptItem(val text: String) : ChatUiIntent()
 
     data object CloseChatSettings : ChatUiIntent()
+
 
     data object ExportChatClick : ChatUiIntent()
 

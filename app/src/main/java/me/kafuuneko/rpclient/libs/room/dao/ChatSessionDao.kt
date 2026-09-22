@@ -5,6 +5,7 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 
 /** 单聊会话元数据访问接口；消息写入和世界书运行时状态不得在此处单独编排。 */
 @Dao
@@ -21,6 +22,10 @@ interface ChatSessionDao : MutableDao<ChatSession> {
      * 一次读取首页所需的会话、最后一条普通消息和消息数。
      *
      * 只投影最后一条消息正文，避免首页按会话重复访问数据库。
+     * 图片存在性独立返回，由展示层决定本地化预览。
+     *
+     * @param messageType 使用稳定编码绑定的消息类型，须与当前会话表对应。
+     * @return 包含最新消息正文、图片存在性和消息数的会话概览。
      */
     @Query(
         """
@@ -36,6 +41,17 @@ interface ChatSessionDao : MutableDao<ChatSession> {
                    ORDER BY messages.createTime DESC, messages.id DESC
                    LIMIT 1
                ) AS latestMessageContent,
+               EXISTS (
+                   SELECT 1 FROM message_images AS images
+                   WHERE images.messageType = :messageType
+                     AND images.messageId = (
+                       SELECT messages.id FROM chat_messages AS messages
+                       WHERE messages.sessionId = sessions.id
+                         AND messages.source != 'Summary'
+                       ORDER BY messages.createTime DESC, messages.id DESC
+                       LIMIT 1
+                     )
+               ) AS latestMessageHasImages,
                (
                    SELECT COUNT(*)
                    FROM chat_messages AS messages
@@ -46,7 +62,7 @@ interface ChatSessionDao : MutableDao<ChatSession> {
         ORDER BY sessions.latestTime DESC, sessions.id DESC
         """
     )
-    suspend fun getSessionOverviews(): List<ChatSessionOverview>
+    suspend fun getSessionOverviews(messageType: MessageType): List<ChatSessionOverview>
 
     /**
      * 根据角色 id 获取该角色下的所有会话。

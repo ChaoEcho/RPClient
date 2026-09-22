@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -47,9 +48,9 @@ class CharacterCardRepositoryUpdateTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        characterRepository = CharacterRepository(database, gson, regexCodec)
+        characterRepository = CharacterRepository(database, gson, regexCodec, MessageImageRepository(database, FileRepository(context, database)))
         lorebookRepository = LorebookRepository(database, gson, context)
-        chatRepository = ChatRepository(database, gson, FileRepository(context, database))
+        chatRepository = ChatRepository(database, gson, MessageImageRepository(database, FileRepository(context, database)))
         regexRepository = RegexScriptRepository(context, gson, database, regexCodec)
         repository = CharacterCardRepository(
             context,

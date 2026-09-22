@@ -9,6 +9,9 @@ import android.net.Uri
 
 /** 分卷/章节编辑器可接收的用户行为和生命周期意图。 */
 sealed class StoryEditorUiIntent {
+    /** 从摘要额度提示前往全局设置。 */
+    data object OpenSummarySettings : StoryEditorUiIntent()
+
     data class Init(val storyId: Long) : StoryEditorUiIntent()
     data object Back : StoryEditorUiIntent()
     data class EditorSnapshotChanged(val snapshot: StoryEditorSnapshot) : StoryEditorUiIntent()

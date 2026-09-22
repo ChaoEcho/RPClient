@@ -17,10 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import androidx.compose.foundation.rememberScrollState
@@ -178,14 +179,17 @@ private fun RegexScriptNormal(
             }
         )
 
-        LazyColumn(
+        RpLazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
                 .dragContainer(dragDropState),
-            contentPadding = PaddingValues(bottom = 32.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = 32.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item { ScopeSelector(state, emitIntent) }
@@ -714,14 +718,15 @@ private fun TestCard(
                 }
             }
 
-            OutlinedTextField(
+            RpScrollableOutlinedTextField(
                 value = state.testInput,
                 onValueChange = { emitIntent(RegexScriptUiIntent.ChangeTestInput(it)) },
                 label = { Text(stringResource(R.string.regex_test_input)) },
                 textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3
+                minLines = 3,
+                maxLines = 8
             )
 
             Button(
@@ -739,7 +744,7 @@ private fun TestCard(
             }
 
             if (state.testOutput.isNotBlank()) {
-                OutlinedTextField(
+                RpScrollableOutlinedTextField(
                     value = state.testOutput,
                     onValueChange = {},
                     readOnly = true,
@@ -751,7 +756,8 @@ private fun TestCard(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    maxLines = 8
                 )
             }
         }
@@ -959,7 +965,7 @@ private fun DraftField(
     isMonospace: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    RpScrollableOutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(labelRes)) },
@@ -970,7 +976,9 @@ private fun DraftField(
         },
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth(),
-        minLines = minLines
+        singleLine = minLines == 1,
+        minLines = minLines,
+        maxLines = if (minLines == 1) 1 else 8
     )
 }
 

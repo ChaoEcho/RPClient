@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +60,8 @@ import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
 /** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
@@ -101,12 +102,16 @@ private fun GroupChatCreateNormalView(
             )
         }
     ) { padding ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 14.dp, bottom = 24.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 14.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -450,7 +455,7 @@ private fun CustomGreetingEditor(
         GreetingHint(R.string.group_chat_greeting_select_members_first)
         return
     }
-    OutlinedTextField(
+    RpScrollableOutlinedTextField(
         value = state.customGreeting,
         onValueChange = {
             emitIntent(GroupChatCreateUiIntent.ChangeCustomGreeting(it))
@@ -461,6 +466,7 @@ private fun CustomGreetingEditor(
             Text(stringResource(R.string.group_chat_custom_greeting_placeholder))
         },
         minLines = 4,
+        maxLines = 10,
         shape = RoundedCornerShape(16.dp)
     )
 }

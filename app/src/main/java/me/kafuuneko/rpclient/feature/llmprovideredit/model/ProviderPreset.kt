@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 
 /**
  * 常用模型配置预设模板，用于快速填入标准接入参数。
@@ -17,7 +18,9 @@ enum class ProviderPreset(
     val protocol: LLMProviderProtocol,
     val baseUrl: String,
     val defaultModel: String,
-    val defaultRequestBodyPatchJson: String
+    val defaultRequestBodyPatchJson: String,
+    val defaultLocalTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
+    val defaultUseServerReportedUsage: Boolean = false
 ) {
     DeepSeek(
         displayName = "DeepSeek",
@@ -25,7 +28,9 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.deepseek.com/v1",
         defaultModel = "deepseek-chat",
-        defaultRequestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
+        defaultUseServerReportedUsage = true
     ),
     Gemini(
         displayName = "Google Gemini",
@@ -33,7 +38,9 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.Gemini,
         baseUrl = "https://generativelanguage.googleapis.com",
         defaultModel = "gemini-2.5-flash",
-        defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
+        defaultUseServerReportedUsage = true
     ),
     Claude(
         displayName = "Anthropic Claude",
@@ -41,7 +48,9 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.AnthropicMessages,
         baseUrl = "https://api.anthropic.com/v1",
         defaultModel = "claude-3-7-sonnet-latest",
-        defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
+        defaultUseServerReportedUsage = true
     ),
     ChatGPT(
         displayName = "OpenAI",
@@ -49,7 +58,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.openai.com/v1",
         defaultModel = "gpt-4o",
-        defaultRequestBodyPatchJson = "{}"
+        defaultRequestBodyPatchJson = "{}",
+        defaultUseServerReportedUsage = true
     ),
     OpenRouter(
         displayName = "OpenRouter",
@@ -65,10 +75,11 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.x.ai/v1",
         defaultModel = "grok-2-latest",
-        defaultRequestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase
     ),
     Custom(
-        displayName = "自定义",
+        displayName = "Custom",
         providerType = LLMProviderType.Custom,
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "",

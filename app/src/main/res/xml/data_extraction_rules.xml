@@ -2,6 +2,7 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="rpclient_secure_secrets.xml" />
+        <exclude domain="root" path="app_repository/staging/" />
         <exclude domain="database" path="request_logs.sqlite" />
         <exclude domain="database" path="request_logs.sqlite-journal" />
         <exclude domain="database" path="request_logs.sqlite-shm" />
@@ -10,6 +11,7 @@
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="rpclient_secure_secrets.xml" />
+        <exclude domain="root" path="app_repository/staging/" />
         <exclude domain="database" path="request_logs.sqlite" />
         <exclude domain="database" path="request_logs.sqlite-journal" />
         <exclude domain="database" path="request_logs.sqlite-shm" />

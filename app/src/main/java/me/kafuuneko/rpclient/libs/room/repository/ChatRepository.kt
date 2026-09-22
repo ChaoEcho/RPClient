@@ -6,6 +6,12 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
+import me.kafuuneko.rpclient.libs.room.model.MessageKey
+import me.kafuuneko.rpclient.libs.room.model.MessageType
+import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
@@ -27,11 +33,52 @@ data class ChatSummaryContext(
  * @property existingSummary 本次请求继承的上一条总结内容。
  * @property messages 本次实际需要重新总结或增量总结的普通消息。
  * @property summaryToUpdate 用户主动重新总结时需要原地更新的最新快照。
+ * @property hasMoreCandidateMessages 当前窗口之后是否还有可继续扩展的候选消息。
  */
 data class ChatSummaryGenerationContext(
     val existingSummary: String,
     val messages: List<ChatMessage>,
-    val summaryToUpdate: ChatMessage?
+    val summaryToUpdate: ChatMessage?,
+    val hasMoreCandidateMessages: Boolean = false
+)
+
+/**
+ * 普通生成请求使用的摘要与最近历史窗口。
+ *
+ * @property summary 当前请求实际使用的摘要内容。
+ * @property messages 按创建时间正序排列、包含正文及有序附件的最近历史消息快照。
+ * @property totalMessageCount 排除待替换消息后的完整普通消息总数。
+ */
+data class ChatPromptHistoryContext(
+    val summary: String,
+    val messages: List<MessageWithImages>,
+    val totalMessageCount: Int
+)
+
+/**
+ * 单聊页面按时间倒序查询后恢复为展示正序的一页消息。
+ *
+ * @property messages 当前页按创建时间正序排列的普通消息。
+ * @property canLoadOlderMessages 当前页之前是否仍有更早的普通消息。
+ * @property totalMessageCount 当前会话普通消息总数。
+ */
+data class ChatMessagePage(
+    val messages: List<ChatMessage>,
+    val canLoadOlderMessages: Boolean,
+    val totalMessageCount: Int,
+    /** 与本页正文在同一事务读取的有序附件。 */
+    val messageImages: List<MessageWithImages> = emptyList()
+)
+
+/**
+ * 单聊页面使用的最近消息窗口及其会话级能力元数据。
+ *
+ * @property page 当前展示的最近消息窗口。
+ * @property hasCharacterMessage 完整会话历史中是否存在角色消息。
+ */
+data class ChatPageData(
+    val page: ChatMessagePage,
+    val hasCharacterMessage: Boolean
 )
 
 /**
@@ -43,11 +90,58 @@ data class ChatSummaryGenerationContext(
 class ChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
-    private val mFileRepository: FileRepository
+    private val mImages: MessageImageRepository
 ) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
+
+    /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
+    suspend fun createUserMessageWithImages(
+        sessionId: Long,
+        content: String,
+        images: List<MessageImageInput.Prepared>
+    ): MessageWithImages {
+        require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
+        require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
+        return mImages.mutate(images.map { it.value }) {
+            // 最终图片已在事务外发布；正文、索引和图片关系共同提交。
+            val now = System.currentTimeMillis()
+            val id = mChatMessageDao.insertOrReplace(
+                ChatMessage(
+                    sessionId = sessionId, createTime = now,
+                    source = ChatMessage.Source.User, content = content
+                )
+            )
+            mChatSessionDao.updateSessionLatestTime(sessionId, now)
+            val key = MessageKey(MessageType.Single, id)
+            mImages.replaceInTransaction(this, key, sessionId, images)
+            mImages.getMessages(listOf(key)).single()
+        }
+    }
+
+    /** 原子编辑普通消息的图文；附件移除和顺序变化与正文使用同一摘要失效边界。 */
+    suspend fun editMessageWithImages(
+        sessionId: Long,
+        messageId: Long,
+        content: String,
+        images: List<MessageImageInput>
+    ): MessageWithImages {
+        require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
+        require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
+        // 新图片和保留引用共同进入文件事务，正文变更沿用原有摘要失效规则。
+        val prepared = images.filterIsInstance<MessageImageInput.Prepared>().map { it.value }
+        return mImages.mutate(prepared) {
+            val key = MessageKey(MessageType.Single, messageId)
+            mImages.replaceInTransaction(this, key, sessionId, images)
+            updateMessageContentInTransaction(this, messageId, content)
+            mImages.getMessages(listOf(key)).single()
+        }
+    }
+
+    /** 读取调用方选定消息的正文及附件快照，保留传入的分页顺序。 */
+    suspend fun getMessagesWithImages(messageIds: List<Long>): List<MessageWithImages> =
+        mImages.getMessages(messageIds.map { MessageKey(MessageType.Single, it) })
 
     /**
      * 获取所有会话。
@@ -60,7 +154,7 @@ class ChatRepository(
 
     /** 一次读取首页单聊列表需要的轻量会话概览。 */
     suspend fun getSessionOverviews(): List<ChatSessionOverview> {
-        return mChatSessionDao.getSessionOverviews()
+        return mChatSessionDao.getSessionOverviews(MessageType.Single)
     }
 
     /**
@@ -189,13 +283,14 @@ class ChatRepository(
         title: String,
         createTime: Long = System.currentTimeMillis()
     ): Long {
-        return mAppDatabase.withTransaction {
+        return mImages.mutate {
             // 加载源会话与截断消息
-            val sourceSession = mChatSessionDao.getSessionById(sourceSessionId) ?: return@withTransaction 0L
+            val sourceSession = mChatSessionDao.getSessionById(sourceSessionId) ?: return@mutate 0L
             val sourceMessages = mChatMessageDao.getMessagesBySessionId(sourceSessionId)
             val branchMessages = sourceMessages.takeWhileInclusive { it.id != throughMessageId }
-            if (branchMessages.none { it.id == throughMessageId }) return@withTransaction 0L
-            val sourceSummary = mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
+            if (branchMessages.none { it.id == throughMessageId }) return@mutate 0L
+            val sourceSummary =
+                mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
 
             // 插入新的分支会话记录
             val branchSessionId = mChatSessionDao.insertOrReplace(
@@ -213,8 +308,7 @@ class ChatRepository(
                     id = 0L,
                     sessionId = branchSessionId,
                     createTime = createTime + index,
-                    coveredMessageId = null,
-                    imageFileUuid = null
+                    coveredMessageId = null
                 )
             }
             val insertedMessageIds = if (copiedMessages.isNotEmpty()) {
@@ -223,6 +317,7 @@ class ChatRepository(
                 emptyList()
             }
             val copiedIdBySourceId = branchMessages.map { it.id }.zip(insertedMessageIds).toMap()
+            mImages.copyInTransaction(this, copiedIdBySourceId, branchSessionId)
             // 复制并重映射总结快照边界
             if (sourceSummary != null) {
                 val copiedBoundaryId = sourceSummary.coveredMessageId
@@ -234,8 +329,7 @@ class ChatRepository(
                         id = 0L,
                         sessionId = branchSessionId,
                         createTime = createTime + copiedMessages.size,
-                        coveredMessageId = copiedBoundaryId,
-                        imageFileUuid = null
+                        coveredMessageId = copiedBoundaryId
                     )
                 )
             }
@@ -383,15 +477,14 @@ class ChatRepository(
      * @param id 会话 id。
      */
     suspend fun deleteSession(id: Long) {
-        val imageFileUuids = mAppDatabase.withTransaction {
-            val uuids = mChatMessageDao.getMessagesBySessionId(id)
-                .mapNotNull(ChatMessage::imageFileUuid)
-                .distinct()
+        mImages.mutate {
+            mImages.deleteInTransaction(
+                this, MessageType.Single,
+                mChatMessageDao.getMessageIdsBySessionId(id)
+            )
             mChatMessageDao.deleteMessagesBySessionId(id)
             mChatSessionDao.deleteSessionById(id)
-            uuids
         }
-        deleteImageFiles(imageFileUuids)
     }
 
     /**
@@ -412,6 +505,66 @@ class ChatRepository(
      */
     suspend fun getMessagesBySessionId(sessionId: Long): List<ChatMessage> {
         return mChatMessageDao.getMessagesBySessionId(sessionId)
+    }
+
+    /**
+     * 获取会话末尾的一页普通消息。
+     *
+     * 多取一条只用于判断是否存在更早历史，不会暴露给页面。
+     *
+     * @param sessionId 会话 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 最近消息窗口及完整会话的角色消息能力。
+     */
+    suspend fun getChatPageData(
+        sessionId: Long,
+        pageSize: Int
+    ): ChatPageData {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mAppDatabase.withTransaction {
+            // 消息窗口与会话级能力必须来自同一快照，避免页面出现短暂矛盾状态
+            val rows = mChatMessageDao.getLatestMessagePageBySessionId(
+                sessionId = sessionId,
+                limit = pageSize + 1
+            )
+            ChatPageData(
+                page = rows.toChatMessagePage(
+                    pageSize = pageSize,
+                    totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+                ),
+                hasCharacterMessage = mChatMessageDao.hasCharacterMessageBySessionId(sessionId)
+            )
+        }
+    }
+
+    /**
+     * 获取稳定游标之前的一页普通消息。
+     *
+     * @param sessionId 会话 ID。
+     * @param beforeCreateTime 当前最早已加载消息的创建时间。
+     * @param beforeMessageId 当前最早已加载消息的 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 更早消息页及会话总消息数。
+     */
+    suspend fun getMessagePageBefore(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        pageSize: Int
+    ): ChatMessagePage {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mAppDatabase.withTransaction {
+            val rows = mChatMessageDao.getMessagePageBeforeBySessionId(
+                sessionId = sessionId,
+                beforeCreateTime = beforeCreateTime,
+                beforeMessageId = beforeMessageId,
+                limit = pageSize + 1
+            )
+            rows.toChatMessagePage(
+                pageSize = pageSize,
+                totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+            )
+        }
     }
 
     /**
@@ -446,6 +599,22 @@ class ChatRepository(
     }
 
     /**
+     * 统计最新总结之后尚未覆盖的普通消息。
+     *
+     * @param sessionId 会话 ID。
+     * @return 未被最新总结覆盖的普通消息数量。
+     */
+    suspend fun getUnsummarizedMessageCount(sessionId: Long): Int {
+        return mAppDatabase.withTransaction {
+            val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            mChatMessageDao.getMessageCountAfterId(
+                sessionId = sessionId,
+                coveredMessageId = summary?.coveredMessageId ?: 0L
+            )
+        }
+    }
+
+    /**
      * 在同一事务中读取最新总结及其后的普通消息，避免两次查询间快照发生变化。
      *
      * @param sessionId 会话 id。
@@ -466,34 +635,98 @@ class ChatRepository(
     }
 
     /**
+     * 在同一事务中读取普通生成所需的摘要、最近历史窗口和完整消息总数。
+     *
+     * [maxHistoryMessages] 为 0 时保持原有无限制行为。重生成排除的消息如果恰好是
+     * 最新摘要边界，则回退到上一份摘要，并在回退范围内继续应用相同的历史窗口限制。
+     *
+     * @param sessionId 会话 ID。
+     * @param excludedMessageId 重生成时不应进入 Prompt 的待替换消息 ID。
+     * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
+     * @return 普通生成使用的历史上下文。
+     */
+    suspend fun getPromptHistoryContext(
+        sessionId: Long,
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): ChatPromptHistoryContext {
+        require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
+        return mAppDatabase.withTransaction {
+            // 读取当前摘要边界与该边界之后的有限历史窗口
+            val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            val messagesAfterSummary = loadPromptMessagesAfterId(
+                sessionId = sessionId,
+                coveredMessageId = latestSummary?.coveredMessageId ?: 0L,
+                excludedMessageId = excludedMessageId,
+                maxHistoryMessages = maxHistoryMessages
+            )
+            val totalMessageCount = (
+                    mChatMessageDao.getMessageCountBySessionId(sessionId) -
+                            if (excludedMessageId == null) 0 else 1
+                    ).coerceAtLeast(0)
+            // 待替换消息位于摘要边界时回退摘要，防止继续使用包含旧回复的摘要
+            if (
+                excludedMessageId != null &&
+                latestSummary?.coveredMessageId == excludedMessageId &&
+                messagesAfterSummary.isEmpty()
+            ) {
+                return@withTransaction loadRegenerationPromptHistory(
+                    sessionId = sessionId,
+                    latestSummary = latestSummary,
+                    excludedMessageId = excludedMessageId,
+                    maxHistoryMessages = maxHistoryMessages,
+                    totalMessageCount = totalMessageCount
+                )
+            }
+            // 同一事务直接返回图文聚合，不保留需要相互对齐的两份消息列表。
+            ChatPromptHistoryContext(
+                summary = latestSummary?.content.orEmpty(),
+                messages = getMessagesWithImages(messagesAfterSummary.map { it.id }),
+                totalMessageCount = totalMessageCount
+            )
+        }
+    }
+
+    /**
      * 获取生成总结所需的消息范围。
      *
      * 默认返回最新总结之后的增量消息。用户主动总结且最新总结已经覆盖最后一条普通消息时，
      * 回退到上一条总结边界，重新生成并更新最新总结快照。
+     *
+     * @param sessionId 会话 ID。
+     * @param allowRefreshLatest 是否允许回退并刷新已覆盖到末尾的最新总结。
+     * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
+     * @return 总结基础内容、候选窗口和可能需要覆盖的总结快照。
      */
     suspend fun getSummaryGenerationContext(
         sessionId: Long,
-        allowRefreshLatest: Boolean
+        allowRefreshLatest: Boolean,
+        maxCandidateMessages: Int = 0
     ): ChatSummaryGenerationContext {
+        require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
+            // 优先读取最新总结之后的增量窗口
             val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
-            val messagesAfterSummary = mChatMessageDao.getMessagesAfterId(
+            val messageWindow = loadSummaryMessagesAfterId(
                 sessionId = sessionId,
-                coveredMessageId = latestSummary?.coveredMessageId ?: 0L
+                coveredMessageId = latestSummary?.coveredMessageId ?: 0L,
+                maxCandidateMessages = maxCandidateMessages
             )
-            if (messagesAfterSummary.isNotEmpty() || !allowRefreshLatest) {
+            if (messageWindow.messages.isNotEmpty() || !allowRefreshLatest) {
                 return@withTransaction ChatSummaryGenerationContext(
                     existingSummary = latestSummary?.content.orEmpty(),
-                    messages = messagesAfterSummary,
-                    summaryToUpdate = null
+                    messages = messageWindow.messages,
+                    summaryToUpdate = null,
+                    hasMoreCandidateMessages = messageWindow.hasMoreCandidateMessages
                 )
             }
 
+            // 手动刷新仅在最新总结确实覆盖会话末尾时回退上一摘要边界
             val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
             val refreshableSummary = latestSummary?.takeIf {
                 it.content.isNotBlank() &&
-                    it.coveredMessageId != 0L &&
-                    it.coveredMessageId == latestMessage?.id
+                        it.coveredMessageId != 0L &&
+                        it.coveredMessageId == latestMessage?.id
             }
             if (refreshableSummary == null) {
                 return@withTransaction ChatSummaryGenerationContext(
@@ -508,14 +741,17 @@ class ChatRepository(
                 sessionId = sessionId,
                 coveredMessageId = refreshBoundaryId
             )
+            val refreshWindow = loadSummaryMessagesInRange(
+                sessionId = sessionId,
+                afterMessageId = previousSummary?.coveredMessageId ?: 0L,
+                throughMessageId = refreshBoundaryId,
+                maxCandidateMessages = maxCandidateMessages
+            )
             ChatSummaryGenerationContext(
                 existingSummary = previousSummary?.content.orEmpty(),
-                messages = mChatMessageDao.getMessagesInRange(
-                    sessionId = sessionId,
-                    afterMessageId = previousSummary?.coveredMessageId ?: 0L,
-                    throughMessageId = refreshBoundaryId
-                ),
-                summaryToUpdate = refreshableSummary
+                messages = refreshWindow.messages,
+                summaryToUpdate = refreshableSummary,
+                hasMoreCandidateMessages = refreshWindow.hasMoreCandidateMessages
             )
         }
     }
@@ -550,6 +786,11 @@ class ChatRepository(
         return mChatMessageDao.getLatestMessageBySessionId(sessionId)
     }
 
+    /** 获取指定会话最后一条角色消息。 */
+    suspend fun getLatestCharacterMessageBySessionId(sessionId: Long): ChatMessage? {
+        return mChatMessageDao.getLatestCharacterMessageBySessionId(sessionId)
+    }
+
     /**
      * 创建新的聊天消息，并同步刷新会话最近活跃时间。
      *
@@ -567,6 +808,9 @@ class ChatRepository(
         createTime: Long = System.currentTimeMillis(),
         coveredMessageId: Long? = null
     ): Long {
+        require(source != ChatMessage.Source.User || content.isNotBlank()) {
+            "A text-only user message cannot be empty, use the image entry for image-only messages"
+        }
         require(source != ChatMessage.Source.Summary || coveredMessageId != null) {
             "Summary messages require a covered message id"
         }
@@ -606,17 +850,23 @@ class ChatRepository(
         )
     }
 
-    /**
-     * 将流式生成的中间正文写入占位消息，使进程被系统回收时不至于丢掉整段回复。
-     *
-     * 只更新正文，不推进会话活跃时间、不失效摘要、不触发图片清理；这些都留给
-     * [commitGenerationResult] 在生成真正结束时一次性完成。
-     */
+    /** 流式 partial 只持久化正文；失效摘要与配图由最终提交统一完成。 */
     suspend fun updateGenerationDraft(messageId: Long, content: String) {
-        val message = mChatMessageDao.getMessageById(messageId) ?: return
-        if (message.source == ChatMessage.Source.Summary) return
-        mChatMessageDao.update(message.copy(content = content))
+        val current = mChatMessageDao.getMessageById(messageId) ?: return
+        if (current.source != ChatMessage.Source.Summary) mChatMessageDao.update(current.copy(content = content, imageFileUuid = null))
     }
+
+    /** 乐观校验生成时正文与当前正文一致，附件提交后才释放旧文件。 */
+    suspend fun replaceMessageImage(messageId: Long, expectedContent: String, newFileUuid: String): Boolean =
+        mImages.mutate {
+            val current = mChatMessageDao.getMessageById(messageId) ?: return@mutate false
+            if (current.source != ChatMessage.Source.Char || current.content != expectedContent) return@mutate false
+            mImages.replaceGeneratedInTransaction(this, MessageKey(MessageType.Single, messageId), newFileUuid)
+        }
+
+    suspend fun getGeneratedImageUuid(messageId: Long): String? =
+        mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, messageId)
+            .firstOrNull { !it.sendToModel }?.imageUuid
 
     /**
      * 原子提交一次生成结果的正文、摘要失效、活跃时间与世界书运行时状态。
@@ -638,20 +888,19 @@ class ChatRepository(
         commitTime: Long = System.currentTimeMillis()
     ): Long? {
         require(source != ChatMessage.Source.Summary) { "Generation output cannot be a summary" }
-        val result = mAppDatabase.withTransaction {
-            var oldImageFileUuid: String? = null
+        return mImages.mutate {
             // 空正文处理：按需清理占位消息并直接返回
             if (content.isBlank()) {
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
-                    // 占位消息可能已被流式草稿写入过正文，因此不能再用“正文为空”作为删除条件；
-                    // deleteEmptyPlaceholder 本身只在本轮新建消息时为 true，配合来源校验已经足够。
-                    if (placeholder?.sessionId == sessionId && placeholder.source == source) {
-                        oldImageFileUuid = placeholder.imageFileUuid
+                    if (placeholder?.sessionId == sessionId && placeholder.content.isBlank() &&
+                        mAppDatabase.getMessageImageDao()
+                            .getByMessage(MessageType.Single, messageId).isEmpty()
+                    ) {
                         mChatMessageDao.deleteMessageById(messageId)
                     }
                 }
-                return@withTransaction null to oldImageFileUuid
+                return@mutate null
             }
 
             // 插入新消息或更新已有消息并失效旧总结
@@ -671,8 +920,8 @@ class ChatRepository(
                 require(message.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
                     "Generation target must be a regular message in the same session"
                 }
-                oldImageFileUuid = message.imageFileUuid
-                mChatMessageDao.update(message.copy(content = content, imageFileUuid = null))
+                mImages.clearGeneratedInTransaction(this, MessageKey(MessageType.Single, messageId))
+                mChatMessageDao.updateMessageContent(messageId, content)
                 mChatMessageDao.deleteSummariesCoveringMessage(sessionId, messageId)
                 messageId
             }
@@ -682,10 +931,8 @@ class ChatRepository(
                 latestTime = commitTime,
                 worldInfoStateJson = worldInfoStateJson
             )
-            committedMessageId to oldImageFileUuid
+            committedMessageId
         }
-        deleteImageFiles(result.second)
-        return result.first
     }
 
     /**
@@ -710,71 +957,58 @@ class ChatRepository(
         return message.id
     }
 
-    /** 更新已有消息，并在编辑带图 Char 消息时清理旧图片。 */
+    /**
+     * 更新已有消息。
+     *
+     * @param message 要更新的消息。
+     */
     suspend fun updateMessage(message: ChatMessage) {
-        val oldImageFileUuid = mAppDatabase.withTransaction {
-            val current = mChatMessageDao.getMessageById(message.id)
-            val updated = message.normalizedImageForUpdate(current)
-            mChatMessageDao.update(updated)
-            if (current != null && current.source != ChatMessage.Source.Summary) {
+        mImages.mutate {
+            val current = mChatMessageDao.getMessageById(message.id) ?: return@mutate
+            val attachments = mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, message.id)
+            require(attachments.isEmpty() || (current.sessionId == message.sessionId && current.source == message.source)) {
+                "A message with images cannot change its source or session"
+            }
+            require(message.source != ChatMessage.Source.User || message.content.isNotBlank() || attachments.isNotEmpty()) {
+                "A message cannot have empty content and no images"
+            }
+            if (current.content != message.content || message.source != ChatMessage.Source.Char) {
+                mImages.clearGeneratedInTransaction(this, MessageKey(MessageType.Single, message.id))
+            }
+            mChatMessageDao.update(message.copy(imageFileUuid = null))
+            if (current.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(current.sessionId, current.id)
             }
-            current?.imageFileUuid?.takeIf { it != updated.imageFileUuid }
         }
-        deleteImageFiles(oldImageFileUuid)
     }
 
-    /** 修改消息正文；编辑 Char 消息会解除并删除其派生图片。 */
-    suspend fun updateMessageContent(id: Long, content: String) {
-        val oldImageFileUuid = mAppDatabase.withTransaction {
-            val message = mChatMessageDao.getMessageById(id)
-                ?: return@withTransaction null
-            val updated = message.copy(
-                content = content,
-                imageFileUuid = when {
-                    message.source == ChatMessage.Source.Summary -> null
-                    message.source == ChatMessage.Source.Char && message.content != content -> null
-                    else -> message.imageFileUuid
-                }
-            )
-            mChatMessageDao.update(updated)
-            if (message.source != ChatMessage.Source.Summary) {
-                mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
-            }
-            message.imageFileUuid?.takeIf { it != updated.imageFileUuid }
-        }
-        deleteImageFiles(oldImageFileUuid)
+    /** 正文、摘要失效和配图释放共用文件事务，避免编辑与后台配图交错写回。 */
+    suspend fun updateMessageContent(id: Long, content: String) = mImages.mutate {
+        updateMessageContentInTransaction(this, id, content)
     }
 
-    /**
-     * 将新图片附加到正文仍与生成时一致的 Char 消息。
-     *
-     * 旧图片只在数据库提交成功后删除；拒绝时新图片仍由调用方负责。
-     */
-    suspend fun replaceMessageImage(
-        messageId: Long,
-        expectedContent: String,
-        newFileUuid: String
-    ): Boolean {
-        val result = mAppDatabase.withTransaction {
-            val current = mChatMessageDao.getMessageById(messageId)
-                ?: return@withTransaction false to null
-            if (current.source != ChatMessage.Source.Char || current.content != expectedContent) {
-                return@withTransaction false to null
-            }
-            val updatedRows = mChatMessageDao.updateImageIfContentMatches(
-                messageId = messageId,
-                expectedContent = expectedContent,
-                newFileUuid = newFileUuid
-            )
-            if (updatedRows != 1) return@withTransaction false to null
-            true to current.imageFileUuid
+    private suspend fun updateMessageContentInTransaction(mutation: FileRepository.Mutation, id: Long, content: String) {
+        val message = mChatMessageDao.getMessageById(id) ?: return
+        require(message.source != ChatMessage.Source.User || content.isNotBlank() ||
+            mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, id).isNotEmpty()) {
+            "A message cannot have empty content and no images"
         }
-        if (result.first && result.second != null && result.second != newFileUuid) {
-            mFileRepository.deleteFile(result.second!!)
-        }
-        return result.first
+        if (message.content != content) mImages.clearGeneratedInTransaction(mutation, MessageKey(MessageType.Single, id))
+        mChatMessageDao.updateMessageContent(id, content)
+        if (message.source != ChatMessage.Source.Summary) mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, id)
     }
+
+    /** 一致读取摘要基线和消息附件，供网络请求完成后进行乐观校验。 */
+    suspend fun getSummaryInputSnapshot(
+        sessionId: Long,
+        messageIds: List<Long>
+    ): SummaryInputSnapshot =
+        mAppDatabase.withTransaction {
+            SummaryInputSnapshot(
+                getMessagesWithImages(messageIds),
+                mGson.toJson(mChatMessageDao.getLatestSummaryBySessionId(sessionId))
+            )
+        }
 
     /**
      * 新增一条总结快照，并记录其覆盖到的最后一条普通消息。
@@ -791,13 +1025,20 @@ class ChatRepository(
         content: String,
         coveredMessageId: Long,
         summaryIdToUpdate: Long? = null,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
+        expectedSnapshot: SummaryInputSnapshot? = null
     ): Long {
         return mAppDatabase.withTransaction {
+            if (expectedSnapshot != null) {
+                val current = getSummaryInputSnapshot(
+                    sessionId,
+                    expectedSnapshot.messages.map { it.key.messageId })
+                require(current == expectedSnapshot) { "Summary input changed, summarize again" }
+            }
             val coveredMessage = mChatMessageDao.getMessageById(coveredMessageId)
             require(
                 coveredMessage?.sessionId == sessionId &&
-                    coveredMessage.source != ChatMessage.Source.Summary
+                        coveredMessage.source != ChatMessage.Source.Summary
             ) {
                 "Summary boundary must reference a regular message in the same session"
             }
@@ -851,13 +1092,10 @@ class ChatRepository(
                     )
                 )
             } else {
-                val latestMessageId = mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
+                val latestMessageId =
+                    mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
                 if (current != null && current.coveredMessageId == latestMessageId) {
-                    mChatMessageDao.updateSummary(
-                        id = current.id,
-                        content = content,
-                        coveredMessageId = current.coveredMessageId ?: latestMessageId
-                    )
+                    mChatMessageDao.updateMessageContent(current.id, content)
                     return@withTransaction
                 }
                 mChatMessageDao.insertOrReplace(
@@ -895,49 +1133,224 @@ class ChatRepository(
      * @param id 消息 id。
      */
     suspend fun deleteMessage(id: Long) {
-        val imageFileUuid = mAppDatabase.withTransaction {
-            val message = mChatMessageDao.getMessageById(id)
-                ?: return@withTransaction null
+        mImages.mutate {
+            val message = mChatMessageDao.getMessageById(id) ?: return@mutate
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
             }
+            mImages.deleteInTransaction(this, MessageType.Single, listOf(id))
             mChatMessageDao.deleteMessageById(id)
-            message.imageFileUuid
         }
-        deleteImageFiles(imageFileUuid)
     }
 
-    /** 删除指定会话下的全部消息及其关联图片。 */
+    /**
+     * 删除指定会话下的全部消息。
+     *
+     * @param sessionId 会话 id。
+     */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
-        val imageFileUuids = mAppDatabase.withTransaction {
-            val uuids = mChatMessageDao.getMessagesBySessionId(sessionId)
-                .mapNotNull(ChatMessage::imageFileUuid)
-                .distinct()
+        mImages.mutate {
+            mImages.deleteInTransaction(
+                this, MessageType.Single,
+                mChatMessageDao.getMessageIdsBySessionId(sessionId)
+            )
             mChatMessageDao.deleteMessagesBySessionId(sessionId)
-            uuids
         }
-        deleteImageFiles(imageFileUuids)
     }
 
-    private suspend fun deleteImageFiles(imageFileUuid: String?) {
-        if (imageFileUuid != null) mFileRepository.deleteFile(imageFileUuid)
-    }
-
-    private suspend fun deleteImageFiles(imageFileUuids: Iterable<String>) {
-        imageFileUuids.distinct().forEach { mFileRepository.deleteFile(it) }
-    }
-
-    private fun ChatMessage.normalizedImageForUpdate(current: ChatMessage?): ChatMessage {
-        if (source == ChatMessage.Source.Summary) return copy(imageFileUuid = null)
-        if (current == null) return copy(imageFileUuid = null)
-        if (current.source == ChatMessage.Source.Char && source == ChatMessage.Source.Char) {
-            return if (content == current.content) {
-                copy(imageFileUuid = current.imageFileUuid)
-            } else {
-                copy(imageFileUuid = null)
-            }
+    /** 读取摘要边界之后的普通生成历史，并恢复为正序后排除待替换消息。 */
+    private suspend fun loadPromptMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val messages = if (maxHistoryMessages == 0) {
+            mChatMessageDao.getMessagesAfterId(sessionId, coveredMessageId)
+        } else {
+            mChatMessageDao.getLatestMessagesAfterId(
+                sessionId = sessionId,
+                coveredMessageId = coveredMessageId,
+                limit = promptHistoryReadLimit(maxHistoryMessages, excludedMessageId)
+            ).asReversed()
         }
-        return copy(imageFileUuid = null)
+        return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
+    }
+
+    /** 读取增量总结窗口，并把真实最新消息附在末尾供 Builder 按旧规则排除。 */
+    private suspend fun loadSummaryMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        maxCandidateMessages: Int
+    ): ChatSummaryMessageWindow {
+        // 无限制调用保留旧接口的完整范围语义
+        if (maxCandidateMessages == 0) {
+            return ChatSummaryMessageWindow(
+                messages = mChatMessageDao.getMessagesAfterId(sessionId, coveredMessageId),
+                hasMoreCandidateMessages = false
+            )
+        }
+        // 最新消息独立保留为 Builder 的排除哨兵，候选查询只读取最早窗口
+        val latestMessage = mChatMessageDao.getLatestMessageAfterId(
+            sessionId = sessionId,
+            coveredMessageId = coveredMessageId
+        ) ?: return ChatSummaryMessageWindow(emptyList(), false)
+        val candidates = mChatMessageDao.getFirstMessagesBeforeLatestAfterId(
+            sessionId = sessionId,
+            coveredMessageId = coveredMessageId,
+            latestCreateTime = latestMessage.createTime,
+            latestMessageId = latestMessage.id,
+            limit = summaryCandidateQueryLimit(maxCandidateMessages)
+        )
+        return candidates.toChatSummaryMessageWindow(maxCandidateMessages, latestMessage)
+    }
+
+    /** 读取手动刷新范围窗口，并保持最后一条消息排除语义不变。 */
+    private suspend fun loadSummaryMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        maxCandidateMessages: Int
+    ): ChatSummaryMessageWindow {
+        // 测试和兼容调用仍可显式读取完整刷新范围
+        if (maxCandidateMessages == 0) {
+            return ChatSummaryMessageWindow(
+                messages = mChatMessageDao.getMessagesInRange(
+                    sessionId,
+                    afterMessageId,
+                    throughMessageId
+                ),
+                hasMoreCandidateMessages = false
+            )
+        }
+        // 使用范围内真实末尾消息维持“最后一条不进入摘要”的既有行为
+        val latestMessage = mChatMessageDao.getLatestMessageInRange(
+            sessionId = sessionId,
+            afterMessageId = afterMessageId,
+            throughMessageId = throughMessageId
+        ) ?: return ChatSummaryMessageWindow(emptyList(), false)
+        val candidates = mChatMessageDao.getFirstMessagesBeforeLatestInRange(
+            sessionId = sessionId,
+            afterMessageId = afterMessageId,
+            throughMessageId = throughMessageId,
+            latestCreateTime = latestMessage.createTime,
+            latestMessageId = latestMessage.id,
+            limit = summaryCandidateQueryLimit(maxCandidateMessages)
+        )
+        return candidates.toChatSummaryMessageWindow(maxCandidateMessages, latestMessage)
+    }
+
+    /** 回退最新摘要边界，并读取与旧行为一致的重生成历史范围。 */
+    private suspend fun loadRegenerationPromptHistory(
+        sessionId: Long,
+        latestSummary: ChatMessage,
+        excludedMessageId: Long,
+        maxHistoryMessages: Int,
+        totalMessageCount: Int
+    ): ChatPromptHistoryContext {
+        // 只有最新摘要完整覆盖最后一条消息时，才允许回退并重新构建该边界
+        val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
+        val refreshableSummary = latestSummary.takeIf {
+            it.content.isNotBlank() &&
+                    it.coveredMessageId != 0L &&
+                    it.coveredMessageId == latestMessage?.id
+        } ?: return ChatPromptHistoryContext(
+            summary = latestSummary.content,
+            messages = emptyList(),
+            totalMessageCount = totalMessageCount
+        )
+        // 使用上一份摘要作为记忆，并在两份摘要边界之间读取最近历史窗口
+        val refreshBoundaryId = requireNotNull(refreshableSummary.coveredMessageId)
+        val previousSummary = mChatMessageDao.getPreviousSummaryBeforeBoundary(
+            sessionId = sessionId,
+            coveredMessageId = refreshBoundaryId
+        )
+        val messages = loadPromptMessagesInRange(
+            sessionId = sessionId,
+            afterMessageId = previousSummary?.coveredMessageId ?: 0L,
+            throughMessageId = refreshBoundaryId,
+            excludedMessageId = excludedMessageId,
+            maxHistoryMessages = maxHistoryMessages
+        )
+        return ChatPromptHistoryContext(
+            summary = previousSummary?.content.orEmpty(),
+            messages = getMessagesWithImages(messages.map { it.id }),
+            totalMessageCount = totalMessageCount
+        )
+    }
+
+    /** 读取两个摘要边界之间的普通生成历史窗口。 */
+    private suspend fun loadPromptMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        excludedMessageId: Long,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val messages = if (maxHistoryMessages == 0) {
+            mChatMessageDao.getMessagesInRange(sessionId, afterMessageId, throughMessageId)
+        } else {
+            mChatMessageDao.getLatestMessagesInRange(
+                sessionId = sessionId,
+                afterMessageId = afterMessageId,
+                throughMessageId = throughMessageId,
+                limit = promptHistoryReadLimit(maxHistoryMessages, excludedMessageId)
+            ).asReversed()
+        }
+        return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
+    }
+
+    /** 为候选窗口额外读取一行，用于判断是否需要继续扩展。 */
+    private fun summaryCandidateQueryLimit(maxCandidateMessages: Int): Int {
+        return if (maxCandidateMessages == Int.MAX_VALUE) {
+            Int.MAX_VALUE
+        } else {
+            maxCandidateMessages + 1
+        }
+    }
+
+    /** 将候选查询结果裁成窗口，并把真实最新消息附到末尾。 */
+    private fun List<ChatMessage>.toChatSummaryMessageWindow(
+        maxCandidateMessages: Int,
+        latestMessage: ChatMessage
+    ): ChatSummaryMessageWindow {
+        return ChatSummaryMessageWindow(
+            messages = take(maxCandidateMessages) + latestMessage,
+            hasMoreCandidateMessages = size > maxCandidateMessages
+        )
+    }
+
+    /** 为可能需要排除的消息多读取一行，保证最终窗口仍可包含指定数量。 */
+    private fun promptHistoryReadLimit(
+        maxHistoryMessages: Int,
+        excludedMessageId: Long?
+    ): Int {
+        if (excludedMessageId == null || maxHistoryMessages == Int.MAX_VALUE) {
+            return maxHistoryMessages
+        }
+        return maxHistoryMessages + 1
+    }
+
+    /** 排除待替换消息，并从剩余结果末尾保留配置允许的最近历史。 */
+    private fun List<ChatMessage>.toPromptHistoryWindow(
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val filtered = filterNot { it.id == excludedMessageId }
+        return if (maxHistoryMessages == 0) filtered else filtered.takeLast(maxHistoryMessages)
+    }
+
+    /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */
+    private suspend fun List<ChatMessage>.toChatMessagePage(
+        pageSize: Int,
+        totalMessageCount: Int
+    ): ChatMessagePage {
+        return ChatMessagePage(
+            messages = take(pageSize).asReversed(),
+            canLoadOlderMessages = size > pageSize,
+            totalMessageCount = totalMessageCount,
+            messageImages = getMessagesWithImages(take(pageSize).asReversed().map { it.id })
+        )
     }
 
     private fun String.toLorebookEntryIds(): List<Long> {
@@ -959,4 +1372,10 @@ class ChatRepository(
         }
         return result
     }
+
+    /** Builder 使用的有限候选窗口及其扩展标记。 */
+    private data class ChatSummaryMessageWindow(
+        val messages: List<ChatMessage>,
+        val hasMoreCandidateMessages: Boolean
+    )
 }

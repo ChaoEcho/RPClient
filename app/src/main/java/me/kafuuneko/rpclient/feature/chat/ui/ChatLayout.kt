@@ -26,26 +26,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -57,9 +62,9 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.HideImage
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
@@ -73,8 +78,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,16 +91,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -105,6 +112,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -122,6 +131,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.libs.generation.DataMaintenance
 import me.kafuuneko.rpclient.R
@@ -143,26 +153,41 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.SummaryPreparationStage
 import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageState
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
+import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
-import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
-import me.kafuuneko.rpclient.model.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
+import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
+import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
+import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.tts.MIMO_VOICES
 import me.kafuuneko.rpclient.libs.tts.TtsProviderType
+import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+
+/** 当前窗口顶部进入该范围时预取更早消息。 */
+private const val HISTORY_LOAD_THRESHOLD = 4
 
 /** 单角色聊天页 Compose 入口，根据页面状态切换会话区与设置区。 */
 @Composable
@@ -193,11 +218,12 @@ fun ChatLayout(
                     emit = emit
                 )
             }
-            DialogSwitch(uiState.dialogState, emit)
+            DialogSwitch(uiState, emit)
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatNormal(
     state: ChatUiState.Normal,
@@ -206,6 +232,12 @@ private fun ChatNormal(
 ) {
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
+    val canLoadOlderMessages by rememberUpdatedState(
+        state.conversationState.canLoadOlderMessages
+    )
+    val isLoadingOlderMessages by rememberUpdatedState(
+        state.conversationState.isLoadingOlderMessages
+    )
     var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
     var previewFileUuid by remember { mutableStateOf<String?>(null) }
@@ -265,11 +297,15 @@ private fun ChatNormal(
             saveImageNow(uuid)
         }
     }
+    var isScrollIndicatorDragged by remember { mutableStateOf(false) }
+    var lastTailMessageId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.canScrollForward }
-            .collect { canScrollForward ->
-                if (!canScrollForward) {
+        snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
+            .collect { (canScrollForward, indicatorDragged) ->
+                if (indicatorDragged) {
+                    shouldFollowBottom = false
+                } else if (!canScrollForward) {
                     shouldFollowBottom = true
                 }
             }
@@ -284,13 +320,33 @@ private fun ChatNormal(
         }
     }
 
-    // - 只要收到新消息或发送消息，立即恢复底部跟随并平滑滚动到末尾
-    LaunchedEffect(state.conversationState.messages.size) {
-        if (state.conversationState.messages.isNotEmpty()) {
+    // 首次定位到底部完成后，用户接近当前窗口顶部才请求更早历史
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to isFirstLoad }
+            .distinctUntilChanged()
+            .collect { (firstVisibleItemIndex, firstLoad) ->
+                if (!firstLoad &&
+                    firstVisibleItemIndex <= HISTORY_LOAD_THRESHOLD &&
+                    canLoadOlderMessages &&
+                    !isLoadingOlderMessages
+                ) {
+                    ChatUiIntent.LoadOlderMessages.emit()
+                }
+            }
+    }
+
+    // 只有尾部消息身份改变时才滚到底部，头部加载历史不会打断用户位置
+    val tailMessageId = state.conversationState.messages.lastOrNull()?.id
+    LaunchedEffect(tailMessageId) {
+        if (tailMessageId == null) {
+            lastTailMessageId = null
+            isFirstLoad = true
+        } else if (isFirstLoad || tailMessageId != lastTailMessageId) {
             shouldFollowBottom = true
             listState.scrollToItem(state.conversationState.messages.size + 1)
             isFirstLoad = false
         }
+        lastTailMessageId = tailMessageId
     }
 
     // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
@@ -310,6 +366,10 @@ private fun ChatNormal(
     val latestAssistantMessageId = remember(state.conversationState.messages) {
         state.conversationState.messages.lastOrNull { it.role == MessageRole.Assistant }?.id
     }
+    // 记录列表视口高度，在软键盘弹出/收起导致视口尺寸变化时，将差值转化为滚动偏移，
+    // 从而使当前查看的消息被键盘等高顶起，保持位置不变，顶部溢出部分在标题栏下方自然裁切
+    val coroutineScope = rememberCoroutineScope()
+    var previousListHeight by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -325,6 +385,7 @@ private fun ChatNormal(
             streamEnabled = state.streamEnabled,
             hasPromptInspection = state.hasPromptInspection,
             hasAvailableProvider = state.hasAvailableProvider,
+            sessionLoreDialogVisible = state.dialogState is ChatDialogState.SessionLorebook,
             onBack = { ChatUiIntent.Back.emit() },
             emit = emit
         )
@@ -333,31 +394,60 @@ private fun ChatNormal(
                 onClick = { ChatUiIntent.OpenProviderSettings.emit() }
             )
         }
-        if (state.lorebookState.isExpanded) {
-            SessionLorePanel(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                groups = state.lorebookState.groups,
-                visibleGroups = state.lorebookState.visibleGroups,
-                query = state.lorebookState.query,
-                emit = emit
-            )
-        }
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
+                .onSizeChanged { size ->
+                    val newHeight = size.height
+                    if (previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
+                        val delta = (previousListHeight - newHeight).toFloat()
+                        coroutineScope.launch {
+                            if (shouldFollowBottom && delta > 0) {
+                                listState.scrollToItem(state.conversationState.messages.size + 1)
+                            } else {
+                                listState.dispatchRawDelta(delta)
+                            }
+                        }
+                    }
+                    previousListHeight = newHeight
+                }
+                .draggableLazyListScrollIndicator(
+                    state = listState,
+                    onDragStateChanged = { dragging ->
+                        isScrollIndicatorDragged = dragging
+                        shouldFollowBottom = if (dragging) {
+                            false
+                        } else {
+                            !listState.canScrollForward
+                        }
+                    }
+                ),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "conversation-start") {
-                ConversationStartHeader(
-                    session = state.session,
-                    character = state.character,
-                    lorebookState = state.lorebookState,
-                    streamEnabled = state.streamEnabled,
-                    emit = emit
-                )
+            if (state.conversationState.canLoadOlderMessages ||
+                state.conversationState.isLoadingOlderMessages
+            ) {
+                item(key = "older-messages-loader") {
+                    OlderMessagesLoadIndicator(
+                        loading = state.conversationState.isLoadingOlderMessages
+                    )
+                }
+            } else {
+                item(key = "conversation-start") {
+                    ConversationStartHeader(
+                        session = state.session,
+                        character = state.character,
+                        lorebookState = state.lorebookState,
+                        streamEnabled = state.streamEnabled,
+                        emit = emit
+                    )
+                }
             }
             itemsIndexed(
                 items = state.conversationState.messages,
@@ -365,6 +455,7 @@ private fun ChatNormal(
                 contentType = { _, message -> message.role }
             ) { index, message ->
                 MessageBubble(
+                    imageState = state.imageState,
                     message = message,
                     character = state.character,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
@@ -373,7 +464,9 @@ private fun ChatNormal(
                     fileRepository = fileRepository,
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
-                    isFirstMessage = index == 0,
+                    isFirstMessage = !state.conversationState.canLoadOlderMessages &&
+                            !state.conversationState.isLoadingOlderMessages &&
+                            index == 0,
                     isLatestAssistantMessage = message.id == latestAssistantMessageId,
                     onImageClick = { uuid -> previewFileUuid = uuid },
                     emit = emit
@@ -383,13 +476,21 @@ private fun ChatNormal(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+        if ((state.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply == true) {
+            TextButton(
+                onClick = { ChatUiIntent.RetryImageReply.emit() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(stringResource(R.string.image_retry))
+            }
+        }
+        MessageImageViewerDialog(state.imageState) { ChatUiIntent.ImageAction(it).emit() }
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
             autoGenerateImageAfterReply = state.autoGenerateImageAfterReply,
-            hasAssistantMessage = state.conversationState.messages.any {
-                it.role == MessageRole.Assistant
-            },
+            hasAssistantMessage = state.conversationState.hasAssistantMessage,
+            imageState = state.imageState,
             emit = emit
         )
     }
@@ -406,6 +507,21 @@ private fun ChatNormal(
     }
 }
 
+/** 在消息窗口顶部保留稳定高度，并在读取历史时展示轻量进度。 */
+@Composable
+private fun OlderMessagesLoadIndicator(loading: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        }
+    }
+}
+
 @Composable
 private fun CustomChatTopBar(
     session: ChatSessionItem,
@@ -416,6 +532,7 @@ private fun CustomChatTopBar(
     streamEnabled: Boolean,
     hasPromptInspection: Boolean,
     hasAvailableProvider: Boolean = true,
+    sessionLoreDialogVisible: Boolean,
     onBack: () -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -429,6 +546,9 @@ private fun CustomChatTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
                 .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -499,14 +619,14 @@ private fun CustomChatTopBar(
                 )
             }
             IconButton(
-                onClick = { ChatUiIntent.OpenSessionLore.emit() },
+                onClick = { ChatUiIntent.ShowSessionLoreDialog.emit() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Rounded.Book,
                     contentDescription = stringResource(R.string.session_world_book),
                     modifier = Modifier.size(20.dp),
-                    tint = if (lorebookState.isExpanded) MaterialTheme.colorScheme.primary
+                    tint = if (sessionLoreDialogVisible) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                 )
             }
@@ -601,78 +721,6 @@ private fun ConversationStartHeader(
                 Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.edit_character_title))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SessionLorePanel(
-    modifier: Modifier = Modifier,
-    groups: List<ChatLorebookGroupItem>,
-    visibleGroups: List<ChatLorebookGroupItem>,
-    query: String,
-    emit: ChatUiIntent.() -> Unit
-) {
-    var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
-    val isSearching = query.isNotBlank()
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RpSectionHeader(
-                title = stringResource(R.string.session_world_books),
-                action = stringResource(R.string.manage_world_books),
-                onAction = { ChatUiIntent.OpenWorldBookManager.emit() }
-            )
-            Text(
-                text = stringResource(R.string.session_lore_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
-            )
-            if (groups.isNotEmpty()) {
-                LorebookSearchField(
-                    query = query,
-                    onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() }
-                )
-            }
-            if (groups.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_world_book_entries),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            if (groups.isNotEmpty() && visibleGroups.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_world_book_search_results),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            LazyColumn(
-                modifier = Modifier.heightIn(max = 360.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(visibleGroups, key = { it.lorebookId }) { group ->
-                    val expanded = isSearching || group.lorebookId in expandedLorebookIds
-                    SessionLoreGroup(
-                        group = group,
-                        expanded = expanded,
-                        onExpandedChange = {
-                            expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
-                        },
-                        emit = emit
-                    )
-                }
             }
         }
     }
@@ -802,6 +850,7 @@ private fun LorebookSearchField(
 
 @Composable
 private fun MessageBubble(
+    imageState: MessageImageState,
     message: ChatMessageUiModel,
     character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
@@ -820,6 +869,11 @@ private fun MessageBubble(
         !message.isStreaming &&
         !editing &&
         message.parts.filterIsInstance<MessageContentPart.Text>().any { it.content.isNotBlank() }
+    // 供应商对助手图片的支持不一致，暂只向用户消息开放新增入口，保留所有消息既有附件的编辑能力。
+    val canAddImages = editing && isUser
+    val imageIds = if (editing) imageState.editing else message.imageUuids
+    val hasImageHeader =
+        imageIds.isNotEmpty() || message.imageUuids.isNotEmpty() || canAddImages
     var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
@@ -1356,12 +1410,16 @@ private fun StreamingStatus(
 @Composable
 private fun MessageEditContent(
     draft: String,
+    imageState: MessageImageState,
     isUser: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+    // 编辑框沿用正文排版，短消息仅占一行，长消息在高度上限内滚动。
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        RpScrollableOutlinedTextField(
+            enabled = !imageState.submitting,
             modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodyMedium,
             value = draft,
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
             minLines = 1,
@@ -1371,6 +1429,8 @@ private fun MessageEditContent(
                 focusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 cursorColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                focusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.06f) else Color.Transparent,
+                unfocusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.04f) else Color.Transparent,
                 focusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
             )
@@ -1381,20 +1441,23 @@ private fun MessageEditContent(
         ) {
             TextButton(
                 onClick = { ChatUiIntent.CancelEditingMessage.emit() },
+                enabled = !imageState.submitting,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
                     stringResource(R.string.cancel),
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary
+                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Normal
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = { ChatUiIntent.SaveEditingMessage.emit() },
+                enabled = !imageState.processing,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Text(
-                    stringResource(R.string.save),
+                    stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                 )
@@ -1630,9 +1693,9 @@ private fun ChatInputBar(
     isGenerating: Boolean,
     autoGenerateImageAfterReply: Boolean,
     hasAssistantMessage: Boolean,
+    imageState: MessageImageState,
     emit: ChatUiIntent.() -> Unit
 ) {
-    var quickActionsExpanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     val canStartTextGeneration = !isGenerating
     val autoImageModeStateDescription = stringResource(
@@ -1655,13 +1718,22 @@ private fun ChatInputBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                )
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
                     .height(0.5.dp)
+            )
+
+            // 附件为空时仍保留选图失败提示。
+            DraftAttachmentTray(
+                state = imageState,
+                enabled = !isGenerating && !imageState.submitting,
+                emit = { ChatUiIntent.ImageAction(it).emit() }
             )
 
             // - 快捷操作胶囊条（随页面整体上移平推，常驻方便快速操作）
@@ -1700,7 +1772,7 @@ private fun ChatInputBar(
                 QuickActionPill(
                     icon = Icons.Rounded.Edit,
                     label = stringResource(R.string.impersonate_user),
-                    enabled = !isGenerating,
+                    enabled = !isGenerating && !imageState.submitting,
                     onClick = { ChatUiIntent.ImpersonateUser.emit() }
                 )
                 QuickActionPill(
@@ -1723,15 +1795,16 @@ private fun ChatInputBar(
                     .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                OutlinedTextField(
+                RpScrollableOutlinedTextField(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
-                    enabled = !isGenerating,
+                    enabled = !isGenerating && !imageState.submitting,
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
                     leadingIcon = {
+                        Row {
                         Box {
                             IconButton(
                                 onClick = { quickActionsExpanded = true },
@@ -1793,6 +1866,25 @@ private fun ChatInputBar(
                                     }
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false))
+                                    .emit()
+                            },
+                            enabled = !isGenerating && !imageState.processing && imageState.canAddDraft
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ImageIcon,
+                                contentDescription = stringResource(R.string.attach_images),
+                                tint = if (!isGenerating && imageState.canAddDraft) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                }
+                            )
+                        }
                         }
                     },
                     placeholder = {
@@ -1862,10 +1954,12 @@ private fun ChatSettingsPage(
             title = stringResource(R.string.chat_settings),
             onBack = { ChatUiIntent.CloseChatSettings.emit() }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding(),
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -2135,11 +2229,31 @@ private fun SettingsSection(
 
 @Composable
 private fun DialogSwitch(
-    dialogState: ChatDialogState,
+    state: ChatUiState.Normal,
     emit: ChatUiIntent.() -> Unit
 ) {
-    when (dialogState) {
+    when (val dialogState = state.dialogState) {
         ChatDialogState.None -> Unit
+
+        is ChatDialogState.SessionLorebook -> ChatSessionLorebookDialog(
+            groups = state.lorebookState.groups,
+            dialogState = dialogState,
+            emit = emit
+        )
+
+        ChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.summary_token_limit_title),
+            message = stringResource(
+                R.string.summary_token_limit_message,
+                stringResource(R.string.summary_memory),
+                stringResource(R.string.general_summary_memory),
+                stringResource(R.string.summary_response_tokens)
+            ),
+            confirmText = stringResource(R.string.summary_go_to_settings),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ChatUiIntent.OpenSummarySettings.emit() }
+        )
 
         is ChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
@@ -2176,7 +2290,11 @@ private fun DialogSwitch(
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-            onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() }
+            onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() },
+            onPreviewImages = { ids, index ->
+                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index))
+                    .emit()
+            }
         )
 
         is ChatDialogState.GuidedRegenerate -> AlertDialog(
@@ -2227,6 +2345,51 @@ private fun DialogSwitch(
     }
 }
 
+/** 将单聊世界书状态适配到应用级快捷管理对话框。 */
+@Composable
+private fun ChatSessionLorebookDialog(
+    groups: List<ChatLorebookGroupItem>,
+    dialogState: ChatDialogState.SessionLorebook,
+    emit: ChatUiIntent.() -> Unit
+) {
+    // 映射只包含通用 Dialog 所需的展示字段，确认后的持久化仍由单聊状态层负责。
+    val dialogGroups = remember(groups) {
+        groups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    SessionLorebookDialog(
+        groups = dialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        enabledEntryIds = dialogState.enabledEntryIds,
+        onQueryChange = { ChatUiIntent.ChangeSessionLorebookDialogQuery(it).emit() },
+        onToggleGroup = { ChatUiIntent.ToggleSessionLorebookDialogGroup(it).emit() },
+        onToggleEntry = { ChatUiIntent.ToggleSessionLorebookDialogEntry(it).emit() },
+        onConfirmSelection = { ChatUiIntent.ConfirmSessionLorebookSelection.emit() },
+        onManageWorldBooks = { ChatUiIntent.OpenWorldBookManager.emit() },
+        onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
+    )
+}
+
+/** 转换单聊世界书分组为通用对话框展示模型。 */
+private fun ChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLorebookDialogGroup {
+    return SessionLorebookDialogGroup(
+        id = lorebookId,
+        name = lorebookName,
+        entries = entries.map { entry ->
+            SessionLorebookDialogEntry(
+                id = entry.id,
+                name = entry.name,
+                content = entry.content,
+                keywords = entry.keywords,
+                constant = entry.constant
+            )
+        }
+    )
+}
+
 @Composable
 private fun AutoSaveTextField(
     label: String,
@@ -2256,7 +2419,7 @@ private fun AutoSaveTextField(
         { Text(placeholderText) }
     }
 
-    OutlinedTextField(
+    RpScrollableOutlinedTextField(
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { isFocused = it.isFocused },
@@ -2273,7 +2436,7 @@ private fun AutoSaveTextField(
 
 @Composable
 private fun MenuAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
@@ -2391,7 +2554,8 @@ private fun ChatLayoutPreview() {
                             time = "02:15",
                             tokenCount = 12
                         )
-                    )
+                    ),
+                    hasAssistantMessage = true
                 ),
                 lorebookState = ChatLorebookState(
                     groups = listOf(
@@ -2416,11 +2580,15 @@ private fun ChatLayoutPreview() {
                                 )
                             )
                         )
-                    ),
-                    isExpanded = true
+                    )
                 ),
                 streamEnabled = true,
-                autoGenerateImageAfterReply = false
+                autoGenerateImageAfterReply = false,
+                dialogState = ChatDialogState.SessionLorebook(
+                    query = "",
+                    visibleGroups = emptyList(),
+                    enabledEntryIds = setOf(1)
+                )
             ),
             emit = {}
         )
@@ -2458,6 +2626,73 @@ private fun AvatarPreview(
                     .clip(RoundedCornerShape(cornerRadius)),
                 contentScale = ContentScale.Crop
             )
+        }
+    }
+}
+
+/** 同屏对照普通态与编辑态，便于检查图片位置和短文本编辑高度。 */
+@Preview(name = "图片消息 · 普通与编辑", widthDp = 360, heightDp = 700)
+@Composable
+private fun PreviewImageMessageEditing() {
+    PreviewImageMessages(listOf(3 to false, 3 to true))
+}
+
+/** 覆盖单图、双图、四图与折叠多图，检查窄屏下的裁切和布局。 */
+@Preview(name = "图片消息 · 数量适配", widthDp = 320, heightDp = 1100)
+@Composable
+private fun PreviewImageMessageCounts() {
+    PreviewImageMessages(listOf(1 to false, 2 to false, 4 to true, 6 to false))
+}
+
+@Composable
+private fun PreviewImageMessages(examples: List<Pair<Int, Boolean>>) {
+    // 合成横向缩略图只供预览，覆盖裁切边界而不依赖私有图片文件或异步加载。
+    val thumbnails = remember {
+        (0..5).associate { index ->
+            val bitmap = ImageBitmap(240, 160)
+            val canvas = Canvas(bitmap)
+            canvas.drawRect(0f, 0f, 240f, 160f, Paint().apply { color = Color(0xFF203D50) })
+            canvas.drawCircle(Offset(120f, 60f), 32f, Paint().apply { color = Color(0xFFDBAD72) })
+            canvas.drawRect(0f, 105f, 240f, 160f, Paint().apply { color = Color(0xFF47706C) })
+            index.toString() to bitmap
+        }
+    }
+    val character = ChatCharacterItem(1, "Preview", "", "", "", "", "", "", "P", Color.Blue)
+    AppTheme(darkTheme = true, dynamicColor = false) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            examples.forEachIndexed { index, (count, editing) ->
+                val ids = thumbnails.keys.take(count)
+                MessageBubble(
+                    imageState = MessageImageState(
+                        editing = ids,
+                        thumbnails = thumbnails,
+                        canAddEditing = count < 4
+                    ),
+                    message = ChatMessageUiModel(
+                        id = index.toString(),
+                        role = MessageRole.User,
+                        speaker = "You",
+                        content = "还有很多呢",
+                        parts = listOf(MessageContentPart.Text("还有很多呢")),
+                        time = "19:28",
+                        tokenCount = 0,
+                        imageUuids = ids
+                    ),
+                    character = character,
+                    expandedThinkBlockIds = emptySet(),
+                    editing = editing,
+                    editingDraft = "还有很多呢",
+                    isFirstMessage = false,
+                    emit = {}
+                )
+            }
         }
     }
 }
