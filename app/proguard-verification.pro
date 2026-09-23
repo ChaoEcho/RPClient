@@ -87,3 +87,7 @@
 -keep interface androidx.sqlite.db.SupportSQLiteDatabase { *; }
 # 迁移夹具的独立测试 DEX 直接引用 androidx.sqlite.SQLite，主 APK 自身未使用时会被 R8 删除。
 -keep class androidx.sqlite.SQLite { *; }
+# DEX ABI 对照发现独立测试 APK 还调用 MigrationContainer 的迁移集合方法，
+# 并使用 InvalidationTracker 的 Map 构造器；避免应用 R8 删除或特化这些测试入口。
+-keep class androidx.room.RoomDatabase$MigrationContainer { *; }
+-keep class androidx.room.InvalidationTracker { *; }
