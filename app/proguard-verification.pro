@@ -74,3 +74,7 @@
 -keep class androidx.room.RoomOpenDelegate** { *; }
 # MigrationTestHelper 构造历史 SQLite 数据库时读取 Configuration.Companion。
 -keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration** { *; }
+# 归档测试直接调用 FileRepository 的事务对象；迁移测试使用 SQLite 桥接驱动。
+-keep class me.kafuuneko.rpclient.libs.room.repository.FileRepository$Mutation { *; }
+-keep class androidx.sqlite.driver.** { *; }
+-keep interface androidx.sqlite.driver.** { *; }
