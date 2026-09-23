@@ -81,3 +81,7 @@
 # MigrationTestHelper 从独立测试 APK 调用 Room 连接管理器；应用 R8 单独运行时
 # 看不到该引用，需保留其 DriverWrapper 和外部类的原始 ABI（仅 verification）。
 -keep class androidx.room.BaseRoomConnectionManager** { *; }
+# MigrationTestHelper 的测试 APK 子类覆盖 SupportSQLiteOpenHelper.Callback 的方法，
+# 应用 R8 不能将 onCreate/onOpen 的 SupportSQLiteDatabase 参数特化成 FrameworkSQLiteDatabase。
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Callback { *; }
+-keep interface androidx.sqlite.db.SupportSQLiteDatabase { *; }
