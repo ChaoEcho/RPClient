@@ -65,3 +65,8 @@
 -keep interface me.kafuuneko.rpclient.libs.room.MutableDao { *; }
 -keep class androidx.lifecycle.ViewModelProvider** { *; }
 -keep class androidx.arch.core.executor.ArchTaskExecutor { *; }
+# 真实 ViewModel 继续混淆；只保持设备冒烟测试读取的 UiState 和 Room 配置构造器。
+-keep class me.kafuuneko.rpclient.feature.main.presentation.MainUiState** { *; }
+-keep class me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState { *; }
+-keep class me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState { *; }
+-keep class androidx.room.DatabaseConfiguration { *; }

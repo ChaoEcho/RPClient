@@ -125,8 +125,14 @@ jobs:
                   for failure in case:
                       if failure.tag in ("failure", "error"):
                           cause = (failure.text or failure.get("message") or "").strip().splitlines()
-                          failures[(case.get("classname", "unknown").rsplit(".", 1)[-1],
-                                    cause[0][:160] if cause else failure.tag)] += 1
+                          source_lines = (failure.text or "").splitlines()
+                          app_frame = next((line.strip() for line in source_lines[1:]
+                                            if "at me.kafuuneko.rpclient." in line), "")
+                          reason = (cause[0][:230] if cause else failure.tag)
+                          if app_frame:
+                              reason += " | " + app_frame[:150]
+                          test_name = case.get("classname", "unknown").rsplit(".", 1)[-1]
+                          failures[(test_name + "#" + case.get("name", "unknown"), reason)] += 1
           lines = [f"Device test report: {totals}; XML files: {len(reports)}"]
           lines.extend(f"{name}: {cause} ({count})" for (name, cause), count in sorted(failures.items()))
           print("\n".join(lines))
