@@ -126,10 +126,15 @@ jobs:
                       if failure.tag in ("failure", "error"):
                           cause = (failure.text or "").strip().splitlines()
                           failures[(case.get("classname", "unknown").rsplit(".", 1)[-1],
-                                    cause[0].split(":", 1)[0][:90] if cause else failure.tag)] += 1
+                                    cause[0][:160] if cause else failure.tag)] += 1
           lines = [f"Device test report: {totals}; XML files: {len(reports)}"]
           lines.extend(f"{name}: {cause} ({count})" for (name, cause), count in sorted(failures.items()))
           print("\n".join(lines))
+          print(f"::notice title=Device test counts::tests={totals['tests']} "
+                f"failures={totals['failures']} errors={totals['errors']} skipped={totals['skipped']}")
+          for (name, cause), count in sorted(failures.items()):
+              safe_cause = cause.replace("%", "%25").replace("\r", " ").replace("\n", " ")
+              print(f"::error title=Device test {name}::{safe_cause} ({count} failures)")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if summary:
               with open(summary, "a", encoding="utf-8") as output:
