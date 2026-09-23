@@ -43,3 +43,13 @@
 -keep class me.kafuuneko.rpclient.libs.AppModel { *; }
 -keep class me.kafuuneko.rpclient.libs.theme.AppThemeMode** { *; }
 -keep class me.kafuuneko.rpclient.libs.theme.AppThemeManager { *; }
+# 测试进程还会直接触达应用 APK 内的 Kotlin 状态盒、调度器、Koin 和迁移夹具。
+# 这些保留仅服务于独立测试 APK；正式 Release 仍使用原有精确业务规则。
+-keep class kotlin.Result** { *; }
+-keep class kotlin.coroutines.jvm.internal.Boxing { *; }
+-keep class kotlinx.coroutines.Dispatchers { *; }
+-keep class org.koin.core.context.GlobalContext { *; }
+-keep class org.koin.core.Koin { *; }
+-keep class com.google.gson.JsonParser { *; }
+-keep class androidx.room.migration.bundle.** { *; }
+-keep class kotlinx.serialization.** { *; }
