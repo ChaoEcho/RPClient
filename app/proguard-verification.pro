@@ -25,3 +25,21 @@
 # 测试直接关闭 Room 数据库；主 APK 自身没有该调用时 R8 不能删除这一 ABI。
 -keep class androidx.room.RoomDatabase { *; }
 -keep class me.kafuuneko.rpclient.libs.room.AppDatabase { *; }
+# 设备测试是独立 APK，直接调用应用的 DAO 和仓库；保持这些测试可见的 ABI。
+# 只影响 verification，主页面的 ViewModel/Intent 仍由业务 R8 规则决定。
+-keep class androidx.room.util.** { *; }
+-keep interface me.kafuuneko.rpclient.libs.room.dao.** { *; }
+-keep class me.kafuuneko.rpclient.libs.room.dao.** { *; }
+-keep class me.kafuuneko.rpclient.libs.room.repository.FileRepository { *; }
+-keep class me.kafuuneko.rpclient.libs.room.repository.ChatRepository { *; }
+-keep class me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository { *; }
+-keep class me.kafuuneko.rpclient.libs.media.MessageImageRuntime { *; }
+-keep class me.kafuuneko.rpclient.libs.chat.ChatArchive** { *; }
+-keep class me.kafuuneko.rpclient.libs.backup.BackupRepository { *; }
+-keep class me.kafuuneko.rpclient.libs.backup.BackupCodec { *; }
+-keep class me.kafuuneko.rpclient.libs.backup.BackupCrypto { *; }
+-keep class me.kafuuneko.rpclient.libs.backup.RestoreJournal { *; }
+-keep class me.kafuuneko.rpclient.libs.generation.DataMaintenanceKt { *; }
+-keep class me.kafuuneko.rpclient.libs.AppModel { *; }
+-keep class me.kafuuneko.rpclient.libs.theme.AppThemeMode** { *; }
+-keep class me.kafuuneko.rpclient.libs.theme.AppThemeManager { *; }
