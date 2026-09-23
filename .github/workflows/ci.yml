@@ -124,7 +124,7 @@ jobs:
               for case in suite.iter("testcase"):
                   for failure in case:
                       if failure.tag in ("failure", "error"):
-                          cause = (failure.text or "").strip().splitlines()
+                          cause = (failure.text or failure.get("message") or "").strip().splitlines()
                           failures[(case.get("classname", "unknown").rsplit(".", 1)[-1],
                                     cause[0][:160] if cause else failure.tag)] += 1
           lines = [f"Device test report: {totals}; XML files: {len(reports)}"]

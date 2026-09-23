@@ -53,3 +53,11 @@
 -keep class com.google.gson.JsonParser { *; }
 -keep class androidx.room.migration.bundle.** { *; }
 -keep class kotlinx.serialization.** { *; }
+# 独立测试用到的个别依赖 API 不在主应用的可达调用图内；仍仅在 verification 保留。
+-keep class org.koin.core.registry.ScopeRegistry { *; }
+-keep class org.koin.core.scope.Scope { *; }
+-keep class me.kafuuneko.rpclient.libs.backup.BackupContract { *; }
+-keep class com.google.gson.JsonObject { *; }
+-keep class kotlin.Pair { *; }
+-keep class kotlin.jvm.internal.FunctionReferenceImpl { *; }
+-keep interface kotlinx.coroutines.CompletableDeferred { *; }
