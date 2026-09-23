@@ -61,3 +61,7 @@
 -keep class kotlin.Pair { *; }
 -keep class kotlin.jvm.internal.FunctionReferenceImpl { *; }
 -keep interface kotlinx.coroutines.CompletableDeferred { *; }
+# 测试侧直接调用父 DAO 的批量插入，以及 Lifecycle/Room 测试夹具的运行时入口。
+-keep interface me.kafuuneko.rpclient.libs.room.MutableDao { *; }
+-keep class androidx.lifecycle.ViewModelProvider** { *; }
+-keep class androidx.arch.core.executor.ArchTaskExecutor { *; }
