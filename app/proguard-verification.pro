@@ -70,3 +70,5 @@
 -keep class me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState { *; }
 -keep class me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState { *; }
 -keep class androidx.room.DatabaseConfiguration { *; }
+# MigrationTestHelper 会从独立测试 APK 调用 RoomOpenDelegate 的历史构造器。
+-keep class androidx.room.RoomOpenDelegate** { *; }

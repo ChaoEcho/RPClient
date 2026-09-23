@@ -117,6 +117,7 @@ jobs:
           reports = list(Path("app/build/outputs/androidTest-results/connected").rglob("TEST-*.xml"))
           totals = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
           failures = Counter()
+          examples = {}
           for report in reports:
               suite = ET.parse(report).getroot()
               for key in totals:
@@ -132,15 +133,19 @@ jobs:
                           if app_frame:
                               reason += " | " + app_frame[:150]
                           test_name = case.get("classname", "unknown").rsplit(".", 1)[-1]
-                          failures[(test_name + "#" + case.get("name", "unknown"), reason)] += 1
+                          key = (test_name, reason)
+                          failures[key] += 1
+                          examples.setdefault(key, case.get("name", "unknown"))
           lines = [f"Device test report: {totals}; XML files: {len(reports)}"]
-          lines.extend(f"{name}: {cause} ({count})" for (name, cause), count in sorted(failures.items()))
+          lines.extend(f"{name}#{examples[(name, cause)]}: {cause} ({count})"
+                       for (name, cause), count in sorted(failures.items()))
           print("\n".join(lines))
           print(f"::notice title=Device test counts::tests={totals['tests']} "
                 f"failures={totals['failures']} errors={totals['errors']} skipped={totals['skipped']}")
           for (name, cause), count in sorted(failures.items()):
               safe_cause = cause.replace("%", "%25").replace("\r", " ").replace("\n", " ")
-              print(f"::error title=Device test {name}::{safe_cause} ({count} failures)")
+              print(f"::error title=Device test {name}::{safe_cause} "
+                    f"(example {examples[(name, cause)]}, {count} failures)")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if summary:
               with open(summary, "a", encoding="utf-8") as output:
