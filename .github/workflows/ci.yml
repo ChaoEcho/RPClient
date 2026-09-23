@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, verify/r8-acceptance-20260922]
   workflow_dispatch:
 
 permissions:
@@ -105,6 +105,40 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: bash -o pipefail -c './gradlew --no-daemon -PtestBuildType=${{ matrix.variant }} :app:${{ matrix.task }} ${{ matrix.filter }} 2>&1 | tee "$RUNNER_TEMP/device-build.log"'
+      - name: Report device test counts
+        if: ${{ !cancelled() }}
+        run: |
+          python3 - <<'PYTEST'
+          from collections import Counter
+          from pathlib import Path
+          import os
+          import xml.etree.ElementTree as ET
+
+          reports = list(Path("app/build/outputs/androidTest-results/connected").rglob("TEST-*.xml"))
+          totals = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
+          failures = Counter()
+          for report in reports:
+              suite = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(suite.get(key, 0))
+              for case in suite.iter("testcase"):
+                  for failure in case:
+                      if failure.tag in ("failure", "error"):
+                          cause = (failure.text or "").strip().splitlines()
+                          failures[(case.get("classname", "unknown").rsplit(".", 1)[-1],
+                                    cause[0].split(":", 1)[0][:90] if cause else failure.tag)] += 1
+          lines = [f"Device test report: {totals}; XML files: {len(reports)}"]
+          lines.extend(f"{name}: {cause} ({count})" for (name, cause), count in sorted(failures.items()))
+          print("\n".join(lines))
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as output:
+                  output.write("## Device test counts\n\n" + "\n".join(lines) + "\n")
+          if not reports or not totals["tests"]:
+              raise SystemExit("No Android device tests ran")
+          if totals["failures"] or totals["errors"]:
+              raise SystemExit("Android device tests reported failures")
+          PYTEST
       - uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
