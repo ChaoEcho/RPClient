@@ -12,24 +12,30 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import me.kafuuneko.rpclient.libs.chat.generation.ChatGenerationCoordinator
 import me.kafuuneko.rpclient.libs.chat.generation.ChatImageGenerationCoordinator
+import me.kafuuneko.rpclient.libs.generation.AiTaskForegroundController
 import org.koin.android.ext.android.inject
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.MainActivity
 
 /** Notification-only foreground service for already submitted single-chat text and image tasks. */
 class AiGenerationForegroundService : Service() {
+    private val foregroundController by inject<AiTaskForegroundController>()
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val count = intent?.getIntExtra(EXTRA_TASK_COUNT, 0) ?: 0
-        if (count <= 0) {
+        // 即使系统交付空 Intent，也先履行前台启动约定再退出，不能留下未完成的晋升。
+        ensureNotificationChannel()
+        startForeground(NOTIFICATION_ID, buildNotification(count.coerceAtLeast(1)))
+        val serial = intent?.getLongExtra(EXTRA_START_SERIAL, 0L) ?: 0L
+        if (count <= 0 || serial <= 0L) {
             stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            stopSelfResult(startId)
             return START_NOT_STICKY
         }
 
-        ensureNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(count))
+        foregroundController.onServiceForeground(serial)
         return START_NOT_STICKY
     }
 
@@ -79,14 +85,18 @@ class AiGenerationForegroundService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_TASK_COUNT = "task_count"
 
-        fun update(context: Context, taskCount: Int) {
+        private const val EXTRA_START_SERIAL = "start_serial"
+
+        fun start(context: Context, taskCount: Int, serial: Long) {
+            require(taskCount > 0)
             val intent = Intent(context, AiGenerationForegroundService::class.java)
                 .putExtra(EXTRA_TASK_COUNT, taskCount)
-            if (taskCount > 0) {
-                ContextCompat.startForegroundService(context, intent)
-            } else {
-                context.stopService(intent)
-            }
+                .putExtra(EXTRA_START_SERIAL, serial)
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, AiGenerationForegroundService::class.java))
         }
     }
 }

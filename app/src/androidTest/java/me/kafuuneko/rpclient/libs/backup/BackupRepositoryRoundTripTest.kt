@@ -74,10 +74,13 @@ class BackupRepositoryRoundTripTest {
     @After
     fun tearDown() {
         DataMaintenance.barrier.recovered()
-        AppModel.userName = originalUserName
-        AppModel.llmDefaultProvidersInitialized = originalDefaultProvidersInitialized
-        database.close()
-        isolatedRoot.deleteRecursively()
+        // 初始化中途失败时仍清理已创建的资源，不要用 lateinit 异常覆盖根因。
+        if (this::originalUserName.isInitialized) {
+            AppModel.userName = originalUserName
+            AppModel.llmDefaultProvidersInitialized = originalDefaultProvidersInitialized
+        }
+        if (this::database.isInitialized) database.close()
+        if (this::isolatedRoot.isInitialized) isolatedRoot.deleteRecursively()
     }
 
     @Test

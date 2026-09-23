@@ -78,8 +78,9 @@ class ChatArchiveRepositoryTest {
 
     @After
     fun tearDown() {
-        database.close()
-        directory.deleteRecursively()
+        // setUp 失败时避免未初始化的字段掩盖真正的迁移或运行时错误。
+        if (this::database.isInitialized) database.close()
+        if (this::directory.isInitialized) directory.deleteRecursively()
     }
 
     /** 导入图片后分支保留角色及附件顺序，任一侧删除都不能破坏另一侧的共享文件。 */

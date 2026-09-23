@@ -13,3 +13,8 @@
 # 完整恢复设备测试直接访问应用级准入对象；保持其方法的调用类型和签名。
 -keep class me.kafuuneko.rpclient.libs.generation.DataMaintenance { *; }
 -keep class me.kafuuneko.rpclient.libs.generation.DataOperationBarrier { *; }
+# 测试协程和 Room 历史迁移直接调用的入口不会被主 APK 的 R8 可达性分析看到。
+-keep class kotlin.coroutines.intrinsics.IntrinsicsKt** { *; }
+-keep class androidx.room.Room { *; }
+-keep class androidx.room.RoomDatabase$Builder { *; }
+-keep class androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory { *; }
