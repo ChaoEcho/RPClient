@@ -85,3 +85,5 @@
 # 应用 R8 不能将 onCreate/onOpen 的 SupportSQLiteDatabase 参数特化成 FrameworkSQLiteDatabase。
 -keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Callback { *; }
 -keep interface androidx.sqlite.db.SupportSQLiteDatabase { *; }
+# 迁移夹具的独立测试 DEX 直接引用 androidx.sqlite.SQLite，主 APK 自身未使用时会被 R8 删除。
+-keep class androidx.sqlite.SQLite { *; }
