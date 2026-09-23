@@ -78,3 +78,6 @@
 -keep class me.kafuuneko.rpclient.libs.room.repository.FileRepository$Mutation { *; }
 -keep class androidx.sqlite.driver.** { *; }
 -keep interface androidx.sqlite.driver.** { *; }
+# MigrationTestHelper 从独立测试 APK 调用 Room 连接管理器；应用 R8 单独运行时
+# 看不到该引用，需保留其 DriverWrapper 和外部类的原始 ABI（仅 verification）。
+-keep class androidx.room.BaseRoomConnectionManager** { *; }
