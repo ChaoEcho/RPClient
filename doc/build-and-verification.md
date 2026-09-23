@@ -65,7 +65,7 @@ git diff --check
 ./gradlew --no-daemon -PtestBuildType=verification :app:connectedVerificationAndroidTest
 ```
 
-`proguard-verification.pro` 仅保留测试运行器共享的 tracing 与 Kotlin Lazy 入口；`proguard-verification-tests.pro` 仅用于测试 APK 的反射入口。两者均不加入正式 Release，不通过关闭业务混淆修复测试运行器。
+`proguard-verification.pro` 仅用于 verification 应用 APK，保留独立测试 APK 直接调用的 tracing、Kotlin、Room / SQLite 和测试可见业务 ABI；`proguard-verification-tests.pro` 仅用于测试 APK 的反射入口。两者均不加入正式 Release，verification 中业务 ViewModel 仍经 R8 混淆，不通过关闭应用混淆修复测试运行器。
 
 CI 在 API 26 / 35 上对该包运行真实 MainViewModel 的反射 Intent 分发、备份恢复、图片归档和历史迁移测试。配置进入仓库不代表已通过；以对应提交的设备报告为准。
 
