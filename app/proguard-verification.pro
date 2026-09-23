@@ -18,3 +18,10 @@
 -keep class androidx.room.Room { *; }
 -keep class androidx.room.RoomDatabase$Builder { *; }
 -keep class androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory { *; }
+# 测试 APK 的协程与迁移夹具会调用更多 Kotlin 顶层函数，主 APK 单独优化时需保留文件门面。
+# 仅匹配 Kotlin/协程库的 *Kt 文件门面，不保留 RPClient 业务类或正式 Release。
+-keep class kotlin.**Kt* { *; }
+-keep class kotlinx.coroutines.**Kt* { *; }
+# 测试直接关闭 Room 数据库；主 APK 自身没有该调用时 R8 不能删除这一 ABI。
+-keep class androidx.room.RoomDatabase { *; }
+-keep class me.kafuuneko.rpclient.libs.room.AppDatabase { *; }
