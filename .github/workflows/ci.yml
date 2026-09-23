@@ -118,6 +118,7 @@ jobs:
           totals = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
           failures = Counter()
           examples = {}
+          frames = {}
           for report in reports:
               suite = ET.parse(report).getroot()
               for key in totals:
@@ -129,13 +130,13 @@ jobs:
                           source_lines = (failure.text or "").splitlines()
                           app_frame = next((line.strip() for line in source_lines[1:]
                                             if "at me.kafuuneko.rpclient." in line), "")
-                          reason = (cause[0][:230] if cause else failure.tag)
-                          if app_frame:
-                              reason += " | " + app_frame[:150]
+                          reason = (cause[0].split(" (declaration of", 1)[0][:230]
+                                    if cause else failure.tag)
                           test_name = case.get("classname", "unknown").rsplit(".", 1)[-1]
                           key = (test_name, reason)
                           failures[key] += 1
                           examples.setdefault(key, case.get("name", "unknown"))
+                          frames.setdefault(key, app_frame[:150])
           lines = [f"Device test report: {totals}; XML files: {len(reports)}"]
           lines.extend(f"{name}#{examples[(name, cause)]}: {cause} ({count})"
                        for (name, cause), count in sorted(failures.items()))
@@ -145,7 +146,8 @@ jobs:
           for (name, cause), count in sorted(failures.items()):
               safe_cause = cause.replace("%", "%25").replace("\r", " ").replace("\n", " ")
               print(f"::error title=Device test {name}::{safe_cause} "
-                    f"(example {examples[(name, cause)]}, {count} failures)")
+                    f"(example {examples[(name, cause)]}, {count} failures) "
+                    f"{frames[(name, cause)]}")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if summary:
               with open(summary, "a", encoding="utf-8") as output:

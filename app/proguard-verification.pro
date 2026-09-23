@@ -72,3 +72,5 @@
 -keep class androidx.room.DatabaseConfiguration { *; }
 # MigrationTestHelper 会从独立测试 APK 调用 RoomOpenDelegate 的历史构造器。
 -keep class androidx.room.RoomOpenDelegate** { *; }
+# MigrationTestHelper 构造历史 SQLite 数据库时读取 Configuration.Companion。
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration** { *; }
